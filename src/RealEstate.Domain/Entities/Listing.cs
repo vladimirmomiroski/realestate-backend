@@ -20,9 +20,13 @@ public class Listing
 
     public decimal? Rooms { get; set; }
 
+    public decimal? Bathrooms { get; set; }
+
     public int? Floor { get; set; }
 
     public int? TotalFloors { get; set; }
+
+    public int? YearBuilt { get; set; }
 
     public decimal? Latitude { get; set; }
 

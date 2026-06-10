@@ -43,6 +43,11 @@ public class ListingConfiguration : IEntityTypeConfiguration<Listing>
         builder.Property(listing => listing.Rooms)
             .HasPrecision(4, 1);
 
+        builder.Property(listing => listing.Bathrooms)
+            .HasPrecision(4, 1);
+
+        builder.Property(listing => listing.YearBuilt);
+
         builder.Property(listing => listing.Latitude)
             .HasPrecision(9, 6);
 
