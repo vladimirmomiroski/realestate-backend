@@ -17,7 +17,7 @@ public sealed class GetListingsHandler
         string languageCode,
         CancellationToken cancellationToken)
     {
-        var listings = await _listingRepository.GetAllAsync(cancellationToken);
+        var listings = await _listingRepository.GetAllReadOnlyAsync(cancellationToken);
 
         return listings
             .Select(listing => listing.ToResponse(languageCode))

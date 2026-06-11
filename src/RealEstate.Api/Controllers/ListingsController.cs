@@ -11,6 +11,9 @@ namespace RealEstate.Api.Controllers;
 [Route("api/listings")]
 public sealed class ListingsController : ControllerBase
 {
+
+    private const string GetListingByIdRouteName = "GetListingById";
+
     private readonly CreateListingHandler _createListingHandler;
     private readonly GetListingsHandler _getListingsHandler;
     private readonly GetListingByIdHandler _getListingByIdHandler;
@@ -37,9 +40,9 @@ public sealed class ListingsController : ControllerBase
             return BadRequest(result.Error);
         }
 
-        return CreatedAtAction(
-            nameof(GetListingById),
-            new { id = result.Value!.Id },
+        return CreatedAtRoute(
+            GetListingByIdRouteName,
+            new { id = result.Value!.Id, lang = result.Value.LanguageCode ?? "mk" },
             result.Value);
     }
 
@@ -53,7 +56,7 @@ public sealed class ListingsController : ControllerBase
         return Ok(listings);
     }
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("{id:guid}", Name = GetListingByIdRouteName)]
     public async Task<ActionResult<ListingResponse>> GetListingById(
         Guid id,
         [FromQuery] string lang = "mk",

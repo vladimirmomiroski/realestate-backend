@@ -1,15 +1,13 @@
 using System.Text.Json.Serialization;
-using RealEstate.Application.Listings.Commands.CreateListing;
-using RealEstate.Application.Listings.Queries.GetListingById;
-using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Infrastructure;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Services
-builder.Services.AddOpenApi();
 
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers()
@@ -18,10 +16,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-builder.Services.AddScoped<CreateListingValidator>();
-builder.Services.AddScoped<CreateListingHandler>();
-builder.Services.AddScoped<GetListingsHandler>();
-builder.Services.AddScoped<GetListingByIdHandler>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

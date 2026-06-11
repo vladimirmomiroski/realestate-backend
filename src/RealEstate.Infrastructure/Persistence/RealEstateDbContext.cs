@@ -8,9 +8,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     : DbContext(options)
 {
 
-    public DbSet<Listing> Listings { get; set; }
-
-    public DbSet<ListingTranslation> ListingTranslations { get; set; }
+    public DbSet<Listing> Listings => Set<Listing>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

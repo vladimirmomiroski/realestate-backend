@@ -19,7 +19,7 @@ public sealed class GetListingByIdHandler
         string languageCode,
         CancellationToken cancellationToken)
     {
-        var listing = await _listingRepository.GetByIdAsync(id, cancellationToken);
+        var listing = await _listingRepository.GetByIdReadOnlyAsync(id, cancellationToken);
 
         if (listing is null)
         {

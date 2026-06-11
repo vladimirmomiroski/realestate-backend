@@ -62,7 +62,9 @@ public sealed class CreateListingHandler
 
         await _listingRepository.CreateAsync(listing, cancellationToken);
 
-        var response = listing.ToResponse("mk");
+        var preferredLanguageCode = NormalizeLanguageCode(request.Translations.First().LanguageCode);
+
+        var response = listing.ToResponse(preferredLanguageCode);
 
         return ServiceResult<ListingResponse>.Success(response);
     }
