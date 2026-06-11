@@ -1,12 +1,14 @@
 ﻿using RealEstate.Domain.Enums;
 
-namespace RealEstate.Application.Listings.Dtos;
+namespace RealEstate.Application.Listings.Commands.CreateListing;
 
 public sealed class CreateListingRequest
 {
     public ListingType ListingType { get; set; }
 
     public PropertyType PropertyType { get; set; }
+
+    public ListingStatus Status { get; set; }
 
     public decimal Price { get; set; }
 
@@ -28,5 +30,6 @@ public sealed class CreateListingRequest
 
     public decimal? Longitude { get; set; }
 
-    public List<CreateListingTranslationRequest> Translations { get; set; } = [];
+    public List<CreateListingTranslationRequest> Translations { get; set; } =
+        new List<CreateListingTranslationRequest>();
 }

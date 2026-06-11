@@ -10,6 +10,8 @@ public sealed class ListingResponse
 
     public PropertyType PropertyType { get; set; }
 
+    public ListingStatus Status { get; set; }
+
     public decimal Price { get; set; }
 
     public string Currency { get; set; } = default!;
