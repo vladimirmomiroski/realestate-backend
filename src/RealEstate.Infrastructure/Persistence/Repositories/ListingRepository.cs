@@ -20,7 +20,7 @@ public sealed class ListingRepository : IListingRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Listing>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Listing>> GetAllReadOnlyAsync(CancellationToken cancellationToken)
     {
         return await _dbContext.Listings
             .AsNoTracking()
@@ -29,7 +29,7 @@ public sealed class ListingRepository : IListingRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Listing?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken)
     {
         return await _dbContext.Listings
             .AsNoTracking()

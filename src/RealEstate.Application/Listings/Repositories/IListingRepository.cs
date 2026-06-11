@@ -6,7 +6,7 @@ public interface IListingRepository
 {
     Task CreateAsync(Listing listing, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<Listing>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<Listing>> GetAllReadOnlyAsync(CancellationToken cancellationToken);
 
-    Task<Listing?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken);
 }
