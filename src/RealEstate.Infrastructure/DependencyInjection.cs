@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Application.Listings.Repositories;
+using RealEstate.Infrastructure.Persistence.Repositories;
 
 namespace RealEstate.Infrastructure;
 
@@ -17,6 +19,8 @@ public static class DependencyInjection
 
         services.AddDbContext<RealEstateDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddScoped<IListingRepository, ListingRepository>();
 
         return services;
     }

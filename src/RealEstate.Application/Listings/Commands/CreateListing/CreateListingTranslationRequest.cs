@@ -1,4 +1,4 @@
-﻿namespace RealEstate.Application.Listings.Dtos;
+﻿namespace RealEstate.Application.Listings.Commands.CreateListing;
 
 public sealed class CreateListingTranslationRequest
 {
