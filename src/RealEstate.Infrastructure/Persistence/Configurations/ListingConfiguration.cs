@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using RealEstate.Domain.Entities;
-using System.Reflection;
 
 namespace RealEstate.Infrastructure.Persistence.Configurations;
 
@@ -56,6 +55,8 @@ public class ListingConfiguration : IEntityTypeConfiguration<Listing>
 
         builder.Property(listing => listing.CreatedAtUtc)
             .IsRequired();
+
+        builder.Property(listing => listing.ModifiedAtUtc);
 
         builder.HasMany(listing => listing.Translations)
             .WithOne(translation => translation.Listing)

@@ -1,8 +1,9 @@
 ﻿using RealEstate.Domain.Enums;
+using RealEstate.Domain.Common;
 
 namespace RealEstate.Domain.Entities;
 
-public class Listing
+public class Listing : IAuditableEntity
 {
     public Guid Id { get; set; }
 
@@ -34,9 +35,9 @@ public class Listing
 
     public DateTime CreatedAtUtc { get; set; }
 
-    public DateTime? UpdatedAtUtc { get; set; }
+    public DateTime? ModifiedAtUtc { get; set; }
 
-     public ICollection<ListingTranslation> Translations { get; set; } =
+    public ICollection<ListingTranslation> Translations { get; set; } =
         new List<ListingTranslation>();
 
     public decimal CalculatePricePerSquareMeter()

@@ -46,8 +46,7 @@ public sealed class CreateListingHandler
             TotalFloors = request.TotalFloors,
             YearBuilt = request.YearBuilt,
             Latitude = request.Latitude,
-            Longitude = request.Longitude,
-            CreatedAtUtc = DateTime.UtcNow,
+            Longitude = request.Longitude,   
             Translations = request.Translations.Select(translation => new ListingTranslation
             {
                 Id = Guid.NewGuid(),
