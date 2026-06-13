@@ -46,18 +46,41 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
-    public async Task GetListings_ReturnsListings()
+    public async Task GetListings_ReturnsPagedListings()
     {
         await CreateListingAsync();
 
-        var response = await _httpClient.GetAsync("/api/listings?lang=en");
+        var response = await _httpClient.GetAsync("/api/listings?lang=en&page=1&pageSize=20");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        json.ValueKind.Should().Be(JsonValueKind.Array);
-        json.GetArrayLength().Should().BeGreaterThan(0);
+        json.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
+        json.GetProperty("items").GetArrayLength().Should().BeGreaterThan(0);
+
+        json.GetProperty("page").GetInt32().Should().Be(1);
+        json.GetProperty("pageSize").GetInt32().Should().Be(20);
+        json.GetProperty("totalCount").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task GetListings_WithPriceFilter_ReturnsMatchingListings()
+    {
+        await CreateListingAsync();
+
+        var response = await _httpClient.GetAsync(
+            "/api/listings?lang=en&minPrice=90000&maxPrice=100000&page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("items").GetArrayLength().Should().BeGreaterThan(0);
+
+        var firstListing = json.GetProperty("items")[0];
+
+        firstListing.GetProperty("price").GetDecimal().Should().BeInRange(90000, 100000);
     }
 
     [Fact]

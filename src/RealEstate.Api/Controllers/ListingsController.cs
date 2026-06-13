@@ -4,6 +4,7 @@ using RealEstate.Application.Listings.Commands.CreateListing;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Api.Controllers;
 
@@ -47,11 +48,32 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ListingResponse>>> GetListings(
-        [FromQuery] string lang = "mk",
-        CancellationToken cancellationToken = default)
+    public async Task<ActionResult<PagedResponse<ListingResponse>>> GetListings(
+    [FromQuery] string lang = "mk",
+    [FromQuery] ListingType? listingType = null,
+    [FromQuery] PropertyType? propertyType = null,
+    [FromQuery] decimal? minPrice = null,
+    [FromQuery] decimal? maxPrice = null,
+    [FromQuery] string? city = null,
+    [FromQuery] string? neighborhood = null,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
     {
-        var listings = await _getListingsHandler.HandleAsync(lang, cancellationToken);
+        var query = new GetListingsQuery
+        {
+            LanguageCode = lang,
+            ListingType = listingType,
+            PropertyType = propertyType,
+            MinPrice = minPrice,
+            MaxPrice = maxPrice,
+            City = city,
+            Neighborhood = neighborhood,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        var listings = await _getListingsHandler.HandleAsync(query, cancellationToken);
 
         return Ok(listings);
     }
