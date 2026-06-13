@@ -1,15 +1,48 @@
-var builder = WebApplication.CreateBuilder(args);
+using System.Text.Json.Serialization;
+using RealEstate.Infrastructure;
+using RealEstate.Infrastructure.Persistence;
+using RealEstate.Application;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+var builder = WebApplication.CreateBuilder(args);
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
+
+// Services
+
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:3000",
+                "https://localhost:3000",
+                "http://localhost:5173",
+                "https://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.MapGet("/api/health", () => new
@@ -19,6 +52,18 @@ app.MapGet("/api/health", () => new
 })
 .WithName("GetHealth");
 
+app.MapGet("/api/health/database", async (RealEstateDbContext dbContext) =>
+{
+    var canConnect = await dbContext.Database.CanConnectAsync();
+
+    return Results.Ok(new
+    {
+        status = canConnect ? "ok" : "unavailable",
+        database = "PostgreSQL"
+    });
+})
+.WithName("GetDatabaseHealth");
+
+app.MapControllers();
 
 app.Run();
-
