@@ -40,6 +40,9 @@ public class Listing : IAuditableEntity
     public ICollection<ListingTranslation> Translations { get; set; } =
         new List<ListingTranslation>();
 
+    public ICollection<ListingImage> Images { get; set; } =
+    new List<ListingImage>();
+
     public decimal CalculatePricePerSquareMeter()
     {
         if (AreaSquareMeters <= 0)

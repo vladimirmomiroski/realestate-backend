@@ -29,6 +29,9 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("id").GetGuid().Should().NotBeEmpty();
         json.GetProperty("languageCode").GetString().Should().Be("en");
         json.GetProperty("title").GetString().Should().Be("Integration test apartment");
+        json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
+        json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
+        json.GetProperty("images").GetArrayLength().Should().Be(0);
     }
 
     [Fact]
@@ -80,6 +83,10 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
 
         var firstListing = json.GetProperty("items")[0];
 
+        firstListing.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
+        firstListing.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
+        firstListing.GetProperty("images").GetArrayLength().Should().Be(0);
+
         firstListing.GetProperty("price").GetDecimal().Should().BeInRange(90000, 100000);
     }
 
@@ -97,6 +104,9 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("id").GetGuid().Should().Be(listingId);
         json.GetProperty("languageCode").GetString().Should().Be("mk");
         json.GetProperty("title").GetString().Should().Be("Интеграциски тест стан");
+        json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
+        json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
+        json.GetProperty("images").GetArrayLength().Should().Be(0);
     }
 
     [Fact]

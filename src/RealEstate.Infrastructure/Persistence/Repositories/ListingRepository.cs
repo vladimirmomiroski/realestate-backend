@@ -28,7 +28,6 @@ public sealed class ListingRepository : IListingRepository
     {
         var listingsQuery = _dbContext.Listings
             .AsNoTracking()
-            .Include(listing => listing.Translations)
             .AsQueryable();
 
         if (query.ListingType.HasValue)
@@ -82,10 +81,13 @@ public sealed class ListingRepository : IListingRepository
         var totalCount = await listingsQuery.CountAsync(cancellationToken);
 
         var listings = await listingsQuery
-            .OrderByDescending(listing => listing.CreatedAtUtc)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+             .Include(listing => listing.Translations)
+             .Include(listing => listing.Images)
+             .AsSplitQuery()
+             .OrderByDescending(listing => listing.CreatedAtUtc)
+             .Skip((page - 1) * pageSize)
+             .Take(pageSize)
+             .ToListAsync(cancellationToken);
 
         return new PagedResult<Listing>(listings, totalCount);
     }
@@ -95,6 +97,8 @@ public sealed class ListingRepository : IListingRepository
         return await _dbContext.Listings
             .AsNoTracking()
             .Include(listing => listing.Translations)
+            .Include(listing => listing.Images)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(listing => listing.Id == id, cancellationToken);
     }
 }

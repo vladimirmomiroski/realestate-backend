@@ -45,4 +45,9 @@ public sealed class ListingResponse
     public string? City { get; set; }
 
     public string? Neighborhood { get; set; }
+
+    public string? PrimaryImageUrl { get; set; }
+
+    public List<ListingImageResponse> Images { get; set; } =
+        new List<ListingImageResponse>();
 }

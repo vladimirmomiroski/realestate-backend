@@ -14,6 +14,14 @@ public static class ListingMappingExtensions
                 translation.LanguageCode.Equals(normalizedLanguageCode, StringComparison.OrdinalIgnoreCase))
             ?? listing.Translations.FirstOrDefault();
 
+        var orderedImages = listing.Images
+            .OrderBy(image => image.SortOrder)
+            .ToList();
+
+        var primaryImageUrl = orderedImages
+            .FirstOrDefault(image => image.IsPrimary)?.Url
+            ?? orderedImages.FirstOrDefault()?.Url;
+
         return new ListingResponse
         {
             Id = listing.Id,
@@ -36,7 +44,19 @@ public static class ListingMappingExtensions
             Description = translation?.Description,
             AddressLine = translation?.AddressLine,
             City = translation?.City,
-            Neighborhood = translation?.Neighborhood
+            Neighborhood = translation?.Neighborhood,
+            PrimaryImageUrl = primaryImageUrl,
+            Images = orderedImages
+                .Select(image => new ListingImageResponse
+                {
+                    Id = image.Id,
+                    Url = image.Url,
+                    ContentType = image.ContentType,
+                    SizeBytes = image.SizeBytes,
+                    SortOrder = image.SortOrder,
+                    IsPrimary = image.IsPrimary
+                })
+                .ToList()
         };
     }
 
