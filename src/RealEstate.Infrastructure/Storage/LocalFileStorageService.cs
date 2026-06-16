@@ -50,4 +50,30 @@ public sealed class LocalFileStorageService : IFileStorageService
             file.Length,
             url);
     }
+
+    public Task DeleteListingImageAsync(
+    Guid listingId,
+    string storedFileName,
+    CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.RootPath))
+        {
+            throw new InvalidOperationException("Local file storage root path is not configured.");
+        }
+
+        var safeFileName = Path.GetFileName(storedFileName);
+
+        var filePath = Path.Combine(
+            _options.RootPath,
+            "listings",
+            listingId.ToString(),
+            safeFileName);
+
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        return Task.CompletedTask;
+    }
 }
