@@ -3,6 +3,9 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# Application runtime files
+src/RealEstate.Api/wwwroot/uploads/
+
 # dotenv files
 .env
 

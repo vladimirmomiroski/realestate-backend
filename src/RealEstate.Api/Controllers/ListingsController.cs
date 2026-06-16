@@ -5,6 +5,8 @@ using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
+using RealEstate.Application.Common.Files;
+using RealEstate.Application.Listings.Commands.UploadListingImage;
 
 namespace RealEstate.Api.Controllers;
 
@@ -18,18 +20,23 @@ public sealed class ListingsController : ControllerBase
     private readonly CreateListingHandler _createListingHandler;
     private readonly GetListingsHandler _getListingsHandler;
     private readonly GetListingByIdHandler _getListingByIdHandler;
+    private readonly UploadListingImageHandler _uploadListingImageHandler;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
         GetListingsHandler getListingsHandler,
-        GetListingByIdHandler getListingByIdHandler)
+        GetListingByIdHandler getListingByIdHandler,
+        UploadListingImageHandler uploadListingImageHandler)
     {
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
         _getListingByIdHandler = getListingByIdHandler;
+        _uploadListingImageHandler = uploadListingImageHandler;
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ListingResponse>> CreateListing(
         [FromBody] CreateListingRequest request,
         CancellationToken cancellationToken)
@@ -48,6 +55,7 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(PagedResponse<ListingResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<ListingResponse>>> GetListings(
     [FromQuery] string lang = "mk",
     [FromQuery] ListingType? listingType = null,
@@ -79,6 +87,8 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet("{id:guid}", Name = GetListingByIdRouteName)]
+    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ListingResponse>> GetListingById(
         Guid id,
         [FromQuery] string lang = "mk",
@@ -92,5 +102,46 @@ public sealed class ListingsController : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    [HttpPost("{id:guid}/images")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ListingImageResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadImage(
+    Guid id,
+    IFormFile? file,
+    CancellationToken cancellationToken)
+    {
+        using var stream = file?.OpenReadStream();
+
+        var uploadedFile = file is null
+            ? null
+            : new UploadedFile(
+                stream!,
+                file.FileName,
+                file.ContentType,
+                file.Length);
+
+        var result = await _uploadListingImageHandler.Handle(
+            new UploadListingImageCommand(id, uploadedFile),
+            cancellationToken);
+
+        if (result.Succeeded)
+        {
+            return Created($"/api/listings/{id}/images/{result.Image!.Id}", result.Image);
+        }
+
+        return result.Error switch
+        {
+            UploadListingImageError.ListingNotFound => NotFound(),
+            UploadListingImageError.FileMissing => BadRequest("Image file is required."),
+            UploadListingImageError.FileEmpty => BadRequest("Image file is empty."),
+            UploadListingImageError.FileTooLarge => BadRequest("Image file cannot be larger than 5 MB."),
+            UploadListingImageError.InvalidFileType => BadRequest("Only JPG, JPEG, PNG, and WEBP images are allowed."),
+            UploadListingImageError.ImageLimitReached => BadRequest("Listing cannot have more than 20 images."),
+            _ => BadRequest("Image upload failed.")
+        };
     }
 }

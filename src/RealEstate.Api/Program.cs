@@ -2,9 +2,23 @@ using System.Text.Json.Serialization;
 using RealEstate.Infrastructure;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Application;
+using RealEstate.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
+
+var webRootPath = builder.Environment.WebRootPath;
+
+if (string.IsNullOrWhiteSpace(webRootPath))
+{
+    webRootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+}
+
+builder.Services.Configure<LocalFileStorageOptions>(options =>
+{
+    options.RootPath = Path.Combine(webRootPath, "uploads");
+    options.PublicBasePath = "/uploads";
+});
 
 // Services
 
@@ -63,6 +77,8 @@ app.MapGet("/api/health/database", async (RealEstateDbContext dbContext) =>
     });
 })
 .WithName("GetDatabaseHealth");
+
+app.UseStaticFiles();
 
 app.MapControllers();
 

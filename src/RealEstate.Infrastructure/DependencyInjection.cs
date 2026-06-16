@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Infrastructure.Persistence.Repositories;
+using RealEstate.Application.Common.Storage;
+using RealEstate.Infrastructure.Storage;
 
 namespace RealEstate.Infrastructure;
 
@@ -21,6 +23,8 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString));
 
         services.AddScoped<IListingRepository, ListingRepository>();
+
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
         return services;
     }
