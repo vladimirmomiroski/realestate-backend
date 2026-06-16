@@ -8,4 +8,9 @@ public interface IFileStorageService
         Guid listingId,
         UploadedFile file,
         CancellationToken cancellationToken);
+
+    Task DeleteListingImageAsync(
+        Guid listingId,
+        string storedFileName,
+        CancellationToken cancellationToken);
 }

@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Application.Listings.Commands.CreateListing;
+using RealEstate.Application.Listings.Commands.DeleteListingImage;
+using RealEstate.Application.Listings.Commands.ReorderListingImages;
+using RealEstate.Application.Listings.Commands.SetPrimaryListingImage;
 using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
@@ -15,6 +18,9 @@ public static class DependencyInjection
         services.AddScoped<GetListingsHandler>();
         services.AddScoped<GetListingByIdHandler>();
         services.AddScoped<UploadListingImageHandler>();
+        services.AddScoped<DeleteListingImageHandler>();
+        services.AddScoped<SetPrimaryListingImageHandler>();
+        services.AddScoped<ReorderListingImagesHandler>();
 
         return services;
     }

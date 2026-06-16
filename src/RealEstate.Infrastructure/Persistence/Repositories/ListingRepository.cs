@@ -116,6 +116,11 @@ public sealed class ListingRepository : IListingRepository
         _dbContext.Set<ListingImage>().Add(image);
     }
 
+    public void RemoveListingImage(ListingImage image)
+    {
+        _dbContext.Set<ListingImage>().Remove(image);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         await _dbContext.SaveChangesAsync(cancellationToken);

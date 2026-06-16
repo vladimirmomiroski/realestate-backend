@@ -20,5 +20,7 @@ public interface IListingRepository
 
     void AddListingImage(ListingImage image);
 
+    void RemoveListingImage(ListingImage image);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

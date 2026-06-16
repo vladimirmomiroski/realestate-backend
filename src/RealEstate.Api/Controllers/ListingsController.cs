@@ -1,12 +1,15 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RealEstate.Application.Common;
+using RealEstate.Application.Common.Files;
 using RealEstate.Application.Listings.Commands.CreateListing;
+using RealEstate.Application.Listings.Commands.DeleteListingImage;
+using RealEstate.Application.Listings.Commands.ReorderListingImages;
+using RealEstate.Application.Listings.Commands.SetPrimaryListingImage;
+using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
-using RealEstate.Application.Common.Files;
-using RealEstate.Application.Listings.Commands.UploadListingImage;
 
 namespace RealEstate.Api.Controllers;
 
@@ -21,17 +24,26 @@ public sealed class ListingsController : ControllerBase
     private readonly GetListingsHandler _getListingsHandler;
     private readonly GetListingByIdHandler _getListingByIdHandler;
     private readonly UploadListingImageHandler _uploadListingImageHandler;
+    private readonly DeleteListingImageHandler _deleteListingImageHandler;
+    private readonly SetPrimaryListingImageHandler _setPrimaryListingImageHandler;
+    private readonly ReorderListingImagesHandler _reorderListingImagesHandler;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
         GetListingsHandler getListingsHandler,
         GetListingByIdHandler getListingByIdHandler,
-        UploadListingImageHandler uploadListingImageHandler)
+        UploadListingImageHandler uploadListingImageHandler,
+        DeleteListingImageHandler deleteListingImageHandler,
+        SetPrimaryListingImageHandler setPrimaryListingImageHandler,
+        ReorderListingImagesHandler reorderListingImagesHandler)
     {
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
         _getListingByIdHandler = getListingByIdHandler;
         _uploadListingImageHandler = uploadListingImageHandler;
+        _deleteListingImageHandler = deleteListingImageHandler;
+        _setPrimaryListingImageHandler = setPrimaryListingImageHandler;
+        _reorderListingImagesHandler = reorderListingImagesHandler;
     }
 
     [HttpPost]
@@ -142,6 +154,83 @@ public sealed class ListingsController : ControllerBase
             UploadListingImageError.InvalidFileType => BadRequest("Only JPG, JPEG, PNG, and WEBP images are allowed."),
             UploadListingImageError.ImageLimitReached => BadRequest("Listing cannot have more than 20 images."),
             _ => BadRequest("Image upload failed.")
+        };
+    }
+
+    [HttpDelete("{listingId:guid}/images/{imageId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteImage(
+    Guid listingId,
+    Guid imageId,
+    CancellationToken cancellationToken)
+    {
+        var result = await _deleteListingImageHandler.Handle(
+            new DeleteListingImageCommand(listingId, imageId),
+            cancellationToken);
+
+        if (result.Succeeded)
+        {
+            return NoContent();
+        }
+
+        return result.Error switch
+        {
+            DeleteListingImageError.ListingNotFound => NotFound("Listing was not found."),
+            DeleteListingImageError.ImageNotFound => NotFound("Image was not found."),
+            _ => BadRequest("Image delete failed.")
+        };
+    }
+
+    [HttpPut("{listingId:guid}/images/{imageId:guid}/primary")]
+    [ProducesResponseType(typeof(ListingImageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetPrimaryImage(
+    Guid listingId,
+    Guid imageId,
+    CancellationToken cancellationToken)
+    {
+        var result = await _setPrimaryListingImageHandler.Handle(
+            new SetPrimaryListingImageCommand(listingId, imageId),
+            cancellationToken);
+
+        if (result.Succeeded)
+        {
+            return Ok(result.Image);
+        }
+
+        return result.Error switch
+        {
+            SetPrimaryListingImageError.ListingNotFound => NotFound("Listing was not found."),
+            SetPrimaryListingImageError.ImageNotFound => NotFound("Image was not found."),
+            _ => BadRequest("Set primary image failed.")
+        };
+    }
+
+    [HttpPut("{listingId:guid}/images/order")]
+    [ProducesResponseType(typeof(List<ListingImageResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReorderImages(
+    Guid listingId,
+    [FromBody] ReorderListingImagesRequest request,
+    CancellationToken cancellationToken)
+    {
+        var result = await _reorderListingImagesHandler.Handle(
+            new ReorderListingImagesCommand(listingId, request.ImageIds),
+            cancellationToken);
+
+        if (result.Succeeded)
+        {
+            return Ok(result.Images);
+        }
+
+        return result.Error switch
+        {
+            ReorderListingImagesError.ListingNotFound => NotFound("Listing was not found."),
+            ReorderListingImagesError.ImageIdsMissing => BadRequest("Image ids are required."),
+            ReorderListingImagesError.ImageSetMismatch => BadRequest("Image ids must match the listing images."),
+            _ => BadRequest("Image reorder failed.")
         };
     }
 }
