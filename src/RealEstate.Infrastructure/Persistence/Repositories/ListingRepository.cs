@@ -101,4 +101,24 @@ public sealed class ListingRepository : IListingRepository
             .AsSplitQuery()
             .FirstOrDefaultAsync(listing => listing.Id == id, cancellationToken);
     }
+
+    public async Task<Listing?> GetByIdWithImagesForUpdateAsync(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Listings
+            .Include(listing => listing.Images)
+            .FirstOrDefaultAsync(listing => listing.Id == id, cancellationToken);
+    }
+
+    public void AddListingImage(ListingImage image)
+    {
+        _dbContext.Set<ListingImage>().Add(image);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
 }

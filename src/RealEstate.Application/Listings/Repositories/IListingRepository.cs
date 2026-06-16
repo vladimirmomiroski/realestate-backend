@@ -13,4 +13,12 @@ public interface IListingRepository
     CancellationToken cancellationToken);
 
     Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<Listing?> GetByIdWithImagesForUpdateAsync(
+    Guid id,
+    CancellationToken cancellationToken);
+
+    void AddListingImage(ListingImage image);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken);
 }

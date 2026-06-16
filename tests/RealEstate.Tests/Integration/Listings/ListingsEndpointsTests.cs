@@ -2,7 +2,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
-using RealEstate.Tests.Integration;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -18,7 +17,7 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task CreateListing_WithValidRequest_ReturnsCreated()
     {
-        var request = CreateValidListingRequest();
+        var request = ListingTestHelpers.CreateValidListingRequest();
 
         var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
@@ -37,7 +36,7 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task CreateListing_WithInvalidPrice_ReturnsBadRequest()
     {
-        var request = CreateValidListingRequest(price: 0);
+        var request = ListingTestHelpers.CreateValidListingRequest(price: 0);
 
         var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
@@ -51,7 +50,7 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task GetListings_ReturnsPagedListings()
     {
-        await CreateListingAsync();
+        await ListingTestHelpers.CreateListingAsync(_httpClient);
 
         var response = await _httpClient.GetAsync("/api/listings?lang=en&page=1&pageSize=20");
 
@@ -70,7 +69,7 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task GetListings_WithPriceFilter_ReturnsMatchingListings()
     {
-        await CreateListingAsync();
+        await ListingTestHelpers.CreateListingAsync(_httpClient);
 
         var response = await _httpClient.GetAsync(
             "/api/listings?lang=en&minPrice=90000&maxPrice=100000&page=1&pageSize=20");
@@ -93,7 +92,7 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task GetListingById_WithExistingListing_ReturnsListingInRequestedLanguage()
     {
-        var listingId = await CreateListingAsync();
+        var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
 
         var response = await _httpClient.GetAsync($"/api/listings/{listingId}?lang=mk");
 
@@ -117,58 +116,5 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         var response = await _httpClient.GetAsync($"/api/listings/{missingListingId}?lang=en");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    private async Task<Guid> CreateListingAsync()
-    {
-        var request = CreateValidListingRequest();
-
-        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
-
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-
-        return json.GetProperty("id").GetGuid();
-    }
-
-    private static object CreateValidListingRequest(decimal price = 99000)
-    {
-        return new
-        {
-            listingType = "Sale",
-            propertyType = "Apartment",
-            price,
-            currency = "EUR",
-            areaSquareMeters = 58,
-            rooms = 2,
-            bathrooms = 1,
-            floor = 2,
-            totalFloors = 5,
-            yearBuilt = 2015,
-            latitude = 41.9981,
-            longitude = 21.4254,
-            translations = new[]
-            {
-                new
-                {
-                    languageCode = "en",
-                    title = "Integration test apartment",
-                    description = "Test listing created from integration tests.",
-                    addressLine = "Center",
-                    city = "Skopje",
-                    neighborhood = "Center"
-                },
-                new
-                {
-                    languageCode = "mk",
-                    title = "Интеграциски тест стан",
-                    description = "Тест оглас креиран од integration tests.",
-                    addressLine = "Центар",
-                    city = "Скопје",
-                    neighborhood = "Центар"
-                }
-            }
-        };
     }
 }

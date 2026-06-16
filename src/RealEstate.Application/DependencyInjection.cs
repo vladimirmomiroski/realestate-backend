@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Application.Listings.Commands.CreateListing;
+using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<CreateListingHandler>();
         services.AddScoped<GetListingsHandler>();
         services.AddScoped<GetListingByIdHandler>();
+        services.AddScoped<UploadListingImageHandler>();
 
         return services;
     }
