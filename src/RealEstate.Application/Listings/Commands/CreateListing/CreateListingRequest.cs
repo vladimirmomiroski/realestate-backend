@@ -24,6 +24,24 @@ public sealed class CreateListingRequest
 
     public int? TotalFloors { get; set; }
 
+    public int? BalconyCount { get; set; }
+
+    public int? ParkingSpaces { get; set; }
+
+    public bool? HasBasement { get; set; }
+
+    public bool? IsExchangePossible { get; set; }
+
+    public HeatingType HeatingType { get; set; } = HeatingType.Unknown;
+
+    public FurnishingStatus FurnishingStatus { get; set; } = FurnishingStatus.Unknown;
+
+    public PropertyCondition Condition { get; set; } = PropertyCondition.Unknown;
+
+    public int? YearRenovated { get; set; }
+
+    public Orientation Orientation { get; set; } = Orientation.Unknown;
+
     public int? YearBuilt { get; set; }
 
     public decimal? Latitude { get; set; }

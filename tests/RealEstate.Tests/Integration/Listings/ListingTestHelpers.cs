@@ -31,6 +31,15 @@ internal static class ListingTestHelpers
             bathrooms = 1,
             floor = 2,
             totalFloors = 5,
+            balconyCount = 2,
+            parkingSpaces = 1,
+            hasBasement = true,
+            isExchangePossible = false,
+            heatingType = "Central",
+            furnishingStatus = "Furnished",
+            condition = "Good",
+            orientation = "SouthEast",
+            yearRenovated = 2022,
             yearBuilt = 2015,
             latitude = 41.9981,
             longitude = 21.4254,
@@ -43,6 +52,7 @@ internal static class ListingTestHelpers
                     description = "Test listing created from integration tests.",
                     addressLine = "Center",
                     city = "Skopje",
+                    municipality = "Centar",
                     neighborhood = "Center"
                 },
                 new
@@ -52,6 +62,7 @@ internal static class ListingTestHelpers
                     description = "Тест оглас креиран од integration tests.",
                     addressLine = "Центар",
                     city = "Скопје",
+                    municipality = "Центар",
                     neighborhood = "Центар"
                 }
             }

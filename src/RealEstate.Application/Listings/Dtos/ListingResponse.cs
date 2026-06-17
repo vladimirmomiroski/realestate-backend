@@ -30,6 +30,24 @@ public sealed class ListingResponse
 
     public int? YearBuilt { get; set; }
 
+    public int? BalconyCount { get; set; }
+
+    public int? ParkingSpaces { get; set; }
+
+    public bool? HasBasement { get; set; }
+
+    public bool? IsExchangePossible { get; set; }
+
+    public HeatingType HeatingType { get; set; }
+
+    public FurnishingStatus FurnishingStatus { get; set; }
+
+    public PropertyCondition Condition { get; set; }
+
+    public int? YearRenovated { get; set; }
+
+    public Orientation Orientation { get; set; }
+
     public decimal? Latitude { get; set; }
 
     public decimal? Longitude { get; set; }
@@ -43,6 +61,8 @@ public sealed class ListingResponse
     public string? AddressLine { get; set; }
 
     public string? City { get; set; }
+
+    public string? Municipality { get; set; }
 
     public string? Neighborhood { get; set; }
 

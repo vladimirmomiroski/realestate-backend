@@ -75,6 +75,7 @@ public sealed class ListingsController : ControllerBase
     [FromQuery] decimal? minPrice = null,
     [FromQuery] decimal? maxPrice = null,
     [FromQuery] string? city = null,
+    [FromQuery] string? municipality = null,
     [FromQuery] string? neighborhood = null,
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 20,
@@ -88,6 +89,7 @@ public sealed class ListingsController : ControllerBase
             MinPrice = minPrice,
             MaxPrice = maxPrice,
             City = city,
+            Municipality = municipality,
             Neighborhood = neighborhood,
             Page = page,
             PageSize = pageSize

@@ -61,7 +61,17 @@ public sealed class ListingRepository : IListingRepository
             listingsQuery = listingsQuery.Where(listing =>
                 listing.Translations.Any(translation =>
                     translation.City != null &&
-                    EF.Functions.ILike(translation.City, city)));
+                    EF.Functions.ILike(translation.City, $"%{city}")));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Municipality))
+        {
+            var municipality = query.Municipality.Trim();
+
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.Translations.Any(translation =>
+                    translation.Municipality != null &&
+                    EF.Functions.ILike(translation.Municipality, $"%{municipality}%")));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Neighborhood))
@@ -71,7 +81,7 @@ public sealed class ListingRepository : IListingRepository
             listingsQuery = listingsQuery.Where(listing =>
                 listing.Translations.Any(translation =>
                     translation.Neighborhood != null &&
-                    EF.Functions.ILike(translation.Neighborhood, neighborhood)));
+                    EF.Functions.ILike(translation.Neighborhood, $"%{neighborhood}%")));
         }
 
         var page = query.Page < 1 ? 1 : query.Page;

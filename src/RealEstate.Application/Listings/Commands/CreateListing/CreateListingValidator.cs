@@ -43,6 +43,28 @@ public sealed class CreateListingValidator
             return "Duplicate translation languages are not allowed.";
         }
 
+        if (request.BalconyCount is < 0)
+        {
+            return "Balcony count cannot be negative.";
+        }
+
+        if (request.ParkingSpaces is < 0)
+        {
+            return "Parking spaces cannot be negative.";
+        }
+
+        if (request.YearRenovated is < 1800 or > 2100)
+        {
+            return "Year renovated is not valid.";
+        }
+
+        if (request.YearRenovated.HasValue &&
+            request.YearBuilt.HasValue &&
+            request.YearRenovated.Value < request.YearBuilt.Value)
+        {
+            return "Year renovated cannot be earlier than year built.";
+        }
+
         return null;
     }
 

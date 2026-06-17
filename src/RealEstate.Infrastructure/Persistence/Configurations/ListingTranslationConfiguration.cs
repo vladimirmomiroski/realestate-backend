@@ -29,6 +29,9 @@ public class ListingTranslationConfiguration : IEntityTypeConfiguration<ListingT
         builder.Property(translation => translation.City)
             .HasMaxLength(100);
 
+        builder.Property(translation => translation.Municipality)
+            .HasMaxLength(100);
+
         builder.Property(translation => translation.Neighborhood)
             .HasMaxLength(100);
 

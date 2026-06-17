@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Infrastructure.Persistence.Configurations;
 
@@ -44,6 +45,40 @@ public class ListingConfiguration : IEntityTypeConfiguration<Listing>
 
         builder.Property(listing => listing.Bathrooms)
             .HasPrecision(4, 1);
+
+        builder.Property(listing => listing.BalconyCount);
+
+        builder.Property(listing => listing.ParkingSpaces);
+
+        builder.Property(listing => listing.HasBasement);
+
+        builder.Property(listing => listing.IsExchangePossible);
+
+        builder.Property(listing => listing.HeatingType)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(HeatingType.Unknown);
+
+        builder.Property(listing => listing.FurnishingStatus)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(FurnishingStatus.Unknown);
+
+        builder.Property(listing => listing.Condition)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(PropertyCondition.Unknown);
+
+        builder.Property(listing => listing.YearRenovated);
+
+        builder.Property(listing => listing.Orientation)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(Orientation.Unknown);
 
         builder.Property(listing => listing.YearBuilt);
 
