@@ -44,6 +44,15 @@ public sealed class CreateListingHandler
             Bathrooms = request.Bathrooms,
             Floor = request.Floor,
             TotalFloors = request.TotalFloors,
+            BalconyCount = request.BalconyCount,
+            ParkingSpaces = request.ParkingSpaces,
+            HasBasement = request.HasBasement,
+            IsExchangePossible = request.IsExchangePossible,
+            HeatingType = request.HeatingType,
+            FurnishingStatus = request.FurnishingStatus,
+            Condition = request.Condition,
+            YearRenovated = request.YearRenovated,
+            Orientation = request.Orientation,
             YearBuilt = request.YearBuilt,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
@@ -55,6 +64,7 @@ public sealed class CreateListingHandler
                 Description = CleanNullableText(translation.Description),
                 AddressLine = CleanNullableText(translation.AddressLine),
                 City = CleanNullableText(translation.City),
+                Municipality = CleanNullableText(translation.Municipality),
                 Neighborhood = CleanNullableText(translation.Neighborhood)
             }).ToList()
         };

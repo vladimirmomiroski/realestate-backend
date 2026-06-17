@@ -16,6 +16,8 @@ public sealed class GetListingsQuery
 
     public string? City { get; set; }
 
+    public string? Municipality { get; set; }
+
     public string? Neighborhood { get; set; }
 
     public int Page { get; set; } = 1;
