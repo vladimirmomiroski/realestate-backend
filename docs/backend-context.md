@@ -2,23 +2,53 @@
 
 ## Project purpose
 
-This backend is for a real estate platform. The goal is not just a basic listing website. The long-term direction is a modern real estate intelligence platform with listings, search, filters, comparisons, price insights, agent tools, and AI-assisted workflows.
+This backend is for a real estate platform. The goal is not just a basic listing website. The long-term direction is a modern real estate intelligence platform with listings, search, filters, comparisons, price insights, agent tools, agencies, CRM features, and AI-assisted workflows.
 
-Current focus: build a clean backend foundation before switching to frontend.
+Current focus: build a clean backend foundation before frontend work.
+
+The listing backend is now in strong MVP shape:
+
+```text
+Listings
+Translations
+Images
+Apartment details
+House details
+Filters
+Pagination
+Swagger testing
+Integration tests
+```
+
+Next backend direction:
+
+```text
+Users/auth foundation
+Roles
+Later agencies/agents
+Later listing ownership
+Later CRM/client notes
+```
 
 ---
 
 ## Tech stack
 
-* .NET / ASP.NET Core
-* C#
-* Clean Architecture
-* Entity Framework Core
-* PostgreSQL
-* Docker / Docker Compose
-* Swagger / Swashbuckle
-* xUnit integration tests
-* Testcontainers PostgreSQL for isolated test database
+```text
+.NET / ASP.NET Core
+C#
+Clean Architecture
+Entity Framework Core
+PostgreSQL
+Docker / Docker Compose
+Swagger / Swashbuckle
+xUnit integration tests
+FluentAssertions
+Microsoft.AspNetCore.Mvc.Testing
+Testcontainers PostgreSQL
+```
+
+Tests use a real temporary PostgreSQL container, not EF in-memory provider.
 
 ---
 
@@ -28,21 +58,39 @@ Current focus: build a clean backend foundation before switching to frontend.
 src/
   RealEstate.Api
     Controllers
+      ListingsController.cs
+      HealthController.cs
     Program.cs
 
   RealEstate.Application
     Common
+      Files
+      Storage
+      PagedResult.cs
     Listings
       Commands
+        CreateListing
+        UploadListingImage
+        DeleteListingImage
+        SetPrimaryListingImage
+        ReorderListingImages
       Queries
+        GetListings
+        GetListingById
       Dtos
       Mappings
       Repositories
 
   RealEstate.Domain
-    Entities
-    Enums
     Common
+      IAuditableEntity.cs
+    Entities
+      Listing.cs
+      ListingTranslation.cs
+      ListingImage.cs
+      ListingApartmentDetails.cs
+      ListingHouseDetails.cs
+    Enums
 
   RealEstate.Infrastructure
     Persistence
@@ -50,11 +98,18 @@ src/
       Migrations
       Repositories
       RealEstateDbContext.cs
+    Storage
+      LocalFileStorageService.cs
+      LocalFileStorageOptions.cs
     DependencyInjection.cs
 
 tests/
   RealEstate.Tests
     Integration
+      Listings
+        ListingsEndpointTests.cs
+        ListingImagesEndpointTests.cs
+        ListingTestHelpers.cs
 ```
 
 ---
@@ -77,49 +132,206 @@ RealEstateDbContext
 PostgreSQL
 ```
 
-Rules:
+Example listing create flow:
 
-* Controllers stay thin.
-* Handlers contain use-case/application logic.
-* Domain contains entities, enums, and business rules.
-* Infrastructure contains EF Core, repositories, database configuration, and migrations.
-* Application owns repository interfaces.
-* Infrastructure implements repository interfaces.
-* No MediatR yet.
-* No AutoMapper yet.
-* No FluentValidation package yet.
-* No generic repository / Unit of Work yet.
-
----
-
-## Current completed backend features
-
-### Health endpoints
-
-```http
-GET /api/health
-GET /api/health/database
+```text
+POST /api/listings
+  ↓
+ListingsController.CreateListing
+  ↓
+CreateListingHandler
+  ↓
+CreateListingValidator
+  ↓
+Listing aggregate root created
+  ↓
+ListingTranslation children attached
+  ↓
+ApartmentDetails or HouseDetails attached based on PropertyType
+  ↓
+IListingRepository.CreateAsync
+  ↓
+ListingRepository
+  ↓
+RealEstateDbContext.SaveChangesAsync
+  ↓
+PostgreSQL
 ```
 
-Database health endpoint checks PostgreSQL connectivity.
+Rules:
+
+```text
+Controllers stay thin.
+Handlers contain use-case/application logic.
+Domain contains entities, enums, and core business rules.
+Infrastructure contains EF Core, repositories, database config, migrations, and local storage.
+Application owns repository interfaces.
+Infrastructure implements repository interfaces.
+No MediatR yet.
+No AutoMapper yet.
+No FluentValidation package yet.
+No generic repository / Unit of Work yet.
+```
 
 ---
 
-### Listing domain model
+## Important architecture decisions
 
-Main entity:
+### Aggregate rule
+
+`Listing` is the aggregate root.
+
+Child entities:
+
+```text
+ListingTranslation
+ListingImage
+ListingApartmentDetails
+ListingHouseDetails
+```
+
+Current DbContext rule:
+
+```text
+Expose DbSet<Listing> publicly.
+Do not expose child entities as public DbSets unless needed.
+Child entities are accessed through Listing navigation properties.
+```
+
+Current known public DbSet:
+
+```csharp
+public DbSet<Listing> Listings => Set<Listing>();
+```
+
+Repository uses `_dbContext.Set<ListingImage>()` internally when needed for image insert/delete.
+
+---
+
+## Domain model
+
+### Main entity
 
 ```text
 Listing
 ```
 
-Child entity:
+Common listing fields:
 
 ```text
-ListingTranslation
+Id
+ListingType
+PropertyType
+Status
+Price
+Currency
+AreaSquareMeters
+Rooms
+Bathrooms
+YearBuilt
+YearRenovated
+BalconyCount
+ParkingSpaces
+HasBasement
+IsExchangePossible
+HeatingType
+FurnishingStatus
+Condition
+Orientation
+Latitude
+Longitude
+CreatedAtUtc
+ModifiedAtUtc
 ```
 
-Enums:
+Important: `Floor` and `TotalFloors` were removed from `Listing`.
+
+They now belong only to:
+
+```text
+ListingApartmentDetails
+```
+
+---
+
+## Property-specific details
+
+### Apartment details
+
+Entity:
+
+```text
+ListingApartmentDetails
+```
+
+Table:
+
+```text
+ListingApartmentDetails
+```
+
+Fields:
+
+```text
+ListingId
+ApartmentType
+Floor
+TotalFloors
+HasElevator
+```
+
+Relationship:
+
+```text
+Listing 1 → 0/1 ListingApartmentDetails
+```
+
+### House details
+
+Entity:
+
+```text
+ListingHouseDetails
+```
+
+Table:
+
+```text
+ListingHouseDetails
+```
+
+Fields:
+
+```text
+ListingId
+HouseType
+NumberOfFloors
+YardAreaSquareMeters
+```
+
+Relationship:
+
+```text
+Listing 1 → 0/1 ListingHouseDetails
+```
+
+Request rule:
+
+```text
+If PropertyType = Apartment:
+  apartmentDetails required
+  houseDetails must be null
+
+If PropertyType = House:
+  houseDetails required
+  apartmentDetails must be null
+```
+
+---
+
+## Enums
+
+Current important enums:
 
 ```text
 ListingType
@@ -137,14 +349,69 @@ ListingStatus
   Sold
   Rented
   Archived
+
+Currency
+  EUR
+  MKD
+  USD
+  etc.
+
+HeatingType
+  Unknown
+  None
+  Electric
+  Central
+  Gas
+  Wood
+  HeatPump
+  Other
+
+FurnishingStatus
+  Unknown
+  Unfurnished
+  SemiFurnished
+  Furnished
+
+PropertyCondition
+  Unknown
+  New
+  Renovated
+  Good
+  NeedsRenovation
+
+Orientation
+  Unknown
+  North
+  South
+  East
+  West
+  NorthEast
+  NorthWest
+  SouthEast
+  SouthWest
+
+ApartmentType
+  Unknown
+  Studio
+  Standard
+  Penthouse
+  Duplex
+  Loft
+  Maisonette
+  Other
+
+HouseType
+  Unknown
+  Detached
+  SemiDetached
+  Terraced
+  Townhouse
+  Villa
+  Cottage
+  Other
 ```
 
-Important decision:
-
-* `Listing` is the aggregate root.
-* `ListingTranslation` is a child entity.
-* `DbContext` exposes `DbSet<Listing>` only.
-* `ListingTranslation` is accessed through `Listing.Translations`.
+Enums are stored as strings in PostgreSQL using EF Core conversions.
 
 ---
 
@@ -162,11 +429,22 @@ Rent / Изнајмување
 Custom listing text is stored in backend translations:
 
 ```text
+LanguageCode
 Title
 Description
 AddressLine
 City
+Municipality
 Neighborhood
+```
+
+Location structure:
+
+```text
+City          = Skopje / Скопје
+Municipality  = Centar / Центар
+Neighborhood  = Center / Центар
+AddressLine   = street/address
 ```
 
 Each listing can have multiple translations.
@@ -177,9 +455,127 @@ Unique rule:
 One translation per language per listing.
 ```
 
+Language behavior:
+
+```text
+GET listing with ?lang=mk returns mk translation if available.
+If requested language is missing, fallback to first available translation.
+```
+
+---
+
+## Listing images
+
+Entity:
+
+```text
+ListingImage
+```
+
+Table:
+
+```text
+ListingImages
+```
+
+Fields:
+
+```text
+Id
+ListingId
+Url
+StoredFileName
+ContentType
+SizeBytes
+SortOrder
+IsPrimary
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+Image storage:
+
+```text
+Local filesystem
+src/RealEstate.Api/wwwroot/uploads/listings/{listingId}/{storedFileName}
+```
+
+Public URL:
+
+```text
+/uploads/listings/{listingId}/{storedFileName}
+```
+
+Ignored by Git:
+
+```text
+src/RealEstate.Api/wwwroot/uploads/
+```
+
+Image validation:
+
+```text
+Max size: 5 MB
+Allowed extensions: .jpg, .jpeg, .png, .webp
+Allowed content types: image/jpeg, image/png, image/webp
+Max images per listing: 20
+```
+
+Image rules:
+
+```text
+First uploaded image becomes primary.
+Images have SortOrder.
+Only one primary image per listing.
+```
+
+Database constraint:
+
+```text
+Filtered unique index on ListingId where IsPrimary = true.
+```
+
+Important implementation detail:
+
+`SetPrimaryListingImageHandler` uses a two-phase save:
+
+```csharp
+foreach (var image in listing.Images)
+{
+    image.IsPrimary = false;
+}
+
+// Save in two phases because the database enforces only one primary image per listing.
+// A single SaveChanges call can fail if EF updates the new primary before clearing the old one.
+await _listingRepository.SaveChangesAsync(cancellationToken);
+
+selectedImage.IsPrimary = true;
+
+await _listingRepository.SaveChangesAsync(cancellationToken);
+```
+
+Reason:
+
+```text
+C# memory state can be correct, but EF Core SQL update order is not guaranteed.
+PostgreSQL checks the filtered unique index during updates.
+Two-phase save prevents temporary duplicate primary images.
+```
+
 ---
 
 ## Current listing endpoints
+
+### Health endpoints
+
+```http
+GET /api/health
+GET /api/health/database
+```
+
+Database health endpoint checks PostgreSQL connectivity.
+
+---
 
 ### Create listing
 
@@ -187,15 +583,80 @@ One translation per language per listing.
 POST /api/listings
 ```
 
-Creates a new listing with one or more translations.
+Creates a new listing with translations and either apartment or house details.
+
+Apartment request shape:
+
+```json
+{
+  "listingType": "Sale",
+  "propertyType": "Apartment",
+  "price": 126000,
+  "currency": "EUR",
+  "areaSquareMeters": 72,
+  "rooms": 3,
+  "bathrooms": 1,
+  "yearBuilt": 2018,
+  "yearRenovated": 2022,
+  "balconyCount": 2,
+  "parkingSpaces": 1,
+  "hasBasement": true,
+  "isExchangePossible": false,
+  "heatingType": "Central",
+  "furnishingStatus": "Furnished",
+  "condition": "Good",
+  "orientation": "SouthEast",
+  "latitude": 41.9981,
+  "longitude": 21.4254,
+  "apartmentDetails": {
+    "apartmentType": "Standard",
+    "floor": 4,
+    "totalFloors": 8,
+    "hasElevator": true
+  },
+  "houseDetails": null,
+  "translations": []
+}
+```
+
+House request shape:
+
+```json
+{
+  "listingType": "Sale",
+  "propertyType": "House",
+  "price": 180000,
+  "currency": "EUR",
+  "areaSquareMeters": 120,
+  "rooms": 4,
+  "bathrooms": 2,
+  "yearBuilt": 2005,
+  "yearRenovated": 2020,
+  "balconyCount": 1,
+  "parkingSpaces": 2,
+  "hasBasement": true,
+  "isExchangePossible": false,
+  "heatingType": "Gas",
+  "furnishingStatus": "SemiFurnished",
+  "condition": "Good",
+  "orientation": "South",
+  "latitude": 41.9981,
+  "longitude": 21.4254,
+  "apartmentDetails": null,
+  "houseDetails": {
+    "houseType": "Detached",
+    "numberOfFloors": 2,
+    "yardAreaSquareMeters": 350
+  },
+  "translations": []
+}
+```
 
 Returns:
 
 ```http
 201 Created
 ```
-
-Uses submitted first translation language for response.
 
 ---
 
@@ -214,15 +675,31 @@ propertyType
 minPrice
 maxPrice
 city
+municipality
 neighborhood
+heatingType
+furnishingStatus
+condition
+hasBasement
+hasElevator
+apartmentType
+houseType
+minYardAreaSquareMeters
+maxYardAreaSquareMeters
 page
 pageSize
 ```
 
-Example:
+Example apartment filter:
 
 ```http
-GET /api/listings?lang=en&propertyType=Apartment&listingType=Sale&minPrice=80000&maxPrice=150000&page=1&pageSize=20
+GET /api/listings?lang=en&propertyType=Apartment&heatingType=Central&furnishingStatus=Furnished&condition=Good&hasBasement=true&hasElevator=true&apartmentType=Standard&page=1&pageSize=20
+```
+
+Example house filter:
+
+```http
+GET /api/listings?lang=en&propertyType=House&houseType=Detached&minYardAreaSquareMeters=300&maxYardAreaSquareMeters=400&page=1&pageSize=20
 ```
 
 Response shape:
@@ -264,6 +741,119 @@ Missing listing returns:
 404 Not Found
 ```
 
+Apartment response example:
+
+```json
+{
+  "propertyType": "Apartment",
+  "pricePerSquareMeter": 1750,
+  "apartmentDetails": {
+    "apartmentType": "Standard",
+    "floor": 4,
+    "totalFloors": 8,
+    "hasElevator": true
+  },
+  "houseDetails": null
+}
+```
+
+House response example:
+
+```json
+{
+  "propertyType": "House",
+  "pricePerSquareMeter": 1500,
+  "apartmentDetails": null,
+  "houseDetails": {
+    "houseType": "Detached",
+    "numberOfFloors": 2,
+    "yardAreaSquareMeters": 350
+  }
+}
+```
+
+`PricePerSquareMeter` is rounded to 2 decimals in response mapping.
+
+Example:
+
+```text
+125000 / 58 = 2155.1724...
+Response = 2155.17
+```
+
+---
+
+## Image endpoints
+
+### Upload image
+
+```http
+POST /api/listings/{listingId}/images
+```
+
+Accepts multipart/form-data field:
+
+```text
+file
+```
+
+Returns:
+
+```http
+201 Created
+```
+
+Response:
+
+```json
+{
+  "id": "guid",
+  "url": "/uploads/listings/{listingId}/{fileName}.jpg",
+  "contentType": "image/jpeg",
+  "sizeBytes": 123456,
+  "sortOrder": 0,
+  "isPrimary": true
+}
+```
+
+### Delete image
+
+```http
+DELETE /api/listings/{listingId}/images/{imageId}
+```
+
+If primary image is deleted, next image becomes primary.
+
+Returns:
+
+```http
+204 No Content
+```
+
+### Set primary image
+
+```http
+PUT /api/listings/{listingId}/images/{imageId}/primary
+```
+
+Returns selected image response.
+
+### Reorder images
+
+```http
+PUT /api/listings/{listingId}/images/order
+```
+
+Request:
+
+```json
+{
+  "imageIds": ["guid1", "guid2", "guid3"]
+}
+```
+
+Returns ordered image list.
+
 ---
 
 ## Current database tables
@@ -271,6 +861,9 @@ Missing listing returns:
 ```text
 Listings
 ListingTranslations
+ListingImages
+ListingApartmentDetails
+ListingHouseDetails
 __EFMigrationsHistory
 ```
 
@@ -286,9 +879,16 @@ Currency
 AreaSquareMeters
 Rooms
 Bathrooms
-Floor
-TotalFloors
 YearBuilt
+YearRenovated
+BalconyCount
+ParkingSpaces
+HasBasement
+IsExchangePossible
+HeatingType
+FurnishingStatus
+Condition
+Orientation
 Latitude
 Longitude
 CreatedAtUtc
@@ -305,7 +905,42 @@ Title
 Description
 AddressLine
 City
+Municipality
 Neighborhood
+```
+
+Important columns in `ListingImages`:
+
+```text
+Id
+ListingId
+Url
+StoredFileName
+ContentType
+SizeBytes
+SortOrder
+IsPrimary
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+Important columns in `ListingApartmentDetails`:
+
+```text
+ListingId
+ApartmentType
+Floor
+TotalFloors
+HasElevator
+```
+
+Important columns in `ListingHouseDetails`:
+
+```text
+ListingId
+HouseType
+NumberOfFloors
+YardAreaSquareMeters
 ```
 
 ---
@@ -328,6 +963,7 @@ Currently used by:
 
 ```text
 Listing
+ListingImage
 ```
 
 `RealEstateDbContext.SaveChangesAsync` automatically sets:
@@ -337,13 +973,11 @@ CreatedAtUtc on create
 ModifiedAtUtc on update
 ```
 
-`CreateListingHandler` should not manually set `CreatedAtUtc`.
+Handlers should not manually set auditing timestamps.
 
 ---
 
 ## Current testing setup
-
-Integration tests exist for listing endpoints.
 
 Testing stack:
 
@@ -370,15 +1004,43 @@ run API tests
 delete container
 ```
 
+Current integration test files:
+
+```text
+ListingsEndpointTests.cs
+ListingImagesEndpointTests.cs
+ListingTestHelpers.cs
+```
+
 Current tests cover:
 
 ```text
-POST valid listing returns 201
+POST valid apartment listing returns 201
+POST valid house listing returns 201
 POST invalid price returns 400
 GET listings returns paginated response
 GET listings with price filter returns matching listings
+GET listings with municipality filter returns matching listings
+GET listings with apartment filters returns matching listings
+GET listings with house filters returns matching listings
 GET listing by ID returns requested language
 GET missing listing returns 404
+PricePerSquareMeter returns rounded value
+Upload listing image returns 201
+First uploaded image becomes primary
+Delete image returns 204
+Deleting primary image makes next image primary
+Set primary image works
+Only one image remains primary
+PrimaryImageUrl points to selected primary image
+Reorder listing images works
+```
+
+Latest known status after Task 4C:
+
+```text
+dotnet test passed
+Expected count around 19/19 after Task 4C
 ```
 
 ---
@@ -442,55 +1104,242 @@ Update database:
 dotnet ef database update --project src/RealEstate.Infrastructure --startup-project src/RealEstate.Api
 ```
 
+Format:
+
+```bash
+dotnet format
+```
+
 ---
 
-## Current backend status
-
-Completed:
+## Current completed backend features
 
 ```text
 Clean Architecture structure
 Docker PostgreSQL setup
 EF Core setup
-Listing domain model
-Listing EF configurations
-Migrations
-Basic listing endpoints
-API cleanup
+Health endpoints
+Database health check
+Listing aggregate model
+Listing translations
+Apartment/house property detail split
+Common listing details
+Municipality field
+Listing images
+Local file storage
+Primary image logic
+Delete image
+Set primary image
+Reorder images
+Pagination
+Search/filtering
+PricePerSquareMeter calculation and rounding
 Automatic auditing fields
-Integration tests
-Listing search filters + pagination
+Swagger testing
+Integration tests with real PostgreSQL Testcontainers
 Frontend CORS support
 ```
 
-Backend is ready for initial frontend integration.
+---
+
+## Recent completed tasks
+
+### Task 4A — Common listing details + municipality
+
+Added:
+
+```text
+BalconyCount
+ParkingSpaces
+HasBasement
+IsExchangePossible
+HeatingType
+FurnishingStatus
+Condition
+YearRenovated
+Orientation
+Municipality
+```
+
+Migration:
+
+```text
+AddListingCommonDetailsAndMunicipality
+```
+
+### Task 4B — Apartment and house listing details
+
+Added:
+
+```text
+ListingApartmentDetails
+ListingHouseDetails
+ApartmentType
+HouseType
+```
+
+Moved out of `Listing`:
+
+```text
+Floor
+TotalFloors
+```
+
+Migration:
+
+```text
+AddListingPropertyDetails
+```
+
+### Task 4C — Listing filters and response polish
+
+Added:
+
+```text
+heatingType filter
+furnishingStatus filter
+condition filter
+hasBasement filter
+hasElevator filter
+apartmentType filter
+houseType filter
+min/max yard area filter
+PricePerSquareMeter rounding
+stronger primary image test
+two-phase save comment
+```
+
+Commit message:
+
+```text
+Add listing filters and response polish
+```
+
+---
+
+## Current backend status
+
+Backend listing module is ready for frontend integration.
+
+However, the next planned backend work is users/auth foundation before frontend, because future frontend flows need:
+
+```text
+user accounts
+agent accounts
+agency ownership
+my listings
+protected create listing
+saved listings
+CRM notes later
+```
+
+---
+
+## Next planned work
+
+### Task 5A — User accounts foundation
+
+Branch suggestion:
+
+```bash
+git checkout development
+git pull
+git checkout -b feature/user-accounts-foundation
+```
+
+Goal:
+
+```text
+Create basic user domain/database foundation.
+No login yet.
+No JWT yet.
+No agencies yet.
+No CRM yet.
+```
+
+Proposed first user table:
+
+```text
+Users
+  Id
+  Email
+  PasswordHash
+  FirstName
+  LastName
+  PhoneNumber
+  Role
+  Status
+  CreatedAtUtc
+  ModifiedAtUtc
+```
+
+Proposed enums:
+
+```text
+UserRole
+  Admin
+  AgencyOwner
+  Agent
+  User
+
+UserStatus
+  Active
+  Disabled
+  PendingVerification
+```
+
+Recommended split:
+
+```text
+Task 5A — User table/domain/migration
+Task 5B — Register/Login with password hashing
+Task 5C — JWT auth + protected endpoints
+Task 5D — Listing ownership with CreatedByUserId / My listings
+Task 6A — Agencies
+Task 6B — Agency members
+Task 6C — Agent profiles
+Task 7 — CRM clients/notes/saved listings
+```
+
+Important decision:
+
+```text
+Do not build agencies before users.
+Users first.
+Agencies later.
+AgencyMembers connects users to agencies.
+Listings later belong to users/agents/agencies.
+```
 
 ---
 
 ## Remaining backend ideas for later
 
-Do not do these before initial frontend unless explicitly decided:
+Do not mix these into Task 5A:
 
 ```text
-Users/auth
-Agents/agencies
-Listing images
-Update/delete listings
+Full auth/JWT
+Agencies
+Agency members
+Agent profiles
+Listing ownership
 Favorites
+Saved searches
+CRM clients
+Client notes
 Map search
 Comparable listings
 Average price analytics
 AI document analyzer
-Agent notes
 Voice note helper
-Admin panel
+Admin moderation
+Payments/subscriptions
 ```
 
-Next likely backend work after frontend begins:
+Keep one clean task at a time.
+
+Current next task:
 
 ```text
-Listing images
-Update/edit listing
-Auth/users
-Agent ownership of listings
+Task 5A — User accounts foundation
 ```
