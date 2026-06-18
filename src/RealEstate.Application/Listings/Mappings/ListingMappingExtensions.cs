@@ -27,6 +27,24 @@ public static class ListingMappingExtensions
             Id = listing.Id,
             ListingType = listing.ListingType,
             PropertyType = listing.PropertyType,
+            ApartmentDetails = listing.ApartmentDetails is null
+    ? null
+    : new ListingApartmentDetailsResponse
+    {
+        ApartmentType = listing.ApartmentDetails.ApartmentType,
+        Floor = listing.ApartmentDetails.Floor,
+        TotalFloors = listing.ApartmentDetails.TotalFloors,
+        HasElevator = listing.ApartmentDetails.HasElevator
+    },
+
+            HouseDetails = listing.HouseDetails is null
+    ? null
+    : new ListingHouseDetailsResponse
+    {
+        HouseType = listing.HouseDetails.HouseType,
+        NumberOfFloors = listing.HouseDetails.NumberOfFloors,
+        YardAreaSquareMeters = listing.HouseDetails.YardAreaSquareMeters
+    },
             Status = listing.Status,
             Price = listing.Price,
             Currency = listing.Currency,
@@ -34,8 +52,6 @@ public static class ListingMappingExtensions
             PricePerSquareMeter = listing.CalculatePricePerSquareMeter(),
             Rooms = listing.Rooms,
             Bathrooms = listing.Bathrooms,
-            Floor = listing.Floor,
-            TotalFloors = listing.TotalFloors,
             YearBuilt = listing.YearBuilt,
             BalconyCount = listing.BalconyCount,
             ParkingSpaces = listing.ParkingSpaces,

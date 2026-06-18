@@ -24,10 +24,6 @@ public sealed class ListingResponse
 
     public decimal? Bathrooms { get; set; }
 
-    public int? Floor { get; set; }
-
-    public int? TotalFloors { get; set; }
-
     public int? YearBuilt { get; set; }
 
     public int? BalconyCount { get; set; }
@@ -67,6 +63,10 @@ public sealed class ListingResponse
     public string? Neighborhood { get; set; }
 
     public string? PrimaryImageUrl { get; set; }
+
+    public ListingApartmentDetailsResponse? ApartmentDetails { get; set; }
+
+    public ListingHouseDetailsResponse? HouseDetails { get; set; }
 
     public List<ListingImageResponse> Images { get; set; } =
         new List<ListingImageResponse>();

@@ -29,8 +29,14 @@ internal static class ListingTestHelpers
             areaSquareMeters = 58,
             rooms = 2,
             bathrooms = 1,
-            floor = 2,
-            totalFloors = 5,
+            apartmentDetails = new
+            {
+                apartmentType = "Standard",
+                floor = 4,
+                totalFloors = 8,
+                hasElevator = true
+            },
+            houseDetails = (object?)null,
             balconyCount = 2,
             parkingSpaces = 1,
             hasBasement = true,
@@ -66,6 +72,62 @@ internal static class ListingTestHelpers
                     neighborhood = "Центар"
                 }
             }
+        };
+    }
+
+    public static object CreateValidHouseListingRequest(decimal price = 150000)
+    {
+        return new
+        {
+            listingType = "Sale",
+            propertyType = "House",
+            price,
+            currency = "EUR",
+            areaSquareMeters = 120,
+            rooms = 4,
+            bathrooms = 2,
+            yearBuilt = 2005,
+            yearRenovated = 2020,
+            balconyCount = 1,
+            parkingSpaces = 2,
+            hasBasement = true,
+            isExchangePossible = false,
+            heatingType = "Gas",
+            furnishingStatus = "SemiFurnished",
+            condition = "Good",
+            orientation = "South",
+            latitude = 41.9981m,
+            longitude = 21.4254m,
+            apartmentDetails = (object?)null,
+            houseDetails = new
+            {
+                houseType = "Detached",
+                numberOfFloors = 2,
+                yardAreaSquareMeters = 350
+            },
+            translations = new[]
+            {
+            new
+            {
+                languageCode = "en",
+                title = "Integration test house",
+                description = "Integration test house description",
+                addressLine = "Test house address",
+                city = "Skopje",
+                municipality = "Centar",
+                neighborhood = "Center"
+            },
+            new
+            {
+                languageCode = "mk",
+                title = "Интеграциска тест куќа",
+                description = "Интеграциски тест опис за куќа",
+                addressLine = "Тест адреса за куќа",
+                city = "Скопје",
+                municipality = "Центар",
+                neighborhood = "Центар"
+            }
+        }
         };
     }
 }

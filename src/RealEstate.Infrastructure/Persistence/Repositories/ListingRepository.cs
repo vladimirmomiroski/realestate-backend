@@ -18,7 +18,7 @@ public sealed class ListingRepository : IListingRepository
     public async Task CreateAsync(Listing listing, CancellationToken cancellationToken)
     {
         _dbContext.Listings.Add(listing);
-
+            
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -61,7 +61,7 @@ public sealed class ListingRepository : IListingRepository
             listingsQuery = listingsQuery.Where(listing =>
                 listing.Translations.Any(translation =>
                     translation.City != null &&
-                    EF.Functions.ILike(translation.City, $"%{city}")));
+                    EF.Functions.ILike(translation.City, $"%{city}%")));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Municipality))
@@ -93,6 +93,8 @@ public sealed class ListingRepository : IListingRepository
         var listings = await listingsQuery
              .Include(listing => listing.Translations)
              .Include(listing => listing.Images)
+             .Include(listing => listing.ApartmentDetails)
+             .Include(listing => listing.HouseDetails)
              .AsSplitQuery()
              .OrderByDescending(listing => listing.CreatedAtUtc)
              .Skip((page - 1) * pageSize)
@@ -108,6 +110,8 @@ public sealed class ListingRepository : IListingRepository
             .AsNoTracking()
             .Include(listing => listing.Translations)
             .Include(listing => listing.Images)
+            .Include(listing => listing.ApartmentDetails)
+            .Include(listing => listing.HouseDetails)
             .AsSplitQuery()
             .FirstOrDefaultAsync(listing => listing.Id == id, cancellationToken);
     }

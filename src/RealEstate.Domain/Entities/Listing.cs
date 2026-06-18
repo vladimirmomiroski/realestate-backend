@@ -23,10 +23,6 @@ public class Listing : IAuditableEntity
 
     public decimal? Bathrooms { get; set; }
 
-    public int? Floor { get; set; }
-
-    public int? TotalFloors { get; set; }
-
     public int? BalconyCount { get; set; }
 
     public int? ParkingSpaces { get; set; }
@@ -54,6 +50,10 @@ public class Listing : IAuditableEntity
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime? ModifiedAtUtc { get; set; }
+
+    public ListingApartmentDetails? ApartmentDetails { get; set; }
+
+    public ListingHouseDetails? HouseDetails { get; set; }
 
     public ICollection<ListingTranslation> Translations { get; set; } =
         new List<ListingTranslation>();
