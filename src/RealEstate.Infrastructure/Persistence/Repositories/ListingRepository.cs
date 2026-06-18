@@ -18,7 +18,6 @@ public sealed class ListingRepository : IListingRepository
     public async Task CreateAsync(Listing listing, CancellationToken cancellationToken)
     {
         _dbContext.Listings.Add(listing);
-            
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -52,6 +51,65 @@ public sealed class ListingRepository : IListingRepository
         {
             listingsQuery = listingsQuery.Where(listing =>
                 listing.Price <= query.MaxPrice.Value);
+        }
+
+        if (query.HeatingType.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.HeatingType == query.HeatingType.Value);
+        }
+
+        if (query.FurnishingStatus.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.FurnishingStatus == query.FurnishingStatus.Value);
+        }
+
+        if (query.Condition.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.Condition == query.Condition.Value);
+        }
+
+        if (query.HasBasement.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.HasBasement == query.HasBasement.Value);
+        }
+
+        if (query.HasElevator.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.ApartmentDetails != null &&
+                listing.ApartmentDetails.HasElevator == query.HasElevator.Value);
+        }
+
+        if (query.ApartmentType.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.ApartmentDetails != null &&
+                listing.ApartmentDetails.ApartmentType == query.ApartmentType.Value);
+        }
+
+        if (query.HouseType.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.HouseDetails != null &&
+                listing.HouseDetails.HouseType == query.HouseType.Value);
+        }
+
+        if (query.MinYardAreaSquareMeters.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.HouseDetails != null &&
+                listing.HouseDetails.YardAreaSquareMeters >= query.MinYardAreaSquareMeters.Value);
+        }
+
+        if (query.MaxYardAreaSquareMeters.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.HouseDetails != null &&
+                listing.HouseDetails.YardAreaSquareMeters <= query.MaxYardAreaSquareMeters.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(query.City))
@@ -117,8 +175,8 @@ public sealed class ListingRepository : IListingRepository
     }
 
     public async Task<Listing?> GetByIdWithImagesForUpdateAsync(
-    Guid id,
-    CancellationToken cancellationToken)
+        Guid id,
+        CancellationToken cancellationToken)
     {
         return await _dbContext.Listings
             .Include(listing => listing.Images)
