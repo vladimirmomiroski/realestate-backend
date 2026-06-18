@@ -1,4 +1,6 @@
-﻿namespace RealEstate.Application.Listings.Commands.CreateListing;
+﻿using RealEstate.Domain.Enums;
+
+namespace RealEstate.Application.Listings.Commands.CreateListing;
 
 public sealed class CreateListingValidator
 {
@@ -63,6 +65,59 @@ public sealed class CreateListingValidator
             request.YearRenovated.Value < request.YearBuilt.Value)
         {
             return "Year renovated cannot be earlier than year built.";
+        }
+
+        if (request.PropertyType == PropertyType.Apartment)
+        {
+            if (request.ApartmentDetails is null)
+            {
+                return "Apartment details are required for apartment listings.";
+            }
+
+            if (request.HouseDetails is not null)
+            {
+                return "House details are not allowed for apartment listings.";
+            }
+
+            if (request.ApartmentDetails.Floor is < 0)
+            {
+                return "Floor cannot be negative.";
+            }
+
+            if (request.ApartmentDetails.TotalFloors is < 0)
+            {
+                return "Total floors cannot be negative.";
+            }
+
+            if (request.ApartmentDetails.Floor.HasValue &&
+                request.ApartmentDetails.TotalFloors.HasValue &&
+                request.ApartmentDetails.Floor.Value > request.ApartmentDetails.TotalFloors.Value)
+            {
+                return "Floor cannot be greater than total floors.";
+            }
+        }
+
+        if (request.PropertyType == PropertyType.House)
+        {
+            if (request.HouseDetails is null)
+            {
+                return "House details are required for house listings.";
+            }
+
+            if (request.ApartmentDetails is not null)
+            {
+                return "Apartment details are not allowed for house listings.";
+            }
+
+            if (request.HouseDetails.NumberOfFloors is < 0)
+            {
+                return "Number of floors cannot be negative.";
+            }
+
+            if (request.HouseDetails.YardAreaSquareMeters is < 0)
+            {
+                return "Yard area cannot be negative.";
+            }
         }
 
         return null;

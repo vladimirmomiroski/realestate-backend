@@ -20,10 +20,6 @@ public sealed class CreateListingRequest
 
     public decimal? Bathrooms { get; set; }
 
-    public int? Floor { get; set; }
-
-    public int? TotalFloors { get; set; }
-
     public int? BalconyCount { get; set; }
 
     public int? ParkingSpaces { get; set; }
@@ -47,6 +43,10 @@ public sealed class CreateListingRequest
     public decimal? Latitude { get; set; }
 
     public decimal? Longitude { get; set; }
+
+    public CreateListingApartmentDetailsRequest? ApartmentDetails { get; set; }
+
+    public CreateListingHouseDetailsRequest? HouseDetails { get; set; }
 
     public List<CreateListingTranslationRequest> Translations { get; set; } =
         new List<CreateListingTranslationRequest>();

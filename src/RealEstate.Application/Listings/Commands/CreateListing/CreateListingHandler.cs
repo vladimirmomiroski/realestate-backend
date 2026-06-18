@@ -42,8 +42,6 @@ public sealed class CreateListingHandler
             AreaSquareMeters = request.AreaSquareMeters,
             Rooms = request.Rooms,
             Bathrooms = request.Bathrooms,
-            Floor = request.Floor,
-            TotalFloors = request.TotalFloors,
             BalconyCount = request.BalconyCount,
             ParkingSpaces = request.ParkingSpaces,
             HasBasement = request.HasBasement,
@@ -68,6 +66,31 @@ public sealed class CreateListingHandler
                 Neighborhood = CleanNullableText(translation.Neighborhood)
             }).ToList()
         };
+
+        if (request.PropertyType == PropertyType.Apartment &&
+    request.ApartmentDetails is not null)
+        {
+            listing.ApartmentDetails = new ListingApartmentDetails
+            {
+                ListingId = listing.Id,
+                ApartmentType = request.ApartmentDetails.ApartmentType,
+                Floor = request.ApartmentDetails.Floor,
+                TotalFloors = request.ApartmentDetails.TotalFloors,
+                HasElevator = request.ApartmentDetails.HasElevator
+            };
+        }
+
+        if (request.PropertyType == PropertyType.House &&
+            request.HouseDetails is not null)
+        {
+            listing.HouseDetails = new ListingHouseDetails
+            {
+                ListingId = listing.Id,
+                HouseType = request.HouseDetails.HouseType,
+                NumberOfFloors = request.HouseDetails.NumberOfFloors,
+                YardAreaSquareMeters = request.HouseDetails.YardAreaSquareMeters
+            };
+        }
 
         await _listingRepository.CreateAsync(listing, cancellationToken);
 

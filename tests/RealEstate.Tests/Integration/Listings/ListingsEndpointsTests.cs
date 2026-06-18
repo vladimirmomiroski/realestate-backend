@@ -28,6 +28,7 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("id").GetGuid().Should().NotBeEmpty();
         json.GetProperty("languageCode").GetString().Should().Be("en");
         json.GetProperty("title").GetString().Should().Be("Integration test apartment");
+
         json.GetProperty("balconyCount").GetInt32().Should().Be(2);
         json.GetProperty("parkingSpaces").GetInt32().Should().Be(1);
         json.GetProperty("hasBasement").GetBoolean().Should().BeTrue();
@@ -38,9 +39,40 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("yearRenovated").GetInt32().Should().Be(2022);
         json.GetProperty("orientation").GetString().Should().Be("SouthEast");
         json.GetProperty("municipality").GetString().Should().Be("Centar");
+
+        var apartmentDetails = json.GetProperty("apartmentDetails");
+
+        apartmentDetails.GetProperty("apartmentType").GetString().Should().Be("Standard");
+        apartmentDetails.GetProperty("floor").GetInt32().Should().Be(4);
+        apartmentDetails.GetProperty("totalFloors").GetInt32().Should().Be(8);
+        apartmentDetails.GetProperty("hasElevator").GetBoolean().Should().BeTrue();
+
+        json.GetProperty("houseDetails").ValueKind.Should().Be(JsonValueKind.Null);
+
         json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
         json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
         json.GetProperty("images").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateListing_WithValidHouseRequest_ReturnsCreated()
+    {
+        var request = ListingTestHelpers.CreateValidHouseListingRequest();
+
+        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("propertyType").GetString().Should().Be("House");
+        json.GetProperty("apartmentDetails").ValueKind.Should().Be(JsonValueKind.Null);
+
+        var houseDetails = json.GetProperty("houseDetails");
+
+        houseDetails.GetProperty("houseType").GetString().Should().Be("Detached");
+        houseDetails.GetProperty("numberOfFloors").GetInt32().Should().Be(2);
+        houseDetails.GetProperty("yardAreaSquareMeters").GetDecimal().Should().Be(350);
     }
 
     [Fact]
@@ -132,6 +164,10 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("languageCode").GetString().Should().Be("mk");
         json.GetProperty("title").GetString().Should().Be("Интеграциски тест стан");
         json.GetProperty("municipality").GetString().Should().Be("Центар");
+
+        json.GetProperty("apartmentDetails").ValueKind.Should().Be(JsonValueKind.Object);
+        json.GetProperty("houseDetails").ValueKind.Should().Be(JsonValueKind.Null);
+
         json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
         json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
         json.GetProperty("images").GetArrayLength().Should().Be(0);

@@ -42,6 +42,8 @@ public sealed class SetPrimaryListingImageHandler
             image.IsPrimary = false;
         }
 
+        // Save in two phases because the database enforces only one primary image per listing.
+        // A single SaveChanges call can fail if EF updates the new primary before clearing the old one.
         await _listingRepository.SaveChangesAsync(cancellationToken);
 
         selectedImage.IsPrimary = true;
