@@ -222,6 +222,11 @@ namespace RealEstate.Tests.Integration.Listings
             var listingJson = await listingResponse.Content.ReadFromJsonAsync<JsonElement>();
             var images = listingJson.GetProperty("images");
 
+            images.EnumerateArray()
+                .Count(image => image.GetProperty("isPrimary").GetBoolean())
+                .Should()
+                .Be(1);
+
             var firstImageFromListing = images.EnumerateArray()
                 .First(image => image.GetProperty("id").GetGuid() == firstImageId);
 

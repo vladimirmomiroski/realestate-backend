@@ -29,6 +29,7 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("languageCode").GetString().Should().Be("en");
         json.GetProperty("title").GetString().Should().Be("Integration test apartment");
 
+        json.GetProperty("pricePerSquareMeter").GetDecimal().Should().Be(1706.90m);
         json.GetProperty("balconyCount").GetInt32().Should().Be(2);
         json.GetProperty("parkingSpaces").GetInt32().Should().Be(1);
         json.GetProperty("hasBasement").GetBoolean().Should().BeTrue();
@@ -53,6 +54,21 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
         json.GetProperty("images").GetArrayLength().Should().Be(0);
     }
+
+    [Fact]
+    public async Task CreateListing_WithDecimalPricePerSquareMeter_ReturnsRoundedValue()
+    {
+        var request = ListingTestHelpers.CreateValidListingRequest(price: 125000);
+
+        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("pricePerSquareMeter").GetDecimal().Should().Be(2155.17m);
+    }
+
 
     [Fact]
     public async Task CreateListing_WithValidHouseRequest_ReturnsCreated()
@@ -147,6 +163,61 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
         var firstListing = json.GetProperty("items")[0];
 
         firstListing.GetProperty("municipality").GetString().Should().Be("Centar");
+    }
+
+    [Fact]
+    public async Task GetListings_WithApartmentFilters_ReturnsMatchingListings()
+    {
+        await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        var response = await _httpClient.GetAsync(
+            "/api/listings?lang=en&heatingType=Central&furnishingStatus=Furnished&condition=Good&hasBasement=true&hasElevator=true&apartmentType=Standard&page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("items").GetArrayLength().Should().BeGreaterThan(0);
+
+        var firstListing = json.GetProperty("items")[0];
+
+        firstListing.GetProperty("heatingType").GetString().Should().Be("Central");
+        firstListing.GetProperty("furnishingStatus").GetString().Should().Be("Furnished");
+        firstListing.GetProperty("condition").GetString().Should().Be("Good");
+        firstListing.GetProperty("hasBasement").GetBoolean().Should().BeTrue();
+
+        var apartmentDetails = firstListing.GetProperty("apartmentDetails");
+
+        apartmentDetails.GetProperty("apartmentType").GetString().Should().Be("Standard");
+        apartmentDetails.GetProperty("hasElevator").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetListings_WithHouseFilters_ReturnsMatchingListings()
+    {
+        var request = ListingTestHelpers.CreateValidHouseListingRequest();
+
+        var createResponse = await _httpClient.PostAsJsonAsync("/api/listings", request);
+
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var response = await _httpClient.GetAsync(
+            "/api/listings?lang=en&houseType=Detached&minYardAreaSquareMeters=300&maxYardAreaSquareMeters=400&page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("items").GetArrayLength().Should().BeGreaterThan(0);
+
+        var firstListing = json.GetProperty("items")[0];
+
+        firstListing.GetProperty("propertyType").GetString().Should().Be("House");
+
+        var houseDetails = firstListing.GetProperty("houseDetails");
+
+        houseDetails.GetProperty("houseType").GetString().Should().Be("Detached");
+        houseDetails.GetProperty("yardAreaSquareMeters").GetDecimal().Should().Be(350);
     }
 
     [Fact]

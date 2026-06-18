@@ -49,7 +49,7 @@ public static class ListingMappingExtensions
             Price = listing.Price,
             Currency = listing.Currency,
             AreaSquareMeters = listing.AreaSquareMeters,
-            PricePerSquareMeter = listing.CalculatePricePerSquareMeter(),
+            PricePerSquareMeter = Math.Round(listing.CalculatePricePerSquareMeter(), 2),
             Rooms = listing.Rooms,
             Bathrooms = listing.Bathrooms,
             YearBuilt = listing.YearBuilt,

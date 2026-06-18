@@ -10,6 +10,24 @@ public sealed class GetListingsQuery
 
     public PropertyType? PropertyType { get; set; }
 
+    public HeatingType? HeatingType { get; set; }
+
+    public FurnishingStatus? FurnishingStatus { get; set; }
+
+    public PropertyCondition? Condition { get; set; }
+
+    public bool? HasBasement { get; set; }
+
+    public bool? HasElevator { get; set; }
+
+    public ApartmentType? ApartmentType { get; set; }
+
+    public HouseType? HouseType { get; set; }
+
+    public decimal? MinYardAreaSquareMeters { get; set; }
+
+    public decimal? MaxYardAreaSquareMeters { get; set; }
+
     public decimal? MinPrice { get; set; }
 
     public decimal? MaxPrice { get; set; }
