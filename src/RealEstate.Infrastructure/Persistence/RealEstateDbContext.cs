@@ -9,8 +9,9 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     : DbContext(options)
 {
 
+    public DbSet<User> Users => Set<User>();
     public DbSet<Listing> Listings => Set<Listing>();
-
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
