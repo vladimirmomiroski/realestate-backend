@@ -6,6 +6,9 @@ using RealEstate.Application.Listings.Repositories;
 using RealEstate.Infrastructure.Persistence.Repositories;
 using RealEstate.Application.Common.Storage;
 using RealEstate.Infrastructure.Storage;
+using RealEstate.Application.Common.Security;
+using RealEstate.Application.Users.Repositories;
+using RealEstate.Infrastructure.Security;
 
 namespace RealEstate.Infrastructure;
 
@@ -25,6 +28,9 @@ public static class DependencyInjection
         services.AddScoped<IListingRepository, ListingRepository>();
 
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IPasswordHasher, PasswordHasherService>();
 
         return services;
     }

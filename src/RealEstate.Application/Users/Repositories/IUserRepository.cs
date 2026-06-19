@@ -1,0 +1,16 @@
+﻿using RealEstate.Domain.Entities;
+
+namespace RealEstate.Application.Users.Repositories;
+
+public interface IUserRepository
+{
+    Task<bool> ExistsByNormalizedEmailAsync(
+        string normalizedEmail,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(
+        User user,
+        CancellationToken cancellationToken);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken);
+}

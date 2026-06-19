@@ -1338,8 +1338,17 @@ Payments/subscriptions
 
 Keep one clean task at a time.
 
+Task 5B completed:
+
+- Added auth register endpoint
+- Added IUserRepository/UserRepository
+- Added IPasswordHasher/PasswordHasherService
+- Added register handler and DTOs
+- Added register integration tests
+- dotnet test passed: 24/24
+
 Current next task:
 
 ```text
-Task 5A — User accounts foundation
+Task 5C — Login user + password verification
 ```
