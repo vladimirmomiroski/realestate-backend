@@ -1,4 +1,5 @@
 ﻿using RealEstate.Application.Common;
+using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Mappings;
 using RealEstate.Application.Listings.Repositories;
@@ -11,13 +12,16 @@ public sealed class CreateListingHandler
 {
     private readonly IListingRepository _listingRepository;
     private readonly CreateListingValidator _validator;
+    private readonly ICurrentUserService _currentUserService;
 
     public CreateListingHandler(
         IListingRepository listingRepository,
-        CreateListingValidator validator)
+        CreateListingValidator validator,
+        ICurrentUserService currentUserService)
     {
         _listingRepository = listingRepository;
         _validator = validator;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ServiceResult<ListingResponse>> HandleAsync(
@@ -67,8 +71,13 @@ public sealed class CreateListingHandler
             }).ToList()
         };
 
+        Guid userId = _currentUserService.UserId
+            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+
+        listing.AssignCreator(userId);
+
         if (request.PropertyType == PropertyType.Apartment &&
-    request.ApartmentDetails is not null)
+            request.ApartmentDetails is not null)
         {
             listing.ApartmentDetails = new ListingApartmentDetails
             {

@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using RealEstate.Tests.Integration.Auth;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -7,15 +8,25 @@ internal static class ListingTestHelpers
 {
     public static async Task<Guid> CreateListingAsync(HttpClient httpClient)
     {
-        var request = CreateValidListingRequest();
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(httpClient);
+        httpClient.AuthorizeAs(user.AccessToken);
 
-        var response = await httpClient.PostAsJsonAsync("/api/listings", request);
+        try
+        {
+            var request = CreateValidListingRequest();
 
-        response.EnsureSuccessStatusCode();
+            var response = await httpClient.PostAsJsonAsync("/api/listings", request);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            response.EnsureSuccessStatusCode();
 
-        return json.GetProperty("id").GetGuid();
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            return json.GetProperty("id").GetGuid();
+        }
+        finally
+        {
+            httpClient.ClearAuthorization();
+        }
     }
 
     public static object CreateValidListingRequest(decimal price = 99000)
