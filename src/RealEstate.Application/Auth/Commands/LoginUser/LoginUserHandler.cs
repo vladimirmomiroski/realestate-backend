@@ -9,13 +9,16 @@ public sealed class LoginUserHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IJwtTokenGenerator _jwtTokenGenerator;
 
     public LoginUserHandler(
         IUserRepository userRepository,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IJwtTokenGenerator jwtTokenGenerator)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
+        _jwtTokenGenerator = jwtTokenGenerator;
     }
 
     public async Task<LoginUserResult> HandleAsync(
@@ -49,7 +52,10 @@ public sealed class LoginUserHandler
             return LoginUserResult.InvalidCredentials();
         }
 
-        var response = new AuthResponse(
+        string accessToken = _jwtTokenGenerator.GenerateAccessToken(user);
+
+        var response = new LoginResponse(
+            accessToken,
             new AuthUserResponse(
                 user.Id,
                 user.Email,

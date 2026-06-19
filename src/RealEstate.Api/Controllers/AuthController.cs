@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using RealEstate.Application.Auth.Commands.RegisterUser;
 using RealEstate.Application.Auth.Commands.LoginUser;
+using RealEstate.Application.Auth.Commands.RegisterUser;
+using RealEstate.Application.Auth.Dtos;
 
 namespace RealEstate.Api.Controllers;
 
@@ -20,6 +21,9 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register(
         RegisterRequest request,
         CancellationToken cancellationToken)
@@ -49,6 +53,9 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login(
         LoginRequest request,
         CancellationToken cancellationToken)
