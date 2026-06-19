@@ -7,6 +7,8 @@ public class Listing : IAuditableEntity
 {
     public Guid Id { get; set; }
 
+    public Guid? CreatedByUserId { get; private set; }
+
     public ListingType ListingType { get; set; }
 
     public PropertyType PropertyType { get; set; }
@@ -60,6 +62,16 @@ public class Listing : IAuditableEntity
 
     public ICollection<ListingImage> Images { get; set; } =
     new List<ListingImage>();
+
+    public void AssignCreator(Guid userId)
+    {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("User id cannot be empty.", nameof(userId));
+        }
+
+        CreatedByUserId = userId;
+    }
 
     public decimal CalculatePricePerSquareMeter()
     {

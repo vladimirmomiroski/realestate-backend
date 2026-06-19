@@ -2,21 +2,31 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using RealEstate.Tests.Integration.Auth;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using RealEstate.Infrastructure.Persistence;
 
 namespace RealEstate.Tests.Integration.Listings;
 
 public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFactory>
 {
+    private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _httpClient;
 
     public ListingsEndpointTests(CustomWebApplicationFactory factory)
     {
+        _factory = factory;
         _httpClient = factory.CreateClient();
     }
 
     [Fact]
     public async Task CreateListing_WithValidRequest_ReturnsCreated()
     {
+
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(user.AccessToken);
+
         var request = ListingTestHelpers.CreateValidListingRequest();
 
         var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
@@ -56,8 +66,58 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task CreateListing_WithoutAccessToken_ReturnsUnauthorized()
+    {
+        _httpClient.ClearAuthorization();
+
+        var request = ListingTestHelpers.CreateValidListingRequest();
+
+        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task CreateListing_WithAccessToken_StoresCreatedByUserId()
+    {
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(user.AccessToken);
+
+        try
+        {
+            var request = ListingTestHelpers.CreateValidListingRequest();
+
+            var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            Guid listingId = json.GetProperty("id").GetGuid();
+
+            using IServiceScope scope = _factory.Services.CreateScope();
+
+            var dbContext = scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+            var listing = await dbContext.Listings.SingleAsync(
+                listing => listing.Id == listingId);
+
+            listing.CreatedByUserId.Should().Be(user.UserId);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+
+    [Fact]
     public async Task CreateListing_WithDecimalPricePerSquareMeter_ReturnsRoundedValue()
     {
+
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(user.AccessToken);
+
         var request = ListingTestHelpers.CreateValidListingRequest(price: 125000);
 
         var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
@@ -73,6 +133,10 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task CreateListing_WithValidHouseRequest_ReturnsCreated()
     {
+
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(user.AccessToken);
+
         var request = ListingTestHelpers.CreateValidHouseListingRequest();
 
         var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
@@ -94,6 +158,10 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task CreateListing_WithInvalidPrice_ReturnsBadRequest()
     {
+
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(user.AccessToken);
+
         var request = ListingTestHelpers.CreateValidListingRequest(price: 0);
 
         var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
@@ -195,11 +263,17 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task GetListings_WithHouseFilters_ReturnsMatchingListings()
     {
+
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(user.AccessToken);
+
         var request = ListingTestHelpers.CreateValidHouseListingRequest();
 
         var createResponse = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        _httpClient.ClearAuthorization();
 
         var response = await _httpClient.GetAsync(
             "/api/listings?lang=en&houseType=Detached&minYardAreaSquareMeters=300&maxYardAreaSquareMeters=400&page=1&pageSize=20");

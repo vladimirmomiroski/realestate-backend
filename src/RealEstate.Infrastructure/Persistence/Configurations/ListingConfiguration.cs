@@ -13,6 +13,15 @@ public class ListingConfiguration : IEntityTypeConfiguration<Listing>
 
         builder.HasKey(listing => listing.Id);
 
+        builder.Property(listing => listing.CreatedByUserId);
+
+        builder.HasIndex(listing => listing.CreatedByUserId);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(listing => listing.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(listing => listing.ListingType)
             .IsRequired()
             .HasConversion<string>()

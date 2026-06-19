@@ -10,6 +10,7 @@ using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 
 namespace RealEstate.Api.Controllers;
 
@@ -46,6 +47,7 @@ public sealed class ListingsController : ControllerBase
         _reorderListingImagesHandler = reorderListingImagesHandler;
     }
 
+    [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
