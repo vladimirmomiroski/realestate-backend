@@ -11,10 +11,10 @@ public enum LoginUserResultType
 
 public sealed record LoginUserResult(
     LoginUserResultType Type,
-    AuthResponse? Response,
+    LoginResponse? Response,
     string? Error)
 {
-    public static LoginUserResult Success(AuthResponse response)
+    public static LoginUserResult Success(LoginResponse response)
         => new(LoginUserResultType.Success, response, null);
 
     public static LoginUserResult ValidationFailed(string error)

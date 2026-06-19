@@ -1,11 +1,12 @@
-﻿using System.Net;
-using System.Net.Http.Json;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RealEstate.Application.Auth.Commands.LoginUser;
 using RealEstate.Application.Auth.Commands.RegisterUser;
 using RealEstate.Infrastructure.Persistence;
-using RealEstate.Application.Auth.Commands.LoginUser;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace RealEstate.Tests.Integration.Auth;
 
@@ -141,6 +142,16 @@ public sealed class AuthEndpointTests : IClassFixture<CustomWebApplicationFactor
             loginRequest);
 
         loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        string content = await loginResponse.Content.ReadAsStringAsync();
+
+        using JsonDocument json = JsonDocument.Parse(content);
+
+        string accessToken = json.RootElement
+            .GetProperty("accessToken")
+            .GetString()!;
+
+        accessToken.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
