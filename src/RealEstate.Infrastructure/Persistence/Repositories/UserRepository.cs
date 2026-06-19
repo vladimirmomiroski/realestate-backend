@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
-using RealEstate.Infrastructure.Persistence;
 
 namespace RealEstate.Infrastructure.Persistence.Repositories;
 
@@ -12,6 +11,15 @@ public sealed class UserRepository : IUserRepository
     public UserRepository(RealEstateDbContext dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    public async Task<User?> GetByNormalizedEmailAsync(
+    string normalizedEmail,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Users.SingleOrDefaultAsync(
+            user => user.NormalizedEmail == normalizedEmail,
+            cancellationToken);
     }
 
     public async Task<bool> ExistsByNormalizedEmailAsync(
