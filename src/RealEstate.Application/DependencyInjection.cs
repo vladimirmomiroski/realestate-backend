@@ -7,6 +7,7 @@ using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Auth.Commands.RegisterUser;
+using RealEstate.Application.Auth.Commands.LoginUser;
 
 namespace RealEstate.Application;
 
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<ReorderListingImagesHandler>();
 
         services.AddScoped<RegisterUserHandler>();
+        services.AddScoped<LoginUserHandler>();
 
         return services;
     }

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Application.Auth.Commands.RegisterUser;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Application.Auth.Commands.LoginUser;
 
 namespace RealEstate.Tests.Integration.Auth;
 
@@ -107,13 +108,74 @@ public sealed class AuthEndpointTests : IClassFixture<CustomWebApplicationFactor
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    private static RegisterRequest CreateValidRegisterRequest(string email)
+    private static RegisterRequest CreateValidRegisterRequest(
+    string email,
+    string password = "Password123!")
     {
         return new RegisterRequest(
             email,
-            "Password123!",
+            password,
             "Test",
             "User",
             "+38970123456");
+    }
+
+    [Fact]
+    public async Task Login_WithValidCredentials_ReturnsOk()
+    {
+        const string email = "login-valid@test.com";
+        const string password = "Password123!";
+
+        var registerRequest = CreateValidRegisterRequest(email, password);
+
+        HttpResponseMessage registerResponse = await _client.PostAsJsonAsync(
+            "/api/auth/register",
+            registerRequest);
+
+        registerResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var loginRequest = new LoginRequest(email, password);
+
+        HttpResponseMessage loginResponse = await _client.PostAsJsonAsync(
+            "/api/auth/login",
+            loginRequest);
+
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Login_WithWrongPassword_ReturnsUnauthorized()
+    {
+        const string email = "login-wrong-password@test.com";
+
+        var registerRequest = CreateValidRegisterRequest(email, "Password123!");
+
+        HttpResponseMessage registerResponse = await _client.PostAsJsonAsync(
+            "/api/auth/register",
+            registerRequest);
+
+        registerResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var loginRequest = new LoginRequest(email, "WrongPassword123!");
+
+        HttpResponseMessage loginResponse = await _client.PostAsJsonAsync(
+            "/api/auth/login",
+            loginRequest);
+
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Login_WithUnknownEmail_ReturnsUnauthorized()
+    {
+        var loginRequest = new LoginRequest(
+            "unknown-login@test.com",
+            "Password123!");
+
+        HttpResponseMessage response = await _client.PostAsJsonAsync(
+            "/api/auth/login",
+            loginRequest);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }

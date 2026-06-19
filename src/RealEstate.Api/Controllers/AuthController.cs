@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RealEstate.Application.Auth.Commands.RegisterUser;
+using RealEstate.Application.Auth.Commands.LoginUser;
 
 namespace RealEstate.Api.Controllers;
 
@@ -8,10 +9,14 @@ namespace RealEstate.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly RegisterUserHandler _registerUserHandler;
+    private readonly LoginUserHandler _loginUserHandler;
 
-    public AuthController(RegisterUserHandler registerUserHandler)
+    public AuthController(
+        RegisterUserHandler registerUserHandler,
+        LoginUserHandler loginUserHandler)
     {
         _registerUserHandler = registerUserHandler;
+        _loginUserHandler = loginUserHandler;
     }
 
     [HttpPost("register")]
@@ -35,6 +40,33 @@ public sealed class AuthController : ControllerBase
             }),
 
             RegisterUserResultType.ValidationFailed => BadRequest(new
+            {
+                message = result.Error
+            }),
+
+            _ => BadRequest()
+        };
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(
+        LoginRequest request,
+        CancellationToken cancellationToken)
+    {
+        LoginUserResult result = await _loginUserHandler.HandleAsync(
+            request,
+            cancellationToken);
+
+        return result.Type switch
+        {
+            LoginUserResultType.Success => Ok(result.Response),
+
+            LoginUserResultType.InvalidCredentials => Unauthorized(new
+            {
+                message = result.Error
+            }),
+
+            LoginUserResultType.ValidationFailed => BadRequest(new
             {
                 message = result.Error
             }),
