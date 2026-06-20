@@ -11,6 +11,7 @@ using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
+using RealEstate.Application.Listings.Queries.GetMyListings;
 
 namespace RealEstate.Api.Controllers;
 
@@ -28,6 +29,7 @@ public sealed class ListingsController : ControllerBase
     private readonly DeleteListingImageHandler _deleteListingImageHandler;
     private readonly SetPrimaryListingImageHandler _setPrimaryListingImageHandler;
     private readonly ReorderListingImagesHandler _reorderListingImagesHandler;
+    private readonly GetMyListingsHandler _getMyListingsHandler;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
@@ -36,7 +38,8 @@ public sealed class ListingsController : ControllerBase
         UploadListingImageHandler uploadListingImageHandler,
         DeleteListingImageHandler deleteListingImageHandler,
         SetPrimaryListingImageHandler setPrimaryListingImageHandler,
-        ReorderListingImagesHandler reorderListingImagesHandler)
+        ReorderListingImagesHandler reorderListingImagesHandler,
+        GetMyListingsHandler getMyListingsHandler)
     {
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
@@ -45,12 +48,14 @@ public sealed class ListingsController : ControllerBase
         _deleteListingImageHandler = deleteListingImageHandler;
         _setPrimaryListingImageHandler = setPrimaryListingImageHandler;
         _reorderListingImagesHandler = reorderListingImagesHandler;
+        _getMyListingsHandler = getMyListingsHandler;
     }
 
     [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ListingResponse>> CreateListing(
         [FromBody] CreateListingRequest request,
         CancellationToken cancellationToken)
@@ -118,6 +123,27 @@ public sealed class ListingsController : ControllerBase
         var listings = await _getListingsHandler.HandleAsync(query, cancellationToken);
 
         return Ok(listings);
+    }
+
+    [Authorize]
+    [HttpGet("my")]
+    [ProducesResponseType(typeof(PagedResult<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<PagedResult<ListingResponse>>> GetMyListings(
+    [FromQuery] string? lang,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+    {
+        var query = new GetMyListingsQuery(
+            lang,
+            page,
+            pageSize);
+
+        PagedResult<ListingResponse> result =
+            await _getMyListingsHandler.HandleAsync(query, cancellationToken);
+
+        return Ok(result);
     }
 
     [HttpGet("{id:guid}", Name = GetListingByIdRouteName)]

@@ -55,6 +55,11 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
+var jwtSection = builder.Configuration.GetSection("Jwt");
+
+string jwtSecret = jwtSection["Secret"]
+    ?? throw new InvalidOperationException("JWT secret is not configured.");
+
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -64,17 +69,24 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter JWT bearer token."
+        Description = "Paste only the JWT token. Do not include Bearer."
+    });
+
+    options.AddSecurityRequirement(openApiDocument => new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecuritySchemeReference("Bearer", openApiDocument),
+            new List<string>()
+        }
     });
 });
 
-var jwtSection = builder.Configuration.GetSection("Jwt");
-
-string jwtSecret = jwtSection["Secret"]
-    ?? throw new InvalidOperationException("JWT secret is not configured.");
-
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
