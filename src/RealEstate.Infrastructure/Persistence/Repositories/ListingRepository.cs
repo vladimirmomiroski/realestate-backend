@@ -159,7 +159,11 @@ public sealed class ListingRepository : IListingRepository
              .Take(pageSize)
              .ToListAsync(cancellationToken);
 
-        return new PagedResult<Listing>(listings, totalCount);
+        return new PagedResult<Listing>(
+             listings,
+             page,
+             pageSize,
+             totalCount);
     }
 
     public async Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken)
@@ -172,6 +176,39 @@ public sealed class ListingRepository : IListingRepository
             .Include(listing => listing.HouseDetails)
             .AsSplitQuery()
             .FirstOrDefaultAsync(listing => listing.Id == id, cancellationToken);
+    }
+
+    public async Task<PagedResult<Listing>> GetByCreatedByUserIdAsync(
+        Guid createdByUserId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        IQueryable<Listing> query = _dbContext.Listings
+            .AsNoTracking()
+            .Where(listing => listing.CreatedByUserId == createdByUserId);
+
+        int totalCount = await query.CountAsync(cancellationToken);
+
+        List<Listing> listings = await query
+            .Include(listing => listing.Translations)
+            .Include(listing => listing.Images)
+            .Include(listing => listing.ApartmentDetails)
+            .Include(listing => listing.HouseDetails)
+            .AsSplitQuery()
+            .OrderByDescending(listing => listing.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Listing>(
+            listings,
+            page,
+            pageSize,
+            totalCount);
     }
 
     public async Task<Listing?> GetByIdWithImagesForUpdateAsync(

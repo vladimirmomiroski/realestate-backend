@@ -18,6 +18,12 @@ public interface IListingRepository
     Guid id,
     CancellationToken cancellationToken);
 
+    Task<PagedResult<Listing>> GetByCreatedByUserIdAsync(
+    Guid createdByUserId,
+    int page,
+    int pageSize,
+    CancellationToken cancellationToken);
+
     void AddListingImage(ListingImage image);
 
     void RemoveListingImage(ListingImage image);
