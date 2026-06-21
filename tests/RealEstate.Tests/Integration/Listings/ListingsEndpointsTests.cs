@@ -23,46 +23,53 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task CreateListing_WithValidRequest_ReturnsCreated()
     {
-
         AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-        _httpClient.AuthorizeAs(user.AccessToken);
 
-        var request = ListingTestHelpers.CreateValidListingRequest();
+        try
+        {
+            _httpClient.AuthorizeAs(user.AccessToken);
 
-        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+            var request = ListingTestHelpers.CreateValidListingRequest();
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+            var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        json.GetProperty("id").GetGuid().Should().NotBeEmpty();
-        json.GetProperty("languageCode").GetString().Should().Be("en");
-        json.GetProperty("title").GetString().Should().Be("Integration test apartment");
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        json.GetProperty("pricePerSquareMeter").GetDecimal().Should().Be(1706.90m);
-        json.GetProperty("balconyCount").GetInt32().Should().Be(2);
-        json.GetProperty("parkingSpaces").GetInt32().Should().Be(1);
-        json.GetProperty("hasBasement").GetBoolean().Should().BeTrue();
-        json.GetProperty("isExchangePossible").GetBoolean().Should().BeFalse();
-        json.GetProperty("heatingType").GetString().Should().Be("Central");
-        json.GetProperty("furnishingStatus").GetString().Should().Be("Furnished");
-        json.GetProperty("condition").GetString().Should().Be("Good");
-        json.GetProperty("yearRenovated").GetInt32().Should().Be(2022);
-        json.GetProperty("orientation").GetString().Should().Be("SouthEast");
-        json.GetProperty("municipality").GetString().Should().Be("Centar");
+            json.GetProperty("id").GetGuid().Should().NotBeEmpty();
+            json.GetProperty("languageCode").GetString().Should().Be("en");
+            json.GetProperty("title").GetString().Should().Be("Integration test apartment");
 
-        var apartmentDetails = json.GetProperty("apartmentDetails");
+            json.GetProperty("pricePerSquareMeter").GetDecimal().Should().Be(1706.90m);
+            json.GetProperty("balconyCount").GetInt32().Should().Be(2);
+            json.GetProperty("parkingSpaces").GetInt32().Should().Be(1);
+            json.GetProperty("hasBasement").GetBoolean().Should().BeTrue();
+            json.GetProperty("isExchangePossible").GetBoolean().Should().BeFalse();
+            json.GetProperty("heatingType").GetString().Should().Be("Central");
+            json.GetProperty("furnishingStatus").GetString().Should().Be("Furnished");
+            json.GetProperty("condition").GetString().Should().Be("Good");
+            json.GetProperty("yearRenovated").GetInt32().Should().Be(2022);
+            json.GetProperty("orientation").GetString().Should().Be("SouthEast");
+            json.GetProperty("municipality").GetString().Should().Be("Centar");
 
-        apartmentDetails.GetProperty("apartmentType").GetString().Should().Be("Standard");
-        apartmentDetails.GetProperty("floor").GetInt32().Should().Be(4);
-        apartmentDetails.GetProperty("totalFloors").GetInt32().Should().Be(8);
-        apartmentDetails.GetProperty("hasElevator").GetBoolean().Should().BeTrue();
+            var apartmentDetails = json.GetProperty("apartmentDetails");
 
-        json.GetProperty("houseDetails").ValueKind.Should().Be(JsonValueKind.Null);
+            apartmentDetails.GetProperty("apartmentType").GetString().Should().Be("Standard");
+            apartmentDetails.GetProperty("floor").GetInt32().Should().Be(4);
+            apartmentDetails.GetProperty("totalFloors").GetInt32().Should().Be(8);
+            apartmentDetails.GetProperty("hasElevator").GetBoolean().Should().BeTrue();
 
-        json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
-        json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
-        json.GetProperty("images").GetArrayLength().Should().Be(0);
+            json.GetProperty("houseDetails").ValueKind.Should().Be(JsonValueKind.Null);
+
+            json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
+            json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
+            json.GetProperty("images").GetArrayLength().Should().Be(0);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 
     [Fact]
@@ -114,63 +121,84 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task CreateListing_WithDecimalPricePerSquareMeter_ReturnsRoundedValue()
     {
-
         AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-        _httpClient.AuthorizeAs(user.AccessToken);
 
-        var request = ListingTestHelpers.CreateValidListingRequest(price: 125000);
+        try
+        {
+            _httpClient.AuthorizeAs(user.AccessToken);
 
-        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+            var request = ListingTestHelpers.CreateValidListingRequest(price: 125000);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+            var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        json.GetProperty("pricePerSquareMeter").GetDecimal().Should().Be(2155.17m);
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            json.GetProperty("pricePerSquareMeter").GetDecimal().Should().Be(2155.17m);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 
 
     [Fact]
     public async Task CreateListing_WithValidHouseRequest_ReturnsCreated()
     {
-
         AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-        _httpClient.AuthorizeAs(user.AccessToken);
 
-        var request = ListingTestHelpers.CreateValidHouseListingRequest();
+        try
+        {
+            _httpClient.AuthorizeAs(user.AccessToken);
 
-        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+            var request = ListingTestHelpers.CreateValidHouseListingRequest();
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+            var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        json.GetProperty("propertyType").GetString().Should().Be("House");
-        json.GetProperty("apartmentDetails").ValueKind.Should().Be(JsonValueKind.Null);
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        var houseDetails = json.GetProperty("houseDetails");
+            json.GetProperty("propertyType").GetString().Should().Be("House");
+            json.GetProperty("apartmentDetails").ValueKind.Should().Be(JsonValueKind.Null);
 
-        houseDetails.GetProperty("houseType").GetString().Should().Be("Detached");
-        houseDetails.GetProperty("numberOfFloors").GetInt32().Should().Be(2);
-        houseDetails.GetProperty("yardAreaSquareMeters").GetDecimal().Should().Be(350);
+            var houseDetails = json.GetProperty("houseDetails");
+
+            houseDetails.GetProperty("houseType").GetString().Should().Be("Detached");
+            houseDetails.GetProperty("numberOfFloors").GetInt32().Should().Be(2);
+            houseDetails.GetProperty("yardAreaSquareMeters").GetDecimal().Should().Be(350);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 
     [Fact]
     public async Task CreateListing_WithInvalidPrice_ReturnsBadRequest()
     {
-
         AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-        _httpClient.AuthorizeAs(user.AccessToken);
 
-        var request = ListingTestHelpers.CreateValidListingRequest(price: 0);
+        try
+        {
+            _httpClient.AuthorizeAs(user.AccessToken);
 
-        var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
+            var request = ListingTestHelpers.CreateValidListingRequest(price: 0);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
-        var error = await response.Content.ReadAsStringAsync();
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        error.Should().Contain("Price must be greater than zero.");
+            var error = await response.Content.ReadAsStringAsync();
+
+            error.Should().Contain("Price must be greater than zero.");
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 
     [Fact]
@@ -263,17 +291,22 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task GetListings_WithHouseFilters_ReturnsMatchingListings()
     {
-
         AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-        _httpClient.AuthorizeAs(user.AccessToken);
 
-        var request = ListingTestHelpers.CreateValidHouseListingRequest();
+        try
+        {
+            _httpClient.AuthorizeAs(user.AccessToken);
 
-        var createResponse = await _httpClient.PostAsJsonAsync("/api/listings", request);
+            var request = ListingTestHelpers.CreateValidHouseListingRequest();
 
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createResponse = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
-        _httpClient.ClearAuthorization();
+            createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
 
         var response = await _httpClient.GetAsync(
             "/api/listings?lang=en&houseType=Detached&minYardAreaSquareMeters=300&maxYardAreaSquareMeters=400&page=1&pageSize=20");
