@@ -110,8 +110,8 @@ public sealed class AuthEndpointTests : IClassFixture<CustomWebApplicationFactor
     }
 
     private static RegisterRequest CreateValidRegisterRequest(
-    string email,
-    string password = "Password123!")
+        string email,
+        string password = "Password123!")
     {
         return new RegisterRequest(
             email,
