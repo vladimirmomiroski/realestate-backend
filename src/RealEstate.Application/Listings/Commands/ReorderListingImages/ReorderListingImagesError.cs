@@ -4,6 +4,7 @@ public enum ReorderListingImagesError
 {
     None,
     ListingNotFound,
+    NotListingOwner,
     ImageIdsMissing,
     ImageSetMismatch
 }

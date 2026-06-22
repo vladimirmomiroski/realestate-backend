@@ -1,15 +1,19 @@
-﻿using RealEstate.Application.Listings.Dtos;
+﻿using RealEstate.Application.Common.Authentication;
+using RealEstate.Application.Listings.Commands.UploadListingImage;
+using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Repositories;
 
 namespace RealEstate.Application.Listings.Commands.ReorderListingImages;
 
 public sealed class ReorderListingImagesHandler
 {
+    private readonly ICurrentUserService _currentUserService;
     private readonly IListingRepository _listingRepository;
 
-    public ReorderListingImagesHandler(IListingRepository listingRepository)
+    public ReorderListingImagesHandler(IListingRepository listingRepository, ICurrentUserService currentUserService)
     {
         _listingRepository = listingRepository;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ReorderListingImagesResult> Handle(
@@ -28,6 +32,14 @@ public sealed class ReorderListingImagesHandler
         if (listing is null)
         {
             return ReorderListingImagesResult.Failure(ReorderListingImagesError.ListingNotFound);
+        }
+
+        Guid userId = _currentUserService.UserId
+            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+
+        if (listing.CreatedByUserId != userId)
+        {
+            return ReorderListingImagesResult.Failure(ReorderListingImagesError.NotListingOwner);
         }
 
         if (listing.Images.Count != command.ImageIds.Count)

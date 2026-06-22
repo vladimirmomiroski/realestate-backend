@@ -4,6 +4,7 @@ public enum UploadListingImageError
 {
     None,
     ListingNotFound,
+    NotListingOwner,
     FileMissing,
     FileEmpty,
     FileTooLarge,

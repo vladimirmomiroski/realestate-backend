@@ -2,11 +2,13 @@
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
+using RealEstate.Application.Common.Authentication;
 
 namespace RealEstate.Application.Listings.Commands.UploadListingImage;
 
 public sealed class UploadListingImageHandler
 {
+    private readonly ICurrentUserService _currentUserService;
     private const long MaxFileSizeBytes = 5 * 1024 * 1024;
     private const int MaxImagesPerListing = 20;
 
@@ -30,10 +32,12 @@ public sealed class UploadListingImageHandler
 
     public UploadListingImageHandler(
         IListingRepository listingRepository,
-        IFileStorageService fileStorageService)
+        IFileStorageService fileStorageService,
+        ICurrentUserService currentUserService)
     {
         _listingRepository = listingRepository;
         _fileStorageService = fileStorageService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<UploadListingImageResult> Handle(
@@ -54,6 +58,14 @@ public sealed class UploadListingImageHandler
         if (listing is null)
         {
             return UploadListingImageResult.Failure(UploadListingImageError.ListingNotFound);
+        }
+
+        Guid userId = _currentUserService.UserId
+            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+
+        if (listing.CreatedByUserId != userId)
+        {
+            return UploadListingImageResult.Failure(UploadListingImageError.NotListingOwner);
         }
 
         if (listing.Images.Count >= MaxImagesPerListing)
