@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using System.Net.Http.Headers;
+using RealEstate.Tests.Integration.Auth;
 
 namespace RealEstate.Tests.Integration.Listings
 
@@ -20,32 +21,15 @@ namespace RealEstate.Tests.Integration.Listings
         [Fact]
         public async Task UploadListingImage_WithValidImage_ReturnsCreated()
         {
-            var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
-            using var form = new MultipartFormDataContent();
-
-            var imageBytes = new byte[]
-            {
-        0x89, 0x50, 0x4E, 0x47
-            };
-
-            var fileContent = new ByteArrayContent(imageBytes);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-
-            form.Add(fileContent, "file", "test-image.png");
-
-            var response = await _httpClient.PostAsync(
-                $"/api/listings/{listingId}/images",
-                form);
-
-            response.StatusCode.Should().Be(HttpStatusCode.Created);
-
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            var json = await UploadImageAsync(listingId, owner);
 
             json.GetProperty("id").GetGuid().Should().NotBeEmpty();
             json.GetProperty("url").GetString().Should().NotBeNullOrWhiteSpace();
             json.GetProperty("contentType").GetString().Should().Be("image/png");
-            json.GetProperty("sizeBytes").GetInt64().Should().Be(imageBytes.Length);
+            json.GetProperty("sizeBytes").GetInt64().Should().Be(4);
             json.GetProperty("sortOrder").GetInt32().Should().Be(0);
             json.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
         }
@@ -53,25 +37,10 @@ namespace RealEstate.Tests.Integration.Listings
         [Fact]
         public async Task GetListingById_AfterImageUpload_ReturnsImageData()
         {
-            var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
-            using var form = new MultipartFormDataContent();
-
-            var imageBytes = new byte[]
-            {
-        0x89, 0x50, 0x4E, 0x47
-            };
-
-            var fileContent = new ByteArrayContent(imageBytes);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-
-            form.Add(fileContent, "file", "test-image.png");
-
-            var uploadResponse = await _httpClient.PostAsync(
-                $"/api/listings/{listingId}/images",
-                form);
-
-            uploadResponse.EnsureSuccessStatusCode();
+            await UploadImageAsync(listingId, owner);
 
             var response = await _httpClient.GetAsync($"/api/listings/{listingId}?lang=en");
 
@@ -93,7 +62,8 @@ namespace RealEstate.Tests.Integration.Listings
         [Fact]
         public async Task UploadListingImage_WithInvalidFileType_ReturnsBadRequest()
         {
-            var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
             using var form = new MultipartFormDataContent();
 
@@ -102,27 +72,39 @@ namespace RealEstate.Tests.Integration.Listings
 
             form.Add(fileContent, "file", "notes.txt");
 
-            var response = await _httpClient.PostAsync(
-                $"/api/listings/{listingId}/images",
-                form);
+            _httpClient.AuthorizeAs(owner.AccessToken);
 
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            try
+            {
+                var response = await _httpClient.PostAsync(
+                    $"/api/listings/{listingId}/images",
+                    form);
 
-            var error = await response.Content.ReadAsStringAsync();
+                response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-            error.Should().Contain("Only JPG, JPEG, PNG, and WEBP images are allowed.");
+                var error = await response.Content.ReadAsStringAsync();
+
+                error.Should().Contain("Only JPG, JPEG, PNG, and WEBP images are allowed.");
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
         }
 
         [Fact]
         public async Task UploadListingImage_WithMissingListing_ReturnsNotFound()
         {
-            var missingListingId = Guid.NewGuid();
+            Guid missingListingId = Guid.NewGuid();
+
+            AuthenticatedTestUser user =
+                await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
 
             using var form = new MultipartFormDataContent();
 
             var imageBytes = new byte[]
             {
-        0x89, 0x50, 0x4E, 0x47
+                0x89, 0x50, 0x4E, 0x47
             };
 
             var fileContent = new ByteArrayContent(imageBytes);
@@ -130,25 +112,45 @@ namespace RealEstate.Tests.Integration.Listings
 
             form.Add(fileContent, "file", "test-image.png");
 
-            var response = await _httpClient.PostAsync(
-                $"/api/listings/{missingListingId}/images",
-                form);
+            _httpClient.AuthorizeAs(user.AccessToken);
 
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            try
+            {
+                var response = await _httpClient.PostAsync(
+                    $"/api/listings/{missingListingId}/images",
+                    form);
+
+                response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
         }
 
         [Fact]
         public async Task DeleteListingImage_WithExistingImage_ReturnsNoContent()
         {
-            var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
-            var image = await UploadImageAsync(listingId);
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+
+            var image = await UploadImageAsync(listingId, owner);
 
             var imageId = image.GetProperty("id").GetGuid();
 
-            var response = await _httpClient.DeleteAsync(
-                $"/api/listings/{listingId}/images/{imageId}");
+            _httpClient.AuthorizeAs(owner.AccessToken);
 
-            response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+            try
+            {
+                var response = await _httpClient.DeleteAsync(
+                    $"/api/listings/{listingId}/images/{imageId}");
+
+                response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
 
             var listingResponse = await _httpClient.GetAsync($"/api/listings/{listingId}?lang=en");
 
@@ -163,18 +165,28 @@ namespace RealEstate.Tests.Integration.Listings
         [Fact]
         public async Task DeleteListingImage_WhenPrimaryDeleted_MakesNextImagePrimary()
         {
-            var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
-            var firstImage = await UploadImageAsync(listingId, "first-image.png");
-            var secondImage = await UploadImageAsync(listingId, "second-image.png");
+            var firstImage = await UploadImageAsync(listingId, owner, "first-image.png");
+            var secondImage = await UploadImageAsync(listingId, owner, "second-image.png");
 
             var firstImageId = firstImage.GetProperty("id").GetGuid();
             var secondImageId = secondImage.GetProperty("id").GetGuid();
 
-            var deleteResponse = await _httpClient.DeleteAsync(
-                $"/api/listings/{listingId}/images/{firstImageId}");
+            _httpClient.AuthorizeAs(owner.AccessToken);
 
-            deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+            try
+            {
+                var deleteResponse = await _httpClient.DeleteAsync(
+                    $"/api/listings/{listingId}/images/{firstImageId}");
+
+                deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
 
             var listingResponse = await _httpClient.GetAsync($"/api/listings/{listingId}?lang=en");
 
@@ -196,24 +208,34 @@ namespace RealEstate.Tests.Integration.Listings
         [Fact]
         public async Task SetPrimaryListingImage_WithExistingImage_ReturnsOk()
         {
-            var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
-            var firstImage = await UploadImageAsync(listingId, "first-image.png");
-            var secondImage = await UploadImageAsync(listingId, "second-image.png");
+            var firstImage = await UploadImageAsync(listingId, owner, "first-image.png");
+            var secondImage = await UploadImageAsync(listingId, owner, "second-image.png");
 
             var firstImageId = firstImage.GetProperty("id").GetGuid();
             var secondImageId = secondImage.GetProperty("id").GetGuid();
 
-            var response = await _httpClient.PutAsync(
-                $"/api/listings/{listingId}/images/{secondImageId}/primary",
-                null);
+            _httpClient.AuthorizeAs(owner.AccessToken);
 
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            try
+            {
+                var response = await _httpClient.PutAsync(
+                    $"/api/listings/{listingId}/images/{secondImageId}/primary",
+                    null);
 
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+                response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            json.GetProperty("id").GetGuid().Should().Be(secondImageId);
-            json.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+                json.GetProperty("id").GetGuid().Should().Be(secondImageId);
+                json.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
 
             var listingResponse = await _httpClient.GetAsync($"/api/listings/{listingId}?lang=en");
 
@@ -245,11 +267,12 @@ namespace RealEstate.Tests.Integration.Listings
         [Fact]
         public async Task ReorderListingImages_WithValidOrder_ReturnsOrderedImages()
         {
-            var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
-            var firstImage = await UploadImageAsync(listingId, "first-image.png");
-            var secondImage = await UploadImageAsync(listingId, "second-image.png");
-            var thirdImage = await UploadImageAsync(listingId, "third-image.png");
+            var firstImage = await UploadImageAsync(listingId, owner, "first-image.png");
+            var secondImage = await UploadImageAsync(listingId, owner, "second-image.png");
+            var thirdImage = await UploadImageAsync(listingId, owner, "third-image.png");
 
             var firstImageId = firstImage.GetProperty("id").GetGuid();
             var secondImageId = secondImage.GetProperty("id").GetGuid();
@@ -265,52 +288,282 @@ namespace RealEstate.Tests.Integration.Listings
         }
             };
 
-            var response = await _httpClient.PutAsJsonAsync(
-                $"/api/listings/{listingId}/images/order",
-                request);
+            _httpClient.AuthorizeAs(owner.AccessToken);
 
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            try
+            {
+                var response = await _httpClient.PutAsJsonAsync(
+                    $"/api/listings/{listingId}/images/order",
+                    request);
 
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+                response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            json.GetArrayLength().Should().Be(3);
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-            json[0].GetProperty("id").GetGuid().Should().Be(thirdImageId);
-            json[0].GetProperty("sortOrder").GetInt32().Should().Be(0);
+                json.GetArrayLength().Should().Be(3);
 
-            json[1].GetProperty("id").GetGuid().Should().Be(firstImageId);
-            json[1].GetProperty("sortOrder").GetInt32().Should().Be(1);
+                json[0].GetProperty("id").GetGuid().Should().Be(thirdImageId);
+                json[0].GetProperty("sortOrder").GetInt32().Should().Be(0);
 
-            json[2].GetProperty("id").GetGuid().Should().Be(secondImageId);
-            json[2].GetProperty("sortOrder").GetInt32().Should().Be(2);
+                json[1].GetProperty("id").GetGuid().Should().Be(firstImageId);
+                json[1].GetProperty("sortOrder").GetInt32().Should().Be(1);
+
+                json[2].GetProperty("id").GetGuid().Should().Be(secondImageId);
+                json[2].GetProperty("sortOrder").GetInt32().Should().Be(2);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
         }
 
         private async Task<JsonElement> UploadImageAsync(
-        Guid listingId,
-        string fileName = "test-image.png",
-        string contentType = "image/png")
+            Guid listingId,
+            AuthenticatedTestUser owner,
+             string fileName = "test-image.png",
+            string contentType = "image/png")
         {
-            using var form = new MultipartFormDataContent();
+            _httpClient.AuthorizeAs(owner.AccessToken);
 
-            var imageBytes = new byte[]
+            try
             {
-        0x89, 0x50, 0x4E, 0x47
-            };
+                using var form = new MultipartFormDataContent();
+
+                var imageBytes = new byte[]
+                {
+                     0x89, 0x50, 0x4E, 0x47
+                };
+
+                var fileContent = new ByteArrayContent(imageBytes);
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+
+                form.Add(fileContent, "file", fileName);
+
+                var response = await _httpClient.PostAsync(
+                    $"/api/listings/{listingId}/images",
+                    form);
+
+                response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+                return await response.Content.ReadFromJsonAsync<JsonElement>();
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
+        }
+
+        private static MultipartFormDataContent CreateImageUploadContent(
+        string fileName = "test-image.jpg")
+        {
+            var content = new MultipartFormDataContent();
+
+            byte[] imageBytes =
+            [
+                0xFF, 0xD8, 0xFF, 0xE0,
+                0x00, 0x10, 0x4A, 0x46,
+                0x49, 0x46, 0x00, 0x01
+            ];
 
             var fileContent = new ByteArrayContent(imageBytes);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
 
-            form.Add(fileContent, "file", fileName);
+            content.Add(fileContent, "file", fileName);
 
-            var response = await _httpClient.PostAsync(
-                $"/api/listings/{listingId}/images",
-                form);
-
-            response.EnsureSuccessStatusCode();
-
-            return await response.Content.ReadFromJsonAsync<JsonElement>();
+            return content;
         }
-    }
 
+        [Fact]
+        public async Task UploadImage_WithoutAccessToken_ReturnsUnauthorized()
+        {
+            _httpClient.ClearAuthorization();
+
+            using MultipartFormDataContent content = CreateImageUploadContent();
+
+            HttpResponseMessage response = await _httpClient.PostAsync(
+                $"/api/listings/{Guid.NewGuid()}/images",
+                content);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        [Fact]
+        public async Task DeleteImage_WithoutAccessToken_ReturnsUnauthorized()
+        {
+            _httpClient.ClearAuthorization();
+
+            HttpResponseMessage response = await _httpClient.DeleteAsync(
+                $"/api/listings/{Guid.NewGuid()}/images/{Guid.NewGuid()}");
+
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        [Fact]
+        public async Task SetPrimaryImage_WithoutAccessToken_ReturnsUnauthorized()
+        {
+            _httpClient.ClearAuthorization();
+
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{Guid.NewGuid()}/images/{Guid.NewGuid()}/primary",
+                new StringContent(string.Empty));
+
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        [Fact]
+        public async Task ReorderImages_WithoutAccessToken_ReturnsUnauthorized()
+        {
+            _httpClient.ClearAuthorization();
+
+            var request = new
+            {
+                imageIds = Array.Empty<Guid>()
+            };
+
+            HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
+                $"/api/listings/{Guid.NewGuid()}/images/order",
+                request);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        [Fact]
+        public async Task UploadImage_WithDifferentUser_ReturnsForbidden()
+        {
+            (Guid listingId, _) = await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+
+            AuthenticatedTestUser differentUser =
+                await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+            _httpClient.AuthorizeAs(differentUser.AccessToken);
+
+            try
+            {
+                using MultipartFormDataContent content = CreateImageUploadContent();
+
+                HttpResponseMessage response = await _httpClient.PostAsync(
+                    $"/api/listings/{listingId}/images",
+                    content);
+
+                response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
+        }
+
+        [Fact]
+        public async Task DeleteImage_WithDifferentUser_ReturnsForbidden()
+        {
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+
+            Guid imageId = await UploadImageAsAsync(listingId, owner);
+
+            AuthenticatedTestUser differentUser =
+                await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+            _httpClient.AuthorizeAs(differentUser.AccessToken);
+
+            try
+            {
+                HttpResponseMessage response = await _httpClient.DeleteAsync(
+                    $"/api/listings/{listingId}/images/{imageId}");
+
+                response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
+        }
+
+        [Fact]
+        public async Task SetPrimaryImage_WithDifferentUser_ReturnsForbidden()
+        {
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+
+            Guid imageId = await UploadImageAsAsync(listingId, owner);
+
+            AuthenticatedTestUser differentUser =
+                await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+            _httpClient.AuthorizeAs(differentUser.AccessToken);
+
+            try
+            {
+                HttpResponseMessage response = await _httpClient.PutAsync(
+                    $"/api/listings/{listingId}/images/{imageId}/primary",
+                    new StringContent(string.Empty));
+
+                response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
+        }
+
+        [Fact]
+        public async Task ReorderImages_WithDifferentUser_ReturnsForbidden()
+        {
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+
+            Guid imageId = await UploadImageAsAsync(listingId, owner);
+
+            AuthenticatedTestUser differentUser =
+                await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+            _httpClient.AuthorizeAs(differentUser.AccessToken);
+
+            try
+            {
+                var request = new
+                {
+                    imageIds = new[] { imageId }
+                };
+
+                HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
+                    $"/api/listings/{listingId}/images/order",
+                    request);
+
+                response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
+        }
+
+        private async Task<Guid> UploadImageAsAsync(
+            Guid listingId,
+            AuthenticatedTestUser user)
+        {
+            _httpClient.AuthorizeAs(user.AccessToken);
+
+            try
+            {
+                using MultipartFormDataContent content = CreateImageUploadContent();
+
+                HttpResponseMessage response = await _httpClient.PostAsync(
+                    $"/api/listings/{listingId}/images",
+                    content);
+
+                response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+                JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+                return json.GetProperty("id").GetGuid();
+            }
+            finally
+            {
+                _httpClient.ClearAuthorization();
+            }
+        }
+
+    }
 
 }

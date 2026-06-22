@@ -164,10 +164,13 @@ public sealed class ListingsController : ControllerBase
         return Ok(result.Value);
     }
 
+    [Authorize]
     [HttpPost("{id:guid}/images")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ListingImageResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UploadImage(
     Guid id,
@@ -196,6 +199,7 @@ public sealed class ListingsController : ControllerBase
         return result.Error switch
         {
             UploadListingImageError.ListingNotFound => NotFound(),
+            UploadListingImageError.NotListingOwner => Forbid(),
             UploadListingImageError.FileMissing => BadRequest("Image file is required."),
             UploadListingImageError.FileEmpty => BadRequest("Image file is empty."),
             UploadListingImageError.FileTooLarge => BadRequest("Image file cannot be larger than 5 MB."),
@@ -205,8 +209,11 @@ public sealed class ListingsController : ControllerBase
         };
     }
 
+    [Authorize]
     [HttpDelete("{listingId:guid}/images/{imageId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteImage(
     Guid listingId,
@@ -225,13 +232,17 @@ public sealed class ListingsController : ControllerBase
         return result.Error switch
         {
             DeleteListingImageError.ListingNotFound => NotFound("Listing was not found."),
+            DeleteListingImageError.NotListingOwner => Forbid(),
             DeleteListingImageError.ImageNotFound => NotFound("Image was not found."),
             _ => BadRequest("Image delete failed.")
         };
     }
 
+    [Authorize]
     [HttpPut("{listingId:guid}/images/{imageId:guid}/primary")]
     [ProducesResponseType(typeof(ListingImageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SetPrimaryImage(
     Guid listingId,
@@ -250,14 +261,18 @@ public sealed class ListingsController : ControllerBase
         return result.Error switch
         {
             SetPrimaryListingImageError.ListingNotFound => NotFound("Listing was not found."),
+            SetPrimaryListingImageError.NotListingOwner => Forbid(),
             SetPrimaryListingImageError.ImageNotFound => NotFound("Image was not found."),
             _ => BadRequest("Set primary image failed.")
         };
     }
 
+    [Authorize]
     [HttpPut("{listingId:guid}/images/order")]
     [ProducesResponseType(typeof(List<ListingImageResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ReorderImages(
     Guid listingId,
@@ -276,6 +291,7 @@ public sealed class ListingsController : ControllerBase
         return result.Error switch
         {
             ReorderListingImagesError.ListingNotFound => NotFound("Listing was not found."),
+            ReorderListingImagesError.NotListingOwner => Forbid(),
             ReorderListingImagesError.ImageIdsMissing => BadRequest("Image ids are required."),
             ReorderListingImagesError.ImageSetMismatch => BadRequest("Image ids must match the listing images."),
             _ => BadRequest("Image reorder failed.")

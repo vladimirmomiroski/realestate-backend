@@ -1,15 +1,19 @@
-﻿using RealEstate.Application.Listings.Dtos;
+﻿using RealEstate.Application.Common.Authentication;
+using RealEstate.Application.Listings.Commands.UploadListingImage;
+using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Repositories;
 
 namespace RealEstate.Application.Listings.Commands.SetPrimaryListingImage;
 
 public sealed class SetPrimaryListingImageHandler
 {
+    private readonly ICurrentUserService _currentUserService;
     private readonly IListingRepository _listingRepository;
 
-    public SetPrimaryListingImageHandler(IListingRepository listingRepository)
+    public SetPrimaryListingImageHandler(IListingRepository listingRepository, ICurrentUserService currentUserService)
     {
         _listingRepository = listingRepository;
+        _currentUserService = currentUserService;
     }
 
     public async Task<SetPrimaryListingImageResult> Handle(
@@ -23,6 +27,14 @@ public sealed class SetPrimaryListingImageHandler
         if (listing is null)
         {
             return SetPrimaryListingImageResult.Failure(SetPrimaryListingImageError.ListingNotFound);
+        }
+
+        Guid userId = _currentUserService.UserId
+            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+
+        if (listing.CreatedByUserId != userId)
+        {
+            return SetPrimaryListingImageResult.Failure(SetPrimaryListingImageError.NotListingOwner);
         }
 
         var selectedImage = listing.Images.FirstOrDefault(image => image.Id == command.ImageId);
