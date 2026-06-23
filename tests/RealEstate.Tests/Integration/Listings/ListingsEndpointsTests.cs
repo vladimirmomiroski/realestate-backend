@@ -202,6 +202,69 @@ public sealed class ListingsEndpointTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task CreateListing_WhenUserHasThreeListings_ReturnsBadRequest()
+    {
+        AuthenticatedTestUser user =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+
+        _httpClient.AuthorizeAs(user.AccessToken);
+
+        try
+        {
+            var request = ListingTestHelpers.CreateValidListingRequest();
+
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
+
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+            string error = await response.Content.ReadAsStringAsync();
+
+            error.Should().Contain("Free listing limit reached");
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task CreateListing_LimitIsPerUser_NotGlobal()
+    {
+        AuthenticatedTestUser firstUser =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        AuthenticatedTestUser secondUser =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, firstUser);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, firstUser);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, firstUser);
+
+        _httpClient.AuthorizeAs(secondUser.AccessToken);
+
+        try
+        {
+            var request = ListingTestHelpers.CreateValidListingRequest();
+
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
     public async Task GetListings_ReturnsPagedListings()
     {
         await ListingTestHelpers.CreateListingAsync(_httpClient);
