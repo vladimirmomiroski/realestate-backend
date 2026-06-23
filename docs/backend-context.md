@@ -4,9 +4,11 @@
 
 This backend is for a real estate platform. The goal is not just a basic listing website. The long-term direction is a modern real estate intelligence platform with listings, search, filters, comparisons, price insights, agent tools, agencies, CRM features, and AI-assisted workflows.
 
-Current focus: build a clean backend foundation before frontend work.
+Current focus: backend foundation before frontend work.
 
-The listing backend is now in strong MVP shape:
+Current backend status: **listing module + auth/listing ownership foundation are complete enough to move into Agencies next.**
+
+The backend now supports:
 
 ```text
 Listings
@@ -16,6 +18,16 @@ Apartment details
 House details
 Filters
 Pagination
+Users
+Register
+Login
+Password hashing
+JWT auth
+Protected listing creation
+Listing ownership
+My listings
+Image owner authorization
+Free listing limit per user
 Swagger testing
 Integration tests
 ```
@@ -23,11 +35,13 @@ Integration tests
 Next backend direction:
 
 ```text
-Users/auth foundation
-Roles
-Later agencies/agents
-Later listing ownership
+Agencies
+Agency members
+Agent profiles
+Later admin/role rules
 Later CRM/client notes
+Later saved listings/favorites
+Later payments/subscriptions
 ```
 
 ---
@@ -42,6 +56,7 @@ Entity Framework Core
 PostgreSQL
 Docker / Docker Compose
 Swagger / Swashbuckle
+JWT Bearer Authentication
 xUnit integration tests
 FluentAssertions
 Microsoft.AspNetCore.Mvc.Testing
@@ -54,17 +69,32 @@ Tests use a real temporary PostgreSQL container, not EF in-memory provider.
 
 ## Solution structure
 
+Important: repositories are directly under `RealEstate.Infrastructure/Persistence/Repositories`. There is **no** nested `Listings` folder under repositories.
+
 ```text
 src/
   RealEstate.Api
+    Authentication
+      CurrentUserService.cs
     Controllers
       ListingsController.cs
+      AuthController.cs
       HealthController.cs
     Program.cs
 
   RealEstate.Application
+    Auth
+      Commands
+        RegisterUser
+        LoginUser
+      Dtos
+      Repositories
     Common
+      Authentication
+        ICurrentUserService.cs
       Files
+      Security
+        IJwtTokenGenerator.cs
       Storage
       PagedResult.cs
     Listings
@@ -77,6 +107,7 @@ src/
       Queries
         GetListings
         GetListingById
+        GetMyListings
       Dtos
       Mappings
       Repositories
@@ -85,6 +116,7 @@ src/
     Common
       IAuditableEntity.cs
     Entities
+      User.cs
       Listing.cs
       ListingTranslation.cs
       ListingImage.cs
@@ -95,9 +127,21 @@ src/
   RealEstate.Infrastructure
     Persistence
       Configurations
+        UserConfiguration.cs
+        ListingConfiguration.cs
+        ListingTranslationConfiguration.cs
+        ListingImageConfiguration.cs
+        ListingApartmentDetailsConfiguration.cs
+        ListingHouseDetailsConfiguration.cs
       Migrations
       Repositories
+        UserRepository.cs
+        ListingRepository.cs
       RealEstateDbContext.cs
+    Security
+      JwtOptions.cs
+      JwtTokenGenerator.cs
+      PasswordHasherService.cs
     Storage
       LocalFileStorageService.cs
       LocalFileStorageOptions.cs
@@ -106,6 +150,9 @@ src/
 tests/
   RealEstate.Tests
     Integration
+      Auth
+        AuthEndpointTests.cs
+        AuthTestHelpers.cs
       Listings
         ListingsEndpointTests.cs
         ListingImagesEndpointTests.cs
@@ -137,13 +184,21 @@ Example listing create flow:
 ```text
 POST /api/listings
   ↓
+[Authorize]
+  ↓
 ListingsController.CreateListing
   ↓
 CreateListingHandler
   ↓
 CreateListingValidator
   ↓
+ICurrentUserService gets logged-in user id from JWT claims
+  ↓
+IListingRepository.CountByCreatedByUserIdAsync checks free listing limit
+  ↓
 Listing aggregate root created
+  ↓
+CreatedByUserId assigned
   ↓
 ListingTranslation children attached
   ↓
@@ -164,7 +219,7 @@ Rules:
 Controllers stay thin.
 Handlers contain use-case/application logic.
 Domain contains entities, enums, and core business rules.
-Infrastructure contains EF Core, repositories, database config, migrations, and local storage.
+Infrastructure contains EF Core, repositories, database config, migrations, security, and local storage.
 Application owns repository interfaces.
 Infrastructure implements repository interfaces.
 No MediatR yet.
@@ -193,24 +248,90 @@ ListingHouseDetails
 Current DbContext rule:
 
 ```text
-Expose DbSet<Listing> publicly.
+Expose aggregate roots publicly.
 Do not expose child entities as public DbSets unless needed.
-Child entities are accessed through Listing navigation properties.
+Child entities are accessed through Listing navigation properties or internal Set<TEntity>() usage.
 ```
 
-Current known public DbSet:
+Current known public DbSets:
 
 ```csharp
 public DbSet<Listing> Listings => Set<Listing>();
+public DbSet<User> Users => Set<User>();
 ```
 
-Repository uses `_dbContext.Set<ListingImage>()` internally when needed for image insert/delete.
+Repository may use `_dbContext.Set<ListingImage>()` internally when needed for image insert/delete.
 
 ---
 
 ## Domain model
 
-### Main entity
+### User
+
+Entity:
+
+```text
+User
+```
+
+Table:
+
+```text
+Users
+```
+
+Fields:
+
+```text
+Id
+Email
+NormalizedEmail
+PasswordHash
+FirstName
+LastName
+PhoneNumber
+Role
+Status
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+Important rule:
+
+```text
+NormalizedEmail is used for case-insensitive uniqueness.
+```
+
+User roles:
+
+```text
+Admin
+AgencyOwner
+Agent
+User
+```
+
+User statuses:
+
+```text
+Active
+Disabled
+PendingVerification
+```
+
+Current behavior:
+
+```text
+Register creates user as PendingVerification.
+PendingVerification is not enforced yet.
+Any authenticated user can create listings until stricter rules are added.
+```
+
+---
+
+### Listing
+
+Entity:
 
 ```text
 Listing
@@ -220,6 +341,7 @@ Common listing fields:
 
 ```text
 Id
+CreatedByUserId
 ListingType
 PropertyType
 Status
@@ -244,12 +366,19 @@ CreatedAtUtc
 ModifiedAtUtc
 ```
 
-Important: `Floor` and `TotalFloors` were removed from `Listing`.
-
-They now belong only to:
+Important:
 
 ```text
-ListingApartmentDetails
+CreatedByUserId links listing to the user who created it.
+Floor and TotalFloors were removed from Listing.
+Floor and TotalFloors belong only to ListingApartmentDetails.
+```
+
+Relationship:
+
+```text
+User 1 → many Listings
+Listing.CreatedByUserId is nullable in database for compatibility with older/dev data, but new authenticated listings assign it.
 ```
 
 ---
@@ -331,7 +460,7 @@ If PropertyType = House:
 
 ## Enums
 
-Current important enums:
+Current important listing enums:
 
 ```text
 ListingType
@@ -460,6 +589,7 @@ Language behavior:
 ```text
 GET listing with ?lang=mk returns mk translation if available.
 If requested language is missing, fallback to first available translation.
+Default language fallback used in listing create route values is mk.
 ```
 
 ---
@@ -527,6 +657,7 @@ Image rules:
 First uploaded image becomes primary.
 Images have SortOrder.
 Only one primary image per listing.
+Only the listing owner can upload/delete/set primary/reorder images.
 ```
 
 Database constraint:
@@ -564,7 +695,155 @@ Two-phase save prevents temporary duplicate primary images.
 
 ---
 
-## Current listing endpoints
+## Auth and security
+
+### Register
+
+```http
+POST /api/auth/register
+```
+
+Request:
+
+```json
+{
+  "email": "user@test.com",
+  "password": "Password123!",
+  "firstName": "Test",
+  "lastName": "User",
+  "phoneNumber": "+38970123456"
+}
+```
+
+Response:
+
+```json
+{
+  "user": {
+    "id": "guid",
+    "email": "user@test.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "phoneNumber": "+38970123456",
+    "role": "User",
+    "status": "PendingVerification"
+  }
+}
+```
+
+Register behavior:
+
+```text
+Creates user.
+Normalizes email.
+Blocks duplicate normalized email.
+Hashes password using ASP.NET Core PasswordHasher.
+Does not return JWT token.
+```
+
+### Login
+
+```http
+POST /api/auth/login
+```
+
+Request:
+
+```json
+{
+  "email": "user@test.com",
+  "password": "Password123!"
+}
+```
+
+Response:
+
+```json
+{
+  "accessToken": "eyJ...",
+  "user": {
+    "id": "guid",
+    "email": "user@test.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "phoneNumber": "+38970123456",
+    "role": "User",
+    "status": "PendingVerification"
+  }
+}
+```
+
+Login behavior:
+
+```text
+Wrong password returns 401.
+Unknown email returns 401.
+Both use generic invalid credentials behavior.
+```
+
+### JWT
+
+JWT settings are stored in `appsettings.json`:
+
+```json
+{
+  "Jwt": {
+    "Issuer": "RealEstate.Api",
+    "Audience": "RealEstate.Client",
+    "Secret": "CHANGE_THIS_LOCAL_DEV_SECRET_AT_LEAST_32_CHARACTERS_LONG",
+    "AccessTokenExpirationMinutes": 60
+  }
+}
+```
+
+JWT claims include:
+
+```text
+sub
+email
+ClaimTypes.NameIdentifier
+ClaimTypes.Email
+ClaimTypes.Role
+```
+
+`CurrentUserService` reads the current user id from:
+
+```text
+ClaimTypes.NameIdentifier
+```
+
+Important `Program.cs` auth setup:
+
+```text
+AddAuthentication configures JwtBearerDefaults.AuthenticationScheme as default authenticate and challenge scheme.
+UseAuthentication() must be before UseAuthorization().
+```
+
+Swagger uses bearer auth. With current Swashbuckle/OpenAPI version, the security requirement uses the new lambda style:
+
+```csharp
+options.AddSecurityRequirement(openApiDocument => new OpenApiSecurityRequirement
+{
+    {
+        new OpenApiSecuritySchemeReference("Bearer", openApiDocument),
+        new List<string>()
+    }
+});
+```
+
+Important Swagger usage:
+
+```text
+Click Authorize.
+Paste only accessToken value.
+Do not paste "Bearer ".
+Do not paste the whole JSON response.
+Swagger adds "Bearer " automatically.
+```
+
+---
+
+## Current endpoints
 
 ### Health endpoints
 
@@ -583,7 +862,31 @@ Database health endpoint checks PostgreSQL connectivity.
 POST /api/listings
 ```
 
+Auth:
+
+```text
+Requires JWT.
+Returns 401 without token.
+Assigns CreatedByUserId from logged-in user.
+Each user can create up to 3 free listings.
+4th listing returns 400 Bad Request.
+```
+
+Free listing limit message:
+
+```text
+Free listing limit reached. Each user can create up to 3 listings.
+```
+
 Creates a new listing with translations and either apartment or house details.
+
+Returns:
+
+```http
+201 Created
+400 Bad Request
+401 Unauthorized
+```
 
 Apartment request shape:
 
@@ -591,6 +894,7 @@ Apartment request shape:
 {
   "listingType": "Sale",
   "propertyType": "Apartment",
+  "status": "Active",
   "price": 126000,
   "currency": "EUR",
   "areaSquareMeters": 72,
@@ -625,6 +929,7 @@ House request shape:
 {
   "listingType": "Sale",
   "propertyType": "House",
+  "status": "Active",
   "price": 180000,
   "currency": "EUR",
   "areaSquareMeters": 120,
@@ -652,18 +957,18 @@ House request shape:
 }
 ```
 
-Returns:
-
-```http
-201 Created
-```
-
 ---
 
 ### Get paginated / filtered listings
 
 ```http
 GET /api/listings
+```
+
+Auth:
+
+```text
+Public.
 ```
 
 Supported query parameters:
@@ -726,11 +1031,47 @@ Minimum page = 1
 
 ---
 
+### Get my listings
+
+```http
+GET /api/listings/my?lang=mk&page=1&pageSize=20
+```
+
+Auth:
+
+```text
+Requires JWT.
+Returns only listings where CreatedByUserId equals logged-in user id.
+Returns 401 without token.
+```
+
+Response shape:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "pageSize": 20,
+  "totalCount": 0,
+  "totalPages": 0,
+  "hasNextPage": false,
+  "hasPreviousPage": false
+}
+```
+
+---
+
 ### Get listing by ID
 
 ```http
 GET /api/listings/{id}?lang=en
 GET /api/listings/{id}?lang=mk
+```
+
+Auth:
+
+```text
+Public.
 ```
 
 Returns requested language if available, otherwise falls back to first available translation.
@@ -785,6 +1126,16 @@ Response = 2155.17
 
 ## Image endpoints
 
+All image endpoints require JWT and listing owner.
+
+Expected authorization behavior:
+
+```text
+No token      -> 401 Unauthorized
+Wrong user    -> 403 Forbidden
+Listing owner -> success
+```
+
 ### Upload image
 
 ```http
@@ -801,6 +1152,10 @@ Returns:
 
 ```http
 201 Created
+400 Bad Request
+401 Unauthorized
+403 Forbidden
+404 Not Found
 ```
 
 Response:
@@ -828,6 +1183,9 @@ Returns:
 
 ```http
 204 No Content
+401 Unauthorized
+403 Forbidden
+404 Not Found
 ```
 
 ### Set primary image
@@ -837,6 +1195,15 @@ PUT /api/listings/{listingId}/images/{imageId}/primary
 ```
 
 Returns selected image response.
+
+Returns:
+
+```http
+200 OK
+401 Unauthorized
+403 Forbidden
+404 Not Found
+```
 
 ### Reorder images
 
@@ -854,11 +1221,22 @@ Request:
 
 Returns ordered image list.
 
+Returns:
+
+```http
+200 OK
+400 Bad Request
+401 Unauthorized
+403 Forbidden
+404 Not Found
+```
+
 ---
 
 ## Current database tables
 
 ```text
+Users
 Listings
 ListingTranslations
 ListingImages
@@ -867,10 +1245,27 @@ ListingHouseDetails
 __EFMigrationsHistory
 ```
 
+Important columns in `Users`:
+
+```text
+Id
+Email
+NormalizedEmail
+PasswordHash
+FirstName
+LastName
+PhoneNumber
+Role
+Status
+CreatedAtUtc
+ModifiedAtUtc
+```
+
 Important columns in `Listings`:
 
 ```text
 Id
+CreatedByUserId
 ListingType
 PropertyType
 Status
@@ -962,6 +1357,7 @@ RealEstate.Domain/Common/IAuditableEntity.cs
 Currently used by:
 
 ```text
+User
 Listing
 ListingImage
 ```
@@ -1007,6 +1403,8 @@ delete container
 Current integration test files:
 
 ```text
+AuthEndpointTests.cs
+AuthTestHelpers.cs
 ListingsEndpointTests.cs
 ListingImagesEndpointTests.cs
 ListingTestHelpers.cs
@@ -1015,6 +1413,21 @@ ListingTestHelpers.cs
 Current tests cover:
 
 ```text
+Register valid user returns 201
+Duplicate register returns 409
+Password is hashed, not plain text
+Invalid email returns 400
+Short password returns 400
+Login valid credentials returns 200 and access token
+Wrong password returns 401
+Unknown email returns 401
+POST listing without token returns 401
+POST listing with token returns 201
+Created listing stores CreatedByUserId
+Free listing limit blocks 4th listing for same user
+Free listing limit is per user, not global
+GET my listings without token returns 401
+GET my listings returns only current user's listings
 POST valid apartment listing returns 201
 POST valid house listing returns 201
 POST invalid price returns 400
@@ -1026,21 +1439,29 @@ GET listings with house filters returns matching listings
 GET listing by ID returns requested language
 GET missing listing returns 404
 PricePerSquareMeter returns rounded value
-Upload listing image returns 201
+Upload listing image without token returns 401
+Delete image without token returns 401
+Set primary image without token returns 401
+Reorder images without token returns 401
+Wrong user cannot upload image and gets 403
+Wrong user cannot delete image and gets 403
+Wrong user cannot set primary image and gets 403
+Wrong user cannot reorder images and gets 403
+Owner can upload listing image and gets 201
 First uploaded image becomes primary
-Delete image returns 204
+Delete image returns 204 for owner
 Deleting primary image makes next image primary
-Set primary image works
+Set primary image works for owner
 Only one image remains primary
 PrimaryImageUrl points to selected primary image
-Reorder listing images works
+Reorder listing images works for owner
 ```
 
-Latest known status after Task 4C:
+Latest known status:
 
 ```text
 dotnet test passed
-Expected count around 19/19 after Task 4C
+Current count: 41/41
 ```
 
 ---
@@ -1135,7 +1556,17 @@ Pagination
 Search/filtering
 PricePerSquareMeter calculation and rounding
 Automatic auditing fields
-Swagger testing
+Users table
+Register user
+Login user
+Password hashing
+JWT auth
+Swagger bearer auth
+Protected listing creation
+Listing ownership with CreatedByUserId
+My listings endpoint
+Owner authorization for listing image actions
+Free listing limit: 3 listings per user
 Integration tests with real PostgreSQL Testcontainers
 Frontend CORS support
 ```
@@ -1215,140 +1646,269 @@ Commit message:
 Add listing filters and response polish
 ```
 
+### Task 5A — User accounts foundation
+
+Added:
+
+```text
+User entity
+Users table
+UserRole enum
+UserStatus enum
+UserConfiguration
+DbSet<User>
+normalized email unique index
+```
+
+Migration:
+
+```text
+AddUsersTable
+```
+
+### Task 5B — Register user + password hashing
+
+Added:
+
+```text
+POST /api/auth/register
+RegisterRequest
+AuthResponse
+AuthUserResponse
+IUserRepository
+UserRepository
+IPasswordHasher
+PasswordHasherService
+RegisterUserHandler
+Register integration tests
+```
+
+### Task 5C — Login user + password verification
+
+Added:
+
+```text
+POST /api/auth/login
+LoginRequest
+LoginResponse
+LoginUserHandler
+Password verification
+Login integration tests
+```
+
+### Task 5D — JWT authentication foundation
+
+Added:
+
+```text
+JwtOptions
+IJwtTokenGenerator
+JwtTokenGenerator
+JWT bearer setup in Program.cs
+Swagger bearer auth setup
+Login returns accessToken
+```
+
+### Task 5E — Protected listing creation + listing ownership
+
+Added:
+
+```text
+CreatedByUserId on Listing
+AssignCreator method
+CreatedByUserId EF config/index/FK
+ICurrentUserService
+CurrentUserService
+[Authorize] on POST /api/listings
+CreateListingHandler assigns creator from JWT user id
+Integration tests
+```
+
+Migration:
+
+```text
+AddListingCreatedByUserId
+```
+
+### Task 5F — My listings endpoint
+
+Added:
+
+```text
+GET /api/listings/my
+GetMyListingsQuery
+GetMyListingsHandler
+IListingRepository.GetByCreatedByUserIdAsync
+[Authorize] on my listings endpoint
+Integration tests for unauthorized and current-user-only listing results
+```
+
+### Task 5G — Owner authorization for listing image actions
+
+Added owner checks for:
+
+```text
+POST /api/listings/{listingId}/images
+DELETE /api/listings/{listingId}/images/{imageId}
+PUT /api/listings/{listingId}/images/{imageId}/primary
+PUT /api/listings/{listingId}/images/order
+```
+
+Added:
+
+```text
+[Authorize] on all image mutation endpoints
+NotListingOwner error values
+ICurrentUserService injection in image handlers
+CreatedByUserId ownership checks
+403 Forbidden for wrong user
+401 Unauthorized for missing token
+Integration tests for no-token and wrong-user scenarios
+Updated image happy-path tests to authorize as owner
+```
+
+### Task 5H — Free listing limit per user
+
+Added:
+
+```text
+Max 3 free listings per user
+IListingRepository.CountByCreatedByUserIdAsync
+ListingRepository.CountByCreatedByUserIdAsync
+CreateListingHandler limit check before save
+400 Bad Request when user already has 3 listings
+Integration tests proving 4th listing is blocked and limit is per user
+```
+
+No migration required for this task.
+
 ---
 
 ## Current backend status
 
-Backend listing module is ready for frontend integration.
+Backend listing/auth/ownership module is ready to move into Agencies.
 
-However, the next planned backend work is users/auth foundation before frontend, because future frontend flows need:
+Current business rules:
 
 ```text
-user accounts
-agent accounts
-agency ownership
-my listings
-protected create listing
-saved listings
-CRM notes later
+Users can register and login.
+JWT is used for protected endpoints.
+Public users can browse listings.
+Authenticated users can create listings.
+Each user can create up to 3 listings for free.
+Authenticated users can view their own listings.
+Only listing owners can manage listing images.
+User status/verification is not enforced yet.
+Role-based create rules are not enforced yet.
+Payments/subscriptions are not implemented yet.
+Agencies are not implemented yet.
 ```
 
 ---
 
 ## Next planned work
 
-### Task 5A — User accounts foundation
+### Task 6A — Agencies foundation
 
 Branch suggestion:
 
 ```bash
 git checkout development
 git pull
-git checkout -b feature/user-accounts-foundation
+git checkout -b feature/agencies-foundation
 ```
 
 Goal:
 
 ```text
-Create basic user domain/database foundation.
-No login yet.
-No JWT yet.
-No agencies yet.
+Create agency domain/database foundation.
+No full agency dashboard yet.
+No payments yet.
 No CRM yet.
 ```
 
-Proposed first user table:
+Expected first agency tables:
 
 ```text
-Users
-  Id
-  Email
-  PasswordHash
-  FirstName
-  LastName
-  PhoneNumber
-  Role
-  Status
-  CreatedAtUtc
-  ModifiedAtUtc
+Agencies
+AgencyMembers
 ```
 
-Proposed enums:
+Possible Agency fields:
 
 ```text
-UserRole
-  Admin
-  AgencyOwner
-  Agent
-  User
-
-UserStatus
-  Active
-  Disabled
-  PendingVerification
+Id
+Name
+Slug
+Description
+LogoUrl
+PhoneNumber
+Email
+WebsiteUrl
+AddressLine
+City
+Municipality
+Status
+CreatedAtUtc
+ModifiedAtUtc
 ```
+
+Possible AgencyMember fields:
+
+```text
+Id
+AgencyId
+UserId
+Role
+Status
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+Important future relationship:
+
+```text
+Users can belong to agencies through AgencyMembers.
+Listings later can belong to an individual user, an agency, or both depending on final business rules.
+```
+
+Do not overbuild in Task 6A.
 
 Recommended split:
 
 ```text
-Task 5A — User table/domain/migration
-Task 5B — Register/Login with password hashing
-Task 5C — JWT auth + protected endpoints
-Task 5D — Listing ownership with CreatedByUserId / My listings
-Task 6A — Agencies
+Task 6A — Agencies table/domain/migration
 Task 6B — Agency members
-Task 6C — Agent profiles
+Task 6C — Agency listing ownership rules
+Task 6D — Agency endpoints/dashboard basics
 Task 7 — CRM clients/notes/saved listings
-```
-
-Important decision:
-
-```text
-Do not build agencies before users.
-Users first.
-Agencies later.
-AgencyMembers connects users to agencies.
-Listings later belong to users/agents/agencies.
 ```
 
 ---
 
 ## Remaining backend ideas for later
 
-Do not mix these into Task 5A:
+Do not mix these into Task 6A:
 
 ```text
-Full auth/JWT
-Agencies
-Agency members
-Agent profiles
-Listing ownership
-Favorites
-Saved searches
+Payments/subscriptions
+Listing boosts
+Admin moderation
+Public agency pages
+Advanced agent profiles
 CRM clients
 Client notes
+Saved listings
+Favorites
+Saved searches
 Map search
 Comparable listings
 Average price analytics
 AI document analyzer
 Voice note helper
-Admin moderation
-Payments/subscriptions
-```
-
-Keep one clean task at a time.
-
-Task 5B completed:
-
-- Added auth register endpoint
-- Added IUserRepository/UserRepository
-- Added IPasswordHasher/PasswordHasherService
-- Added register handler and DTOs
-- Added register integration tests
-- dotnet test passed: 24/24
-
-Current next task:
-
-```text
-Task 5C — Login user + password verification
+Notifications
+Email verification
+Password reset
+Refresh tokens
+OAuth / Sign in with Google
 ```
