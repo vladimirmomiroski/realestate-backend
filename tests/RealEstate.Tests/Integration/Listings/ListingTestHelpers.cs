@@ -58,6 +58,31 @@ internal static class ListingTestHelpers
         }
     }
 
+    public static async Task<Guid> CreateListingAsAsync(
+    HttpClient httpClient,
+    AuthenticatedTestUser user)
+    {
+        httpClient.AuthorizeAs(user.AccessToken);
+
+        try
+        {
+            var request = CreateValidListingRequest();
+
+            HttpResponseMessage response = await httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            return json.GetProperty("id").GetGuid();
+        }
+        finally
+        {
+            httpClient.ClearAuthorization();
+        }
+    }
     public static object CreateValidListingRequest(decimal price = 99000)
     {
         return new
