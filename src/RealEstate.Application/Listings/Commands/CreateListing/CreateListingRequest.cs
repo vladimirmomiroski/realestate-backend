@@ -10,6 +10,8 @@ public sealed class CreateListingRequest
 
     public ListingStatus Status { get; set; }
 
+    public Guid? AgencyId { get; set; }
+
     public decimal Price { get; set; }
 
     public string Currency { get; set; } = "EUR";

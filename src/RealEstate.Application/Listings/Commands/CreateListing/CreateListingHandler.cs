@@ -3,6 +3,7 @@ using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Mappings;
 using RealEstate.Application.Listings.Repositories;
+using RealEstate.Application.Agencies.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 
@@ -16,26 +17,43 @@ public sealed class CreateListingHandler
     private readonly IListingRepository _listingRepository;
     private readonly CreateListingValidator _validator;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAgencyRepository _agencyRepository;
 
     public CreateListingHandler(
         IListingRepository listingRepository,
+        IAgencyRepository agencyRepository,
         CreateListingValidator validator,
         ICurrentUserService currentUserService)
     {
         _listingRepository = listingRepository;
+        _agencyRepository = agencyRepository;
         _validator = validator;
         _currentUserService = currentUserService;
     }
 
     public async Task<ServiceResult<ListingResponse>> HandleAsync(
-        CreateListingRequest request,
-        CancellationToken cancellationToken)
+    CreateListingRequest request,
+    CancellationToken cancellationToken)
     {
         var validationError = _validator.Validate(request);
 
         if (validationError is not null)
         {
             return ServiceResult<ListingResponse>.ValidationError(validationError);
+        }
+
+        Guid userId = _currentUserService.UserId
+            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+
+        int existingListingsCount =
+            await _listingRepository.CountByCreatedByUserIdAsync(
+                userId,
+                cancellationToken);
+
+        if (existingListingsCount >= MaxFreeListingsPerUser)
+        {
+            return ServiceResult<ListingResponse>.ValidationError(
+                "Free listing limit reached. Each user can create up to 3 listings.");
         }
 
         var listing = new Listing
@@ -74,23 +92,32 @@ public sealed class CreateListingHandler
             }).ToList()
         };
 
-        Guid userId = _currentUserService.UserId
-    ?? throw new InvalidOperationException("Authenticated user id is not available.");
+        listing.AssignCreator(userId);
 
-        int existingListingsCount =
-            await _listingRepository.CountByCreatedByUserIdAsync(
+        if (request.AgencyId.HasValue)
+        {
+            bool agencyExists = await _agencyRepository.ExistsAsync(
+                request.AgencyId.Value,
+                cancellationToken);
+
+            if (!agencyExists)
+            {
+                return ServiceResult<ListingResponse>.NotFound("Agency was not found.");
+            }
+
+            bool isActiveMember = await _agencyRepository.IsActiveMemberAsync(
+                request.AgencyId.Value,
                 userId,
                 cancellationToken);
 
-        if (existingListingsCount >= MaxFreeListingsPerUser)
-        {
-            return ServiceResult<ListingResponse>.ValidationError(
-                "Free listing limit reached. Each user can create up to 3 listings.");
+            if (!isActiveMember)
+            {
+                return ServiceResult<ListingResponse>.Forbidden(
+                    "User is not an active member of this agency.");
+            }
+
+            listing.AssignAgency(request.AgencyId.Value);
         }
-
-        listing.AssignCreator(userId);
-
-        listing.AssignCreator(userId);
 
         if (request.PropertyType == PropertyType.Apartment &&
             request.ApartmentDetails is not null)

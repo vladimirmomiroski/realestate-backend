@@ -56,15 +56,27 @@ public sealed class ListingsController : ControllerBase
     [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ListingResponse>> CreateListing(
-        [FromBody] CreateListingRequest request,
-        CancellationToken cancellationToken)
+    [FromBody] CreateListingRequest request,
+    CancellationToken cancellationToken)
     {
         var result = await _createListingHandler.HandleAsync(request, cancellationToken);
 
         if (result.Status == ServiceResultStatus.ValidationError)
         {
             return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
         }
 
         return CreatedAtRoute(
