@@ -21,7 +21,7 @@ public sealed class CreateListingValidator
             return "Currency is required.";
         }
 
-        if (request.Translations.Count == 0)
+        if (request.Translations is null || request.Translations.Count == 0)
         {
             return "At least one translation is required.";
         }
