@@ -83,12 +83,13 @@ internal static class ListingTestHelpers
             httpClient.ClearAuthorization();
         }
     }
-    public static object CreateValidListingRequest(decimal price = 99000)
+    public static object CreateValidListingRequest(decimal price = 99000, Guid? agencyId = null)
     {
         return new
         {
             listingType = "Sale",
             propertyType = "Apartment",
+            agencyId,
             price,
             currency = "EUR",
             areaSquareMeters = 58,

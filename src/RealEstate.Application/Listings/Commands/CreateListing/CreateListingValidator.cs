@@ -120,6 +120,12 @@ public sealed class CreateListingValidator
             }
         }
 
+        if (request.AgencyId == Guid.Empty)
+        {
+            return "Agency id cannot be empty.";
+        }
+
+
         return null;
     }
 
