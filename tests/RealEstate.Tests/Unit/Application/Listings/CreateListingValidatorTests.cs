@@ -16,7 +16,7 @@ public sealed class CreateListingValidatorTests
 
         // Act
         var result = _validator.Validate(request);
-     
+
         // Assert
         result.Should().BeNull();
     }
