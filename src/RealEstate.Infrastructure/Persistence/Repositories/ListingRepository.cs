@@ -39,6 +39,12 @@ public sealed class ListingRepository : IListingRepository
             .AsNoTracking()
             .AsQueryable();
 
+        if (query.AgencyId.HasValue)
+        {
+            listingsQuery = listingsQuery.Where(listing =>
+                listing.AgencyId == query.AgencyId.Value);
+        }
+
         if (query.ListingType.HasValue)
         {
             listingsQuery = listingsQuery.Where(listing =>

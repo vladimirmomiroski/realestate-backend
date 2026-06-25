@@ -45,6 +45,7 @@ public static class ListingMappingExtensions
         NumberOfFloors = listing.HouseDetails.NumberOfFloors,
         YardAreaSquareMeters = listing.HouseDetails.YardAreaSquareMeters
     },
+            AgencyId = listing.AgencyId,
             Status = listing.Status,
             Price = listing.Price,
             Currency = listing.Currency,
