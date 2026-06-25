@@ -22,6 +22,15 @@ public class ListingConfiguration : IEntityTypeConfiguration<Listing>
             .HasForeignKey(listing => listing.CreatedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Property(listing => listing.AgencyId);
+
+        builder.HasOne(listing => listing.Agency)
+            .WithMany()
+            .HasForeignKey(listing => listing.AgencyId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(listing => listing.AgencyId);
+
         builder.Property(listing => listing.ListingType)
             .IsRequired()
             .HasConversion<string>()
