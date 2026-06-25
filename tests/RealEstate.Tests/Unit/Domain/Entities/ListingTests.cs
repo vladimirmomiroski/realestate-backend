@@ -35,6 +35,35 @@ public sealed class ListingTests
     }
 
     [Fact]
+    public void AssignAgency_ShouldSetAgencyId_WhenAgencyIdIsValid()
+    {
+        // Arrange
+        var listing = new Listing();
+        var agencyId = Guid.NewGuid();
+
+        // Act
+        listing.AssignAgency(agencyId);
+
+        // Assert
+        listing.AgencyId.Should().Be(agencyId);
+    }
+
+    [Fact]
+    public void AssignAgency_ShouldThrowArgumentException_WhenAgencyIdIsEmpty()
+    {
+        // Arrange
+        var listing = new Listing();
+
+        // Act
+        var act = () => listing.AssignAgency(Guid.Empty);
+
+        // Assert
+        act.Should()
+            .Throw<ArgumentException>()
+            .WithParameterName("agencyId");
+    }
+
+    [Fact]
     public void CalculatePricePerSquareMeter_ShouldReturnPriceDividedByArea()
     {
         // Arrange

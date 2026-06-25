@@ -9,6 +9,10 @@ public class Listing : IAuditableEntity
 
     public Guid? CreatedByUserId { get; private set; }
 
+    public Guid? AgencyId { get; private set; }
+
+    public Agency? Agency { get; private set; }
+
     public ListingType ListingType { get; set; }
 
     public PropertyType PropertyType { get; set; }
@@ -62,6 +66,21 @@ public class Listing : IAuditableEntity
 
     public ICollection<ListingImage> Images { get; set; } =
     new List<ListingImage>();
+
+    public void AssignAgency(Guid agencyId)
+    {
+        if (agencyId == Guid.Empty)
+        {
+            throw new ArgumentException("Agency id cannot be empty.", nameof(agencyId));
+        }
+
+        AgencyId = agencyId;
+    }
+
+    public void ClearAgency()
+    {
+        AgencyId = null;
+    }
 
     public void AssignCreator(Guid userId)
     {
