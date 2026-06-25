@@ -6,6 +6,8 @@ public sealed class ListingResponse
 {
     public Guid Id { get; set; }
 
+    public Guid? AgencyId { get; set; }
+
     public ListingType ListingType { get; set; }
 
     public PropertyType PropertyType { get; set; }

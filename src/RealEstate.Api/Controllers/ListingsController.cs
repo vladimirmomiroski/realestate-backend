@@ -90,6 +90,7 @@ public sealed class ListingsController : ControllerBase
     public async Task<ActionResult<PagedResponse<ListingResponse>>> GetListings(
     [FromQuery] string lang = "mk",
     [FromQuery] ListingType? listingType = null,
+    [FromQuery] Guid? agencyId = null,
     [FromQuery] PropertyType? propertyType = null,
     [FromQuery] HeatingType? heatingType = null,
     [FromQuery] FurnishingStatus? furnishingStatus = null,
@@ -112,6 +113,7 @@ public sealed class ListingsController : ControllerBase
         var query = new GetListingsQuery
         {
             LanguageCode = lang,
+            AgencyId = agencyId,
             ListingType = listingType,
             PropertyType = propertyType,
             HeatingType = heatingType,

@@ -65,6 +65,22 @@ public sealed class ListingMappingExtensionsTests
     }
 
     [Fact]
+    public void ToResponse_ShouldMapAgencyId()
+    {
+        // Arrange
+        var listing = CreateBaseListing();
+        var agencyId = Guid.NewGuid();
+
+        listing.AssignAgency(agencyId);
+
+        // Act
+        var response = listing.ToResponse("mk");
+
+        // Assert
+        response.AgencyId.Should().Be(agencyId);
+    }
+
+    [Fact]
     public void ToResponse_ShouldRoundPricePerSquareMeterToTwoDecimals()
     {
         // Arrange

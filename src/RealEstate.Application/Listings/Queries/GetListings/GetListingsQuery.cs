@@ -6,6 +6,8 @@ public sealed class GetListingsQuery
 {
     public string LanguageCode { get; set; } = "mk";
 
+    public Guid? AgencyId { get; set; }
+
     public ListingType? ListingType { get; set; }
 
     public PropertyType? PropertyType { get; set; }
