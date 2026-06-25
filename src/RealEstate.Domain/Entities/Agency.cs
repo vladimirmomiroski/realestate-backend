@@ -5,6 +5,10 @@ namespace RealEstate.Domain.Entities;
 
 public sealed class Agency : IAuditableEntity
 {
+
+    private readonly List<AgencyMember> _members = new();
+
+    public IReadOnlyCollection<AgencyMember> Members => _members.AsReadOnly();
     private Agency()
     {
     }
@@ -31,6 +35,23 @@ public sealed class Agency : IAuditableEntity
         City = city;
         Municipality = municipality;
         Status = AgencyStatus.PendingVerification;
+    }
+
+    public AgencyMember AddMember(
+    Guid userId,
+    AgencyMemberRole role,
+    AgencyMemberStatus status = AgencyMemberStatus.Active)
+    {
+        if (_members.Any(member => member.UserId == userId))
+        {
+            throw new InvalidOperationException("User is already a member of this agency.");
+        }
+
+        var member = new AgencyMember(Id, userId, role, status);
+
+        _members.Add(member);
+
+        return member;
     }
 
     public Guid Id { get; private set; }
