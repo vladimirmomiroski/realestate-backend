@@ -23,6 +23,15 @@ public sealed class AgencyRepository : IAgencyRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Agency?> GetByIdReadOnlyAsync(
+    Guid agencyId,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agencies
+            .AsNoTracking()
+            .FirstOrDefaultAsync(agency => agency.Id == agencyId, cancellationToken);
+    }
+
     public async Task<bool> SlugExistsAsync(
         string slug,
         CancellationToken cancellationToken)
