@@ -6,6 +6,10 @@ public interface IAgencyRepository
 {
     Task CreateAsync(Agency agency, CancellationToken cancellationToken);
 
+    Task<Agency?> GetByIdReadOnlyAsync(
+    Guid agencyId,
+    CancellationToken cancellationToken);
+
     Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken);
 
     Task<bool> ExistsAsync(
