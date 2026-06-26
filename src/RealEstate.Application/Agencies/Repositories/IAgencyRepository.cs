@@ -1,7 +1,13 @@
-﻿namespace RealEstate.Application.Agencies.Repositories;
+﻿using RealEstate.Domain.Entities;
+
+namespace RealEstate.Application.Agencies.Repositories;
 
 public interface IAgencyRepository
 {
+    Task CreateAsync(Agency agency, CancellationToken cancellationToken);
+
+    Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken);
+
     Task<bool> ExistsAsync(
         Guid agencyId,
         CancellationToken cancellationToken);

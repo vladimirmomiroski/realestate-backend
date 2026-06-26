@@ -22,8 +22,8 @@ public sealed class ListingRepository : IListingRepository
     }
 
     public async Task<int> CountByCreatedByUserIdAsync(
-    Guid createdByUserId,
-    CancellationToken cancellationToken)
+        Guid createdByUserId,
+        CancellationToken cancellationToken)
     {
         return await _dbContext.Listings
             .CountAsync(
