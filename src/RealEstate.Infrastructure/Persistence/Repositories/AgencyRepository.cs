@@ -14,6 +14,23 @@ public sealed class AgencyRepository : IAgencyRepository
         _dbContext = dbContext;
     }
 
+    public async Task CreateAsync(
+    Agency agency,
+    CancellationToken cancellationToken)
+    {
+        _dbContext.Agencies.Add(agency);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<bool> SlugExistsAsync(
+        string slug,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agencies
+            .AnyAsync(agency => agency.Slug == slug, cancellationToken);
+    }
+
     public async Task<bool> ExistsAsync(
         Guid agencyId,
         CancellationToken cancellationToken)
