@@ -11,6 +11,7 @@ using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Agencies.Commands.CreateAgency;
 using RealEstate.Application.Agencies.Queries.GetAgencyById;
+using RealEstate.Application.Agencies.Queries.GetMyAgencies;
 
 namespace RealEstate.Application;
 
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<CreateAgencyValidator>();
         services.AddScoped<CreateAgencyHandler>();
         services.AddScoped<GetAgencyByIdHandler>();
+        services.AddScoped<GetMyAgenciesHandler>();
 
         services.AddScoped<RegisterUserHandler>();
         services.AddScoped<LoginUserHandler>();
