@@ -2,6 +2,7 @@
 using RealEstate.Application.Agencies.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Application.Agencies.ReadModels;
 
 namespace RealEstate.Infrastructure.Persistence.Repositories;
 
@@ -30,6 +31,31 @@ public sealed class AgencyRepository : IAgencyRepository
         return await _dbContext.Agencies
             .AsNoTracking()
             .FirstOrDefaultAsync(agency => agency.Id == agencyId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<UserAgencyMembershipReadModel>> GetByUserIdReadOnlyAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return await (
+            from member in _dbContext.Set<AgencyMember>().AsNoTracking()
+            join agency in _dbContext.Agencies.AsNoTracking()
+                on member.AgencyId equals agency.Id
+            where member.UserId == userId
+            orderby agency.Name
+            select new UserAgencyMembershipReadModel
+            {
+                AgencyId = agency.Id,
+                Name = agency.Name,
+                Slug = agency.Slug,
+                LogoUrl = agency.LogoUrl,
+                City = agency.City,
+                Municipality = agency.Municipality,
+                AgencyStatus = agency.Status,
+                MemberRole = member.Role,
+                MemberStatus = member.Status
+            })
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<bool> SlugExistsAsync(

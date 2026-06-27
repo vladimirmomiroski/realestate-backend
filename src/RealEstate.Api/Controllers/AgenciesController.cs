@@ -4,6 +4,7 @@ using RealEstate.Application.Agencies.Commands.CreateAgency;
 using RealEstate.Application.Agencies.Dtos;
 using RealEstate.Application.Common;
 using RealEstate.Application.Agencies.Queries.GetAgencyById;
+using RealEstate.Application.Agencies.Queries.GetMyAgencies;
 
 namespace RealEstate.Api.Controllers;
 
@@ -13,11 +14,13 @@ public sealed class AgenciesController : ControllerBase
 {
     private readonly CreateAgencyHandler _createAgencyHandler;
     private readonly GetAgencyByIdHandler _getAgencyByIdHandler;
+    private readonly GetMyAgenciesHandler _getMyAgenciesHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
+        _getMyAgenciesHandler = getMyAgenciesHandler;
     }
 
     [Authorize]
@@ -38,6 +41,19 @@ public sealed class AgenciesController : ControllerBase
         }
 
         return Created($"/api/agencies/{result.Value!.Id}", result.Value);
+    }
+
+    [Authorize]
+    [HttpGet("my")]
+    [ProducesResponseType(typeof(List<MyAgencyResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IReadOnlyList<MyAgencyResponse>>> GetMyAgencies(
+    CancellationToken cancellationToken)
+    {
+        IReadOnlyList<MyAgencyResponse> response =
+            await _getMyAgenciesHandler.HandleAsync(cancellationToken);
+
+        return Ok(response);
     }
 
     [HttpGet("{id:guid}")]

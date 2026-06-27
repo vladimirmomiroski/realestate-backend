@@ -1,4 +1,5 @@
 ﻿using RealEstate.Domain.Entities;
+using RealEstate.Application.Agencies.ReadModels;
 
 namespace RealEstate.Application.Agencies.Repositories;
 
@@ -9,6 +10,10 @@ public interface IAgencyRepository
     Task<Agency?> GetByIdReadOnlyAsync(
     Guid agencyId,
     CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<UserAgencyMembershipReadModel>> GetByUserIdReadOnlyAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
 
     Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken);
 
