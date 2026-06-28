@@ -33,6 +33,15 @@ public sealed class AgencyRepository : IAgencyRepository
             .FirstOrDefaultAsync(agency => agency.Id == agencyId, cancellationToken);
     }
 
+    public async Task<Agency?> GetBySlugReadOnlyAsync(
+    string slug,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agencies
+            .AsNoTracking()
+            .FirstOrDefaultAsync(agency => agency.Slug == slug, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<UserAgencyMembershipReadModel>> GetByUserIdReadOnlyAsync(
         Guid userId,
         CancellationToken cancellationToken)
