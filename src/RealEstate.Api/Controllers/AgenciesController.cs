@@ -6,6 +6,7 @@ using RealEstate.Application.Common;
 using RealEstate.Application.Agencies.Queries.GetAgencyById;
 using RealEstate.Application.Agencies.Queries.GetMyAgencies;
 using RealEstate.Application.Agencies.Queries.GetAgencyMembers;
+using RealEstate.Application.Agencies.Queries.GetAgencyBySlug;
 
 namespace RealEstate.Api.Controllers;
 
@@ -17,13 +18,15 @@ public sealed class AgenciesController : ControllerBase
     private readonly GetAgencyByIdHandler _getAgencyByIdHandler;
     private readonly GetMyAgenciesHandler _getMyAgenciesHandler;
     private readonly GetAgencyMembersHandler _getAgencyMembersHandler;
+    private readonly GetAgencyBySlugHandler _getAgencyBySlugHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler , GetAgencyMembersHandler getAgencyMembersHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
         _getMyAgenciesHandler = getMyAgenciesHandler;
         _getAgencyMembersHandler = getAgencyMembersHandler;
+        _getAgencyBySlugHandler = getAgencyBySlugHandler;
     }
 
     [Authorize]
@@ -57,6 +60,24 @@ public sealed class AgenciesController : ControllerBase
             await _getMyAgenciesHandler.HandleAsync(cancellationToken);
 
         return Ok(response);
+    }
+
+    [HttpGet("by-slug/{slug}")]
+    [ProducesResponseType(typeof(AgencyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AgencyResponse>> GetAgencyBySlug(
+    string slug,
+    CancellationToken cancellationToken)
+    {
+        ServiceResult<AgencyResponse> result =
+            await _getAgencyBySlugHandler.HandleAsync(slug, cancellationToken);
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:guid}")]

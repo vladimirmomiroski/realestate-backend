@@ -11,6 +11,10 @@ public interface IAgencyRepository
     Guid agencyId,
     CancellationToken cancellationToken);
 
+    Task<Agency?> GetBySlugReadOnlyAsync(
+    string slug,
+    CancellationToken cancellationToken);
+
     Task<IReadOnlyList<UserAgencyMembershipReadModel>> GetByUserIdReadOnlyAsync(
         Guid userId,
         CancellationToken cancellationToken);
