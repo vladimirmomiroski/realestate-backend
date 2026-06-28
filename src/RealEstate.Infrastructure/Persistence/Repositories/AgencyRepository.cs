@@ -58,6 +58,31 @@ public sealed class AgencyRepository : IAgencyRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AgencyMemberReadModel>> GetMembersByAgencyIdReadOnlyAsync(
+    Guid agencyId,
+    CancellationToken cancellationToken)
+    {
+        return await (
+            from member in _dbContext.Set<AgencyMember>().AsNoTracking()
+            join user in _dbContext.Users.AsNoTracking()
+                on member.UserId equals user.Id
+            where member.AgencyId == agencyId
+            orderby member.CreatedAtUtc
+            select new AgencyMemberReadModel
+            {
+                MemberId = member.Id,
+                UserId = user.Id,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                UserStatus = user.Status,
+                MemberRole = member.Role,
+                MemberStatus = member.Status,
+                JoinedAtUtc = member.CreatedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> SlugExistsAsync(
         string slug,
         CancellationToken cancellationToken)

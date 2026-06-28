@@ -15,6 +15,10 @@ public interface IAgencyRepository
         Guid userId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<AgencyMemberReadModel>> GetMembersByAgencyIdReadOnlyAsync(
+    Guid agencyId,
+    CancellationToken cancellationToken);
+
     Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken);
 
     Task<bool> ExistsAsync(
