@@ -54,6 +54,38 @@ public sealed class Agency : IAuditableEntity
         return member;
     }
 
+    public void UpdateProfile(
+    string name,
+    string? description,
+    string? phoneNumber,
+    string? email,
+    string? websiteUrl,
+    string? addressLine,
+    string? city,
+    string? municipality)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Agency name is required.", nameof(name));
+        }
+
+        Name = name.Trim();
+        Description = CleanNullableText(description);
+        PhoneNumber = CleanNullableText(phoneNumber);
+        Email = CleanNullableText(email);
+        WebsiteUrl = CleanNullableText(websiteUrl);
+        AddressLine = CleanNullableText(addressLine);
+        City = CleanNullableText(city);
+        Municipality = CleanNullableText(municipality);
+    }
+
+    private static string? CleanNullableText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+
     public Guid Id { get; private set; }
 
     public string Name { get; private set; } = null!;

@@ -15,6 +15,7 @@ using RealEstate.Application.Agencies.Queries.GetMyAgencies;
 using RealEstate.Application.Agencies.Queries.GetAgencyMembers;
 using RealEstate.Application.Agencies.Queries.GetAgencyBySlug;
 using RealEstate.Application.Agencies.Queries.GetAgencyListings;
+using RealEstate.Application.Agencies.Commands.UpdateAgency;
 
 namespace RealEstate.Application;
 
@@ -38,6 +39,8 @@ public static class DependencyInjection
         services.AddScoped<GetMyAgenciesHandler>();
         services.AddScoped<GetAgencyMembersHandler>();
         services.AddScoped<GetAgencyListingsHandler>();
+        services.AddScoped<UpdateAgencyValidator>();
+        services.AddScoped<UpdateAgencyHandler>();
 
 
         services.AddScoped<RegisterUserHandler>();

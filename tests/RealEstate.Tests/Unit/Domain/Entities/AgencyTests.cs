@@ -59,6 +59,56 @@ public sealed class AgencyTests
         member.Status.Should().Be(AgencyMemberStatus.Pending);
     }
 
+    [Fact]
+    public void UpdateProfile_ShouldUpdateAgencyProfile()
+    {
+        var agency = CreateAgency();
+
+        agency.UpdateProfile(
+            name: "Updated Agency",
+            description: "Updated description",
+            phoneNumber: "+38970222222",
+            email: "updated@test.com",
+            websiteUrl: "https://updated.test",
+            addressLine: "Updated Street 1",
+            city: "Skopje",
+            municipality: "Karpos");
+
+        agency.Name.Should().Be("Updated Agency");
+        agency.Description.Should().Be("Updated description");
+        agency.PhoneNumber.Should().Be("+38970222222");
+        agency.Email.Should().Be("updated@test.com");
+        agency.WebsiteUrl.Should().Be("https://updated.test");
+        agency.AddressLine.Should().Be("Updated Street 1");
+        agency.City.Should().Be("Skopje");
+        agency.Municipality.Should().Be("Karpos");
+    }
+
+    [Fact]
+    public void UpdateProfile_ShouldConvertWhitespaceOptionalFieldsToNull()
+    {
+        var agency = CreateAgency();
+
+        agency.UpdateProfile(
+            name: "Updated Agency",
+            description: " ",
+            phoneNumber: " ",
+            email: " ",
+            websiteUrl: " ",
+            addressLine: " ",
+            city: " ",
+            municipality: " ");
+
+        agency.Name.Should().Be("Updated Agency");
+        agency.Description.Should().BeNull();
+        agency.PhoneNumber.Should().BeNull();
+        agency.Email.Should().BeNull();
+        agency.WebsiteUrl.Should().BeNull();
+        agency.AddressLine.Should().BeNull();
+        agency.City.Should().BeNull();
+        agency.Municipality.Should().BeNull();
+    }
+
     private static Agency CreateAgency()
     {
         return new Agency(

@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using RealEstate.Application.Agencies.ReadModels;
 using RealEstate.Application.Agencies.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
-using RealEstate.Application.Agencies.ReadModels;
 
 namespace RealEstate.Infrastructure.Persistence.Repositories;
 
@@ -16,8 +16,8 @@ public sealed class AgencyRepository : IAgencyRepository
     }
 
     public async Task CreateAsync(
-    Agency agency,
-    CancellationToken cancellationToken)
+        Agency agency,
+        CancellationToken cancellationToken)
     {
         _dbContext.Agencies.Add(agency);
 
@@ -25,8 +25,8 @@ public sealed class AgencyRepository : IAgencyRepository
     }
 
     public async Task<Agency?> GetByIdReadOnlyAsync(
-    Guid agencyId,
-    CancellationToken cancellationToken)
+        Guid agencyId,
+        CancellationToken cancellationToken)
     {
         return await _dbContext.Agencies
             .AsNoTracking()
@@ -34,8 +34,8 @@ public sealed class AgencyRepository : IAgencyRepository
     }
 
     public async Task<Agency?> GetBySlugReadOnlyAsync(
-    string slug,
-    CancellationToken cancellationToken)
+        string slug,
+        CancellationToken cancellationToken)
     {
         return await _dbContext.Agencies
             .AsNoTracking()
@@ -68,8 +68,8 @@ public sealed class AgencyRepository : IAgencyRepository
     }
 
     public async Task<IReadOnlyList<AgencyMemberReadModel>> GetMembersByAgencyIdReadOnlyAsync(
-    Guid agencyId,
-    CancellationToken cancellationToken)
+        Guid agencyId,
+        CancellationToken cancellationToken)
     {
         return await (
             from member in _dbContext.Set<AgencyMember>().AsNoTracking()
@@ -90,6 +90,32 @@ public sealed class AgencyRepository : IAgencyRepository
                 JoinedAtUtc = member.CreatedAtUtc
             })
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Agency?> GetByIdForUpdateAsync(
+        Guid agencyId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agencies
+            .FirstOrDefaultAsync(agency => agency.Id == agencyId, cancellationToken);
+    }
+
+    public async Task<AgencyMemberAccessReadModel?> GetMemberAccessReadOnlyAsync(
+        Guid agencyId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Set<AgencyMember>()
+            .AsNoTracking()
+            .Where(member =>
+                member.AgencyId == agencyId &&
+                member.UserId == userId)
+            .Select(member => new AgencyMemberAccessReadModel
+            {
+                Role = member.Role,
+                Status = member.Status
+            })
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<bool> SlugExistsAsync(
@@ -120,5 +146,10 @@ public sealed class AgencyRepository : IAgencyRepository
                     member.UserId == userId &&
                     member.Status == AgencyMemberStatus.Active,
                 cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -9,6 +9,7 @@ using RealEstate.Application.Agencies.Queries.GetAgencyMembers;
 using RealEstate.Application.Agencies.Queries.GetAgencyBySlug;
 using RealEstate.Application.Agencies.Queries.GetAgencyListings;
 using RealEstate.Application.Listings.Dtos;
+using RealEstate.Application.Agencies.Commands.UpdateAgency;
 
 namespace RealEstate.Api.Controllers;
 
@@ -22,8 +23,9 @@ public sealed class AgenciesController : ControllerBase
     private readonly GetAgencyMembersHandler _getAgencyMembersHandler;
     private readonly GetAgencyBySlugHandler _getAgencyBySlugHandler;
     private readonly GetAgencyListingsHandler _getAgencyListingsHandler;
+    private readonly UpdateAgencyHandler _updateAgencyHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -31,6 +33,7 @@ public sealed class AgenciesController : ControllerBase
         _getAgencyMembersHandler = getAgencyMembersHandler;
         _getAgencyBySlugHandler = getAgencyBySlugHandler;
         _getAgencyListingsHandler = getAgencyListingsHandler;
+        _updateAgencyHandler = updateAgencyHandler;
     }
 
     [Authorize]
@@ -152,6 +155,39 @@ public sealed class AgenciesController : ControllerBase
         if (result.Status == ServiceResultStatus.NotFound)
         {
             return NotFound(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(AgencyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AgencyResponse>> UpdateAgency(
+    Guid id,
+    [FromBody] UpdateAgencyRequest request,
+    CancellationToken cancellationToken)
+    {
+        ServiceResult<AgencyResponse> result =
+            await _updateAgencyHandler.HandleAsync(id, request, cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
         }
 
         return Ok(result.Value);
