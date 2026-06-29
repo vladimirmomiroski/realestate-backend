@@ -7,6 +7,8 @@ using RealEstate.Application.Agencies.Queries.GetAgencyById;
 using RealEstate.Application.Agencies.Queries.GetMyAgencies;
 using RealEstate.Application.Agencies.Queries.GetAgencyMembers;
 using RealEstate.Application.Agencies.Queries.GetAgencyBySlug;
+using RealEstate.Application.Agencies.Queries.GetAgencyListings;
+using RealEstate.Application.Listings.Dtos;
 
 namespace RealEstate.Api.Controllers;
 
@@ -19,14 +21,16 @@ public sealed class AgenciesController : ControllerBase
     private readonly GetMyAgenciesHandler _getMyAgenciesHandler;
     private readonly GetAgencyMembersHandler _getAgencyMembersHandler;
     private readonly GetAgencyBySlugHandler _getAgencyBySlugHandler;
+    private readonly GetAgencyListingsHandler _getAgencyListingsHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
         _getMyAgenciesHandler = getMyAgenciesHandler;
         _getAgencyMembersHandler = getAgencyMembersHandler;
         _getAgencyBySlugHandler = getAgencyBySlugHandler;
+        _getAgencyListingsHandler = getAgencyListingsHandler;
     }
 
     [Authorize]
@@ -119,6 +123,35 @@ public sealed class AgenciesController : ControllerBase
         if (result.Status == ServiceResultStatus.Forbidden)
         {
             return Forbid();
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/listings")]
+    [ProducesResponseType(typeof(PagedResult<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResult<ListingResponse>>> GetAgencyListings(
+    Guid id,
+    [FromQuery] string? lang,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+    {
+        var query = new GetAgencyListingsQuery
+        {
+            AgencyId = id,
+            LanguageCode = lang,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        ServiceResult<PagedResult<ListingResponse>> result =
+            await _getAgencyListingsHandler.HandleAsync(query, cancellationToken);
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
         }
 
         return Ok(result.Value);
