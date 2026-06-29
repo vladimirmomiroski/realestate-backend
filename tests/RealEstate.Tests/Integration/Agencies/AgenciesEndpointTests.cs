@@ -1,12 +1,13 @@
-﻿using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Tests.Integration.Listings;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -557,6 +558,83 @@ public sealed class AgenciesEndpointTests : IClassFixture<CustomWebApplicationFa
         json.GetProperty("slug").GetString().Should().Be(slug);
     }
 
+    [Fact]
+    public async Task GetAgencyListings_WithMissingAgency_ReturnsNotFound()
+    {
+        Guid missingAgencyId = Guid.NewGuid();
+
+        HttpResponseMessage response = await _httpClient.GetAsync(
+            $"/api/agencies/{missingAgencyId}/listings?lang=en&page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        string error = await response.Content.ReadAsStringAsync();
+
+        error.Should().Contain("Agency was not found.");
+    }
+
+    [Fact]
+    public async Task GetAgencyListings_WithExistingAgencyAndNoListings_ReturnsEmptyPagedResult()
+    {
+        AuthenticatedTestUser user =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid agencyId = await CreateAgencyAsAsync(user);
+
+        HttpResponseMessage response = await _httpClient.GetAsync(
+            $"/api/agencies/{agencyId}/listings?lang=en&page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
+        json.GetProperty("items").GetArrayLength().Should().Be(0);
+        json.GetProperty("page").GetInt32().Should().Be(1);
+        json.GetProperty("pageSize").GetInt32().Should().Be(20);
+        json.GetProperty("totalCount").GetInt32().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetAgencyListings_ReturnsOnlyListingsForAgency()
+    {
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid firstAgencyId = await CreateAgencyAsAsync(owner);
+        Guid secondAgencyId = await CreateAgencyAsAsync(owner);
+
+        Guid firstAgencyListingId = await CreateAgencyListingAsAsync(
+            owner,
+            firstAgencyId,
+            price: 99000);
+
+        Guid secondAgencyListingId = await CreateAgencyListingAsAsync(
+            owner,
+            secondAgencyId,
+            price: 125000);
+
+        HttpResponseMessage response = await _httpClient.GetAsync(
+            $"/api/agencies/{firstAgencyId}/listings?lang=en&page=1&pageSize=20");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("totalCount").GetInt32().Should().Be(1);
+
+        JsonElement items = json.GetProperty("items");
+
+        items.GetArrayLength().Should().Be(1);
+
+        Guid returnedListingId = items[0].GetProperty("id").GetGuid();
+
+        returnedListingId.Should().Be(firstAgencyListingId);
+        returnedListingId.Should().NotBe(secondAgencyListingId);
+
+        items[0].GetProperty("agencyId").GetGuid().Should().Be(firstAgencyId);
+    }
+
     private static object CreateValidCreateAgencyRequest(string? slug = null)
     {
         return new
@@ -621,4 +699,32 @@ public sealed class AgenciesEndpointTests : IClassFixture<CustomWebApplicationFa
         return agency.Id;
     }
 
+    private async Task<Guid> CreateAgencyListingAsAsync(
+    AuthenticatedTestUser user,
+    Guid agencyId,
+    decimal price = 99000)
+    {
+        _httpClient.AuthorizeAs(user.AccessToken);
+
+        try
+        {
+            var request = ListingTestHelpers.CreateValidListingRequest(
+                price: price,
+                agencyId: agencyId);
+
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            return json.GetProperty("id").GetGuid();
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
 }
