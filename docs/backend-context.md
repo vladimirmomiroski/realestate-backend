@@ -6,7 +6,7 @@ This backend is for a real estate platform. The goal is not just a basic listing
 
 Current focus: backend foundation before frontend work.
 
-Current backend status: **listing module + auth/listing ownership foundation are complete enough to move into Agencies next.**
+Current backend status: **listing/auth/ownership + Agencies MVP foundation are implemented.**
 
 The backend now supports:
 
@@ -28,20 +28,32 @@ Listing ownership
 My listings
 Image owner authorization
 Free listing limit per user
+Agencies
+Agency members
+Agency-owned listings
+Agency membership permissions
+Public agency profiles
+Agency dashboard basics
 Swagger testing
+Unit tests
 Integration tests
+```
+
+Current test status:
+
+```text
+115/115 tests passing
 ```
 
 Next backend direction:
 
 ```text
-Agencies
-Agency members
-Agent profiles
-Later admin/role rules
-Later CRM/client notes
-Later saved listings/favorites
+Chapter 7 — Backend cleanup and structure hardening
+Chapter 8 — Publishing, visibility, and verification rules
+Later Agency Phase 2
+Later CRM/client notes/saved listings
 Later payments/subscriptions
+Later AI-assisted workflows
 ```
 
 ---
@@ -57,7 +69,7 @@ PostgreSQL
 Docker / Docker Compose
 Swagger / Swashbuckle
 JWT Bearer Authentication
-xUnit integration tests
+xUnit unit/integration tests
 FluentAssertions
 Microsoft.AspNetCore.Mvc.Testing
 Testcontainers PostgreSQL
@@ -71,18 +83,35 @@ Tests use a real temporary PostgreSQL container, not EF in-memory provider.
 
 Important: repositories are directly under `RealEstate.Infrastructure/Persistence/Repositories`. There is **no** nested `Listings` folder under repositories.
 
+Current important structure:
+
 ```text
 src/
   RealEstate.Api
     Authentication
       CurrentUserService.cs
     Controllers
-      ListingsController.cs
+      AgenciesController.cs
       AuthController.cs
       HealthController.cs
+      ListingsController.cs
     Program.cs
 
   RealEstate.Application
+    Agencies
+      Commands
+        CreateAgency
+        UpdateAgency
+      Dtos
+      Mappings
+      Queries
+        GetAgencyById
+        GetAgencyBySlug
+        GetAgencyListings
+        GetAgencyMembers
+        GetMyAgencies
+      ReadModels
+      Repositories
     Auth
       Commands
         RegisterUser
@@ -97,6 +126,7 @@ src/
         IJwtTokenGenerator.cs
       Storage
       PagedResult.cs
+      ServiceResult.cs
     Listings
       Commands
         CreateListing
@@ -111,11 +141,15 @@ src/
       Dtos
       Mappings
       Repositories
+    Users
+      Repositories
 
   RealEstate.Domain
     Common
       IAuditableEntity.cs
     Entities
+      Agency.cs
+      AgencyMember.cs
       User.cs
       Listing.cs
       ListingTranslation.cs
@@ -127,6 +161,8 @@ src/
   RealEstate.Infrastructure
     Persistence
       Configurations
+        AgencyConfiguration.cs
+        AgencyMemberConfiguration.cs
         UserConfiguration.cs
         ListingConfiguration.cs
         ListingTranslationConfiguration.cs
@@ -135,6 +171,7 @@ src/
         ListingHouseDetailsConfiguration.cs
       Migrations
       Repositories
+        AgencyRepository.cs
         UserRepository.cs
         ListingRepository.cs
       RealEstateDbContext.cs
@@ -150,6 +187,10 @@ src/
 tests/
   RealEstate.Tests
     Integration
+      Agencies
+        AgenciesEndpointTests.cs
+        AgencyPersistenceTests.cs
+        AgencyTestHelpers.cs
       Auth
         AuthEndpointTests.cs
         AuthTestHelpers.cs
@@ -157,6 +198,15 @@ tests/
         ListingsEndpointTests.cs
         ListingImagesEndpointTests.cs
         ListingTestHelpers.cs
+    Unit
+      Application
+        Listings
+          CreateListingValidatorTests.cs
+          ListingMappingExtensionsTests.cs
+      Domain
+        Entities
+          AgencyTests.cs
+          ListingTests.cs
 ```
 
 ---
@@ -196,9 +246,15 @@ ICurrentUserService gets logged-in user id from JWT claims
   ↓
 IListingRepository.CountByCreatedByUserIdAsync checks free listing limit
   ↓
+If AgencyId is provided:
+    IAgencyRepository.ExistsAsync checks agency exists
+    IAgencyRepository.IsActiveMemberAsync checks active agency membership
+  ↓
 Listing aggregate root created
   ↓
 CreatedByUserId assigned
+  ↓
+AgencyId assigned only when allowed
   ↓
 ListingTranslation children attached
   ↓
@@ -213,6 +269,34 @@ RealEstateDbContext.SaveChangesAsync
 PostgreSQL
 ```
 
+Example agency update flow:
+
+```text
+PUT /api/agencies/{id}
+  ↓
+[Authorize]
+  ↓
+AgenciesController.UpdateAgency
+  ↓
+UpdateAgencyHandler
+  ↓
+UpdateAgencyValidator
+  ↓
+ICurrentUserService gets logged-in user id
+  ↓
+IAgencyRepository.GetByIdForUpdateAsync fetches tracked agency
+  ↓
+IAgencyRepository.GetMemberAccessReadOnlyAsync returns Role + Status
+  ↓
+Handler checks Active + Owner
+  ↓
+Agency.UpdateProfile updates allowed fields
+  ↓
+IAgencyRepository.SaveChangesAsync
+  ↓
+AgencyResponse returned
+```
+
 Rules:
 
 ```text
@@ -222,6 +306,8 @@ Domain contains entities, enums, and core business rules.
 Infrastructure contains EF Core, repositories, database config, migrations, security, and local storage.
 Application owns repository interfaces.
 Infrastructure implements repository interfaces.
+Repositories are data-focused.
+Business/authorization decisions stay in handlers, domain methods, or future policy services.
 No MediatR yet.
 No AutoMapper yet.
 No FluentValidation package yet.
@@ -234,7 +320,7 @@ No generic repository / Unit of Work yet.
 
 ### Aggregate rule
 
-`Listing` is the aggregate root.
+`Listing` is the aggregate root for listings.
 
 Child entities:
 
@@ -245,12 +331,20 @@ ListingApartmentDetails
 ListingHouseDetails
 ```
 
+`Agency` is the aggregate root for agency profile/membership setup.
+
+Child/member entity:
+
+```text
+AgencyMember
+```
+
 Current DbContext rule:
 
 ```text
 Expose aggregate roots publicly.
 Do not expose child entities as public DbSets unless needed.
-Child entities are accessed through Listing navigation properties or internal Set<TEntity>() usage.
+Child entities are accessed through aggregate navigation properties or internal Set<TEntity>() usage.
 ```
 
 Current known public DbSets:
@@ -258,9 +352,77 @@ Current known public DbSets:
 ```csharp
 public DbSet<Listing> Listings => Set<Listing>();
 public DbSet<User> Users => Set<User>();
+public DbSet<Agency> Agencies => Set<Agency>();
 ```
 
-Repository may use `_dbContext.Set<ListingImage>()` internally when needed for image insert/delete.
+Repository may use `_dbContext.Set<ListingImage>()` or `_dbContext.Set<AgencyMember>()` internally when needed.
+
+---
+
+### ReadModels convention
+
+Use feature-level `ReadModels` folders for internal query/database projection shapes.
+
+Rule:
+
+```text
+Dtos       = API request/response shapes
+ReadModels = query/database projection shapes
+Entities   = domain/business objects
+```
+
+Current agency read models include:
+
+```text
+Agencies/ReadModels/UserAgencyMembershipReadModel.cs
+Agencies/ReadModels/AgencyMemberReadModel.cs
+Agencies/ReadModels/AgencyMemberAccessReadModel.cs
+```
+
+Do not create empty `ReadModels` folders in other features until needed.
+
+---
+
+### Repository watch-outs
+
+Repositories should stay data-focused.
+
+Good repository responsibilities:
+
+```text
+create agency
+get agency by id
+get agency by slug
+check agency exists
+get member access data
+get agency members read model
+get filtered listings
+save changes
+```
+
+Avoid putting business decisions inside repositories.
+
+Do not hide rules like these in repositories:
+
+```text
+can user manage agency?
+can member update agency?
+can member manage listing?
+can agency publish listing?
+does subscription allow this action?
+```
+
+Business/authorization decisions should stay in handlers, domain methods, or future policy services.
+
+Known watch-list:
+
+```text
+ListingRepository.GetFilteredReadOnlyAsync(GetListingsQuery query, ...)
+```
+
+This is acceptable for now because it applies database filters, pagination, includes, and ordering. But it is growing. Future cleanup may introduce a `ListingSearchCriteria` or query helper/specification if it becomes too large.
+
+Do not add business visibility/subscription/permission rules inside this repository method.
 
 ---
 
@@ -324,7 +486,121 @@ Current behavior:
 ```text
 Register creates user as PendingVerification.
 PendingVerification is not enforced yet.
-Any authenticated user can create listings until stricter rules are added.
+Any authenticated user can create listings/agencies until stricter verification rules are added.
+```
+
+---
+
+### Agency
+
+Entity:
+
+```text
+Agency
+```
+
+Table:
+
+```text
+Agencies
+```
+
+Fields:
+
+```text
+Id
+Name
+Slug
+Description
+LogoUrl
+PhoneNumber
+Email
+WebsiteUrl
+AddressLine
+City
+Municipality
+Status
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+Agency statuses:
+
+```text
+PendingVerification
+Active
+Disabled
+Rejected
+```
+
+Current behavior:
+
+```text
+Created agencies start as PendingVerification.
+PendingVerification agencies are publicly readable for now.
+Agency verification/admin approval is not implemented yet.
+Slug is set on create and is not updateable through the update profile endpoint.
+```
+
+Important methods:
+
+```text
+AddMember(...)
+UpdateProfile(...)
+```
+
+---
+
+### AgencyMember
+
+Entity:
+
+```text
+AgencyMember
+```
+
+Table:
+
+```text
+AgencyMembers
+```
+
+Fields:
+
+```text
+Id
+AgencyId
+UserId
+Role
+Status
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+Agency member roles:
+
+```text
+Owner
+Agent
+```
+
+Agency member statuses:
+
+```text
+Active
+Pending
+Disabled
+```
+
+Current membership rules:
+
+```text
+Agency creator becomes Owner with Active status.
+A user cannot be added twice to the same agency.
+Agency actions must check AgencyMember.Status == Active.
+Updating agency profile requires Active Owner.
+Reading agency members requires active agency membership.
+Creating agency listings requires active agency membership.
 ```
 
 ---
@@ -337,11 +613,18 @@ Entity:
 Listing
 ```
 
+Table:
+
+```text
+Listings
+```
+
 Common listing fields:
 
 ```text
 Id
 CreatedByUserId
+AgencyId
 ListingType
 PropertyType
 Status
@@ -370,6 +653,7 @@ Important:
 
 ```text
 CreatedByUserId links listing to the user who created it.
+AgencyId links listing to an agency when the listing is agency-owned.
 Floor and TotalFloors were removed from Listing.
 Floor and TotalFloors belong only to ListingApartmentDetails.
 ```
@@ -378,7 +662,28 @@ Relationship:
 
 ```text
 User 1 → many Listings
+Agency 1 → many Listings
 Listing.CreatedByUserId is nullable in database for compatibility with older/dev data, but new authenticated listings assign it.
+Listing.AgencyId is nullable. Null means personal listing.
+```
+
+Ownership shapes:
+
+```text
+Personal listing:
+  CreatedByUserId = listing creator/owner
+  AgencyId = null
+
+Agency listing:
+  CreatedByUserId = user who created the listing
+  AgencyId = agency that owns/groups the listing
+```
+
+Important current rule:
+
+```text
+Same-agency membership does not automatically give full management rights over another member’s listing yet.
+For MVP, listing/image management still follows creator ownership unless explicitly extended later.
 ```
 
 ---
@@ -540,6 +845,36 @@ HouseType
   Other
 ```
 
+Agency/user enums:
+
+```text
+UserRole
+  Admin
+  AgencyOwner
+  Agent
+  User
+
+UserStatus
+  Active
+  Disabled
+  PendingVerification
+
+AgencyStatus
+  PendingVerification
+  Active
+  Disabled
+  Rejected
+
+AgencyMemberRole
+  Owner
+  Agent
+
+AgencyMemberStatus
+  Active
+  Pending
+  Disabled
+```
+
 Enums are stored as strings in PostgreSQL using EF Core conversions.
 
 ---
@@ -657,7 +992,8 @@ Image rules:
 First uploaded image becomes primary.
 Images have SortOrder.
 Only one primary image per listing.
-Only the listing owner can upload/delete/set primary/reorder images.
+Only the listing creator/owner can upload/delete/set primary/reorder images.
+Same-agency members cannot manage another member's listing images yet.
 ```
 
 Database constraint:
@@ -703,34 +1039,6 @@ Two-phase save prevents temporary duplicate primary images.
 POST /api/auth/register
 ```
 
-Request:
-
-```json
-{
-  "email": "user@test.com",
-  "password": "Password123!",
-  "firstName": "Test",
-  "lastName": "User",
-  "phoneNumber": "+38970123456"
-}
-```
-
-Response:
-
-```json
-{
-  "user": {
-    "id": "guid",
-    "email": "user@test.com",
-    "firstName": "Test",
-    "lastName": "User",
-    "phoneNumber": "+38970123456",
-    "role": "User",
-    "status": "PendingVerification"
-  }
-}
-```
-
 Register behavior:
 
 ```text
@@ -739,6 +1047,7 @@ Normalizes email.
 Blocks duplicate normalized email.
 Hashes password using ASP.NET Core PasswordHasher.
 Does not return JWT token.
+Creates user with status PendingVerification.
 ```
 
 ### Login
@@ -747,38 +1056,13 @@ Does not return JWT token.
 POST /api/auth/login
 ```
 
-Request:
-
-```json
-{
-  "email": "user@test.com",
-  "password": "Password123!"
-}
-```
-
-Response:
-
-```json
-{
-  "accessToken": "eyJ...",
-  "user": {
-    "id": "guid",
-    "email": "user@test.com",
-    "firstName": "Test",
-    "lastName": "User",
-    "phoneNumber": "+38970123456",
-    "role": "User",
-    "status": "PendingVerification"
-  }
-}
-```
-
 Login behavior:
 
 ```text
 Wrong password returns 401.
 Unknown email returns 401.
 Both use generic invalid credentials behavior.
+Returns JWT accessToken on success.
 ```
 
 ### JWT
@@ -856,7 +1140,18 @@ Database health endpoint checks PostgreSQL connectivity.
 
 ---
 
-### Create listing
+### Auth endpoints
+
+```http
+POST /api/auth/register
+POST /api/auth/login
+```
+
+---
+
+### Listing endpoints
+
+#### Create listing
 
 ```http
 POST /api/listings
@@ -870,6 +1165,15 @@ Returns 401 without token.
 Assigns CreatedByUserId from logged-in user.
 Each user can create up to 3 free listings.
 4th listing returns 400 Bad Request.
+Can create agency listing only if AgencyId is provided and current user is active agency member.
+```
+
+Agency listing behavior:
+
+```text
+Missing agency -> 404
+Existing agency but user is not active member -> 403
+Existing agency and active member -> listing created with AgencyId
 ```
 
 Free listing limit message:
@@ -878,88 +1182,14 @@ Free listing limit message:
 Free listing limit reached. Each user can create up to 3 listings.
 ```
 
-Creates a new listing with translations and either apartment or house details.
+Current watch-out:
 
-Returns:
-
-```http
-201 Created
-400 Bad Request
-401 Unauthorized
+```text
+Free listing limit currently counts by CreatedByUserId.
+Agency listings still count against the creating user's free limit.
 ```
 
-Apartment request shape:
-
-```json
-{
-  "listingType": "Sale",
-  "propertyType": "Apartment",
-  "status": "Active",
-  "price": 126000,
-  "currency": "EUR",
-  "areaSquareMeters": 72,
-  "rooms": 3,
-  "bathrooms": 1,
-  "yearBuilt": 2018,
-  "yearRenovated": 2022,
-  "balconyCount": 2,
-  "parkingSpaces": 1,
-  "hasBasement": true,
-  "isExchangePossible": false,
-  "heatingType": "Central",
-  "furnishingStatus": "Furnished",
-  "condition": "Good",
-  "orientation": "SouthEast",
-  "latitude": 41.9981,
-  "longitude": 21.4254,
-  "apartmentDetails": {
-    "apartmentType": "Standard",
-    "floor": 4,
-    "totalFloors": 8,
-    "hasElevator": true
-  },
-  "houseDetails": null,
-  "translations": []
-}
-```
-
-House request shape:
-
-```json
-{
-  "listingType": "Sale",
-  "propertyType": "House",
-  "status": "Active",
-  "price": 180000,
-  "currency": "EUR",
-  "areaSquareMeters": 120,
-  "rooms": 4,
-  "bathrooms": 2,
-  "yearBuilt": 2005,
-  "yearRenovated": 2020,
-  "balconyCount": 1,
-  "parkingSpaces": 2,
-  "hasBasement": true,
-  "isExchangePossible": false,
-  "heatingType": "Gas",
-  "furnishingStatus": "SemiFurnished",
-  "condition": "Good",
-  "orientation": "South",
-  "latitude": 41.9981,
-  "longitude": 21.4254,
-  "apartmentDetails": null,
-  "houseDetails": {
-    "houseType": "Detached",
-    "numberOfFloors": 2,
-    "yardAreaSquareMeters": 350
-  },
-  "translations": []
-}
-```
-
----
-
-### Get paginated / filtered listings
+#### Get paginated / filtered listings
 
 ```http
 GET /api/listings
@@ -975,6 +1205,7 @@ Supported query parameters:
 
 ```text
 lang
+agencyId
 listingType
 propertyType
 minPrice
@@ -993,18 +1224,6 @@ minYardAreaSquareMeters
 maxYardAreaSquareMeters
 page
 pageSize
-```
-
-Example apartment filter:
-
-```http
-GET /api/listings?lang=en&propertyType=Apartment&heatingType=Central&furnishingStatus=Furnished&condition=Good&hasBasement=true&hasElevator=true&apartmentType=Standard&page=1&pageSize=20
-```
-
-Example house filter:
-
-```http
-GET /api/listings?lang=en&propertyType=House&houseType=Detached&minYardAreaSquareMeters=300&maxYardAreaSquareMeters=400&page=1&pageSize=20
 ```
 
 Response shape:
@@ -1029,9 +1248,7 @@ Maximum pageSize = 100
 Minimum page = 1
 ```
 
----
-
-### Get my listings
+#### Get my listings
 
 ```http
 GET /api/listings/my?lang=mk&page=1&pageSize=20
@@ -1045,23 +1262,7 @@ Returns only listings where CreatedByUserId equals logged-in user id.
 Returns 401 without token.
 ```
 
-Response shape:
-
-```json
-{
-  "items": [],
-  "page": 1,
-  "pageSize": 20,
-  "totalCount": 0,
-  "totalPages": 0,
-  "hasNextPage": false,
-  "hasPreviousPage": false
-}
-```
-
----
-
-### Get listing by ID
+#### Get listing by ID
 
 ```http
 GET /api/listings/{id}?lang=en
@@ -1074,59 +1275,19 @@ Auth:
 Public.
 ```
 
-Returns requested language if available, otherwise falls back to first available translation.
-
 Missing listing returns:
 
 ```http
 404 Not Found
 ```
 
-Apartment response example:
-
-```json
-{
-  "propertyType": "Apartment",
-  "pricePerSquareMeter": 1750,
-  "apartmentDetails": {
-    "apartmentType": "Standard",
-    "floor": 4,
-    "totalFloors": 8,
-    "hasElevator": true
-  },
-  "houseDetails": null
-}
-```
-
-House response example:
-
-```json
-{
-  "propertyType": "House",
-  "pricePerSquareMeter": 1500,
-  "apartmentDetails": null,
-  "houseDetails": {
-    "houseType": "Detached",
-    "numberOfFloors": 2,
-    "yardAreaSquareMeters": 350
-  }
-}
-```
-
 `PricePerSquareMeter` is rounded to 2 decimals in response mapping.
-
-Example:
-
-```text
-125000 / 58 = 2155.1724...
-Response = 2155.17
-```
 
 ---
 
-## Image endpoints
+### Image endpoints
 
-All image endpoints require JWT and listing owner.
+All image endpoints require JWT and listing owner/creator.
 
 Expected authorization behavior:
 
@@ -1136,16 +1297,38 @@ Wrong user    -> 403 Forbidden
 Listing owner -> success
 ```
 
-### Upload image
+Endpoints:
 
 ```http
 POST /api/listings/{listingId}/images
+DELETE /api/listings/{listingId}/images/{imageId}
+PUT /api/listings/{listingId}/images/{imageId}/primary
+PUT /api/listings/{listingId}/images/order
 ```
 
-Accepts multipart/form-data field:
+---
+
+### Agency endpoints
+
+#### Create agency
+
+```http
+POST /api/agencies
+```
+
+Auth:
 
 ```text
-file
+Requires JWT.
+```
+
+Behavior:
+
+```text
+Creates agency.
+Creator automatically becomes Owner member.
+Duplicate slug returns 400.
+Created agency starts as PendingVerification.
 ```
 
 Returns:
@@ -1154,81 +1337,162 @@ Returns:
 201 Created
 400 Bad Request
 401 Unauthorized
-403 Forbidden
-404 Not Found
 ```
 
-Response:
-
-```json
-{
-  "id": "guid",
-  "url": "/uploads/listings/{listingId}/{fileName}.jpg",
-  "contentType": "image/jpeg",
-  "sizeBytes": 123456,
-  "sortOrder": 0,
-  "isPrimary": true
-}
-```
-
-### Delete image
+#### Get public agency profile by id
 
 ```http
-DELETE /api/listings/{listingId}/images/{imageId}
+GET /api/agencies/{id}
 ```
 
-If primary image is deleted, next image becomes primary.
+Auth:
 
-Returns:
+```text
+Public.
+```
+
+Behavior:
+
+```text
+Returns public agency profile.
+Missing agency returns 404.
+```
+
+#### Get public agency profile by slug
 
 ```http
-204 No Content
-401 Unauthorized
-403 Forbidden
-404 Not Found
+GET /api/agencies/by-slug/{slug}
 ```
 
-### Set primary image
+Auth:
+
+```text
+Public.
+```
+
+Behavior:
+
+```text
+Returns public agency profile by slug.
+Slug is normalized to lowercase by handler.
+Missing agency returns 404.
+Used by public frontend URLs like /agencies/dom-real-estate.
+```
+
+#### Get my agencies
 
 ```http
-PUT /api/listings/{listingId}/images/{imageId}/primary
+GET /api/agencies/my
 ```
 
-Returns selected image response.
+Auth:
 
-Returns:
+```text
+Requires JWT.
+```
+
+Behavior:
+
+```text
+Returns agencies the current user belongs to.
+Returns membership role/status.
+Returns empty array if user has no agencies.
+Does not filter only active memberships.
+Action endpoints still enforce Active status separately.
+```
+
+#### Get agency members
 
 ```http
-200 OK
-401 Unauthorized
-403 Forbidden
-404 Not Found
+GET /api/agencies/{id}/members
 ```
 
-### Reorder images
+Auth:
+
+```text
+Requires JWT.
+```
+
+Behavior:
+
+```text
+Missing agency -> 404
+Current user is not active member -> 403
+Current user is active member -> 200 with members
+Disabled/Pending members cannot read members.
+```
+
+For MVP, any active agency member can read members.
+
+Owner-only rules are reserved for mutation endpoints.
+
+#### Get agency listings
 
 ```http
-PUT /api/listings/{listingId}/images/order
+GET /api/agencies/{id}/listings?lang=en&page=1&pageSize=20
 ```
 
-Request:
+Auth:
 
-```json
-{
-  "imageIds": ["guid1", "guid2", "guid3"]
-}
+```text
+Public.
 ```
 
-Returns ordered image list.
+Behavior:
 
-Returns:
+```text
+Missing agency -> 404
+Existing agency with no listings -> 200 OK empty paged result
+Existing agency with listings -> 200 OK paged agency listings
+```
+
+This endpoint reuses listing query/filtering logic through `IListingRepository`.
+
+#### Update agency profile
 
 ```http
-200 OK
-400 Bad Request
-401 Unauthorized
-403 Forbidden
-404 Not Found
+PUT /api/agencies/{id}
+```
+
+Auth:
+
+```text
+Requires JWT.
+```
+
+Behavior:
+
+```text
+Missing agency -> 404
+No token -> 401
+Non-member -> 403
+Active Agent -> 403
+Disabled Owner -> 403
+Active Owner -> 200 and updates profile
+```
+
+Allowed update fields:
+
+```text
+Name
+Description
+PhoneNumber
+Email
+WebsiteUrl
+AddressLine
+City
+Municipality
+```
+
+Not updateable here:
+
+```text
+Slug
+Status
+LogoUrl
+Members
+Roles
+Verification
 ```
 
 ---
@@ -1237,6 +1501,8 @@ Returns:
 
 ```text
 Users
+Agencies
+AgencyMembers
 Listings
 ListingTranslations
 ListingImages
@@ -1245,16 +1511,31 @@ ListingHouseDetails
 __EFMigrationsHistory
 ```
 
-Important columns in `Users`:
+Important columns in `Agencies`:
 
 ```text
 Id
-Email
-NormalizedEmail
-PasswordHash
-FirstName
-LastName
+Name
+Slug
+Description
+LogoUrl
 PhoneNumber
+Email
+WebsiteUrl
+AddressLine
+City
+Municipality
+Status
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+Important columns in `AgencyMembers`:
+
+```text
+Id
+AgencyId
+UserId
 Role
 Status
 CreatedAtUtc
@@ -1266,6 +1547,7 @@ Important columns in `Listings`:
 ```text
 Id
 CreatedByUserId
+AgencyId
 ListingType
 PropertyType
 Status
@@ -1290,54 +1572,6 @@ CreatedAtUtc
 ModifiedAtUtc
 ```
 
-Important columns in `ListingTranslations`:
-
-```text
-Id
-ListingId
-LanguageCode
-Title
-Description
-AddressLine
-City
-Municipality
-Neighborhood
-```
-
-Important columns in `ListingImages`:
-
-```text
-Id
-ListingId
-Url
-StoredFileName
-ContentType
-SizeBytes
-SortOrder
-IsPrimary
-CreatedAtUtc
-ModifiedAtUtc
-```
-
-Important columns in `ListingApartmentDetails`:
-
-```text
-ListingId
-ApartmentType
-Floor
-TotalFloors
-HasElevator
-```
-
-Important columns in `ListingHouseDetails`:
-
-```text
-ListingId
-HouseType
-NumberOfFloors
-YardAreaSquareMeters
-```
-
 ---
 
 ## Auditing
@@ -1358,6 +1592,8 @@ Currently used by:
 
 ```text
 User
+Agency
+AgencyMember
 Listing
 ListingImage
 ```
@@ -1395,73 +1631,50 @@ start temporary PostgreSQL container
   ↓
 apply migrations
   ↓
-run API tests
+run API/unit tests
   ↓
 delete container
 ```
 
-Current integration test files:
+Current test files:
 
 ```text
-AuthEndpointTests.cs
-AuthTestHelpers.cs
-ListingsEndpointTests.cs
-ListingImagesEndpointTests.cs
-ListingTestHelpers.cs
-```
-
-Current tests cover:
-
-```text
-Register valid user returns 201
-Duplicate register returns 409
-Password is hashed, not plain text
-Invalid email returns 400
-Short password returns 400
-Login valid credentials returns 200 and access token
-Wrong password returns 401
-Unknown email returns 401
-POST listing without token returns 401
-POST listing with token returns 201
-Created listing stores CreatedByUserId
-Free listing limit blocks 4th listing for same user
-Free listing limit is per user, not global
-GET my listings without token returns 401
-GET my listings returns only current user's listings
-POST valid apartment listing returns 201
-POST valid house listing returns 201
-POST invalid price returns 400
-GET listings returns paginated response
-GET listings with price filter returns matching listings
-GET listings with municipality filter returns matching listings
-GET listings with apartment filters returns matching listings
-GET listings with house filters returns matching listings
-GET listing by ID returns requested language
-GET missing listing returns 404
-PricePerSquareMeter returns rounded value
-Upload listing image without token returns 401
-Delete image without token returns 401
-Set primary image without token returns 401
-Reorder images without token returns 401
-Wrong user cannot upload image and gets 403
-Wrong user cannot delete image and gets 403
-Wrong user cannot set primary image and gets 403
-Wrong user cannot reorder images and gets 403
-Owner can upload listing image and gets 201
-First uploaded image becomes primary
-Delete image returns 204 for owner
-Deleting primary image makes next image primary
-Set primary image works for owner
-Only one image remains primary
-PrimaryImageUrl points to selected primary image
-Reorder listing images works for owner
+Integration/Auth/AuthEndpointTests.cs
+Integration/Auth/AuthTestHelpers.cs
+Integration/Listings/ListingsEndpointTests.cs
+Integration/Listings/ListingImagesEndpointTests.cs
+Integration/Listings/ListingTestHelpers.cs
+Integration/Agencies/AgenciesEndpointTests.cs
+Integration/Agencies/AgencyPersistenceTests.cs
+Integration/Agencies/AgencyTestHelpers.cs
+Unit/Application/Listings/CreateListingValidatorTests.cs
+Unit/Application/Listings/ListingMappingExtensionsTests.cs
+Unit/Domain/Entities/AgencyTests.cs
+Unit/Domain/Entities/ListingTests.cs
 ```
 
 Latest known status:
 
 ```text
 dotnet test passed
-Current count: 41/41
+Current count: 115/115
+```
+
+Important testing policy:
+
+```text
+Do not chase fake 100% unit coverage.
+Add unit tests when there is real domain, validation, mapping, or permission logic.
+Add integration tests for important API behavior and permission boundaries.
+When touching old logic, check if a test exists and add one if the behavior is important.
+```
+
+Known test structure issue:
+
+```text
+AgenciesEndpointTests.cs is now large.
+ListingsEndpointTests.cs and ListingImagesEndpointTests.cs are also large.
+Next cleanup chapter should split huge integration test files into focused test classes.
 ```
 
 ---
@@ -1531,6 +1744,16 @@ Format:
 dotnet format
 ```
 
+Recommended final check before commit:
+
+```bash
+dotnet build
+dotnet test
+dotnet format
+dotnet test
+git status
+```
+
 ---
 
 ## Current completed backend features
@@ -1567,6 +1790,20 @@ Listing ownership with CreatedByUserId
 My listings endpoint
 Owner authorization for listing image actions
 Free listing limit: 3 listings per user
+Core unit tests
+Agencies foundation
+Agency members foundation
+Listing agency ownership foundation
+Agency members can create agency listings
+Agency listing query support
+Agency listing ownership rules locked
+Create agency endpoint
+Public agency profile by id
+My agencies endpoint
+Agency members read endpoint
+Public agency profile by slug
+Public agency listings endpoint
+Update agency profile endpoint
 Integration tests with real PostgreSQL Testcontainers
 Frontend CORS support
 ```
@@ -1638,12 +1875,6 @@ min/max yard area filter
 PricePerSquareMeter rounding
 stronger primary image test
 two-phase save comment
-```
-
-Commit message:
-
-```text
-Add listing filters and response polish
 ```
 
 ### Task 5A — User accounts foundation
@@ -1782,11 +2013,107 @@ Integration tests proving 4th listing is blocked and limit is per user
 
 No migration required for this task.
 
+### Task 6A — Agencies foundation
+
+Added:
+
+```text
+Agency entity
+AgencyStatus enum
+AgencyConfiguration
+DbSet<Agency>
+Agencies table
+unique slug index
+```
+
+Migration:
+
+```text
+AddAgenciesTable
+```
+
+### Task 6B — Agency members foundation
+
+Added:
+
+```text
+AgencyMember entity
+AgencyMemberRole enum
+AgencyMemberStatus enum
+Agency.Members collection
+Agency.AddMember(...)
+AgencyMemberConfiguration
+Agency members persistence tests
+Agency unit tests
+```
+
+Migration:
+
+```text
+AddAgencyMembersTable
+```
+
+### Task 6C — Agency listing ownership rules
+
+Split into smaller parts:
+
+```text
+6C-1 Listing agency ownership foundation
+6C-2 Agency members can create agency listings
+6C-3 Agency listing read/query support
+6C-4 Agency listing ownership rule polish
+```
+
+Added:
+
+```text
+Listing.AgencyId
+Listing.AssignAgency(...)
+Listing -> Agency relationship
+agencyId in create listing request
+agency exists check
+active agency member check
+403 for non-member
+404 for missing agency
+AgencyId in ListingResponse
+agencyId filter on GET /api/listings
+tests locking same-agency member cannot manage another member's listing images
+```
+
+### Task 6D — Agency endpoints/dashboard basics
+
+Completed MVP endpoints:
+
+```text
+6D-1 Create agency endpoint
+6D-2 Public agency profile by id
+6D-3 My agencies endpoint
+6D-4 Agency members read endpoint
+6D-5 Public agency profile by slug
+6D-6 Public agency listings endpoint
+6D-7 Update agency profile endpoint
+```
+
+Added:
+
+```text
+POST /api/agencies
+GET /api/agencies/{id}
+GET /api/agencies/my
+GET /api/agencies/{id}/members
+GET /api/agencies/by-slug/{slug}
+GET /api/agencies/{id}/listings
+PUT /api/agencies/{id}
+ReadModels convention
+agency permission tests
+owner-only agency update rule
+```
+
 ---
 
 ## Current backend status
 
-Backend listing/auth/ownership module is ready to move into Agencies.
+Backend listing/auth/ownership + Agencies MVP foundation is complete.
 
 Current business rules:
 
@@ -1798,103 +2125,192 @@ Authenticated users can create listings.
 Each user can create up to 3 listings for free.
 Authenticated users can view their own listings.
 Only listing owners can manage listing images.
+Agencies can be created by authenticated users.
+Agency creator becomes Active Owner.
+Agency listings can only be created by active agency members.
+Agency members can be read by active agency members.
+Agency profile can only be updated by Active Owner.
+Agency public profile can be read by id or slug.
+Agency public listings can be read through agency endpoint.
 User status/verification is not enforced yet.
-Role-based create rules are not enforced yet.
+Agency PendingVerification status is not enforced for public visibility yet.
 Payments/subscriptions are not implemented yet.
-Agencies are not implemented yet.
 ```
+
+---
+
+## Current architecture risks / watch-outs
+
+### Ownership and permissions
+
+The backend now has multiple ownership concepts:
+
+```text
+CreatedByUserId
+AgencyId
+AgencyMember.Role
+AgencyMember.Status
+User.Status
+Agency.Status
+Listing.Status
+```
+
+Future code must be careful not to mix these accidentally.
+
+Before adding any new protected action, ask:
+
+```text
+Is this a personal listing?
+Is this an agency listing?
+Is the current user the creator?
+Is the current user an active agency member?
+Does role matter? Owner vs Agent?
+Is the user PendingVerification?
+Is the agency PendingVerification?
+Is the listing Draft/Active/Archived?
+```
+
+### Verification
+
+Current known limitations:
+
+```text
+New users can be PendingVerification.
+Agencies can be PendingVerification.
+PendingVerification users are not fully blocked yet.
+PendingVerification agencies are publicly readable for now.
+Publishing/visibility rules are not fully designed yet.
+```
+
+Future decisions needed:
+
+```text
+Can PendingVerification users create listings?
+Can PendingVerification users create agencies?
+Can PendingVerification agencies publish listings?
+Should public agency pages show pending agencies?
+Should public listings require agency verification?
+Can Draft listings be publicly visible?
+Who can publish/unpublish/archive listings?
+```
+
+### Free listing limit
+
+Current behavior:
+
+```text
+Free listing limit counts by CreatedByUserId.
+Agency listings still count against the creating user's free limit.
+```
+
+Future decision needed:
+
+```text
+Personal listings may count against user free limit.
+Agency listings may count against agency subscription/plan.
+Or both may apply depending on payment model.
+```
+
+Do not change this casually without explicit payment/subscription rules.
+
+### Large files
+
+Files getting large:
+
+```text
+AgenciesEndpointTests.cs
+ListingsEndpointTests.cs
+ListingImagesEndpointTests.cs
+ListingRepository.cs
+```
+
+Next cleanup chapter should reduce test file size and review repository structure before adding another big product area.
 
 ---
 
 ## Next planned work
 
-### Task 6A — Agencies foundation
-
-Branch suggestion:
-
-```bash
-git checkout development
-git pull
-git checkout -b feature/agencies-foundation
-```
+### Chapter 7 — Backend cleanup and structure hardening
 
 Goal:
 
 ```text
-Create agency domain/database foundation.
-No full agency dashboard yet.
-No payments yet.
-No CRM yet.
+Clean the backend structure before adding another major product chapter.
+Prevent huge files and hidden architecture debt.
+Do not change business behavior unless tests reveal bugs.
 ```
 
-Expected first agency tables:
+Recommended tasks:
 
 ```text
-Agencies
-AgencyMembers
+7A — Split huge agency integration tests into focused files
+7B — Split huge listing integration tests into focused files
+7C — Improve shared test helpers only where reuse is real
+7D — Review ListingRepository filtering method and decide if query helper/specification is needed
+7E — Review AgencyRepository size after agency endpoints
+7F — Run full test/format pass and update backend context
 ```
 
-Possible Agency fields:
+Important cleanup rule:
 
 ```text
-Id
-Name
-Slug
-Description
-LogoUrl
-PhoneNumber
-Email
-WebsiteUrl
-AddressLine
-City
-Municipality
-Status
-CreatedAtUtc
-ModifiedAtUtc
+Refactor structure, not behavior.
+Tests should stay green after each small cleanup task.
+Do not combine cleanup with new product features.
 ```
 
-Possible AgencyMember fields:
+### Chapter 8 — Publishing, visibility, and verification rules
+
+Recommended next product chapter after cleanup.
+
+Goal:
 
 ```text
-Id
-AgencyId
-UserId
-Role
-Status
-CreatedAtUtc
-ModifiedAtUtc
+Define what is public, what is draft, who can publish, and how user/agency verification affects visibility.
 ```
 
-Important future relationship:
+Likely tasks:
 
 ```text
-Users can belong to agencies through AgencyMembers.
-Listings later can belong to an individual user, an agency, or both depending on final business rules.
+Listing publish/unpublish/archive endpoint
+Public listing visibility rules
+Draft vs Active behavior
+PendingVerification user restrictions
+PendingVerification agency restrictions
+Agency listing publish rules
+Admin/verification decisions
+Tests for public/private visibility boundaries
 ```
 
-Do not overbuild in Task 6A.
+---
 
-Recommended split:
+## Future agency Phase 2 tasks
+
+Not part of Agencies MVP foundation:
 
 ```text
-Task 6A — Agencies table/domain/migration
-Task 6B — Agency members
-Task 6C — Agency listing ownership rules
-Task 6D — Agency endpoints/dashboard basics
-Task 7 — CRM clients/notes/saved listings
+Invite agency member
+Accept invitation
+Remove/disable member
+Change member role
+Agency verification/admin approval
+Agency subscription/payment limits
+Agency logo upload
+Slug update with redirect/history strategy
+Owner transfer
+Richer agency dashboard metrics
 ```
 
 ---
 
 ## Remaining backend ideas for later
 
-Do not mix these into Task 6A:
+Do not mix these into cleanup or visibility tasks unless intentionally starting that chapter:
 
 ```text
 Payments/subscriptions
 Listing boosts
 Admin moderation
-Public agency pages
 Advanced agent profiles
 CRM clients
 Client notes
@@ -1911,4 +2327,3 @@ Email verification
 Password reset
 Refresh tokens
 OAuth / Sign in with Google
-```
