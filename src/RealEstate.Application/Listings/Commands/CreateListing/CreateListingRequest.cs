@@ -10,6 +10,8 @@ public sealed class CreateListingRequest
 
     public ListingStatus Status { get; set; }
 
+    public Guid? AgencyId { get; set; }
+
     public decimal Price { get; set; }
 
     public string Currency { get; set; } = "EUR";
@@ -20,15 +22,33 @@ public sealed class CreateListingRequest
 
     public decimal? Bathrooms { get; set; }
 
-    public int? Floor { get; set; }
+    public int? BalconyCount { get; set; }
 
-    public int? TotalFloors { get; set; }
+    public int? ParkingSpaces { get; set; }
+
+    public bool? HasBasement { get; set; }
+
+    public bool? IsExchangePossible { get; set; }
+
+    public HeatingType HeatingType { get; set; } = HeatingType.Unknown;
+
+    public FurnishingStatus FurnishingStatus { get; set; } = FurnishingStatus.Unknown;
+
+    public PropertyCondition Condition { get; set; } = PropertyCondition.Unknown;
+
+    public int? YearRenovated { get; set; }
+
+    public Orientation Orientation { get; set; } = Orientation.Unknown;
 
     public int? YearBuilt { get; set; }
 
     public decimal? Latitude { get; set; }
 
     public decimal? Longitude { get; set; }
+
+    public CreateListingApartmentDetailsRequest? ApartmentDetails { get; set; }
+
+    public CreateListingHouseDetailsRequest? HouseDetails { get; set; }
 
     public List<CreateListingTranslationRequest> Translations { get; set; } =
         new List<CreateListingTranslationRequest>();

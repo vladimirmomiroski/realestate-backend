@@ -16,6 +16,8 @@ public class ListingTranslation
 
     public string? City { get; set; }
 
+    public string? Municipality { get; set; }
+
     public string? Neighborhood { get; set; }
 
     public Listing Listing { get; set; } = default!;

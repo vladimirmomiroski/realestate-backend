@@ -1,9 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using RealEstate.Infrastructure.Persistence;
+using RealEstate.Application.Agencies.Repositories;
+using RealEstate.Application.Common.Security;
+using RealEstate.Application.Common.Storage;
 using RealEstate.Application.Listings.Repositories;
+using RealEstate.Application.Users.Repositories;
+using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
+using RealEstate.Infrastructure.Security;
+using RealEstate.Infrastructure.Storage;
 
 namespace RealEstate.Infrastructure;
 
@@ -21,6 +27,16 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString));
 
         services.AddScoped<IListingRepository, ListingRepository>();
+
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IPasswordHasher, PasswordHasherService>();
+
+        services.AddScoped<IAgencyRepository, AgencyRepository>();
+
+        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
         return services;
     }

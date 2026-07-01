@@ -4,7 +4,8 @@ public enum ServiceResultStatus
 {
     Success = 1,
     ValidationError = 2,
-    NotFound = 3
+    NotFound = 3,
+    Forbidden = 4
 }
 
 public sealed record ServiceResult<T>(
@@ -12,6 +13,12 @@ public sealed record ServiceResult<T>(
     T? Value = default,
     string? Error = null)
 {
+
+    public static ServiceResult<T> Forbidden(string error)
+    {
+        return new ServiceResult<T>(ServiceResultStatus.Forbidden, default, error);
+    }
+
     public static ServiceResult<T> Success(T value)
     {
         return new ServiceResult<T>(ServiceResultStatus.Success, value);

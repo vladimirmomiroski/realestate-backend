@@ -3,6 +3,9 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# Application runtime files
+src/RealEstate.Api/wwwroot/uploads/
+
 # dotenv files
 .env
 
@@ -480,3 +483,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local uploaded listing images
+src/RealEstate.Api/wwwroot/uploads/
