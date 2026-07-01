@@ -8,6 +8,8 @@ Current focus: backend foundation before frontend work.
 
 Current backend status: **listing/auth/ownership + Agencies MVP foundation are implemented.**
 
+Chapter 7 backend cleanup and structure hardening is also complete.
+
 The backend now supports:
 
 ```text
@@ -37,6 +39,8 @@ Agency dashboard basics
 Swagger testing
 Unit tests
 Integration tests
+Cleaner test structure
+Cleaner listing repository query structure
 ```
 
 Current test status:
@@ -48,7 +52,6 @@ Current test status:
 Next backend direction:
 
 ```text
-Chapter 7 — Backend cleanup and structure hardening
 Chapter 8 — Publishing, visibility, and verification rules
 Later Agency Phase 2
 Later CRM/client notes/saved listings
@@ -188,15 +191,34 @@ tests/
   RealEstate.Tests
     Integration
       Agencies
-        AgenciesEndpointTests.cs
+        AgenciesEndpointTests.Setup.cs
+        AgenciesEndpointTests.Create.cs
+        AgenciesEndpointTests.GetById.cs
+        AgenciesEndpointTests.GetBySlug.cs
+        AgenciesEndpointTests.MyAgencies.cs
+        AgenciesEndpointTests.Members.cs
+        AgenciesEndpointTests.Listings.cs
+        AgenciesEndpointTests.UpdateProfile.cs
         AgencyPersistenceTests.cs
         AgencyTestHelpers.cs
       Auth
         AuthEndpointTests.cs
         AuthTestHelpers.cs
       Listings
-        ListingsEndpointTests.cs
-        ListingImagesEndpointTests.cs
+        ListingsEndpointTests.Setup.cs
+        ListingsEndpointTests.Create.cs
+        ListingsEndpointTests.AgencyOwnership.cs
+        ListingsEndpointTests.GetAll.cs
+        ListingsEndpointTests.Filters.cs
+        ListingsEndpointTests.GetById.cs
+        ListingsEndpointTests.MyListings.cs
+        ListingImagesEndpointTests.Setup.cs
+        ListingImagesEndpointTests.Upload.cs
+        ListingImagesEndpointTests.Delete.cs
+        ListingImagesEndpointTests.SetPrimary.cs
+        ListingImagesEndpointTests.Reorder.cs
+        ListingImagesEndpointTests.Authorization.cs
+        ListingPersistenceTests.cs
         ListingTestHelpers.cs
     Unit
       Application
@@ -350,8 +372,8 @@ Child entities are accessed through aggregate navigation properties or internal 
 Current known public DbSets:
 
 ```csharp
-public DbSet<Listing> Listings => Set<Listing>();
 public DbSet<User> Users => Set<User>();
+public DbSet<Listing> Listings => Set<Listing>();
 public DbSet<Agency> Agencies => Set<Agency>();
 ```
 
@@ -414,15 +436,26 @@ does subscription allow this action?
 
 Business/authorization decisions should stay in handlers, domain methods, or future policy services.
 
-Known watch-list:
+Current repository cleanup status:
 
 ```text
-ListingRepository.GetFilteredReadOnlyAsync(GetListingsQuery query, ...)
+ListingRepository.GetFilteredReadOnlyAsync was cleaned in Chapter 7.
+AgencyRepository was reviewed in Chapter 7 and left unchanged because it is still readable and data-focused.
 ```
 
-This is acceptable for now because it applies database filters, pagination, includes, and ordering. But it is growing. Future cleanup may introduce a `ListingSearchCriteria` or query helper/specification if it becomes too large.
+ListingRepository currently uses private helpers for query structure:
 
-Do not add business visibility/subscription/permission rules inside this repository method.
+```text
+ApplyBasicFilters
+ApplyPropertyDetailFilters
+ApplyLocationFilters
+ApplyListingIncludes
+NormalizePagination
+```
+
+Future cleanup may introduce a `ListingSearchCriteria`, `ListingQueryBuilder`, or specification/query helper only if search/filtering grows much larger.
+
+Do not add business visibility/subscription/permission rules inside listing repository filtering methods.
 
 ---
 
@@ -1027,6 +1060,16 @@ Reason:
 C# memory state can be correct, but EF Core SQL update order is not guaranteed.
 PostgreSQL checks the filtered unique index during updates.
 Two-phase save prevents temporary duplicate primary images.
+```
+
+Current image cleanup watch-outs:
+
+```text
+Image handlers are acceptable for MVP.
+Owner checks are repeated but still simple.
+Future cleanup may introduce a shared listing ownership guard if image/listing protected actions grow.
+File cleanup after failed database save may be improved later.
+ListingsController may later be split into ListingsController + ListingImagesController if image endpoints grow.
 ```
 
 ---
@@ -1641,12 +1684,34 @@ Current test files:
 ```text
 Integration/Auth/AuthEndpointTests.cs
 Integration/Auth/AuthTestHelpers.cs
-Integration/Listings/ListingsEndpointTests.cs
-Integration/Listings/ListingImagesEndpointTests.cs
-Integration/Listings/ListingTestHelpers.cs
-Integration/Agencies/AgenciesEndpointTests.cs
+
+Integration/Agencies/AgenciesEndpointTests.Setup.cs
+Integration/Agencies/AgenciesEndpointTests.Create.cs
+Integration/Agencies/AgenciesEndpointTests.GetById.cs
+Integration/Agencies/AgenciesEndpointTests.GetBySlug.cs
+Integration/Agencies/AgenciesEndpointTests.MyAgencies.cs
+Integration/Agencies/AgenciesEndpointTests.Members.cs
+Integration/Agencies/AgenciesEndpointTests.Listings.cs
+Integration/Agencies/AgenciesEndpointTests.UpdateProfile.cs
 Integration/Agencies/AgencyPersistenceTests.cs
 Integration/Agencies/AgencyTestHelpers.cs
+
+Integration/Listings/ListingsEndpointTests.Setup.cs
+Integration/Listings/ListingsEndpointTests.Create.cs
+Integration/Listings/ListingsEndpointTests.AgencyOwnership.cs
+Integration/Listings/ListingsEndpointTests.GetAll.cs
+Integration/Listings/ListingsEndpointTests.Filters.cs
+Integration/Listings/ListingsEndpointTests.GetById.cs
+Integration/Listings/ListingsEndpointTests.MyListings.cs
+Integration/Listings/ListingImagesEndpointTests.Setup.cs
+Integration/Listings/ListingImagesEndpointTests.Upload.cs
+Integration/Listings/ListingImagesEndpointTests.Delete.cs
+Integration/Listings/ListingImagesEndpointTests.SetPrimary.cs
+Integration/Listings/ListingImagesEndpointTests.Reorder.cs
+Integration/Listings/ListingImagesEndpointTests.Authorization.cs
+Integration/Listings/ListingPersistenceTests.cs
+Integration/Listings/ListingTestHelpers.cs
+
 Unit/Application/Listings/CreateListingValidatorTests.cs
 Unit/Application/Listings/ListingMappingExtensionsTests.cs
 Unit/Domain/Entities/AgencyTests.cs
@@ -1669,12 +1734,12 @@ Add integration tests for important API behavior and permission boundaries.
 When touching old logic, check if a test exists and add one if the behavior is important.
 ```
 
-Known test structure issue:
+Current test structure status:
 
 ```text
-AgenciesEndpointTests.cs is now large.
-ListingsEndpointTests.cs and ListingImagesEndpointTests.cs are also large.
-Next cleanup chapter should split huge integration test files into focused test classes.
+Large agency/listing/listing-image integration test files were split in Chapter 7.
+Partial class split was used to keep the same fixture, constructor, fields, and helpers while separating tests by feature.
+This avoided duplicate fixture/container setup and kept behavior unchanged.
 ```
 
 ---
@@ -1806,6 +1871,9 @@ Public agency listings endpoint
 Update agency profile endpoint
 Integration tests with real PostgreSQL Testcontainers
 Frontend CORS support
+Backend cleanup and structure hardening
+Cleaner integration test structure
+Cleaner listing repository query structure
 ```
 
 ---
@@ -2109,11 +2177,139 @@ agency permission tests
 owner-only agency update rule
 ```
 
+### Task 7A — Split agency endpoint tests
+
+Changed:
+
+```text
+Split large AgenciesEndpointTests.cs into focused partial class files.
+Kept one shared fixture/constructor/setup file.
+Moved tests by endpoint/feature.
+No behavior changes.
+```
+
+Resulting files:
+
+```text
+AgenciesEndpointTests.Setup.cs
+AgenciesEndpointTests.Create.cs
+AgenciesEndpointTests.GetById.cs
+AgenciesEndpointTests.GetBySlug.cs
+AgenciesEndpointTests.MyAgencies.cs
+AgenciesEndpointTests.Members.cs
+AgenciesEndpointTests.Listings.cs
+AgenciesEndpointTests.UpdateProfile.cs
+```
+
+### Task 7B — Split listing endpoint tests
+
+Changed:
+
+```text
+Split large ListingsEndpointTests.cs into focused partial class files.
+Kept one shared fixture/constructor/setup file.
+Moved tests by listing behavior area.
+No behavior changes.
+```
+
+Resulting files:
+
+```text
+ListingsEndpointTests.Setup.cs
+ListingsEndpointTests.Create.cs
+ListingsEndpointTests.AgencyOwnership.cs
+ListingsEndpointTests.GetAll.cs
+ListingsEndpointTests.Filters.cs
+ListingsEndpointTests.GetById.cs
+ListingsEndpointTests.MyListings.cs
+```
+
+### Task 7C — Split listing image endpoint tests
+
+Changed:
+
+```text
+Split large ListingImagesEndpointTests.cs into focused partial class files.
+Kept one shared fixture/constructor/setup file.
+Moved image helper methods into setup file.
+No behavior changes.
+```
+
+Resulting files:
+
+```text
+ListingImagesEndpointTests.Setup.cs
+ListingImagesEndpointTests.Upload.cs
+ListingImagesEndpointTests.Delete.cs
+ListingImagesEndpointTests.SetPrimary.cs
+ListingImagesEndpointTests.Reorder.cs
+ListingImagesEndpointTests.Authorization.cs
+```
+
+### Task 7D — Clean listing test helpers
+
+Changed:
+
+```text
+Cleaned ListingTestHelpers to remove duplicated listing creation logic.
+Extracted shared listing POST/read-id flow into a private helper.
+Left AuthTestHelpers and AgencyTestHelpers unchanged because they were already simple.
+No behavior changes.
+```
+
+### Task 7E — Clean ListingRepository query structure
+
+Changed:
+
+```text
+Cleaned ListingRepository.GetFilteredReadOnlyAsync.
+Extracted private helper methods for filters, includes, and pagination.
+Kept repository as one file.
+Did not add specification pattern or query builder yet.
+No behavior changes.
+```
+
+Current helper structure:
+
+```text
+ApplyBasicFilters
+ApplyPropertyDetailFilters
+ApplyLocationFilters
+ApplyListingIncludes
+NormalizePagination
+```
+
+### Task 7F — Review AgencyRepository
+
+Result:
+
+```text
+AgencyRepository reviewed.
+No structural change needed.
+Repository is still readable and data-focused.
+```
+
+### Task 7G — Final cleanup pass and docs update
+
+Completed:
+
+```text
+Final project review after cleanup.
+Controllers reviewed and left unchanged.
+Program.cs reviewed and left unchanged.
+RealEstateDbContext reviewed and left unchanged.
+Application/Infrastructure DI reviewed and left unchanged.
+LocalFileStorageService, CurrentUserService, and JwtTokenGenerator reviewed and left unchanged.
+Backend context updated to reflect Chapter 7 completion.
+```
+
 ---
 
 ## Current backend status
 
 Backend listing/auth/ownership + Agencies MVP foundation is complete.
+
+Chapter 7 cleanup and structure hardening is complete.
 
 Current business rules:
 
@@ -2135,6 +2331,18 @@ Agency public listings can be read through agency endpoint.
 User status/verification is not enforced yet.
 Agency PendingVerification status is not enforced for public visibility yet.
 Payments/subscriptions are not implemented yet.
+```
+
+Current cleanup status:
+
+```text
+Large integration test files are split by feature.
+Listing test helper duplication has been reduced.
+ListingRepository query structure is cleaner.
+AgencyRepository is acceptable as-is.
+Controllers are thin enough for now.
+Image handlers are acceptable for MVP.
+Program.cs, DbContext, DI, storage, current user, and JWT code are acceptable for now.
 ```
 
 ---
@@ -2213,51 +2421,70 @@ Or both may apply depending on payment model.
 
 Do not change this casually without explicit payment/subscription rules.
 
-### Large files
+### Repository/query growth
 
-Files getting large:
+ListingRepository is cleaner now, but future search features may still require a better query structure.
+
+Future candidates only if needed:
 
 ```text
-AgenciesEndpointTests.cs
-ListingsEndpointTests.cs
-ListingImagesEndpointTests.cs
-ListingRepository.cs
+ListingSearchCriteria
+ListingQueryBuilder
+Specification/query helper
+Map bounding box filters
+Sorting options
+Full-text search
+Visibility/publishing filters
 ```
 
-Next cleanup chapter should reduce test file size and review repository structure before adding another big product area.
+Do not add these early.
+
+### Image handling
+
+Image handlers are acceptable for MVP.
+
+Future cleanup may be useful when image features grow:
+
+```text
+Shared listing ownership guard
+Shared image response mapper
+File cleanup if database save fails after file upload
+Possible ListingImagesController split if image endpoints grow
+```
+
+Do not refactor this now unless changing image behavior.
+
+### Controllers
+
+Controllers are currently acceptable and thin.
+
+Possible later split:
+
+```text
+Move image endpoints from ListingsController into ListingImagesController
+```
+
+Only do this if image endpoints grow further.
+
+### Program.cs and production readiness
+
+Program.cs is acceptable for MVP.
+
+Future production cleanup may include:
+
+```text
+Move JWT setup into extension method
+Move Swagger setup into extension method
+Move CORS origins into configuration
+Review HTTPS redirection
+Review production secrets handling
+```
+
+Do not over-clean this before production needs are real.
 
 ---
 
 ## Next planned work
-
-### Chapter 7 — Backend cleanup and structure hardening
-
-Goal:
-
-```text
-Clean the backend structure before adding another major product chapter.
-Prevent huge files and hidden architecture debt.
-Do not change business behavior unless tests reveal bugs.
-```
-
-Recommended tasks:
-
-```text
-7A — Split huge agency integration tests into focused files
-7B — Split huge listing integration tests into focused files
-7C — Improve shared test helpers only where reuse is real
-7D — Review ListingRepository filtering method and decide if query helper/specification is needed
-7E — Review AgencyRepository size after agency endpoints
-7F — Run full test/format pass and update backend context
-```
-
-Important cleanup rule:
-
-```text
-Refactor structure, not behavior.
-Tests should stay green after each small cleanup task.
-Do not combine cleanup with new product features.
-```
 
 ### Chapter 8 — Publishing, visibility, and verification rules
 
@@ -2280,6 +2507,15 @@ PendingVerification agency restrictions
 Agency listing publish rules
 Admin/verification decisions
 Tests for public/private visibility boundaries
+```
+
+Important rule for Chapter 8:
+
+```text
+Design rules before coding endpoints.
+Do not mix verification, payments, and publishing unless the rule explicitly requires it.
+Keep permission decisions in handlers/domain/policy services, not repositories.
+Add integration tests for every visibility/permission boundary.
 ```
 
 ---
@@ -2327,3 +2563,4 @@ Email verification
 Password reset
 Refresh tokens
 OAuth / Sign in with Google
+```
