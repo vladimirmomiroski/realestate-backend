@@ -8,59 +8,24 @@ internal static class ListingTestHelpers
 {
     public static async Task<Guid> CreateListingAsync(HttpClient httpClient)
     {
-        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(httpClient);
-        httpClient.AuthorizeAs(user.AccessToken);
+        (Guid listingId, _) = await CreateListingWithOwnerAsync(httpClient);
 
-        try
-        {
-            var request = CreateValidListingRequest();
-
-            var response = await httpClient.PostAsJsonAsync("/api/listings", request);
-
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-
-            return json.GetProperty("id").GetGuid();
-        }
-        finally
-        {
-            httpClient.ClearAuthorization();
-        }
+        return listingId;
     }
 
     public static async Task<(Guid ListingId, AuthenticatedTestUser Owner)> CreateListingWithOwnerAsync(
-    HttpClient httpClient)
+        HttpClient httpClient)
     {
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(httpClient);
 
-        httpClient.AuthorizeAs(owner.AccessToken);
+        Guid listingId = await CreateListingAsAsync(httpClient, owner);
 
-        try
-        {
-            var request = CreateValidListingRequest();
-
-            HttpResponseMessage response = await httpClient.PostAsJsonAsync(
-                "/api/listings",
-                request);
-
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-
-            Guid listingId = json.GetProperty("id").GetGuid();
-
-            return (listingId, owner);
-        }
-        finally
-        {
-            httpClient.ClearAuthorization();
-        }
+        return (listingId, owner);
     }
 
     public static async Task<Guid> CreateListingAsAsync(
-    HttpClient httpClient,
-    AuthenticatedTestUser user)
+        HttpClient httpClient,
+        AuthenticatedTestUser user)
     {
         httpClient.AuthorizeAs(user.AccessToken);
 
@@ -68,21 +33,14 @@ internal static class ListingTestHelpers
         {
             var request = CreateValidListingRequest();
 
-            HttpResponseMessage response = await httpClient.PostAsJsonAsync(
-                "/api/listings",
-                request);
-
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-
-            return json.GetProperty("id").GetGuid();
+            return await PostListingAndReturnIdAsync(httpClient, request);
         }
         finally
         {
             httpClient.ClearAuthorization();
         }
     }
+
     public static object CreateValidListingRequest(decimal price = 99000, Guid? agencyId = null)
     {
         return new
@@ -173,27 +131,42 @@ internal static class ListingTestHelpers
             },
             translations = new[]
             {
-            new
-            {
-                languageCode = "en",
-                title = "Integration test house",
-                description = "Integration test house description",
-                addressLine = "Test house address",
-                city = "Skopje",
-                municipality = "Centar",
-                neighborhood = "Center"
-            },
-            new
-            {
-                languageCode = "mk",
-                title = "Интеграциска тест куќа",
-                description = "Интеграциски тест опис за куќа",
-                addressLine = "Тест адреса за куќа",
-                city = "Скопје",
-                municipality = "Центар",
-                neighborhood = "Центар"
+                new
+                {
+                    languageCode = "en",
+                    title = "Integration test house",
+                    description = "Integration test house description",
+                    addressLine = "Test house address",
+                    city = "Skopje",
+                    municipality = "Centar",
+                    neighborhood = "Center"
+                },
+                new
+                {
+                    languageCode = "mk",
+                    title = "Интеграциска тест куќа",
+                    description = "Интеграциски тест опис за куќа",
+                    addressLine = "Тест адреса за куќа",
+                    city = "Скопје",
+                    municipality = "Центар",
+                    neighborhood = "Центар"
+                }
             }
-        }
         };
+    }
+
+    private static async Task<Guid> PostListingAndReturnIdAsync(
+        HttpClient httpClient,
+        object request)
+    {
+        HttpResponseMessage response = await httpClient.PostAsJsonAsync(
+            "/api/listings",
+            request);
+
+        response.EnsureSuccessStatusCode();
+
+        JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        return json.GetProperty("id").GetGuid();
     }
 }
