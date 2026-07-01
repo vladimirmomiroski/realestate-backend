@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local uploaded listing images
+src/RealEstate.Api/wwwroot/uploads/
