@@ -12,6 +12,7 @@ using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using RealEstate.Application.Listings.Queries.GetMyListings;
+using RealEstate.Application.Listings.Commands.PublishListing;
 
 namespace RealEstate.Api.Controllers;
 
@@ -30,6 +31,7 @@ public sealed class ListingsController : ControllerBase
     private readonly SetPrimaryListingImageHandler _setPrimaryListingImageHandler;
     private readonly ReorderListingImagesHandler _reorderListingImagesHandler;
     private readonly GetMyListingsHandler _getMyListingsHandler;
+    private readonly PublishListingHandler _publishListingHandler;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
@@ -39,7 +41,8 @@ public sealed class ListingsController : ControllerBase
         DeleteListingImageHandler deleteListingImageHandler,
         SetPrimaryListingImageHandler setPrimaryListingImageHandler,
         ReorderListingImagesHandler reorderListingImagesHandler,
-        GetMyListingsHandler getMyListingsHandler)
+        GetMyListingsHandler getMyListingsHandler,  
+        PublishListingHandler publishListingHandler)
     {
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
@@ -49,6 +52,7 @@ public sealed class ListingsController : ControllerBase
         _setPrimaryListingImageHandler = setPrimaryListingImageHandler;
         _reorderListingImagesHandler = reorderListingImagesHandler;
         _getMyListingsHandler = getMyListingsHandler;
+        _publishListingHandler = publishListingHandler;
     }
 
     [Authorize]
@@ -173,6 +177,40 @@ public sealed class ListingsController : ControllerBase
         if (result.Status == ServiceResultStatus.NotFound)
         {
             return NotFound(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpPut("{id:guid}/publish")]
+    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ListingResponse>> PublishListing(
+    Guid id,
+    [FromQuery] string? lang,
+    CancellationToken cancellationToken)
+    {
+        var result = await _publishListingHandler.HandleAsync(
+            new PublishListingCommand(id, lang),
+            cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
         }
 
         return Ok(result.Value);

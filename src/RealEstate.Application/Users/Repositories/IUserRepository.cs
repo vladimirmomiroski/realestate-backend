@@ -12,6 +12,10 @@ public interface IUserRepository
     string normalizedEmail,
     CancellationToken cancellationToken);
 
+    Task<User?> GetByIdReadOnlyAsync(
+    Guid id,
+    CancellationToken cancellationToken);
+
     Task AddAsync(
         User user,
         CancellationToken cancellationToken);

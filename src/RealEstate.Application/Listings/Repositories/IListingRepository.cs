@@ -14,6 +14,10 @@ public interface IListingRepository
 
     Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<Listing?> GetByIdForUpdateAsync(
+    Guid id,
+    CancellationToken cancellationToken);
+
     Task<int> CountByCreatedByUserIdAsync(
     Guid createdByUserId,
     CancellationToken cancellationToken);
