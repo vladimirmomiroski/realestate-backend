@@ -114,6 +114,14 @@ public sealed class ListingRepository : IListingRepository
         _dbContext.Set<ListingImage>().Remove(image);
     }
 
+    public async Task<Listing?> GetByIdForUpdateAsync(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Listings
+            .FirstOrDefaultAsync(listing => listing.Id == id, cancellationToken);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         await _dbContext.SaveChangesAsync(cancellationToken);

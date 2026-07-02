@@ -31,6 +31,15 @@ public sealed class UserRepository : IUserRepository
             cancellationToken);
     }
 
+    public async Task<User?> GetByIdReadOnlyAsync(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == id, cancellationToken);
+    }
+
     public async Task AddAsync(
         User user,
         CancellationToken cancellationToken)

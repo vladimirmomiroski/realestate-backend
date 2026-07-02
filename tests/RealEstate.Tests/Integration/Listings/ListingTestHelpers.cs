@@ -25,13 +25,14 @@ internal static class ListingTestHelpers
 
     public static async Task<Guid> CreateListingAsAsync(
         HttpClient httpClient,
-        AuthenticatedTestUser user)
+        AuthenticatedTestUser user,
+        Guid? agencyId = null)
     {
         httpClient.AuthorizeAs(user.AccessToken);
 
         try
         {
-            var request = CreateValidListingRequest();
+            var request = CreateValidListingRequest(agencyId: agencyId);
 
             return await PostListingAndReturnIdAsync(httpClient, request);
         }
