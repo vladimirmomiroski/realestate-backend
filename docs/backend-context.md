@@ -1,5 +1,11 @@
 # RealEstate Backend Context
 
+## Documentation policy
+
+For any chapter that touches sensitive business rules, permissions, visibility, verification, payments, subscriptions, security, or public data exposure, create a dedicated `docs/chapters/*.md` rules document before implementation starts.
+
+`backend-context.md` remains the compressed AI handoff/context file. Detailed rule documents are created only when the rules are important enough to affect future architecture or permissions.
+
 ## Project purpose
 
 This backend is for a real estate platform. The goal is not just a basic listing website. The long-term direction is a modern real estate intelligence platform with listings, search, filters, comparisons, price insights, agent tools, agencies, CRM features, and AI-assisted workflows.
@@ -2518,7 +2524,37 @@ Keep permission decisions in handlers/domain/policy services, not repositories.
 Add integration tests for every visibility/permission boundary.
 ```
 
----
+## Chapter 8 rules locked
+
+Chapter 8 focuses on publishing, public visibility, and verification restrictions.
+
+Core rule:
+
+Public API shows only Active listings. Draft and Archived listings are hidden publicly. Public GET by id returns 404 for Draft or Archived listings.
+
+Public GET /api/agencies/{id}/listings also returns only Active listings.
+
+GET /api/listings/my returns Draft, Active, and Archived listings owned by the current user.
+
+Planned endpoints:
+
+- PUT /api/listings/{id}/publish
+- PUT /api/listings/{id}/unpublish
+- PUT /api/listings/{id}/archive
+
+Personal listing publishing requires listing owner + Active user.
+
+Agency listing publishing requires Active agency + Active agency member.
+
+Agency listing publishing allows Active Owner and Active Agent.
+
+Agency profile update remains Active Owner only.
+
+Archived listings cannot be published back to Active in Chapter 8; restore behavior is skipped for now.
+
+Detailed rules document:
+
+## docs/chapters/chapter-08-publishing-visibility-verification.md
 
 ## Future agency Phase 2 tasks
 
