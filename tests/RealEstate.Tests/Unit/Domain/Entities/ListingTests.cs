@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Tests.Unit.Domain.Entities;
 
@@ -61,6 +62,130 @@ public sealed class ListingTests
         act.Should()
             .Throw<ArgumentException>()
             .WithParameterName("agencyId");
+    }
+
+    [Fact]
+    public void Publish_ShouldChangeStatusToActive_WhenListingIsDraft()
+    {
+        var listing = CreateListing(ListingStatus.Draft);
+
+        listing.Publish();
+
+        listing.Status.Should().Be(ListingStatus.Active);
+    }
+
+    [Fact]
+    public void Publish_ShouldKeepStatusActive_WhenListingIsAlreadyActive()
+    {
+        var listing = CreateListing(ListingStatus.Active);
+
+        listing.Publish();
+
+        listing.Status.Should().Be(ListingStatus.Active);
+    }
+
+    [Theory]
+    [InlineData(ListingStatus.Archived)]
+    [InlineData(ListingStatus.Reserved)]
+    [InlineData(ListingStatus.Sold)]
+    [InlineData(ListingStatus.Rented)]
+    public void Publish_ShouldThrow_WhenListingStatusCannotBePublished(ListingStatus status)
+    {
+        var listing = CreateListing(status);
+
+        var act = () => listing.Publish();
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Unpublish_ShouldChangeStatusToDraft_WhenListingIsActive()
+    {
+        var listing = CreateListing(ListingStatus.Active);
+
+        listing.Unpublish();
+
+        listing.Status.Should().Be(ListingStatus.Draft);
+    }
+
+    [Fact]
+    public void Unpublish_ShouldKeepStatusDraft_WhenListingIsAlreadyDraft()
+    {
+        var listing = CreateListing(ListingStatus.Draft);
+
+        listing.Unpublish();
+
+        listing.Status.Should().Be(ListingStatus.Draft);
+    }
+
+    [Theory]
+    [InlineData(ListingStatus.Archived)]
+    [InlineData(ListingStatus.Reserved)]
+    [InlineData(ListingStatus.Sold)]
+    [InlineData(ListingStatus.Rented)]
+    public void Unpublish_ShouldThrow_WhenListingStatusCannotBeUnpublished(ListingStatus status)
+    {
+        var listing = CreateListing(status);
+
+        var act = () => listing.Unpublish();
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Archive_ShouldChangeStatusToArchived_WhenListingIsDraft()
+    {
+        var listing = CreateListing(ListingStatus.Draft);
+
+        listing.Archive();
+
+        listing.Status.Should().Be(ListingStatus.Archived);
+    }
+
+    [Fact]
+    public void Archive_ShouldChangeStatusToArchived_WhenListingIsActive()
+    {
+        var listing = CreateListing(ListingStatus.Active);
+
+        listing.Archive();
+
+        listing.Status.Should().Be(ListingStatus.Archived);
+    }
+
+    [Fact]
+    public void Archive_ShouldKeepStatusArchived_WhenListingIsAlreadyArchived()
+    {
+        var listing = CreateListing(ListingStatus.Archived);
+
+        listing.Archive();
+
+        listing.Status.Should().Be(ListingStatus.Archived);
+    }
+
+    [Theory]
+    [InlineData(ListingStatus.Reserved)]
+    [InlineData(ListingStatus.Sold)]
+    [InlineData(ListingStatus.Rented)]
+    public void Archive_ShouldThrow_WhenListingStatusCannotBeArchived(ListingStatus status)
+    {
+        var listing = CreateListing(status);
+
+        var act = () => listing.Archive();
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    private static Listing CreateListing(ListingStatus status)
+    {
+        return new Listing
+        {
+            Status = status,
+            ListingType = ListingType.Sale,
+            PropertyType = PropertyType.Apartment,
+            Price = 100_000,
+            AreaSquareMeters = 50,
+            Currency = "EUR"
+        };
     }
 
     [Fact]

@@ -65,7 +65,7 @@ public class Listing : IAuditableEntity
         new List<ListingTranslation>();
 
     public ICollection<ListingImage> Images { get; set; } =
-    new List<ListingImage>();
+        new List<ListingImage>();
 
     public void AssignAgency(Guid agencyId)
     {
@@ -90,6 +90,51 @@ public class Listing : IAuditableEntity
         }
 
         CreatedByUserId = userId;
+    }
+
+    public void Publish()
+    {
+        if (Status == ListingStatus.Active)
+        {
+            return;
+        }
+
+        if (Status != ListingStatus.Draft)
+        {
+            throw new InvalidOperationException("Only draft listings can be published.");
+        }
+
+        Status = ListingStatus.Active;
+    }
+
+    public void Unpublish()
+    {
+        if (Status == ListingStatus.Draft)
+        {
+            return;
+        }
+
+        if (Status != ListingStatus.Active)
+        {
+            throw new InvalidOperationException("Only active listings can be unpublished.");
+        }
+
+        Status = ListingStatus.Draft;
+    }
+
+    public void Archive()
+    {
+        if (Status == ListingStatus.Archived)
+        {
+            return;
+        }
+
+        if (Status != ListingStatus.Draft && Status != ListingStatus.Active)
+        {
+            throw new InvalidOperationException("Only draft or active listings can be archived.");
+        }
+
+        Status = ListingStatus.Archived;
     }
 
     public decimal CalculatePricePerSquareMeter()
