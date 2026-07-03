@@ -18,6 +18,7 @@ using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
+using RealEstate.Application.Listings.Commands.ArchiveListing;
 
 namespace RealEstate.Application;
 
@@ -31,6 +32,8 @@ public static class DependencyInjection
         services.AddScoped<GetListingByIdHandler>();
         services.AddScoped<PublishListingHandler>();
         services.AddScoped<UnpublishListingHandler>();
+        services.AddScoped<ArchiveListingHandler>();
+
         services.AddScoped<UploadListingImageHandler>();
         services.AddScoped<DeleteListingImageHandler>();
         services.AddScoped<SetPrimaryListingImageHandler>();
