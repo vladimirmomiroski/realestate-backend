@@ -1,5 +1,7 @@
 ﻿using FluentAssertions;
+using RealEstate.Domain.Enums;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Tests.Integration.Listings;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -63,6 +65,16 @@ public sealed partial class AgenciesEndpointTests
             owner,
             secondAgencyId,
             price: 125000);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            firstAgencyListingId,
+            ListingStatus.Active);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            secondAgencyListingId,
+            ListingStatus.Active);
 
         HttpResponseMessage response = await _httpClient.GetAsync(
             $"/api/agencies/{firstAgencyId}/listings?lang=en&page=1&pageSize=20");

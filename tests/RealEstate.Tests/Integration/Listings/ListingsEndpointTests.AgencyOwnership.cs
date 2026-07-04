@@ -206,6 +206,16 @@ public sealed partial class ListingsEndpointTests
             _httpClient.ClearAuthorization();
         }
 
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            agencyListingId,
+            ListingStatus.Active);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            personalListingId,
+            ListingStatus.Active);
+
         // Act
         HttpResponseMessage response = await _httpClient.GetAsync(
             $"/api/listings?lang=en&agencyId={agencyId}&page=1&pageSize=20");

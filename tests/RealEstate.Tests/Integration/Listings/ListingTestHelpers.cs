@@ -1,6 +1,10 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
 using RealEstate.Tests.Integration.Auth;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using RealEstate.Domain.Enums;
+using RealEstate.Infrastructure.Persistence;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -154,6 +158,22 @@ internal static class ListingTestHelpers
                 }
             }
         };
+    }
+
+    public static async Task SetListingStatusAsync(
+        CustomWebApplicationFactory factory,
+        Guid listingId,
+        ListingStatus status)
+    {
+        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
+
+        var dbContext =
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $@"UPDATE ""Listings""
+            SET ""Status"" = {status.ToString()}
+            WHERE ""Id"" = {listingId}");
     }
 
     private static async Task<Guid> PostListingAndReturnIdAsync(
