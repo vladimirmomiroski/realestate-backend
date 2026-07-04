@@ -97,6 +97,39 @@ public sealed class ListingRepository : IListingRepository
             totalCount);
     }
 
+    public async Task<PagedResult<Listing>> GetByAgencyIdForDashboardReadOnlyAsync(
+    Guid agencyId,
+    ListingStatus? status,
+    int page,
+    int pageSize,
+    CancellationToken cancellationToken)
+    {
+        (page, pageSize) = NormalizePagination(page, pageSize);
+
+        IQueryable<Listing> query = _dbContext.Listings
+            .AsNoTracking()
+            .Where(listing => listing.AgencyId == agencyId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(listing => listing.Status == status.Value);
+        }
+
+        int totalCount = await query.CountAsync(cancellationToken);
+
+        List<Listing> listings = await ApplyListingIncludes(query)
+            .OrderByDescending(listing => listing.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Listing>(
+            listings,
+            page,
+            pageSize,
+            totalCount);
+    }
+
     public async Task<Listing?> GetByIdWithImagesForUpdateAsync(
         Guid id,
         CancellationToken cancellationToken)

@@ -19,6 +19,7 @@ using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
 using RealEstate.Application.Listings.Commands.ArchiveListing;
+using RealEstate.Application.Agencies.Queries.GetAgencyDashboardListings;
 
 namespace RealEstate.Application;
 
@@ -46,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<GetMyAgenciesHandler>();
         services.AddScoped<GetAgencyMembersHandler>();
         services.AddScoped<GetAgencyListingsHandler>();
+        services.AddScoped<GetAgencyDashboardListingsHandler>();
         services.AddScoped<UpdateAgencyValidator>();
         services.AddScoped<UpdateAgencyHandler>();
 

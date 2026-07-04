@@ -10,6 +10,8 @@ using RealEstate.Application.Agencies.Queries.GetAgencyBySlug;
 using RealEstate.Application.Agencies.Queries.GetAgencyListings;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Agencies.Commands.UpdateAgency;
+using RealEstate.Application.Agencies.Queries.GetAgencyDashboardListings;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Api.Controllers;
 
@@ -24,8 +26,9 @@ public sealed class AgenciesController : ControllerBase
     private readonly GetAgencyBySlugHandler _getAgencyBySlugHandler;
     private readonly GetAgencyListingsHandler _getAgencyListingsHandler;
     private readonly UpdateAgencyHandler _updateAgencyHandler;
+    private readonly GetAgencyDashboardListingsHandler _getAgencyDashboardListingsHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -34,6 +37,7 @@ public sealed class AgenciesController : ControllerBase
         _getAgencyBySlugHandler = getAgencyBySlugHandler;
         _getAgencyListingsHandler = getAgencyListingsHandler;
         _updateAgencyHandler = updateAgencyHandler;
+        _getAgencyDashboardListingsHandler = getAgencyDashboardListingsHandler;
     }
 
     [Authorize]
@@ -155,6 +159,45 @@ public sealed class AgenciesController : ControllerBase
         if (result.Status == ServiceResultStatus.NotFound)
         {
             return NotFound(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpGet("{id:guid}/dashboard/listings")]
+    [ProducesResponseType(typeof(PagedResult<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResult<ListingResponse>>> GetAgencyDashboardListings(
+    Guid id,
+    [FromQuery] string? lang,
+    [FromQuery] ListingStatus? status,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+    {
+        var query = new GetAgencyDashboardListingsQuery
+        {
+            AgencyId = id,
+            LanguageCode = lang,
+            Status = status,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        ServiceResult<PagedResult<ListingResponse>> result =
+            await _getAgencyDashboardListingsHandler.HandleAsync(query, cancellationToken);
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
         }
 
         return Ok(result.Value);
