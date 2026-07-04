@@ -3,6 +3,7 @@ using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Infrastructure.Persistence.Repositories;
 
@@ -39,7 +40,8 @@ public sealed class ListingRepository : IListingRepository
         CancellationToken cancellationToken)
     {
         IQueryable<Listing> listingsQuery = _dbContext.Listings
-            .AsNoTracking();
+            .AsNoTracking()
+            .Where(listing => listing.Status == ListingStatus.Active);
 
         listingsQuery = ApplyBasicFilters(listingsQuery, query);
         listingsQuery = ApplyPropertyDetailFilters(listingsQuery, query);

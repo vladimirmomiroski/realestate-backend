@@ -2,6 +2,7 @@
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Mappings;
 using RealEstate.Application.Listings.Repositories;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Listings.Queries.GetListingById;
 
@@ -21,7 +22,7 @@ public sealed class GetListingByIdHandler
     {
         var listing = await _listingRepository.GetByIdReadOnlyAsync(id, cancellationToken);
 
-        if (listing is null)
+        if (listing is null || listing.Status != ListingStatus.Active)
         {
             return ServiceResult<ListingResponse>.NotFound("Listing was not found.");
         }

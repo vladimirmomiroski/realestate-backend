@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -31,6 +32,11 @@ public sealed partial class ListingImagesEndpointTests
     {
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
 
         await UploadImageAsync(listingId, owner);
 

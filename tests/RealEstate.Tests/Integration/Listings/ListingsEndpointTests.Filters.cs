@@ -3,6 +3,7 @@ using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -11,7 +12,12 @@ public sealed partial class ListingsEndpointTests
     [Fact]
     public async Task GetListings_WithPriceFilter_ReturnsMatchingListings()
     {
-        await ListingTestHelpers.CreateListingAsync(_httpClient);
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
 
         var response = await _httpClient.GetAsync(
             "/api/listings?lang=en&minPrice=90000&maxPrice=100000&page=1&pageSize=20");
@@ -33,7 +39,12 @@ public sealed partial class ListingsEndpointTests
     [Fact]
     public async Task GetListings_WithMunicipalityFilter_ReturnsMatchingListings()
     {
-        await ListingTestHelpers.CreateListingAsync(_httpClient);
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
 
         var response = await _httpClient.GetAsync(
             "/api/listings?lang=en&municipality=Centar&page=1&pageSize=20");
@@ -52,7 +63,12 @@ public sealed partial class ListingsEndpointTests
     [Fact]
     public async Task GetListings_WithApartmentFilters_ReturnsMatchingListings()
     {
-        await ListingTestHelpers.CreateListingAsync(_httpClient);
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
 
         var response = await _httpClient.GetAsync(
             "/api/listings?lang=en&heatingType=Central&furnishingStatus=Furnished&condition=Good&hasBasement=true&hasElevator=true&apartmentType=Standard&page=1&pageSize=20");
@@ -90,6 +106,16 @@ public sealed partial class ListingsEndpointTests
             var createResponse = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
             createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            JsonElement createJson =
+            await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+            Guid listingId = createJson.GetProperty("id").GetGuid();
+
+            await ListingTestHelpers.SetListingStatusAsync(
+                _factory,
+                listingId,
+                ListingStatus.Active);
         }
         finally
         {

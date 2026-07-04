@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -11,6 +12,11 @@ public sealed partial class ListingsEndpointTests
     public async Task GetListingById_WithExistingListing_ReturnsListingInRequestedLanguage()
     {
         var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
 
         var response = await _httpClient.GetAsync($"/api/listings/{listingId}?lang=mk");
 
