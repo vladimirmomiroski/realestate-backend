@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Chapter 8 defines how listings become public, how hidden listings behave, and how user/agency verification affects publishing.
+Chapter 8 defines how listings become public, how hidden listings behave, and how user/agency verification affects publishing and management access.
 
-This chapter must be rule-first, then code.
+This chapter was rule-first, then code.
 
-The goal is to prevent confusion between:
+The goal was to prevent confusion between:
 
 ```text
 Listing.Status
@@ -22,9 +22,35 @@ These fields affect different things and must not be mixed accidentally.
 
 ---
 
+## Final status
+
+Chapter 8 is completed.
+
+Completed tasks:
+
+```text
+8A — Write publishing/visibility rules doc
+8B — Add/update listing status domain methods
+8C — Add publish listing command/endpoint
+8D — Add unpublish listing command/endpoint
+8E — Add archive listing command/endpoint
+8F — Restrict public listing visibility to Active listings
+8G — Add agency dashboard listings endpoint
+8H — Extract agency listing access checker
+8I — Docs/context update
+```
+
+Final tests:
+
+```text
+204/204 passing
+```
+
+---
+
 ## Core invariant
 
-Public API shows only `Active` listings.
+Public listing APIs show only `Active` listings.
 
 `Draft` and `Archived` listings are hidden publicly.
 
@@ -34,7 +60,7 @@ Public `GET /api/listings/{id}` returns:
 404 Not Found
 ```
 
-for missing, `Draft`, or `Archived` listings.
+for missing, `Draft`, `Archived`, or otherwise non-public listings.
 
 It must not return:
 
@@ -52,9 +78,9 @@ Public users should not know that hidden listings exist.
 
 ---
 
-## Listing statuses used in Chapter 8
+## Listing status visibility
 
-Current listing statuses involved in this chapter:
+Main Chapter 8 statuses:
 
 ```text
 Draft
@@ -65,12 +91,12 @@ Archived
 Visibility rules:
 
 ```text
-Draft    -> hidden publicly
-Active   -> visible publicly
-Archived -> hidden publicly
+Draft    -> private / dashboard only
+Active   -> public
+Archived -> hidden from public flow
 ```
 
-Chapter 8 does not focus on:
+Other listing statuses are also not public unless explicitly made public later:
 
 ```text
 Reserved
@@ -78,13 +104,18 @@ Sold
 Rented
 ```
 
-Those statuses can stay untouched unless existing tests require them.
+Current public rule:
+
+```text
+Only Active is public.
+Everything else is hidden from public listing APIs.
+```
 
 ---
 
 ## Public endpoints
 
-These public endpoints must only expose `Active` listings:
+These public endpoints expose only `Active` listings:
 
 ```http
 GET /api/listings
@@ -92,7 +123,9 @@ GET /api/listings/{id}
 GET /api/agencies/{id}/listings
 ```
 
-### GET /api/listings
+---
+
+## GET /api/listings
 
 Rules:
 
@@ -103,25 +136,34 @@ Does not return Archived listings.
 Keeps existing filters/pagination behavior.
 ```
 
-Important:
+Important implementation rule:
 
 ```text
-Visibility filtering must apply before pagination count is calculated.
+Visibility filtering is applied before pagination and totalCount.
 ```
 
-So `totalCount` must count only public-visible listings.
+So `totalCount` counts only public-visible listings.
+
+Implementation:
+
+```text
+ListingRepository.GetFilteredReadOnlyAsync filters ListingStatus.Active before count/pagination.
+```
 
 ---
 
-### GET /api/listings/{id}
+## GET /api/listings/{id}
 
 Rules:
 
 ```text
-Active listing   -> 200 OK
-Draft listing    -> 404 Not Found
-Archived listing -> 404 Not Found
-Missing listing  -> 404 Not Found
+Active listing     -> 200 OK
+Draft listing      -> 404 Not Found
+Archived listing   -> 404 Not Found
+Reserved listing   -> 404 Not Found
+Sold listing       -> 404 Not Found
+Rented listing     -> 404 Not Found
+Missing listing    -> 404 Not Found
 ```
 
 Reason:
@@ -132,14 +174,15 @@ Public users should not be able to distinguish between missing and hidden listin
 
 ---
 
-### GET /api/agencies/{id}/listings
+## GET /api/agencies/{id}/listings
+
+This is the public agency profile listings endpoint.
 
 Rules:
 
 ```text
 Existing agency + Active listings only -> 200 OK
-Existing agency + only Draft listings -> 200 OK with empty paged result
-Existing agency + only Archived listings -> 200 OK with empty paged result
+Existing agency + no Active listings -> 200 OK with empty paged result
 Missing agency -> 404 Not Found
 ```
 
@@ -150,9 +193,11 @@ Agency existence is still checked.
 Listing visibility is filtered to Active only.
 ```
 
+This endpoint does not show agency Draft or Archived listings.
+
 ---
 
-## Owner/dashboard endpoint
+## Personal owner dashboard endpoint
 
 Current owner/dashboard endpoint:
 
@@ -180,9 +225,60 @@ This endpoint must not be changed to public-only Active filtering.
 
 ---
 
+## Agency dashboard listings endpoint
+
+Chapter 8 added a private agency management endpoint:
+
+```http
+GET /api/agencies/{id}/dashboard/listings
+```
+
+Query parameters:
+
+```text
+lang
+status
+page
+pageSize
+```
+
+Example:
+
+```http
+GET /api/agencies/{id}/dashboard/listings?lang=en&status=Draft&page=1&pageSize=20
+```
+
+Rules:
+
+```text
+Requires JWT.
+Returns agency listings for management.
+Can return Draft listings.
+Can return Active listings.
+Can return Archived listings.
+Can optionally filter by ListingStatus.
+Does not use public Active-only filtering.
+```
+
+Purpose:
+
+```text
+Agency members need a private dashboard view for managing all agency listings.
+```
+
+This completes the visibility split:
+
+```text
+Public users -> Active only
+Personal owner -> own Draft / Active / Archived
+Agency members -> agency Draft / Active / Archived
+```
+
+---
+
 ## Publishing endpoints
 
-Chapter 8 adds:
+Chapter 8 added:
 
 ```http
 PUT /api/listings/{id}/publish
@@ -192,7 +288,7 @@ PUT /api/listings/{id}/archive
 
 All three require JWT.
 
-No restore endpoint in Chapter 8.
+No restore endpoint was added in Chapter 8.
 
 Skipped for now:
 
@@ -219,6 +315,12 @@ Allowed:
 Draft -> Active
 ```
 
+Idempotent:
+
+```text
+Active -> Active
+```
+
 Not allowed in Chapter 8:
 
 ```text
@@ -231,13 +333,6 @@ Behavior:
 Draft listing + allowed user -> 200 OK
 Active listing + allowed user -> 200 OK idempotent
 Archived listing + allowed user -> 400 Bad Request
-```
-
-Recommended MVP choice:
-
-```text
-Active -> Active publish call should be idempotent and return 200 OK.
-Archived -> Active should return 400 Bad Request.
 ```
 
 Reason:
@@ -257,12 +352,24 @@ Allowed:
 Active -> Draft
 ```
 
-Recommended behavior:
+Idempotent:
 
 ```text
-Draft -> Draft unpublish call returns 200 OK idempotent.
-Active -> Draft returns 200 OK.
-Archived -> Draft returns 400 Bad Request.
+Draft -> Draft
+```
+
+Not allowed:
+
+```text
+Archived -> Draft
+```
+
+Behavior:
+
+```text
+Active listing + allowed user -> 200 OK
+Draft listing + allowed user -> 200 OK idempotent
+Archived listing + allowed user -> 400 Bad Request
 ```
 
 Reason:
@@ -283,18 +390,25 @@ Draft -> Archived
 Active -> Archived
 ```
 
-Recommended behavior:
+Idempotent:
 
 ```text
-Draft -> Archived returns 200 OK.
-Active -> Archived returns 200 OK.
-Archived -> Archived returns 200 OK idempotent.
+Archived -> Archived
+```
+
+Behavior:
+
+```text
+Draft listing + allowed user -> 200 OK
+Active listing + allowed user -> 200 OK
+Archived listing + allowed user -> 200 OK idempotent
+Reserved/Sold/Rented listing + allowed user -> 400 Bad Request
 ```
 
 Reason:
 
 ```text
-Archive is a safe final state action.
+Archive is a safe final hidden state action.
 Repeated archive calls should not break frontend flow.
 ```
 
@@ -320,38 +434,39 @@ Rules:
 Only the listing owner can publish.
 Only the listing owner can unpublish.
 Only the listing owner can archive.
-User must be Active / verified enough to publish.
+```
+
+Personal publish:
+
+```text
+Requires owner.
+Requires User.Status = Active.
 PendingVerification user cannot publish.
 Disabled user cannot publish.
 ```
 
-Recommended for unpublish/archive:
+Personal unpublish:
 
 ```text
-Owner can unpublish/archive even if user verification later changes,
-unless user is Disabled.
+Requires owner.
+Blocked if User.Status = Disabled.
+PendingVerification user can unpublish.
+Active user can unpublish.
+```
+
+Personal archive:
+
+```text
+Requires owner.
+Blocked if User.Status = Disabled.
+PendingVerification user can archive.
+Active user can archive.
 ```
 
 Reason:
 
 ```text
-A user who cannot publish should still be able to remove their listing from public visibility.
-```
-
-So for personal listings:
-
-```text
-Publish:
-- requires owner
-- requires User.Status = Active
-
-Unpublish:
-- requires owner
-- blocked if User.Status = Disabled
-
-Archive:
-- requires owner
-- blocked if User.Status = Disabled
+A user who cannot publish should still be able to remove/hide their listing unless the account is Disabled.
 ```
 
 ---
@@ -364,29 +479,36 @@ An agency listing is:
 Listing.AgencyId != null
 ```
 
-Required checks:
+Agency listing permissions are based on current agency membership, not only `CreatedByUserId`.
+
+Reason:
 
 ```text
-Current user must be an Active agency member.
-Agency must exist.
-Agency must be Active to publish.
-Disabled agency cannot publish.
-PendingVerification agency cannot publish.
-Disabled member cannot publish/unpublish/archive.
+A user may have created an agency listing in the past but later lost agency access.
+Current AgencyMember access decides whether the user can manage agency-owned listings.
 ```
 
-Allowed roles for agency listing publishing:
+Allowed agency listing roles:
 
 ```text
-Active Owner -> can publish/unpublish/archive agency listings
-Active Agent -> can publish/unpublish/archive agency listings
+Active Owner
+Active Agent
+```
+
+Not allowed:
+
+```text
+Non-member
+Pending member
+Disabled member
+Other unsupported roles
 ```
 
 Important permission difference:
 
 ```text
 Agency profile update -> Active Owner only
-Agency listing publishing -> Active Owner or Active Agent
+Agency listing management -> Active Owner or Active Agent
 ```
 
 Reason:
@@ -396,29 +518,123 @@ Agents need to manage listings.
 Agency profile control should stay owner-only.
 ```
 
-Recommended for unpublish/archive:
+---
+
+## Agency publish rules
+
+Agency publish requires:
 
 ```text
-Active agency member can unpublish/archive agency listings.
-Agency does not need to be Active for unpublish/archive if the action hides content.
-Disabled agency should still allow hiding content if needed.
+User.Status = Active
+Agency.Status = Active
+AgencyMember.Status = Active
+AgencyMember.Role = Owner or Agent
 ```
 
-But keep MVP simple:
+Blocked:
 
 ```text
-Publish:
-- requires Active agency
-- requires Active member
-- Owner or Agent allowed
+PendingVerification user
+Disabled user
+PendingVerification agency
+Disabled agency
+Rejected agency
+Pending agency member
+Disabled agency member
+Non-member
+```
 
-Unpublish:
-- requires Active member
-- Owner or Agent allowed
+Reason:
 
-Archive:
-- requires Active member
-- Owner or Agent allowed
+```text
+Publishing exposes content publicly, so both the user and agency must be verified/active.
+```
+
+---
+
+## Agency unpublish rules
+
+Agency unpublish requires:
+
+```text
+User.Status != Disabled
+Agency exists
+AgencyMember.Status = Active
+AgencyMember.Role = Owner or Agent
+```
+
+Agency status does not block unpublish.
+
+Allowed even if agency is:
+
+```text
+PendingVerification
+Disabled
+Rejected
+```
+
+Reason:
+
+```text
+Unpublish hides content. Active agency members should be able to remove public visibility even if the agency is no longer Active.
+```
+
+---
+
+## Agency archive rules
+
+Agency archive requires:
+
+```text
+User.Status != Disabled
+Agency exists
+AgencyMember.Status = Active
+AgencyMember.Role = Owner or Agent
+```
+
+Agency status does not block archive.
+
+Allowed even if agency is:
+
+```text
+PendingVerification
+Disabled
+Rejected
+```
+
+Reason:
+
+```text
+Archive hides/removes listing from public flow. Active agency members should be able to clean up old agency listings.
+```
+
+---
+
+## Agency dashboard listings rules
+
+Agency dashboard listings require:
+
+```text
+User.Status != Disabled
+Agency exists
+AgencyMember.Status = Active
+AgencyMember.Role = Owner or Agent
+```
+
+Agency status does not block dashboard viewing.
+
+Allowed even if agency is:
+
+```text
+PendingVerification
+Disabled
+Rejected
+```
+
+Reason:
+
+```text
+Active agency members may still need to view/manage old listings even if the agency is not currently publishable.
 ```
 
 ---
@@ -433,7 +649,7 @@ Disabled
 PendingVerification
 ```
 
-Publishing rule:
+Publishing:
 
 ```text
 Active -> can publish if ownership/member rules pass
@@ -441,23 +657,18 @@ PendingVerification -> cannot publish
 Disabled -> cannot publish
 ```
 
-Recommended action behavior:
+Unpublish/archive/dashboard management:
 
 ```text
-PendingVerification user:
-- can create draft listings
-- cannot publish listings
-
-Disabled user:
-- cannot publish
-- cannot unpublish
-- cannot archive
+Active -> allowed if ownership/member rules pass
+PendingVerification -> allowed for hide/manage actions if ownership/member rules pass
+Disabled -> blocked
 ```
 
 Reason:
 
 ```text
-Pending users can prepare data.
+Pending users can prepare or hide data.
 Disabled users should not perform protected actions.
 ```
 
@@ -474,35 +685,36 @@ Disabled
 Rejected
 ```
 
-Publishing rule:
+Agency publishing:
 
 ```text
 Active -> agency listings can be published if member rules pass
-PendingVerification -> agency listings cannot be published
-Disabled -> agency listings cannot be published
-Rejected -> agency listings cannot be published
+PendingVerification -> cannot publish agency listings
+Disabled -> cannot publish agency listings
+Rejected -> cannot publish agency listings
 ```
 
-Recommended visibility rule for agency public profile:
+Agency unpublish/archive/dashboard:
 
 ```text
-Do not change public agency profile visibility in Chapter 8 unless explicitly decided.
+Agency status does not block these actions.
 ```
 
-Current Chapter 8 focus is listing visibility, not agency profile visibility.
+Reason:
 
-So this chapter changes:
-
-```http
-GET /api/agencies/{id}/listings
+```text
+Only publishing exposes content publicly.
+Unpublish/archive/dashboard management can be needed even when the agency is not Active.
 ```
 
-but does not necessarily change:
+Chapter 8 does not change public agency profile visibility:
 
 ```http
 GET /api/agencies/{id}
 GET /api/agencies/by-slug/{slug}
 ```
+
+Chapter 8 changes listing visibility, not agency profile visibility.
 
 ---
 
@@ -522,9 +734,18 @@ For:
 Missing listing
 Draft listing by id
 Archived listing by id
+Any non-Active listing by id
 ```
 
-### Protected publishing endpoints
+Reason:
+
+```text
+Public users should not know whether a hidden listing exists.
+```
+
+---
+
+### Protected listing action endpoints
 
 Use:
 
@@ -552,9 +773,11 @@ Authenticated user is not allowed to perform the action
 Non-owner tries personal listing action
 Non-member tries agency listing action
 Disabled member tries agency listing action
-Wrong agency member tries action
+Pending member tries agency listing action
 PendingVerification user tries to publish
 PendingVerification agency tries to publish
+Disabled agency tries to publish
+Rejected agency tries to publish
 ```
 
 Use:
@@ -567,19 +790,7 @@ When:
 
 ```text
 Listing does not exist
-```
-
-Recommended for protected endpoints:
-
-```text
-If listing exists but user has no relationship to it, 403 is acceptable.
-```
-
-Reason:
-
-```text
-Protected dashboard actions are different from public browsing.
-The user is authenticated and trying to mutate a resource.
+Agency does not exist when required for agency listing access
 ```
 
 Use:
@@ -594,22 +805,14 @@ When:
 Status transition is invalid
 Archived -> Active publish attempt
 Archived -> Draft unpublish attempt
-```
-
-Recommended MVP choice:
-
-```text
-Use 403 for permission/verification failures.
-Use 400 for invalid status transitions.
+Reserved/Sold/Rented -> Archived archive attempt
 ```
 
 ---
 
 ## Domain method rules
 
-Add or update domain methods on `Listing`.
-
-Recommended methods:
+Domain methods exist on `Listing`:
 
 ```csharp
 public void Publish()
@@ -617,14 +820,21 @@ public void Unpublish()
 public void Archive()
 ```
 
-Rules inside domain methods:
+Domain method responsibility:
 
 ```text
-Domain method handles valid listing status transition.
-Domain method does not check current user.
-Domain method does not check agency membership.
-Domain method does not check JWT.
-Domain method does not call repositories.
+Handle valid listing status transition.
+Reject invalid listing status transition.
+```
+
+Domain method must not check:
+
+```text
+current user
+agency membership
+JWT
+repositories
+database
 ```
 
 Reason:
@@ -634,14 +844,14 @@ Listing knows how its own status can change.
 Handlers know who is allowed to request the change.
 ```
 
-Example responsibility split:
+Responsibility split:
 
 ```text
 Handler:
 - load listing
 - load current user
 - check owner/member/verification permissions
-- call listing.Publish()
+- call listing.Publish(), listing.Unpublish(), or listing.Archive()
 - save changes
 
 Listing entity:
@@ -653,19 +863,20 @@ Listing entity:
 
 ---
 
-## Handler/application rules
+## Application/handler rules
 
-Publishing handlers should contain application-level permission logic.
+Handlers contain application-level action flow.
 
-Expected handlers:
+Implemented handlers:
 
 ```text
 PublishListingHandler
 UnpublishListingHandler
 ArchiveListingHandler
+GetAgencyDashboardListingsHandler
 ```
 
-Expected commands:
+Implemented commands:
 
 ```text
 PublishListingCommand
@@ -673,30 +884,87 @@ UnpublishListingCommand
 ArchiveListingCommand
 ```
 
-Recommended folder structure:
+Folder structure:
 
 ```text
 src/RealEstate.Application/Listings/Commands/PublishListing
 src/RealEstate.Application/Listings/Commands/UnpublishListing
 src/RealEstate.Application/Listings/Commands/ArchiveListing
+src/RealEstate.Application/Agencies/Queries/GetAgencyDashboardListings
 ```
 
-Each command can be simple:
-
-```csharp
-public sealed record PublishListingCommand(Guid ListingId);
-```
-
-Handlers need:
+Handlers keep action-specific logic explicit:
 
 ```text
-IListingRepository
-IUserRepository
-IAgencyRepository
-ICurrentUserService
+current user lookup
+user status rule
+listing lookup
+personal owner check
+domain status transition
+save changes
+response mapping
 ```
 
-Exact dependencies may change based on existing repository methods.
+Shared agency listing access logic was extracted to:
+
+```text
+AgencyListingAccessChecker
+```
+
+---
+
+## AgencyListingAccessChecker
+
+Chapter 8 added an application-level helper:
+
+```text
+src/RealEstate.Application/Agencies/Permissions/AgencyListingAccessChecker.cs
+```
+
+Purpose:
+
+```text
+Centralize repeated agency listing access checks.
+Avoid permission drift between publish/unpublish/archive/dashboard handlers.
+```
+
+It handles:
+
+```text
+Agency exists
+Agency must be Active when publishing
+Active agency member required
+Owner or Agent role required
+```
+
+It supports:
+
+```text
+EnsureCanPublishAgencyListingsAsync
+EnsureCanManageAgencyListingsAsync
+```
+
+Important:
+
+```text
+Publish uses active-agency check.
+Unpublish/archive/dashboard use management check without active-agency requirement.
+```
+
+Handlers still keep:
+
+```text
+User.Status rule
+Personal ownership rule
+Listing status transition rule
+```
+
+Reason:
+
+```text
+Publishing, unpublishing, archiving, and dashboard viewing have different user/action rules.
+Only the repeated agency access logic was extracted.
+```
 
 ---
 
@@ -714,24 +982,21 @@ CanMemberManageAgencyListingAsync
 CanAgencyPublishListingAsync
 ```
 
-Good repository methods:
+Good repository/data methods:
 
 ```text
 GetByIdForUpdateAsync
-GetPublicActiveByIdReadOnlyAsync
-GetFilteredPublicActiveReadOnlyAsync
+GetByIdReadOnlyAsync
+GetFilteredReadOnlyAsync
+GetByCreatedByUserIdAsync
+GetByAgencyIdForDashboardReadOnlyAsync
 CountByCreatedByUserIdAsync
-```
-
-Good agency repository data methods:
-
-```text
 GetMemberAccessReadOnlyAsync
 GetByIdReadOnlyAsync
 ExistsAsync
 ```
 
-The handler should decide:
+The handler/checker decides:
 
 ```text
 Is the user owner?
@@ -745,47 +1010,35 @@ Is the role Owner or Agent?
 
 ## Public query implementation rule
 
-Public listing queries must make visibility intent obvious.
+Public listing queries must apply visibility before count and pagination.
 
-Good options:
-
-```text
-GetPublicActiveListingsAsync(...)
-GetPublicActiveListingByIdAsync(...)
-GetAgencyPublicActiveListingsAsync(...)
-```
-
-Also acceptable:
+Current implementation:
 
 ```text
-GetFilteredReadOnlyAsync(..., onlyActivePublic: true)
-GetByIdReadOnlyAsync(..., onlyActivePublic: true)
+GetFilteredReadOnlyAsync filters ListingStatus.Active before CountAsync, Skip, and Take.
 ```
 
-Avoid hidden magic like:
+Private/dashboard queries must not accidentally reuse public visibility rules when they need hidden statuses.
+
+Private examples:
 
 ```text
-Repository always filters Active without handler making it clear.
+GET /api/listings/my
+GET /api/agencies/{id}/dashboard/listings
 ```
 
-Reason:
-
-```text
-Some endpoints need all owned statuses.
-Some endpoints need only public Active listings.
-The difference must be explicit.
-```
+These can return non-Active statuses.
 
 ---
 
 ## Endpoint/controller rules
 
-Controller remains thin.
+Controllers remain thin.
 
 Controller responsibilities:
 
 ```text
-Read route id.
+Read route/query/body input.
 Pass command/query to handler.
 Map ServiceResult to HTTP response.
 ```
@@ -799,222 +1052,63 @@ Verification checks
 Status transition rules
 ```
 
-Those belong in handlers/domain methods.
+Those belong in handlers, domain methods, or small application permission helpers.
 
 ---
 
-## Testing plan
+## Testing summary
 
-Add integration tests for important API behavior and permission boundaries.
-
-Do not chase fake unit coverage.
-
-Add unit tests only where domain status transitions become meaningful.
-
----
-
-### Unit tests
-
-Recommended file:
+Chapter 8 added/updated tests for:
 
 ```text
-tests/RealEstate.Tests/Unit/Domain/Entities/ListingTests.cs
+Listing status domain methods.
+Publish endpoint.
+Unpublish endpoint.
+Archive endpoint.
+Public listing Active-only visibility.
+Public listing by id 404 for hidden statuses.
+My listings still showing Draft/Active/Archived.
+Public agency listings showing Active only.
+Agency dashboard listings showing Draft/Active/Archived.
+Agency dashboard status filter.
+Personal permission rules.
+Agency/member permission rules.
+User verification restrictions.
+Agency verification restrictions.
+Permission cleanup behavior remaining unchanged.
 ```
 
-Add tests for:
+Final test count:
 
 ```text
-Publish changes Draft to Active.
-Publish keeps Active as Active if idempotent.
-Publish throws/fails for Archived.
-
-Unpublish changes Active to Draft.
-Unpublish keeps Draft as Draft if idempotent.
-Unpublish fails for Archived.
-
-Archive changes Draft to Archived.
-Archive changes Active to Archived.
-Archive keeps Archived as Archived if idempotent.
-```
-
-Exact test style depends on current domain pattern.
-
----
-
-### Public listing visibility tests
-
-Recommended file:
-
-```text
-tests/RealEstate.Tests/Integration/Listings/ListingsEndpointTests.GetAll.cs
-```
-
-Tests:
-
-```text
-GET /api/listings returns Active listings.
-GET /api/listings does not return Draft listings.
-GET /api/listings does not return Archived listings.
-GET /api/listings totalCount counts only Active listings.
-```
-
----
-
-### Public listing by id tests
-
-Recommended file:
-
-```text
-tests/RealEstate.Tests/Integration/Listings/ListingsEndpointTests.GetById.cs
-```
-
-Tests:
-
-```text
-GET /api/listings/{id} returns 200 for Active listing.
-GET /api/listings/{id} returns 404 for Draft listing.
-GET /api/listings/{id} returns 404 for Archived listing.
-GET /api/listings/{id} returns 404 for missing listing.
-```
-
----
-
-### My listings tests
-
-Recommended file:
-
-```text
-tests/RealEstate.Tests/Integration/Listings/ListingsEndpointTests.MyListings.cs
-```
-
-Tests:
-
-```text
-GET /api/listings/my returns Draft listings owned by current user.
-GET /api/listings/my returns Active listings owned by current user.
-GET /api/listings/my returns Archived listings owned by current user.
-GET /api/listings/my does not return listings owned by another user.
-```
-
----
-
-### Agency public listings tests
-
-Recommended file:
-
-```text
-tests/RealEstate.Tests/Integration/Agencies/AgenciesEndpointTests.Listings.cs
-```
-
-Tests:
-
-```text
-GET /api/agencies/{id}/listings returns Active agency listings.
-GET /api/agencies/{id}/listings does not return Draft agency listings.
-GET /api/agencies/{id}/listings does not return Archived agency listings.
-GET /api/agencies/{id}/listings totalCount counts only Active listings.
-Missing agency returns 404.
-Existing agency with no Active listings returns empty paged result.
-```
-
----
-
-### Personal publish endpoint tests
-
-Recommended file:
-
-```text
-tests/RealEstate.Tests/Integration/Listings/ListingsEndpointTests.Publishing.cs
-```
-
-Tests:
-
-```text
-No token cannot publish.
-Owner can publish own Draft listing.
-Owner can publish own already Active listing idempotently.
-Owner cannot publish Archived listing.
-Non-owner cannot publish another user's listing.
-PendingVerification user cannot publish.
-Disabled user cannot publish.
-
-Owner can unpublish own Active listing.
-Owner can unpublish own Draft listing idempotently.
-Owner cannot unpublish Archived listing.
-Non-owner cannot unpublish another user's listing.
-
-Owner can archive own Draft listing.
-Owner can archive own Active listing.
-Owner can archive own Archived listing idempotently.
-Non-owner cannot archive another user's listing.
-```
-
----
-
-### Agency publish endpoint tests
-
-Recommended file:
-
-```text
-tests/RealEstate.Tests/Integration/Listings/ListingsEndpointTests.AgencyPublishing.cs
-```
-
-Tests:
-
-```text
-Active Owner can publish agency Draft listing.
-Active Agent can publish agency Draft listing.
-Disabled member cannot publish agency listing.
-Pending member cannot publish agency listing.
-Non-member cannot publish agency listing.
-PendingVerification agency cannot publish agency listing.
-Disabled agency cannot publish agency listing.
-Rejected agency cannot publish agency listing.
-
-Active Owner can unpublish agency Active listing.
-Active Agent can unpublish agency Active listing.
-Disabled member cannot unpublish agency listing.
-Non-member cannot unpublish agency listing.
-
-Active Owner can archive agency Draft listing.
-Active Agent can archive agency Active listing.
-Disabled member cannot archive agency listing.
-Non-member cannot archive agency listing.
+204/204 passing
 ```
 
 ---
 
 ## Important implementation watch-outs
 
-### Watch-out 1: current registered users may be PendingVerification
+### Watch-out 1: registered users may be PendingVerification
 
-Current registration creates users as `PendingVerification`.
+Registration creates users as `PendingVerification`.
 
-If tests use normal register flow, publish may fail unless test helpers can create or update an `Active` user.
+Publish tests need an `Active` user.
 
-Options:
+Test helpers can mark users Active directly in integration setup.
 
-```text
-Use test helper to create Active user directly in database.
-Or add test-only setup helper to mark user Active.
-Do not add production admin verification endpoint just for tests.
-```
+Do not add production admin verification endpoints just for tests.
 
 ---
 
-### Watch-out 2: current agencies start PendingVerification
+### Watch-out 2: agencies may start PendingVerification
 
-Current agency creation creates agency as `PendingVerification`.
+Agency creation can create agencies as `PendingVerification`.
 
 Agency publish tests need an `Active` agency.
 
-Options:
+Test helpers can mark agencies Active directly in integration setup.
 
-```text
-Use test helper to mark agency Active.
-Or seed agency directly as Active in integration test setup.
-Do not add production admin approval endpoint in Chapter 8 unless explicitly starting admin verification.
-```
+Do not add production admin approval endpoints in Chapter 8.
 
 ---
 
@@ -1034,7 +1128,7 @@ Keep existing search/filter behavior unchanged.
 
 Current image actions are owner-based.
 
-Chapter 8 should not accidentally change image management rules.
+Chapter 8 does not change image management rules.
 
 Existing rule remains:
 
@@ -1060,32 +1154,40 @@ agency plans
 free listing limit redesign
 ```
 
-Current free listing limit stays as-is unless explicitly changed later.
+Current free listing limit stays as-is.
 
 ---
 
-## Chapter 8 task split
+## Final endpoint summary
 
-```text
-8A — Write publishing/visibility rules doc
-8B — Add/update listing status domain methods
-8C — Add publish listing command/endpoint
-8D — Add unpublish listing command/endpoint
-8E — Add archive listing command/endpoint
-8F — Filter public GET /api/listings to Active only
-8G — Filter public GET /api/listings/{id} to Active only, else 404
-8H — Filter public GET /api/agencies/{id}/listings to Active only
-8I — Keep GET /api/listings/my showing Draft/Active/Archived
-8J — Tests for owner/user verification rules
-8K — Tests for agency/member/agency verification rules
-8L — Docs/context update
+Public listing endpoints:
+
+```http
+GET /api/listings
+GET /api/listings/{id}
+GET /api/agencies/{id}/listings
+```
+
+Private listing/dashboard endpoints:
+
+```http
+GET /api/listings/my
+GET /api/agencies/{id}/dashboard/listings
+```
+
+Protected status action endpoints:
+
+```http
+PUT /api/listings/{id}/publish
+PUT /api/listings/{id}/unpublish
+PUT /api/listings/{id}/archive
 ```
 
 ---
 
 ## Completion checklist
 
-Chapter 8 is complete when:
+Chapter 8 is complete because:
 
 ```text
 Rules doc exists.
@@ -1094,29 +1196,38 @@ Publish endpoint exists.
 Unpublish endpoint exists.
 Archive endpoint exists.
 Public listing list shows Active only.
-Public listing by id returns 404 for Draft/Archived.
+Public listing by id returns 404 for Draft/Archived/non-Active.
 Public agency listings show Active only.
 My listings still shows Draft/Active/Archived.
+Agency dashboard listings show Draft/Active/Archived.
+Agency dashboard listings support optional status filter.
 Personal listing publishing permissions are tested.
 Agency listing publishing permissions are tested.
 User verification publish restriction is tested.
 Agency verification publish restriction is tested.
+Agency listing access checker was extracted.
 dotnet build passes.
-dotnet test passes.
-backend-context.md is updated.
+dotnet test passes: 204/204.
+backend-context.md is updated after this chapter.
 ```
 
-Final expected context update after Chapter 8:
+---
+
+## Final Chapter 8 context summary
 
 ```text
 Chapter 8 completed:
 - Public listing APIs show only Active listings.
 - Draft/Archived listings are hidden publicly.
-- Public GET listing by id returns 404 for hidden listings.
+- Public GET listing by id returns 404 for hidden/non-Active listings.
 - Added publish/unpublish/archive endpoints.
 - Personal listing publishing requires owner + Active user.
-- Agency listing publishing requires Active agency member and Active agency.
-- Active Owner and Active Agent can publish/unpublish/archive agency listings.
+- Personal unpublish/archive require owner and block Disabled users.
+- Agency listing publishing requires Active user, Active agency, Active agency member, and Owner/Agent role.
+- Agency unpublish/archive require active agency member Owner/Agent, but agency status does not block hiding actions.
+- Added private agency dashboard listings endpoint.
+- Agency dashboard listings show Draft/Active/Archived to active Owner/Agent members.
 - My listings shows all owned statuses.
-- Tests passing: X/X.
+- AgencyListingAccessChecker centralizes repeated agency listing permission checks.
+- Tests passing: 204/204.
 ```
