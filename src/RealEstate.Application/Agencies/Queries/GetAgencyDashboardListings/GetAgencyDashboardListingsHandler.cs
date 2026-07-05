@@ -1,4 +1,4 @@
-﻿using RealEstate.Application.Agencies.Repositories;
+﻿using RealEstate.Application.Agencies.Permissions;
 using RealEstate.Application.Common;
 using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Listings.Dtos;
@@ -12,18 +12,18 @@ namespace RealEstate.Application.Agencies.Queries.GetAgencyDashboardListings;
 
 public sealed class GetAgencyDashboardListingsHandler
 {
-    private readonly IAgencyRepository _agencyRepository;
+    private readonly AgencyListingAccessChecker _agencyListingAccessChecker;
     private readonly IListingRepository _listingRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public GetAgencyDashboardListingsHandler(
-        IAgencyRepository agencyRepository,
+        AgencyListingAccessChecker agencyListingAccessChecker,
         IListingRepository listingRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService)
     {
-        _agencyRepository = agencyRepository;
+        _agencyListingAccessChecker = agencyListingAccessChecker;
         _listingRepository = listingRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
@@ -44,33 +44,16 @@ public sealed class GetAgencyDashboardListingsHandler
                 "User is not allowed to view agency listings.");
         }
 
-        bool agencyExists = await _agencyRepository.ExistsAsync(
-            query.AgencyId,
-            cancellationToken);
+        var agencyAccessResult =
+            await _agencyListingAccessChecker.EnsureCanManageAgencyListingsAsync<PagedResult<ListingResponse>>(
+                query.AgencyId,
+                userId,
+                "User is not allowed to view agency listings.",
+                cancellationToken);
 
-        if (!agencyExists)
+        if (agencyAccessResult is not null)
         {
-            return ServiceResult<PagedResult<ListingResponse>>.NotFound(
-                "Agency was not found.");
-        }
-
-        var memberAccess = await _agencyRepository.GetMemberAccessReadOnlyAsync(
-            query.AgencyId,
-            userId,
-            cancellationToken);
-
-        if (memberAccess is null ||
-            memberAccess.Status != AgencyMemberStatus.Active)
-        {
-            return ServiceResult<PagedResult<ListingResponse>>.Forbidden(
-                "User is not an active member of this agency.");
-        }
-
-        if (memberAccess.Role != AgencyMemberRole.Owner &&
-            memberAccess.Role != AgencyMemberRole.Agent)
-        {
-            return ServiceResult<PagedResult<ListingResponse>>.Forbidden(
-                "User is not allowed to view agency listings.");
+            return agencyAccessResult;
         }
 
         string languageCode = NormalizeLanguageCode(query.LanguageCode);

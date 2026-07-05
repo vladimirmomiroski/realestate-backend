@@ -1,4 +1,4 @@
-﻿using RealEstate.Application.Agencies.Repositories;
+﻿using RealEstate.Application.Agencies.Permissions;
 using RealEstate.Application.Common;
 using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Listings.Dtos;
@@ -13,18 +13,18 @@ public sealed class ArchiveListingHandler
 {
     private readonly IListingRepository _listingRepository;
     private readonly IUserRepository _userRepository;
-    private readonly IAgencyRepository _agencyRepository;
+    private readonly AgencyListingAccessChecker _agencyListingAccessChecker;
     private readonly ICurrentUserService _currentUserService;
 
     public ArchiveListingHandler(
         IListingRepository listingRepository,
         IUserRepository userRepository,
-        IAgencyRepository agencyRepository,
+        AgencyListingAccessChecker agencyListingAccessChecker,
         ICurrentUserService currentUserService)
     {
         _listingRepository = listingRepository;
         _userRepository = userRepository;
-        _agencyRepository = agencyRepository;
+        _agencyListingAccessChecker = agencyListingAccessChecker;
         _currentUserService = currentUserService;
     }
 
@@ -54,10 +54,12 @@ public sealed class ArchiveListingHandler
 
         if (listing.AgencyId.HasValue)
         {
-            var agencyAccessResult = await EnsureAgencyArchivingAccessAsync(
-                listing.AgencyId.Value,
-                userId,
-                cancellationToken);
+            var agencyAccessResult =
+                await _agencyListingAccessChecker.EnsureCanManageAgencyListingsAsync<ListingResponse>(
+                    listing.AgencyId.Value,
+                    userId,
+                    "User is not allowed to archive listings for this agency.",
+                    cancellationToken);
 
             if (agencyAccessResult is not null)
             {
@@ -85,42 +87,6 @@ public sealed class ArchiveListingHandler
 
         return ServiceResult<ListingResponse>.Success(
             listing.ToResponse(languageCode));
-    }
-
-    private async Task<ServiceResult<ListingResponse>?> EnsureAgencyArchivingAccessAsync(
-        Guid agencyId,
-        Guid userId,
-        CancellationToken cancellationToken)
-    {
-        var agency = await _agencyRepository.GetByIdReadOnlyAsync(
-            agencyId,
-            cancellationToken);
-
-        if (agency is null)
-        {
-            return ServiceResult<ListingResponse>.NotFound("Agency was not found.");
-        }
-
-        var memberAccess = await _agencyRepository.GetMemberAccessReadOnlyAsync(
-            agencyId,
-            userId,
-            cancellationToken);
-
-        if (memberAccess is null ||
-            memberAccess.Status != AgencyMemberStatus.Active)
-        {
-            return ServiceResult<ListingResponse>.Forbidden(
-                "User is not an active member of this agency.");
-        }
-
-        if (memberAccess.Role != AgencyMemberRole.Owner &&
-            memberAccess.Role != AgencyMemberRole.Agent)
-        {
-            return ServiceResult<ListingResponse>.Forbidden(
-                "User is not allowed to archive listings for this agency.");
-        }
-
-        return null;
     }
 
     private static string NormalizeLanguageCode(string? languageCode)
