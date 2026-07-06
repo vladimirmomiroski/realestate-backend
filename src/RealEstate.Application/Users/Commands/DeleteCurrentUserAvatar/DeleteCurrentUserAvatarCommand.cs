@@ -1,0 +1,3 @@
+﻿namespace RealEstate.Application.Users.Commands.DeleteCurrentUserAvatar;
+
+public sealed record DeleteCurrentUserAvatarCommand;

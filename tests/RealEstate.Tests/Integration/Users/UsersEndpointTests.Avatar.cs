@@ -259,6 +259,122 @@ public sealed partial class UsersEndpointTests
         secondDbUser.AvatarUrl.Should().Contain($"/uploads/users/{user.UserId}/avatar/");
     }
 
+    [Fact]
+    public async Task DeleteAvatar_WithoutToken_ReturnsUnauthorized()
+    {
+        _client.ClearAuthorization();
+
+        HttpResponseMessage response = await _client.DeleteAsync(
+            "/api/users/me/avatar");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task DeleteAvatar_WhenUserIsActive_DeletesAvatar()
+    {
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(
+            _client,
+            email: "delete-avatar-active@test.com");
+
+        await SetUserStatusAsync(user.UserId, UserStatus.Active);
+
+        _client.AuthorizeAs(user.AccessToken);
+
+        using MultipartFormDataContent content = CreateAvatarContent(
+            "avatar.png",
+            "image/png");
+
+        HttpResponseMessage uploadResponse = await _client.PutAsync(
+            "/api/users/me/avatar",
+            content);
+
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        HttpResponseMessage deleteResponse = await _client.DeleteAsync(
+            "/api/users/me/avatar");
+
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        User dbUser = await GetUserFromDatabaseAsync(user.UserId);
+
+        dbUser.AvatarUrl.Should().BeNull();
+        dbUser.AvatarStoredFileName.Should().BeNull();
+        dbUser.AvatarContentType.Should().BeNull();
+        dbUser.AvatarSizeBytes.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteAvatar_WhenUserIsPendingVerification_DeletesAvatar()
+    {
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(
+            _client,
+            email: "delete-avatar-pending@test.com");
+
+        _client.AuthorizeAs(user.AccessToken);
+
+        using MultipartFormDataContent content = CreateAvatarContent(
+            "avatar.webp",
+            "image/webp");
+
+        HttpResponseMessage uploadResponse = await _client.PutAsync(
+            "/api/users/me/avatar",
+            content);
+
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        HttpResponseMessage deleteResponse = await _client.DeleteAsync(
+            "/api/users/me/avatar");
+
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        User dbUser = await GetUserFromDatabaseAsync(user.UserId);
+
+        dbUser.AvatarUrl.Should().BeNull();
+        dbUser.AvatarStoredFileName.Should().BeNull();
+        dbUser.AvatarContentType.Should().BeNull();
+        dbUser.AvatarSizeBytes.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteAvatar_WhenUserIsDisabled_ReturnsForbidden()
+    {
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(
+            _client,
+            email: "delete-avatar-disabled@test.com");
+
+        await SetUserStatusAsync(user.UserId, UserStatus.Disabled);
+
+        _client.AuthorizeAs(user.AccessToken);
+
+        HttpResponseMessage response = await _client.DeleteAsync(
+            "/api/users/me/avatar");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task DeleteAvatar_WhenAvatarDoesNotExist_ReturnsNoContent()
+    {
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(
+            _client,
+            email: "delete-avatar-no-avatar@test.com");
+
+        _client.AuthorizeAs(user.AccessToken);
+
+        HttpResponseMessage response = await _client.DeleteAsync(
+            "/api/users/me/avatar");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        User dbUser = await GetUserFromDatabaseAsync(user.UserId);
+
+        dbUser.AvatarUrl.Should().BeNull();
+        dbUser.AvatarStoredFileName.Should().BeNull();
+        dbUser.AvatarContentType.Should().BeNull();
+        dbUser.AvatarSizeBytes.Should().BeNull();
+    }
+
     private static MultipartFormDataContent CreateAvatarContent(
         string fileName,
         string contentType,

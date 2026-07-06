@@ -6,6 +6,7 @@ using RealEstate.Application.Users.Dtos;
 using RealEstate.Application.Users.Queries.GetCurrentUser;
 using RealEstate.Application.Common.Files;
 using RealEstate.Application.Users.Commands.UploadCurrentUserAvatar;
+using RealEstate.Application.Users.Commands.DeleteCurrentUserAvatar;
 
 namespace RealEstate.Api.Controllers;
 
@@ -16,15 +17,18 @@ public sealed class UsersController : ControllerBase
     private readonly GetCurrentUserHandler _getCurrentUserHandler;
     private readonly UpdateCurrentUserProfileHandler _updateCurrentUserProfileHandler;
     private readonly UploadCurrentUserAvatarHandler _uploadCurrentUserAvatarHandler;
+    private readonly DeleteCurrentUserAvatarHandler _deleteCurrentUserAvatarHandler;
 
     public UsersController(
         GetCurrentUserHandler getCurrentUserHandler,
         UpdateCurrentUserProfileHandler updateCurrentUserProfileHandler,      
-        UploadCurrentUserAvatarHandler uploadCurrentUserAvatarHandler)
+        UploadCurrentUserAvatarHandler uploadCurrentUserAvatarHandler,     
+        DeleteCurrentUserAvatarHandler deleteCurrentUserAvatarHandler)
     {
         _getCurrentUserHandler = getCurrentUserHandler;
         _updateCurrentUserProfileHandler = updateCurrentUserProfileHandler;
         _uploadCurrentUserAvatarHandler = uploadCurrentUserAvatarHandler;
+        _deleteCurrentUserAvatarHandler = deleteCurrentUserAvatarHandler;
     }
 
     [Authorize]
@@ -119,6 +123,33 @@ public sealed class UsersController : ControllerBase
             {
                 message = result.Error
             }),
+
+            ServiceResultStatus.Unauthorized => Unauthorized(new
+            {
+                message = result.Error
+            }),
+
+            ServiceResultStatus.Forbidden => Forbid(),
+
+            _ => BadRequest()
+        };
+    }
+
+    [Authorize]
+    [HttpDelete("me/avatar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> DeleteAvatar(
+    CancellationToken cancellationToken)
+    {
+        var result = await _deleteCurrentUserAvatarHandler.HandleAsync(
+            new DeleteCurrentUserAvatarCommand(),
+            cancellationToken);
+
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => NoContent(),
 
             ServiceResultStatus.Unauthorized => Unauthorized(new
             {
