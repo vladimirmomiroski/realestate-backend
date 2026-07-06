@@ -4,6 +4,8 @@ using RealEstate.Application.Common;
 using RealEstate.Application.Users.Commands.UpdateCurrentUserProfile;
 using RealEstate.Application.Users.Dtos;
 using RealEstate.Application.Users.Queries.GetCurrentUser;
+using RealEstate.Application.Common.Files;
+using RealEstate.Application.Users.Commands.UploadCurrentUserAvatar;
 
 namespace RealEstate.Api.Controllers;
 
@@ -13,13 +15,16 @@ public sealed class UsersController : ControllerBase
 {
     private readonly GetCurrentUserHandler _getCurrentUserHandler;
     private readonly UpdateCurrentUserProfileHandler _updateCurrentUserProfileHandler;
+    private readonly UploadCurrentUserAvatarHandler _uploadCurrentUserAvatarHandler;
 
     public UsersController(
         GetCurrentUserHandler getCurrentUserHandler,
-        UpdateCurrentUserProfileHandler updateCurrentUserProfileHandler)
+        UpdateCurrentUserProfileHandler updateCurrentUserProfileHandler,      
+        UploadCurrentUserAvatarHandler uploadCurrentUserAvatarHandler)
     {
         _getCurrentUserHandler = getCurrentUserHandler;
         _updateCurrentUserProfileHandler = updateCurrentUserProfileHandler;
+        _uploadCurrentUserAvatarHandler = uploadCurrentUserAvatarHandler;
     }
 
     [Authorize]
@@ -59,6 +64,51 @@ public sealed class UsersController : ControllerBase
                 request.FirstName,
                 request.LastName,
                 request.PhoneNumber),
+            cancellationToken);
+
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(result.Value),
+
+            ServiceResultStatus.ValidationError => BadRequest(new
+            {
+                message = result.Error
+            }),
+
+            ServiceResultStatus.Unauthorized => Unauthorized(new
+            {
+                message = result.Error
+            }),
+
+            ServiceResultStatus.Forbidden => Forbid(),
+
+            _ => BadRequest()
+        };
+    }
+
+    [Authorize]
+    [HttpPut("me/avatar")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<UserProfileResponse>> UploadAvatar(
+    IFormFile? file,
+    CancellationToken cancellationToken)
+    {
+        using var stream = file?.OpenReadStream();
+
+        var uploadedFile = file is null
+            ? null
+            : new UploadedFile(
+                stream!,
+                file.FileName,
+                file.ContentType,
+                file.Length);
+
+        var result = await _uploadCurrentUserAvatarHandler.HandleAsync(
+            new UploadCurrentUserAvatarCommand(uploadedFile),
             cancellationToken);
 
         return result.Status switch

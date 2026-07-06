@@ -76,4 +76,70 @@ public sealed class LocalFileStorageService : IFileStorageService
 
         return Task.CompletedTask;
     }
+
+    public async Task<StoredFileResult> SaveUserAvatarAsync(
+    Guid userId,
+    UploadedFile file,
+    CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.RootPath))
+        {
+            throw new InvalidOperationException("Local file storage root path is not configured.");
+        }
+
+        var originalFileName = Path.GetFileName(file.FileName);
+        var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
+
+        var storedFileName = $"{Guid.NewGuid():N}{extension}";
+
+        var avatarFolderPath = Path.Combine(
+            _options.RootPath,
+            "users",
+            userId.ToString(),
+            "avatar");
+
+        Directory.CreateDirectory(avatarFolderPath);
+
+        var filePath = Path.Combine(avatarFolderPath, storedFileName);
+
+        await using var outputStream = File.Create(filePath);
+
+        await file.Content.CopyToAsync(outputStream, cancellationToken);
+
+        var url = $"{_options.PublicBasePath.TrimEnd('/')}/users/{userId}/avatar/{storedFileName}";
+
+        return new StoredFileResult(
+            originalFileName,
+            storedFileName,
+            file.ContentType,
+            file.Length,
+            url);
+    }
+
+    public Task DeleteUserAvatarAsync(
+        Guid userId,
+        string storedFileName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.RootPath))
+        {
+            throw new InvalidOperationException("Local file storage root path is not configured.");
+        }
+
+        var safeFileName = Path.GetFileName(storedFileName);
+
+        var filePath = Path.Combine(
+            _options.RootPath,
+            "users",
+            userId.ToString(),
+            "avatar",
+            safeFileName);
+
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        return Task.CompletedTask;
+    }
 }
