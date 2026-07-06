@@ -24,6 +24,7 @@ using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Users.Queries.GetCurrentUser;
 using RealEstate.Application.Users.Commands.UpdateCurrentUserProfile;
 using RealEstate.Application.Users.Commands.UploadCurrentUserAvatar;
+using RealEstate.Application.Users.Commands.DeleteCurrentUserAvatar;
 
 namespace RealEstate.Application;
 
@@ -63,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<GetCurrentUserHandler>();
         services.AddScoped<UpdateCurrentUserProfileHandler>();
         services.AddScoped<UploadCurrentUserAvatarHandler>();
+        services.AddScoped<DeleteCurrentUserAvatarHandler>();
 
         services.AddScoped<GetMyListingsHandler>();
 
