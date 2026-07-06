@@ -22,6 +22,7 @@ using RealEstate.Application.Listings.Queries.GetListingById;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Users.Queries.GetCurrentUser;
+using RealEstate.Application.Users.Commands.UpdateCurrentUserProfile;
 
 namespace RealEstate.Application;
 
@@ -59,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<LoginUserHandler>();
 
         services.AddScoped<GetCurrentUserHandler>();
+        services.AddScoped<UpdateCurrentUserProfileHandler>();
 
         services.AddScoped<GetMyListingsHandler>();
 
