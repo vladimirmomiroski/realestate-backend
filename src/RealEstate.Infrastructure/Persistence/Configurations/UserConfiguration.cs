@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using RealEstate.Domain.Entities;
-using RealEstate.Domain.Enums;
 
 namespace RealEstate.Infrastructure.Persistence.Configurations;
 
@@ -38,6 +37,17 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(user => user.PhoneNumber)
             .HasMaxLength(50);
+
+        builder.Property(user => user.AvatarUrl)
+          .HasMaxLength(500);
+
+        builder.Property(user => user.AvatarStoredFileName)
+            .HasMaxLength(255);
+
+        builder.Property(user => user.AvatarContentType)
+            .HasMaxLength(100);
+
+        builder.Property(user => user.AvatarSizeBytes);
 
         builder.Property(user => user.Role)
             .HasConversion<string>()

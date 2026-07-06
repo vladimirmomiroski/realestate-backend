@@ -47,7 +47,45 @@ public sealed class User : IAuditableEntity
 
     public UserStatus Status { get; private set; }
 
+    public string? AvatarUrl { get; private set; }
+
+    public string? AvatarStoredFileName { get; private set; }
+
+    public string? AvatarContentType { get; private set; }
+
+    public long? AvatarSizeBytes { get; private set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime? ModifiedAtUtc { get; set; }
+
+    public void UpdateProfile(
+        string firstName,
+        string lastName,
+        string? phoneNumber)
+    {
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
+    }
+
+    public void SetAvatar(
+        string avatarUrl,
+        string storedFileName,
+        string contentType,
+        long sizeBytes)
+    {
+        AvatarUrl = avatarUrl.Trim();
+        AvatarStoredFileName = storedFileName.Trim();
+        AvatarContentType = contentType.Trim();
+        AvatarSizeBytes = sizeBytes;
+    }
+
+    public void RemoveAvatar()
+    {
+        AvatarUrl = null;
+        AvatarStoredFileName = null;
+        AvatarContentType = null;
+        AvatarSizeBytes = null;
+    }
 }
