@@ -3329,3 +3329,58 @@ Password reset
 Refresh tokens
 OAuth / Sign in with Google
 ```
+
+---
+
+## AI next-task planning policy
+
+When continuing this project in a new chat, always use this `backend-context.md` file to infer and propose the next task list from the latest completed chapter, the locked roadmap, and the current architecture/rules.
+
+Do not ask the user to recreate the roadmap from memory if the context already contains enough information.
+
+For every new chapter, the assistant should first propose a clear task split before implementation. If the chapter touches permissions, security, verification, public visibility, payments, subscriptions, or business rules, start with a dedicated rules document in `docs/chapters/*.md` before code.
+
+Current locked roadmap:
+
+```text
+Chapter 9 — Agency Phase 2
+Chapter 9.5 — Frontend readiness
+Then frontend
+```
+
+Recommended Chapter 9 task split:
+
+```text
+9A — Agency Phase 2 rules doc
+9B — Agency invitation entity/foundation
+9C — Invite agency member
+9D — Get agency invitations
+9E — Accept agency invitation
+9F — Cancel agency invitation
+9G — Disable agency member
+9H — Change agency member role
+9I — Agency logo upload/delete
+9J — Admin agency verification endpoints
+9K — Agency dashboard summary
+9L — Docs/context update
+```
+
+Recommended Chapter 9 priorities:
+
+```text
+Start with invitations and member management.
+Then add agency logo upload/delete.
+Then add admin agency verification.
+Then add agency dashboard summary.
+```
+
+Postpone from Chapter 9 unless explicitly chosen later:
+
+```text
+Payments/subscriptions
+Slug update/redirect history
+Public agent profiles
+Agency CRM features
+Advanced analytics
+Owner transfer as a separate endpoint, unless role-change rules make it necessary
+```
