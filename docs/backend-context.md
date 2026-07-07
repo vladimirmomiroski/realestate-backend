@@ -35,11 +35,13 @@ This backend is for a real estate platform. The goal is not just a basic listing
 
 Current focus: backend foundation before frontend work.
 
-Current backend status: **listing/auth/ownership + Agencies MVP + Chapter 8 publishing/visibility system are implemented.**
+Current backend status: **listing/auth/ownership + user profile/account basics + Agencies MVP + Chapter 8 publishing/visibility system are implemented.**
 
 Chapter 7 backend cleanup and structure hardening is complete.
 
 Chapter 8 publishing, visibility, verification restrictions, and agency listing dashboard visibility are complete.
+
+Chapter 8.5 user profile/account basics are complete.
 
 The backend now supports:
 
@@ -80,20 +82,27 @@ Unit tests
 Integration tests
 Cleaner test structure
 Cleaner listing repository query structure
+Current user profile endpoint
+Current user profile update endpoint
+User avatar upload/replace endpoint
+User avatar delete endpoint
+User avatar fields and storage
 ```
 
 Current test status:
 
 ```text
-204/204 tests passing
+230/230 tests passing
 ```
 
 Next backend direction:
 
 ```text
-Chapter 8 is closed after docs/context update.
-Next product chapter is TBD.
-Likely candidates: frontend readiness, listing edit/update flow, Agency Phase 2, CRM/client notes/saved listings, payments/subscriptions, or AI-assisted workflows.
+Chapter 8.5 is closed.
+Locked roadmap:
+Chapter 9 — Agency Phase 2
+Chapter 9.5 — Frontend readiness
+Then switch to frontend
 ```
 
 ---
@@ -135,6 +144,7 @@ src/
       AuthController.cs
       HealthController.cs
       ListingsController.cs
+      UsersController.cs
     Program.cs
 
   RealEstate.Application
@@ -188,6 +198,14 @@ src/
       Mappings
       Repositories
     Users
+      Commands
+        UpdateCurrentUserProfile
+        UploadCurrentUserAvatar
+        DeleteCurrentUserAvatar
+      Dtos
+      Mappings
+      Queries
+        GetCurrentUser
       Repositories
 
   RealEstate.Domain
@@ -268,6 +286,11 @@ tests/
         ListingImagesEndpointTests.Authorization.cs
         ListingPersistenceTests.cs
         ListingTestHelpers.cs
+      Users
+        UsersEndpointTests.Setup.cs
+        UsersEndpointTests.GetMe.cs
+        UsersEndpointTests.UpdateProfile.cs
+        UsersEndpointTests.Avatar.cs
     Unit
       Application
         Listings
@@ -540,6 +563,10 @@ Role
 Status
 CreatedAtUtc
 ModifiedAtUtc
+AvatarUrl
+AvatarStoredFileName
+AvatarContentType
+AvatarSizeBytes
 ```
 
 Important rule:
@@ -572,6 +599,9 @@ Register creates user as PendingVerification.
 PendingVerification users can create draft listings/agencies for now.
 PendingVerification users cannot publish listings.
 Disabled users cannot publish/unpublish/archive listings or view agency dashboard listings.
+GET /api/users/me returns current user profile for Active, PendingVerification, and Disabled users.
+PendingVerification users can update profile and upload/delete avatar.
+Disabled users cannot update profile or upload/delete avatar.
 ```
 
 ---
@@ -1142,6 +1172,65 @@ ListingsController may later be split into ListingsController + ListingImagesCon
 
 ---
 
+## User avatars
+
+User avatar fields are stored directly on `User`.
+
+Fields:
+
+```text
+AvatarUrl
+AvatarStoredFileName
+AvatarContentType
+AvatarSizeBytes
+```
+
+Avatar storage:
+
+```text
+Local filesystem
+src/RealEstate.Api/wwwroot/uploads/users/{userId}/avatar/{storedFileName}
+```
+
+Public URL:
+
+```text
+/uploads/users/{userId}/avatar/{storedFileName}
+```
+
+Ignored by Git:
+
+```text
+src/RealEstate.Api/wwwroot/uploads/
+```
+
+Avatar validation:
+
+```text
+Max size: 5 MB
+Allowed extensions: .jpg, .jpeg, .png, .webp
+Allowed content types: image/jpeg, image/png, image/webp
+```
+
+Avatar rules:
+
+```text
+PUT /api/users/me/avatar is used for both first upload and replacement.
+DELETE /api/users/me/avatar is idempotent.
+Active and PendingVerification users can upload/replace/delete avatar.
+Disabled users cannot upload/replace/delete avatar.
+No separate UserAvatar table exists.
+```
+
+Implementation detail:
+
+```text
+Avatar upload stores the new file first, updates User avatar fields, saves database changes, then deletes the old avatar file.
+If database save fails after file storage, the newly uploaded file is cleaned up where practical.
+```
+
+---
+
 ## Auth and security
 
 ### Register
@@ -1256,6 +1345,119 @@ Database health endpoint checks PostgreSQL connectivity.
 ```http
 POST /api/auth/register
 POST /api/auth/login
+```
+
+---
+
+### User profile/account endpoints
+
+All user profile/account endpoints require JWT.
+
+```http
+GET /api/users/me
+PUT /api/users/me/profile
+PUT /api/users/me/avatar
+DELETE /api/users/me/avatar
+```
+
+#### Get current user profile
+
+```http
+GET /api/users/me
+```
+
+Behavior:
+
+```text
+Returns current authenticated user profile.
+Returns 401 without token.
+Active, PendingVerification, and Disabled users can read their own profile.
+Returns UserProfileResponse.
+```
+
+Response includes:
+
+```text
+Id
+Email
+FirstName
+LastName
+PhoneNumber
+Role
+Status
+AvatarUrl
+CreatedAtUtc
+ModifiedAtUtc
+```
+
+#### Update current user profile
+
+```http
+PUT /api/users/me/profile
+```
+
+Editable fields:
+
+```text
+FirstName
+LastName
+PhoneNumber
+```
+
+Behavior:
+
+```text
+Returns 401 without token.
+Active users can update profile.
+PendingVerification users can update profile.
+Disabled users return 403.
+FirstName and LastName are required strings.
+PhoneNumber is optional.
+Read-only fields such as Email, Role, Status, PasswordHash, and avatar fields cannot be changed through this endpoint.
+```
+
+#### Upload/replace current user avatar
+
+```http
+PUT /api/users/me/avatar
+```
+
+Behavior:
+
+```text
+Used for both first avatar upload and avatar replacement.
+Returns updated UserProfileResponse.
+Active users can upload/replace avatar.
+PendingVerification users can upload/replace avatar.
+Disabled users return 403.
+Missing, empty, invalid type, invalid extension, or too-large files return 400.
+Old avatar file is deleted only after the new avatar is successfully saved.
+```
+
+Validation:
+
+```text
+Max size: 5 MB
+Allowed extensions: .jpg, .jpeg, .png, .webp
+Allowed content types: image/jpeg, image/png, image/webp
+```
+
+#### Delete current user avatar
+
+```http
+DELETE /api/users/me/avatar
+```
+
+Behavior:
+
+```text
+Returns 204 No Content on success.
+Delete is idempotent.
+Active users can delete avatar.
+PendingVerification users can delete avatar.
+Disabled users return 403.
+Avatar fields are cleared from Users table.
+Stored avatar file is deleted when it exists.
 ```
 
 ---
@@ -1747,6 +1949,26 @@ ListingHouseDetails
 __EFMigrationsHistory
 ```
 
+Important columns in `Users`:
+
+```text
+Id
+Email
+NormalizedEmail
+PasswordHash
+FirstName
+LastName
+PhoneNumber
+Role
+Status
+AvatarUrl
+AvatarStoredFileName
+AvatarContentType
+AvatarSizeBytes
+CreatedAtUtc
+ModifiedAtUtc
+```
+
 Important columns in `Agencies`:
 
 ```text
@@ -1915,7 +2137,7 @@ Latest known status:
 
 ```text
 dotnet test passed
-Current count: 204/204
+Current count: 230/230
 ```
 
 Important testing policy:
@@ -2600,6 +2822,105 @@ Handlers keep user-status, personal ownership, and action-specific rules.
 Tests remained 204/204.
 ```
 
+### Task 8.5A — User profile/account rules doc
+
+Completed:
+
+```text
+Created dedicated Chapter 8.5 rules document.
+Locked current-user profile, profile update, avatar upload/replace, avatar delete, user status, storage, and test rules before implementation.
+```
+
+### Task 8.5B — User profile/avatar foundation
+
+Completed:
+
+```text
+Added User avatar fields.
+Added User.UpdateProfile().
+Added User.SetAvatar().
+Added User.RemoveAvatar().
+Added UserProfileResponse.
+Added User mapping extension.
+Added IUserRepository.GetByIdForUpdateAsync.
+Added AddUserAvatarFields migration.
+```
+
+Migration:
+
+```text
+AddUserAvatarFields
+```
+
+### Task 8.5C — Current user profile endpoint
+
+Completed:
+
+```text
+GET /api/users/me
+Returns current authenticated user profile.
+Requires JWT.
+Disabled users can still read own profile.
+Added UsersController.
+Added GetCurrentUserQuery and GetCurrentUserHandler.
+Added integration tests.
+```
+
+### Task 8.5D — Current user profile update endpoint
+
+Completed:
+
+```text
+PUT /api/users/me/profile
+Updates FirstName, LastName, and PhoneNumber only.
+Requires JWT.
+Active and PendingVerification users can update profile.
+Disabled users are blocked with 403.
+Read-only fields cannot be changed through this endpoint.
+Added integration tests.
+```
+
+### Task 8.5E — Current user avatar upload/replace endpoint
+
+Completed:
+
+```text
+PUT /api/users/me/avatar
+Used for both first avatar upload and avatar replacement.
+Requires JWT.
+Active and PendingVerification users can upload/replace avatar.
+Disabled users are blocked with 403.
+Validates image size, extension, and content type.
+Stores avatars under /uploads/users/{userId}/avatar/{storedFileName}.
+Old avatar file is deleted after successful replacement.
+Added integration tests.
+```
+
+### Task 8.5F — Current user avatar delete endpoint
+
+Completed:
+
+```text
+DELETE /api/users/me/avatar
+Requires JWT.
+Active and PendingVerification users can delete avatar.
+Disabled users are blocked with 403.
+Delete is idempotent.
+Avatar fields are cleared from User.
+Stored avatar file is deleted when it exists.
+Added integration tests.
+```
+
+### Task 8.5G — Docs/context update
+
+Completed:
+
+```text
+Updated Chapter 8.5 rules document.
+Updated backend-context.md.
+Locked next roadmap: Chapter 9, Chapter 9.5, then frontend.
+```
+
 ---
 
 ## Current backend status
@@ -2609,6 +2930,8 @@ Backend listing/auth/ownership + Agencies MVP foundation is complete.
 Chapter 7 cleanup and structure hardening is complete.
 
 Chapter 8 publishing, visibility, verification restrictions, and agency dashboard listing visibility are complete.
+
+Chapter 8.5 user profile/account basics are complete.
 
 Current business rules:
 
@@ -2636,6 +2959,10 @@ Agency publish requires Active user + Active agency + active agency member Owner
 Unpublish/archive block Disabled users but allow PendingVerification users to hide/manage allowed listings.
 Agency unpublish/archive/dashboard access do not require Active agency.
 Payments/subscriptions are not implemented yet.
+Current user profile can be read through GET /api/users/me.
+Current user profile can be updated through PUT /api/users/me/profile.
+Current user avatar can be uploaded/replaced through PUT /api/users/me/avatar.
+Current user avatar can be deleted through DELETE /api/users/me/avatar.
 ```
 
 Current cleanup status:
@@ -2788,23 +3115,17 @@ Do not over-clean this before production needs are real.
 
 ## Next planned work
 
-Chapter 8 is completed and documented.
+Chapter 8.5 is completed and documented.
 
-Next product chapter is not locked yet.
-
-Recommended candidates:
+Locked roadmap:
 
 ```text
-Frontend readiness pass
-Listing edit/update endpoint
-Listing delete/hard delete vs archive decision
-Agency Phase 2
-CRM/client notes/saved listings
-Payments/subscriptions
-AI-assisted workflows
+Chapter 9 — Agency Phase 2
+Chapter 9.5 — Frontend readiness
+Then switch to frontend
 ```
 
-Do not start the next chapter until rules are chosen clearly.
+Do not start Chapter 9 until Agency Phase 2 rules are chosen clearly.
 
 ---
 
@@ -2885,6 +3206,81 @@ Final Chapter 8 test status:
 
 ```text
 204/204 tests passing
+```
+
+---
+
+## Chapter 8.5 completed summary
+
+Chapter 8.5 added authenticated current-user profile/account basics.
+
+Endpoints:
+
+```http
+GET /api/users/me
+PUT /api/users/me/profile
+PUT /api/users/me/avatar
+DELETE /api/users/me/avatar
+```
+
+Current-user profile rules:
+
+```text
+GET /api/users/me returns current authenticated user profile.
+Active, PendingVerification, and Disabled users can read their own profile.
+PUT /api/users/me/profile updates only FirstName, LastName, and PhoneNumber.
+Email, NormalizedEmail, PasswordHash, Role, Status, CreatedAtUtc, ModifiedAtUtc, and avatar fields are not updateable through profile update.
+```
+
+Avatar rules:
+
+```text
+PUT /api/users/me/avatar handles both first avatar upload and replacement.
+DELETE /api/users/me/avatar removes avatar and is idempotent.
+Active and PendingVerification users can update profile and upload/delete avatar.
+Disabled users cannot mutate profile/avatar.
+```
+
+Avatar validation:
+
+```text
+Max size: 5 MB
+Allowed extensions: .jpg, .jpeg, .png, .webp
+Allowed content types: image/jpeg, image/png, image/webp
+```
+
+Avatar storage:
+
+```text
+Local filesystem:
+src/RealEstate.Api/wwwroot/uploads/users/{userId}/avatar/{storedFileName}
+
+Public URL:
+/uploads/users/{userId}/avatar/{storedFileName}
+```
+
+Implementation summary:
+
+```text
+Added UsersController.
+Added UserProfileResponse and UpdateUserProfileRequest.
+Added user profile/avatar handlers.
+Added User.UpdateProfile(), User.SetAvatar(), and User.RemoveAvatar().
+Added avatar fields to Users table.
+Extended file storage with SaveUserAvatarAsync and DeleteUserAvatarAsync.
+Added user endpoint integration tests.
+```
+
+Detailed rules document:
+
+```text
+docs/chapters/chapter-08-5-user-profile-account-basics.md
+```
+
+Final Chapter 8.5 test status:
+
+```text
+230/230 tests passing
 ```
 
 ---

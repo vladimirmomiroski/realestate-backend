@@ -20,6 +20,54 @@ The goal is to prepare the backend for frontend account/dashboard usage without 
 
 ---
 
+## Final status
+
+Chapter 8.5 is completed.
+
+Completed tasks:
+
+```text
+8.5A — User profile/account rules document
+8.5B — User profile/avatar foundation
+8.5C — GET /api/users/me
+8.5D — PUT /api/users/me/profile
+8.5E — PUT /api/users/me/avatar
+8.5F — DELETE /api/users/me/avatar
+8.5G — Docs/context update
+```
+
+Final implemented endpoints:
+
+```http
+GET /api/users/me
+PUT /api/users/me/profile
+PUT /api/users/me/avatar
+DELETE /api/users/me/avatar
+```
+
+Final behavior:
+
+```text
+GET /api/users/me returns the current authenticated user profile.
+PUT /api/users/me/profile updates FirstName, LastName, and PhoneNumber.
+PUT /api/users/me/avatar uploads the first avatar or replaces the existing avatar.
+DELETE /api/users/me/avatar removes avatar metadata and deletes the stored avatar file when present.
+```
+
+Final architecture outcome:
+
+```text
+UsersController handles current-user profile endpoints.
+Handlers contain use-case logic.
+User entity owns profile/avatar state changes.
+UserRepository stays data-focused.
+Local file storage is reused for avatar files.
+No public user profiles were added.
+No email/password/account verification flows were added.
+```
+
+---
+
 ## Final scope
 
 Chapter 8.5 includes these endpoints:
@@ -49,7 +97,7 @@ No separate POST avatar endpoint is needed.
 
 ## Out of scope
 
-Do not add these in Chapter 8.5:
+Chapter 8.5 intentionally does not add:
 
 ```text
 Change email
@@ -79,7 +127,7 @@ This chapter is only for current-user profile/account basics.
 
 ## Existing User fields
 
-The current `User` entity already has:
+The `User` entity already had:
 
 ```text
 Id
@@ -95,33 +143,28 @@ CreatedAtUtc
 ModifiedAtUtc
 ```
 
-Do not duplicate these fields.
+These fields were not duplicated.
 
-Do not casually change existing nullability or database behavior for these fields.
-
-Before implementation, inspect the actual current files:
+Existing profile field behavior remained unchanged:
 
 ```text
-User.cs
-UserConfiguration.cs
-current migrations/database schema
-register/login request behavior
+FirstName is required.
+LastName is required.
+PhoneNumber is optional.
 ```
 
 Reason:
 
 ```text
-FirstName, LastName, and PhoneNumber nullability must follow the existing User entity and EF configuration.
-We do not want accidental migration conflicts, duplicate fields, or incorrect nullable/non-nullable changes.
+FirstName, LastName, and PhoneNumber nullability follows the existing User entity and EF configuration.
+This avoids accidental migration conflicts, duplicate fields, or incorrect nullable/non-nullable changes.
 ```
 
 ---
 
 ## New avatar fields
 
-Avatar support may require adding fields to `User`.
-
-Recommended fields:
+Chapter 8.5 added avatar metadata fields to `User`:
 
 ```text
 AvatarUrl
@@ -130,15 +173,21 @@ AvatarContentType
 AvatarSizeBytes
 ```
 
-These fields are only for the user profile avatar.
+These fields are only for the current user's profile avatar.
 
-Do not create a separate avatar table in Chapter 8.5.
+No separate avatar table was added.
 
 Reason:
 
 ```text
 A user has only one avatar.
 A separate UserAvatar entity/table is unnecessary for MVP.
+```
+
+Migration:
+
+```text
+AddUserAvatarFields
 ```
 
 ---
@@ -159,15 +208,17 @@ Invalid token:
 401 Unauthorized
 ```
 
-Authenticated user missing from database:
+Current user cannot be resolved:
 
 ```http
 401 Unauthorized
 ```
 
-or project-consistent equivalent if the existing code already handles this differently.
+Implementation detail:
 
-Implementation must follow the existing project convention after checking current handlers/controllers.
+```text
+ServiceResultStatus.Unauthorized was added so current-user handlers can return clean 401 responses.
+```
 
 ---
 
@@ -182,6 +233,8 @@ Disabled
 ```
 
 ### Read profile
+
+Endpoint:
 
 ```http
 GET /api/users/me
@@ -204,7 +257,7 @@ Reading own account data does not mutate anything.
 
 ### Mutate profile/avatar
 
-These endpoints mutate account data:
+Endpoints:
 
 ```http
 PUT /api/users/me/profile
@@ -260,7 +313,13 @@ Purpose:
 Return the current authenticated user's account/profile data.
 ```
 
-Recommended response fields:
+Response:
+
+```text
+UserProfileResponse
+```
+
+Response fields:
 
 ```text
 Id
@@ -323,6 +382,12 @@ Purpose:
 Update basic current-user profile fields.
 ```
 
+Request:
+
+```text
+UpdateUserProfileRequest
+```
+
 Editable fields:
 
 ```text
@@ -348,6 +413,12 @@ CreatedAtUtc
 ModifiedAtUtc
 ```
 
+Response:
+
+```text
+UserProfileResponse
+```
+
 Rules:
 
 ```text
@@ -356,30 +427,28 @@ Invalid token -> 401
 Active user -> 200
 PendingVerification user -> 200
 Disabled user -> 403
+Missing/blank FirstName -> 400
+Missing/blank LastName -> 400
+Too long FirstName -> 400
+Too long LastName -> 400
+Too long PhoneNumber -> 400
 ```
 
-Validation rules must follow the existing User entity and EF configuration.
-
-Recommended MVP validation after inspecting current model:
+Validation:
 
 ```text
-FirstName max length should match existing UserConfiguration.
-LastName max length should match existing UserConfiguration.
-PhoneNumber max length should match existing UserConfiguration.
-Strings should be trimmed.
-Empty string/null behavior must match existing entity/configuration decisions.
-```
-
-Important:
-
-```text
-Do not decide whether empty FirstName/LastName becomes null or empty string until User.cs and UserConfiguration.cs are checked.
+FirstName is required and max 100 characters.
+LastName is required and max 100 characters.
+PhoneNumber is optional and max 50 characters.
+Strings are trimmed by User.UpdateProfile(...).
+Blank PhoneNumber becomes null.
 ```
 
 Reason:
 
 ```text
-Avoid accidental schema/nullability changes.
+FirstName and LastName are required in the existing User model.
+PhoneNumber is optional in the existing User model.
 ```
 
 ---
@@ -409,18 +478,10 @@ Behavior:
 ```text
 If user has no avatar -> upload and set avatar fields.
 If user already has avatar -> replace avatar fields with new file info.
-Old avatar file should be deleted after successful database save.
+Old avatar file is deleted after successful database save.
 ```
 
 Response:
-
-```text
-Return updated current-user profile response.
-```
-
-or a smaller avatar response if that matches the existing API style better.
-
-Recommended response:
 
 ```text
 UserProfileResponse
@@ -432,7 +493,7 @@ Reason:
 Frontend immediately receives the full updated account state.
 ```
 
-Allowed file types:
+Allowed file extensions:
 
 ```text
 .jpg
@@ -486,6 +547,7 @@ Empty file -> 400
 Invalid extension -> 400
 Invalid content type -> 400
 File too large -> 400
+Second upload replaces avatar metadata -> 200
 ```
 
 Important implementation rule:
@@ -494,29 +556,25 @@ Important implementation rule:
 Do not delete the old avatar file before the new avatar is successfully saved to the database.
 ```
 
-Recommended flow:
+Implemented flow:
 
 ```text
-1. Load current user.
-2. Block Disabled user.
-3. Validate uploaded file.
-4. Store new file.
-5. Keep old avatar file info in memory.
-6. Update user avatar fields.
-7. Save database changes.
-8. Delete old avatar file after successful database save.
-```
-
-If database save fails after file storage:
-
-```text
-Try to clean up the newly uploaded file.
+1. Resolve current user.
+2. Validate uploaded file.
+3. Load tracked User.
+4. Block Disabled user.
+5. Store new avatar file.
+6. Keep old avatar stored filename in memory.
+7. Update user avatar fields through User.SetAvatar(...).
+8. Save database changes.
+9. Delete old avatar file after successful database save.
+10. If database save fails after file storage, clean up the newly uploaded file where practical.
 ```
 
 Reason:
 
 ```text
-Avoid orphaned files where practical.
+This avoids losing the old avatar if the new avatar metadata fails to persist.
 ```
 
 ---
@@ -546,9 +604,10 @@ Behavior:
 ```text
 Clears avatar fields on User.
 Deletes avatar file from storage if it exists.
+Delete is idempotent.
 ```
 
-Recommended response:
+Response:
 
 ```http
 204 No Content
@@ -566,7 +625,18 @@ PendingVerification user without avatar -> 204
 Disabled user -> 403
 ```
 
-Delete should be idempotent.
+Implemented flow:
+
+```text
+1. Resolve current user.
+2. Load tracked User.
+3. Block Disabled user.
+4. Keep old avatar stored filename in memory.
+5. Clear avatar fields through User.RemoveAvatar().
+6. Save database changes.
+7. Delete old avatar file if one existed.
+8. Return 204 No Content.
+```
 
 Reason:
 
@@ -580,7 +650,7 @@ Frontend can safely call delete without first checking whether an avatar exists.
 
 User profile/avatar state belongs to the `User` entity.
 
-Recommended domain methods:
+Implemented domain methods:
 
 ```text
 UpdateProfile(...)
@@ -588,16 +658,17 @@ SetAvatar(...)
 RemoveAvatar()
 ```
 
-Domain methods may handle:
+Domain methods handle:
 
 ```text
 updating profile fields
+trimming profile values
+normalizing blank phone number to null
 setting avatar metadata
 clearing avatar metadata
-basic invariant protection
 ```
 
-Domain methods must not handle:
+Domain methods do not handle:
 
 ```text
 JWT/current user lookup
@@ -620,19 +691,27 @@ Infrastructure owns storage/database details.
 
 ## Application/handler rules
 
-Handlers contain use-case logic.
-
-Recommended application structure:
+Implemented application structure:
 
 ```text
 src/RealEstate.Application/Users/Dtos
+src/RealEstate.Application/Users/Mappings
 src/RealEstate.Application/Users/Queries/GetCurrentUser
 src/RealEstate.Application/Users/Commands/UpdateCurrentUserProfile
 src/RealEstate.Application/Users/Commands/UploadCurrentUserAvatar
 src/RealEstate.Application/Users/Commands/DeleteCurrentUserAvatar
 ```
 
-Handlers should:
+Implemented handlers:
+
+```text
+GetCurrentUserHandler
+UpdateCurrentUserProfileHandler
+UploadCurrentUserAvatarHandler
+DeleteCurrentUserAvatarHandler
+```
+
+Handlers:
 
 ```text
 Read current user id from ICurrentUserService.
@@ -641,10 +720,10 @@ Apply user status rules.
 Validate request/file.
 Call User domain methods.
 Save changes through repository.
-Map User to response DTO.
+Map User to UserProfileResponse.
 ```
 
-Handlers should not:
+Handlers do not:
 
 ```text
 Contain EF Core query details.
@@ -658,7 +737,7 @@ Hide business decisions inside repository methods.
 
 Repositories stay data-focused.
 
-Good repository methods:
+Used repository methods:
 
 ```text
 GetByIdReadOnlyAsync
@@ -666,9 +745,7 @@ GetByIdForUpdateAsync
 SaveChangesAsync
 ```
 
-or whatever exact naming matches the existing repository.
-
-Bad repository methods:
+Bad repository methods were not added:
 
 ```text
 CanUserUpdateProfileAsync
@@ -686,33 +763,46 @@ Permission/business rules belong in handlers or small application-level policy h
 
 ## Storage rules
 
-Avatar storage should reuse the existing storage abstraction if it already supports the needed behavior.
+Avatar storage reuses the existing file storage abstraction.
 
-Before implementation, inspect:
+`IFileStorageService` was extended with:
 
 ```text
-RealEstate.Application/Common/Storage
-RealEstate.Infrastructure/Storage
-LocalFileStorageService
-LocalFileStorageOptions
-existing listing image upload handlers
+SaveUserAvatarAsync
+DeleteUserAvatarAsync
 ```
 
-Do not duplicate storage logic if existing file storage can be reused cleanly.
+`LocalFileStorageService` stores avatars under:
 
-Do not over-generalize storage if a small extension is enough.
+```text
+wwwroot/uploads/users/{userId}/avatar/{storedFileName}
+```
+
+Public avatar URL:
+
+```text
+/uploads/users/{userId}/avatar/{storedFileName}
+```
+
+Reason:
+
+```text
+The existing storage abstraction already handled local file storage for listing images.
+A small extension was enough.
+No duplicate storage service was needed.
+```
 
 ---
 
 ## Controller rules
 
-Add:
+Implemented controller:
 
 ```text
 UsersController
 ```
 
-Do not put these endpoints in:
+Endpoints were not added to:
 
 ```text
 AuthController
@@ -728,12 +818,12 @@ UsersController handles authenticated user resource operations.
 Controller responsibilities:
 
 ```text
-Read request body/query/form file.
+Read request body/form file.
 Call handler.
 Map ServiceResult to HTTP response.
 ```
 
-Controller must not contain:
+Controller does not contain:
 
 ```text
 profile mutation rules
@@ -747,29 +837,20 @@ repository calls
 
 ## DTO rules
 
-Recommended DTOs:
+Implemented DTOs:
 
 ```text
 UserProfileResponse
 UpdateUserProfileRequest
 ```
 
-Potential avatar-specific DTO is optional:
-
-```text
-UserAvatarResponse
-```
-
-Recommended response reuse:
-
-```text
-Return UserProfileResponse from GET /me, profile update, and avatar upload.
-```
+No avatar-specific response DTO was added.
 
 Reason:
 
 ```text
-Frontend receives one consistent current-user shape.
+GET /me, profile update, and avatar upload all return the same current-user profile shape.
+Frontend receives one consistent current-user response.
 ```
 
 ---
@@ -788,6 +869,7 @@ When:
 No JWT token
 Invalid JWT token
 Current user id cannot be resolved from token
+Current user from token no longer exists
 ```
 
 Use:
@@ -849,9 +931,9 @@ including when there was no avatar to delete.
 
 ---
 
-## Testing plan
+## Testing summary
 
-Add integration tests for:
+Integration tests were added for:
 
 ```text
 GET /api/users/me
@@ -860,7 +942,7 @@ PUT /api/users/me/avatar
 DELETE /api/users/me/avatar
 ```
 
-Recommended test files:
+Test files:
 
 ```text
 tests/RealEstate.Tests/Integration/Users/UsersEndpointTests.Setup.cs
@@ -869,18 +951,19 @@ tests/RealEstate.Tests/Integration/Users/UsersEndpointTests.UpdateProfile.cs
 tests/RealEstate.Tests/Integration/Users/UsersEndpointTests.Avatar.cs
 ```
 
-Use partial class split if it matches the current integration test style.
+Partial class split was used to match the existing integration test style.
 
 ---
 
 ## GET /api/users/me tests
 
-Required tests:
+Covered:
 
 ```text
 No token -> 401
 Valid token -> 200
 Response belongs to current user
+Response does not return another user's data
 Response includes email, role, status, profile fields
 Disabled user can still read own profile
 ```
@@ -889,20 +972,22 @@ Disabled user can still read own profile
 
 ## PUT /api/users/me/profile tests
 
-Required tests:
+Covered:
 
 ```text
 No token -> 401
 Active user can update profile
 PendingVerification user can update profile
 Disabled user cannot update profile -> 403
+Missing FirstName -> 400
+Missing LastName -> 400
 Updated profile persists
 Read-only fields cannot be changed through this endpoint
 ```
 
-Read-only fields should be protected naturally by request DTO shape.
+Read-only fields are protected by request DTO shape.
 
-Do not add request properties for:
+Request DTO does not include:
 
 ```text
 Email
@@ -916,7 +1001,7 @@ AvatarUrl
 
 ## PUT /api/users/me/avatar tests
 
-Required tests:
+Covered:
 
 ```text
 No token -> 401
@@ -924,22 +1009,20 @@ Active user can upload avatar -> 200
 PendingVerification user can upload avatar -> 200
 Disabled user cannot upload avatar -> 403
 Missing file -> 400
+Empty file -> 400
 Invalid extension -> 400
 Invalid content type -> 400
 File too large -> 400
 AvatarUrl is saved
-Second upload replaces avatar
+Avatar metadata is saved
+Second upload replaces avatar metadata
 ```
-
-If practical, test that old avatar metadata is replaced.
-
-File deletion can be tested lightly or left as infrastructure behavior if direct filesystem assertions make tests brittle.
 
 ---
 
 ## DELETE /api/users/me/avatar tests
 
-Required tests:
+Covered:
 
 ```text
 No token -> 401
@@ -952,27 +1035,30 @@ Avatar fields are cleared after delete
 
 ---
 
-## Migration
+## Database changes
 
-Expected migration only if avatar fields are added:
+Migration:
 
 ```text
 AddUserAvatarFields
 ```
 
-or:
+Users table added columns:
 
 ```text
-AddUserProfileAvatarFields
+AvatarUrl
+AvatarStoredFileName
+AvatarContentType
+AvatarSizeBytes
 ```
 
-Do not add migration changes for existing profile fields unless inspection proves they are required.
+No changes were made to existing profile field nullability.
 
 ---
 
 ## Implementation order
 
-Recommended task split:
+Completed task split:
 
 ```text
 8.5A — Rules document
@@ -988,120 +1074,108 @@ Recommended task split:
 
 ## 8.5A — Rules document
 
-Create:
+Completed:
 
 ```text
-docs/chapters/chapter-08-5-user-profile-account-basics.md
-```
-
-Lock:
-
-```text
-current-user endpoints
-profile editable/read-only fields
-avatar upload/replace/delete behavior
-user status rules
-storage path
-validation rules
-test expectations
+Created docs/chapters/chapter-08-5-user-profile-account-basics.md.
+Locked current-user endpoint rules, editable fields, avatar behavior, status rules, validation, storage, and test expectations.
 ```
 
 ---
 
 ## 8.5B — User profile/avatar DTOs and model changes
 
-Before writing implementation code, inspect exact files:
+Completed:
 
 ```text
-User.cs
-UserConfiguration.cs
-IUserRepository.cs
-UserRepository.cs
-storage abstractions
-existing listing image upload code
+Added avatar fields to User.
+Added User.UpdateProfile(...).
+Added User.SetAvatar(...).
+Added User.RemoveAvatar().
+Updated UserConfiguration.
+Added migration AddUserAvatarFields.
+Added UserProfileResponse.
+Added user profile mapping extension.
+Added IUserRepository.GetByIdForUpdateAsync.
 ```
-
-Add only needed avatar fields.
-
-Do not duplicate existing fields.
 
 ---
 
 ## 8.5C — GET /api/users/me
 
-Add:
+Completed:
 
 ```text
-GetCurrentUserQuery
-GetCurrentUserHandler
-UserProfileResponse
-UsersController.GetMe
-integration tests
+Added GetCurrentUserQuery.
+Added GetCurrentUserHandler.
+Added UsersController.GetMe.
+Added integration tests.
+Disabled users can read own profile.
 ```
 
 ---
 
 ## 8.5D — PUT /api/users/me/profile
 
-Add:
+Completed:
 
 ```text
-UpdateCurrentUserProfileCommand
-UpdateCurrentUserProfileHandler
-UpdateUserProfileRequest
-UsersController.UpdateProfile
-integration tests
+Added UpdateUserProfileRequest.
+Added UpdateCurrentUserProfileCommand.
+Added UpdateCurrentUserProfileHandler.
+Added UsersController.UpdateProfile.
+Added integration tests.
+Active and PendingVerification users can update.
+Disabled users are blocked.
+Read-only fields cannot be changed through this endpoint.
 ```
 
 ---
 
 ## 8.5E — PUT /api/users/me/avatar
 
-Add:
+Completed:
 
 ```text
-UploadCurrentUserAvatarCommand
-UploadCurrentUserAvatarHandler
-UsersController.UploadAvatar
-integration tests
+Added UploadCurrentUserAvatarCommand.
+Added UploadCurrentUserAvatarHandler.
+Extended IFileStorageService with avatar save/delete methods.
+Extended LocalFileStorageService with avatar save/delete methods.
+Added UsersController.UploadAvatar.
+Added integration tests.
+PUT is used for both first upload and replace.
 ```
-
-Use:
-
-```http
-PUT /api/users/me/avatar
-```
-
-for both first upload and replace.
 
 ---
 
 ## 8.5F — DELETE /api/users/me/avatar
 
-Add:
+Completed:
 
 ```text
-DeleteCurrentUserAvatarCommand
-DeleteCurrentUserAvatarHandler
-UsersController.DeleteAvatar
-integration tests
+Added DeleteCurrentUserAvatarCommand.
+Added DeleteCurrentUserAvatarHandler.
+Added UsersController.DeleteAvatar.
+Added integration tests.
+Delete is idempotent.
+Avatar fields are cleared.
+Stored avatar file is deleted when present.
 ```
 
 ---
 
 ## 8.5G — Docs/context update
 
-Update:
+Completed:
 
 ```text
-backend-context.md
-docs/chapters/chapter-08-5-user-profile-account-basics.md
+Updated Chapter 8.5 rules document with final status and implemented behavior.
+backend-context.md must be updated with the compressed Chapter 8.5 handoff summary and locked roadmap.
 ```
 
-Also update locked roadmap in backend context:
+Locked roadmap to add to backend context:
 
 ```text
-Chapter 8.5 — User profile/account basics
 Chapter 9 — Agency Phase 2
 Chapter 9.5 — Frontend readiness
 Then frontend
@@ -1111,7 +1185,7 @@ Then frontend
 
 ## Completion checklist
 
-Chapter 8.5 is complete when:
+Chapter 8.5 is complete because:
 
 ```text
 Rules document exists.
@@ -1119,17 +1193,38 @@ GET /api/users/me works.
 PUT /api/users/me/profile works.
 PUT /api/users/me/avatar works for first upload and replace.
 DELETE /api/users/me/avatar works.
-Disabled users cannot mutate profile/avatar.
-PendingVerification users can mutate profile/avatar.
+Disabled users can read profile but cannot mutate profile/avatar.
+PendingVerification users can read and mutate profile/avatar.
 Avatar validation is tested.
 Avatar fields are persisted.
+Avatar replacement updates metadata.
 Avatar delete clears avatar fields.
 Controllers remain thin.
 Handlers contain use-case logic.
 Repositories remain data-focused.
-No duplicate existing User fields are added.
-No unrelated auth/account features are added.
+No duplicate existing User fields were added.
+No unrelated auth/account features were added.
 dotnet build passes.
 dotnet test passes.
+Chapter 8.5 rules document is updated with final behavior.
 backend-context.md is updated with Chapter 8.5 completion and locked roadmap.
+```
+
+---
+
+## Final Chapter 8.5 context summary
+
+```text
+Chapter 8.5 completed:
+- Added current-user account/profile basics.
+- Added GET /api/users/me.
+- Added PUT /api/users/me/profile.
+- Added PUT /api/users/me/avatar for upload and replace.
+- Added DELETE /api/users/me/avatar.
+- Added avatar fields to User.
+- Added local avatar storage under /uploads/users/{userId}/avatar/{storedFileName}.
+- Active and PendingVerification users can update profile/avatar.
+- Disabled users can read profile but cannot mutate profile/avatar.
+- UserProfileResponse is the consistent current-user response shape.
+- No email/password/public-profile/account-admin features were added.
 ```
