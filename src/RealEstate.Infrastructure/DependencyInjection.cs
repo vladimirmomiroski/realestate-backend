@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasherService>();
 
         services.AddScoped<IAgencyRepository, AgencyRepository>();
+        services.AddScoped<IAgencyInvitationRepository, AgencyInvitationRepository>();
 
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
