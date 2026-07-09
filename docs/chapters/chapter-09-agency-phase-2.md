@@ -26,10 +26,19 @@ This chapter must stay practical. It is not a payments, CRM, notifications, emai
 Current status:
 
 ```text
-Planned / rules-first stage
+In progress
 ```
 
-Chapter 9 starts with this rules document before implementation.
+Current implemented/planned status:
+
+```text
+9A — Agency Phase 2 rules document: completed
+9B — Agency invitation entity/foundation: completed
+9C — Invite agency member: implementation/testing stage
+9D+ — planned
+```
+
+Chapter 9 started with this rules document before implementation.
 
 Reason:
 
@@ -147,7 +156,24 @@ Current agency member roles:
 
 ```text
 Owner
+Manager
 Agent
+```
+
+Important Manager rule:
+
+```text
+Manager exists in code, but Chapter 9 does not give Manager special permissions yet.
+Manager cannot invite members.
+Owner cannot invite someone as Manager.
+Manager permissions should be defined later in a small dedicated role-permission task if needed.
+```
+
+Reason:
+
+```text
+A half-defined Manager role can create authorization bugs.
+Until the business meaning is locked, Owner and Agent remain the only active Chapter 9 permission roles.
 ```
 
 Current agency member statuses:
@@ -163,6 +189,7 @@ Chapter 9 permission baseline:
 ```text
 Active Owner -> can manage agency profile, logo, invitations, members, roles, and dashboard.
 Active Agent -> can manage agency listings and view dashboard summary, but cannot manage members/invitations/agency profile/logo.
+Active Manager -> no special Chapter 9 permissions yet.
 Pending member -> no agency management access.
 Disabled member -> no agency management access.
 Non-member -> no agency management access.
@@ -192,7 +219,9 @@ Chapter 9 rules:
 
 ```text
 Active user -> can perform agency actions if membership/role rules pass.
-PendingVerification user -> can accept invitations and prepare agency membership, but cannot publish listings due to Chapter 8 rules.
+PendingVerification user -> can accept invitations and prepare agency membership.
+PendingVerification user -> can create agency invitations if they are an Active Owner member.
+PendingVerification user -> still cannot publish listings due to Chapter 8 rules.
 Disabled user -> cannot mutate agency data, accept invitations, manage members, manage logo, or view private agency dashboard summary.
 ```
 
@@ -200,6 +229,7 @@ Reason:
 
 ```text
 PendingVerification users may prepare their account and agency access.
+Inviting members is agency setup work, not public exposure.
 Disabled users should not perform protected agency operations.
 ```
 
@@ -223,6 +253,7 @@ PendingVerification agency -> owners can manage profile/logo/members/invitations
 Active agency -> normal agency operation.
 Disabled agency -> owners/agents may still view/manage private dashboard data where allowed, but cannot publish listings.
 Rejected agency -> owners/agents may still view/manage private dashboard data where allowed, but cannot publish listings.
+Agency status does not block invitation creation.
 ```
 
 Admin status changes are intentionally small in Chapter 9:
@@ -313,16 +344,17 @@ A random token/code acts as the actual invitation credential.
 Implementation note:
 
 ```text
-Use either Token or Code consistently in the final implementation.
-The rules document allows both names because the exact API shape can be chosen during implementation.
-Do not require both if one strong random accept credential is enough.
+Chapter 9 stores both Token and Code.
+Token is the primary API/link accept credential.
+Code is reserved for short/manual invite flows or future frontend support.
+Accepting by invitation id alone is not allowed.
 ```
 
 Recommended practical choice:
 
 ```text
 Use Token for API/link style acceptance.
-Use Code only if later adding short manual invite codes.
+Keep Code available for later manual-code support.
 ```
 
 No email sending is added in Chapter 9.
@@ -366,36 +398,31 @@ Expired -> final expired state.
 
 ## Invitation role values
 
-Invitation role should use existing agency member roles:
+Invitation role uses existing agency member role values, but Chapter 9 only allows inviting:
 
 ```text
 Owner
 Agent
 ```
 
-MVP recommendation:
+Blocked invitation role:
 
 ```text
-Owners can invite Agents.
-Owners can invite Owners only if last-owner safety rules are implemented and tested.
-```
-
-Simpler implementation option:
-
-```text
-Allow Owner and Agent invitations, but protect last-owner rules in member role/disable endpoints.
+Manager
 ```
 
 Preferred Chapter 9 rule:
 
 ```text
 Allow invitations for Owner and Agent.
+Reject Manager invitations with 400 Bad Request.
 ```
 
 Reason:
 
 ```text
 Multi-owner agencies are useful, but ownership safety is handled by disable/demotion rules.
+Manager exists in code but has no locked Chapter 9 permission meaning yet.
 ```
 
 ---
@@ -468,10 +495,19 @@ AgencyId
 Email
 Role
 Status
-Token or Code
-InvitedByUserId
+Token
+Code
 CreatedAtUtc
 ExpiresAtUtc
+```
+
+Optional later list/detail responses may include:
+
+```text
+InvitedByUserId
+AcceptedByUserId
+AcceptedAtUtc
+CancelledAtUtc
 ```
 
 Important:
@@ -495,6 +531,7 @@ Allowed:
 
 ```text
 Active Owner
+PendingVerification user if they are an Active Owner member
 ```
 
 Blocked:
@@ -503,16 +540,25 @@ Blocked:
 No token -> 401
 Non-member -> 403
 Active Agent -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
 Missing agency -> 404
 ```
 
+Agency status:
+
+```text
+Agency status does not block invitation creation.
+```
+
 Reason:
 
 ```text
 Inviting members changes agency access and must be owner-level.
+Inviting members is agency setup work, not public publishing.
+Publishing remains stricter and still requires Active user + Active agency.
 ```
 
 ---
@@ -524,8 +570,10 @@ Request validation:
 ```text
 Email is required.
 Email must be valid enough for current project standards.
+Email cannot be longer than 254 characters.
 Role is required.
 Role must be Owner or Agent.
+Manager role is invalid for invitation creation in Chapter 9.
 ```
 
 Duplicate checks:
@@ -538,8 +586,10 @@ Same agency + user already member -> 400, if invited email belongs to existing u
 Token/code generation:
 
 ```text
-Generate a strong random token/code on create.
-Token/code must be unique enough to use as accept credential.
+Generate a strong random Token on create.
+Generate a short Code on create.
+Token must be unique enough to use as the primary accept credential.
+Code is reserved for manual-code support and should also be random.
 ```
 
 ---
@@ -603,6 +653,7 @@ Blocked:
 No token -> 401
 Non-member -> 403
 Active Agent -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
@@ -764,6 +815,7 @@ Blocked:
 No token -> 401
 Non-member -> 403
 Active Agent -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
@@ -842,6 +894,7 @@ Blocked:
 No token -> 401
 Non-member -> 403
 Active Agent -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
@@ -961,6 +1014,7 @@ Blocked:
 No token -> 401
 Non-member -> 403
 Active Agent -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
@@ -1048,6 +1102,7 @@ Blocked:
 No token -> 401
 Non-member -> 403
 Active Agent -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
@@ -1404,6 +1459,7 @@ Blocked:
 ```text
 No token -> 401
 Non-member -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
@@ -1669,6 +1725,20 @@ Reuse existing AgencyResponse when the endpoint returns updated agency profile/s
 Do not create unnecessary response DTOs.
 ```
 
+API enum response rule:
+
+```text
+Enum values are returned as strings in API JSON responses.
+Tests should assert string enum values such as "Agent" and "Pending", not numeric values.
+```
+
+Reason:
+
+```text
+String enums are clearer for frontend, Swagger, and API clients.
+They are also safer than depending on numeric enum values.
+```
+
 ---
 
 # Error behavior
@@ -1827,11 +1897,15 @@ Cover:
 ```text
 No token invite -> 401
 Active Owner can invite -> success
+PendingVerification Active Owner can invite -> success
 Active Agent cannot invite -> 403
+Active Manager cannot invite -> 403
 Non-member cannot invite -> 403
 Disabled user cannot invite -> 403
+Owner cannot invite Manager role -> 400
 Duplicate pending invitation -> 400
-Invitation response includes Token/Code on create
+Invitation response includes Token and Code on create
+Invitation response returns enum values as strings
 Active/PendingVerification invited user can accept by Token/Code -> success
 Accept with invitation id only is not supported
 Accept with wrong Token/Code -> 404
@@ -1845,6 +1919,7 @@ Accept marks invitation Accepted
 Accept does not create duplicate membership
 Active Owner can cancel pending invitation -> success
 Active Agent cannot cancel invitation -> 403
+Active Manager cannot cancel invitation -> 403
 Cancelled invitation cancel is idempotent
 Accepted invitation cannot be cancelled -> 400
 ```
@@ -1859,6 +1934,7 @@ Cover:
 No token disable member -> 401
 Active Owner can disable member -> success
 Active Agent cannot disable member -> 403
+Active Manager cannot disable member -> 403
 Non-member cannot disable member -> 403
 Disabled user cannot disable member -> 403
 Cannot disable last active Owner -> 400
@@ -1868,6 +1944,7 @@ Active Owner can change Agent to Owner -> success
 Active Owner can change Owner to Agent if another active Owner exists -> success
 Cannot demote last active Owner -> 400
 Active Agent cannot change roles -> 403
+Active Manager cannot change roles -> 403
 Invalid role -> 400
 Role change for Disabled/Pending member -> 400
 ```
@@ -1894,6 +1971,7 @@ Cover:
 No token upload logo -> 401
 Active Owner can upload logo -> 200
 Active Agent cannot upload logo -> 403
+Active Manager cannot upload logo -> 403
 Non-member cannot upload logo -> 403
 Disabled user cannot upload logo -> 403
 Missing agency -> 404
@@ -1906,6 +1984,7 @@ Second upload replaces logo metadata -> 200
 Delete logo returns 204
 Delete logo with no logo still returns 204
 Active Agent cannot delete logo -> 403
+Active Manager cannot delete logo -> 403
 Logo fields persist after upload
 Logo fields clear after delete
 ```
@@ -1945,6 +2024,7 @@ Cover:
 No token -> 401
 Missing agency -> 404
 Non-member -> 403
+Active Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
@@ -1981,18 +2061,18 @@ Expected constraints/indexes:
 ```text
 Index on AgencyInvitations.AgencyId
 Index on AgencyInvitations.NormalizedEmail
-Unique index on AgencyInvitations.Token or Code, if using one field
-Optional unique filtered index on AgencyId + NormalizedEmail where Status = Pending
+Unique index on AgencyInvitations.Token
+Unique filtered index on AgencyId + NormalizedEmail where Status = Pending
 ```
 
 Important:
 
 ```text
-Do not expose AgencyInvitation as a public DbSet unless needed by current project aggregate rules.
-Repository can use Set<AgencyInvitation>() internally if following existing child-entity access style.
+AgencyInvitation has its own lifecycle and repository, so exposing AgencyInvitations as a DbSet is acceptable.
+Repository methods remain data-focused.
 ```
 
-Final DbSet decision should follow current project style after exact files are reviewed.
+Final DbSet decisions should follow current project style and avoid exposing child-only entities unnecessarily.
 
 ---
 
