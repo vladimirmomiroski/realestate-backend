@@ -1,4 +1,5 @@
 ﻿using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Agencies.Repositories;
 
@@ -14,6 +15,11 @@ public interface IAgencyInvitationRepository
 
     Task<AgencyInvitation?> GetByIdForUpdateAsync(
         Guid invitationId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AgencyInvitation>> GetByAgencyIdReadOnlyAsync(
+        Guid agencyId,
+        AgencyInvitationStatus? status,
         CancellationToken cancellationToken);
 
     Task<bool> ExistsPendingForAgencyEmailAsync(

@@ -23,6 +23,25 @@ public sealed class AgencyInvitationRepository : IAgencyInvitationRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AgencyInvitation>> GetByAgencyIdReadOnlyAsync(
+    Guid agencyId,
+    AgencyInvitationStatus? status,
+    CancellationToken cancellationToken)
+    {
+        IQueryable<AgencyInvitation> query = _dbContext.AgencyInvitations
+            .AsNoTracking()
+            .Where(invitation => invitation.AgencyId == agencyId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(invitation => invitation.Status == status.Value);
+        }
+
+        return await query
+            .OrderByDescending(invitation => invitation.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<AgencyInvitation?> GetByTokenForUpdateAsync(
         string token,
         CancellationToken cancellationToken)
