@@ -12,6 +12,7 @@ using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Agencies.Commands.UpdateAgency;
 using RealEstate.Application.Agencies.Queries.GetAgencyDashboardListings;
 using RealEstate.Domain.Enums;
+using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 
 namespace RealEstate.Api.Controllers;
 
@@ -27,8 +28,9 @@ public sealed class AgenciesController : ControllerBase
     private readonly GetAgencyListingsHandler _getAgencyListingsHandler;
     private readonly UpdateAgencyHandler _updateAgencyHandler;
     private readonly GetAgencyDashboardListingsHandler _getAgencyDashboardListingsHandler;
+    private readonly CreateAgencyInvitationHandler _createAgencyInvitationHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -38,6 +40,7 @@ public sealed class AgenciesController : ControllerBase
         _getAgencyListingsHandler = getAgencyListingsHandler;
         _updateAgencyHandler = updateAgencyHandler;
         _getAgencyDashboardListingsHandler = getAgencyDashboardListingsHandler;
+        _createAgencyInvitationHandler = createAgencyInvitationHandler;
     }
 
     [Authorize]
@@ -234,5 +237,48 @@ public sealed class AgenciesController : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/invitations")]
+    [ProducesResponseType(typeof(AgencyInvitationResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AgencyInvitationResponse>> CreateAgencyInvitation(
+    Guid id,
+    [FromBody] CreateAgencyInvitationRequest request,
+    CancellationToken cancellationToken)
+    {
+        ServiceResult<AgencyInvitationResponse> result =
+            await _createAgencyInvitationHandler.HandleAsync(
+                id,
+                request,
+                cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
+        }
+
+        return Created(
+            $"/api/agencies/{id}/invitations/{result.Value!.Id}",
+            result.Value);
     }
 }
