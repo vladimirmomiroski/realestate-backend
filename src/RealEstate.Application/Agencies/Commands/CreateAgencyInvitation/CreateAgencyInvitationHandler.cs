@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Net.Mail;
 using System.Security.Cryptography;
 using RealEstate.Application.Agencies.Dtos;
 using RealEstate.Application.Agencies.Repositories;
@@ -19,17 +18,20 @@ public sealed class CreateAgencyInvitationHandler
     private readonly IUserRepository _userRepository;
     private readonly IAgencyRepository _agencyRepository;
     private readonly IAgencyInvitationRepository _agencyInvitationRepository;
+    private readonly CreateAgencyInvitationValidator _validator;
 
     public CreateAgencyInvitationHandler(
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IAgencyRepository agencyRepository,
-        IAgencyInvitationRepository agencyInvitationRepository)
+        IAgencyInvitationRepository agencyInvitationRepository,
+        CreateAgencyInvitationValidator validator)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _agencyRepository = agencyRepository;
         _agencyInvitationRepository = agencyInvitationRepository;
+        _validator = validator;
     }
 
     public async Task<ServiceResult<AgencyInvitationResponse>> HandleAsync(
@@ -83,17 +85,15 @@ public sealed class CreateAgencyInvitationHandler
                 "Only active agency owners can invite members.");
         }
 
-        if (!TryNormalizeEmail(request.Email, out string email, out string normalizedEmail))
+        string? validationError = _validator.Validate(request);
+
+        if (validationError is not null)
         {
-            return ServiceResult<AgencyInvitationResponse>.ValidationError(
-                "A valid email is required.");
+            return ServiceResult<AgencyInvitationResponse>.ValidationError(validationError);
         }
 
-        if (request.Role is not AgencyMemberRole.Owner and not AgencyMemberRole.Agent)
-        {
-            return ServiceResult<AgencyInvitationResponse>.ValidationError(
-                "Invitation role must be Owner or Agent.");
-        }
+        string email = request.Email.Trim();
+        string normalizedEmail = email.ToUpperInvariant();
 
         bool pendingInvitationExists =
             await _agencyInvitationRepository.ExistsPendingForAgencyEmailAsync(
@@ -107,7 +107,7 @@ public sealed class CreateAgencyInvitationHandler
                 "A pending invitation already exists for this email.");
         }
 
-        User? invitedUser = await _userRepository.GetByNormalizedEmailAsync(
+        User? invitedUser = await _userRepository.GetByNormalizedEmailReadOnlyAsync(
             normalizedEmail,
             cancellationToken);
 
@@ -142,33 +142,6 @@ public sealed class CreateAgencyInvitationHandler
         AgencyInvitationResponse response = ToResponse(invitation);
 
         return ServiceResult<AgencyInvitationResponse>.Success(response);
-    }
-
-    private static bool TryNormalizeEmail(
-        string? value,
-        out string email,
-        out string normalizedEmail)
-    {
-        email = string.Empty;
-        normalizedEmail = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        string trimmedEmail = value.Trim();
-
-        if (!MailAddress.TryCreate(trimmedEmail, out MailAddress? mailAddress) ||
-            mailAddress.Address != trimmedEmail)
-        {
-            return false;
-        }
-
-        email = trimmedEmail;
-        normalizedEmail = trimmedEmail.ToUpperInvariant();
-
-        return true;
     }
 
     private static string GenerateToken()

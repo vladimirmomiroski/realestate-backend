@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<CreateAgencyValidator>();
         services.AddScoped<CreateAgencyHandler>();
 
+        services.AddScoped<CreateAgencyInvitationValidator>();
         services.AddScoped<CreateAgencyInvitationHandler>();
 
         services.AddScoped<GetAgencyByIdHandler>();
