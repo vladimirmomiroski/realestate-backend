@@ -18,7 +18,15 @@ public sealed class AgencyInvitationResponse
 
     public string Code { get; init; } = null!;
 
+    public Guid InvitedByUserId { get; init; }
+
+    public Guid? AcceptedByUserId { get; init; }
+
     public DateTime ExpiresAtUtc { get; init; }
 
     public DateTime CreatedAtUtc { get; init; }
+
+    public DateTime? AcceptedAtUtc { get; init; }
+
+    public DateTime? CancelledAtUtc { get; init; }
 }

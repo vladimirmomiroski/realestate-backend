@@ -7,6 +7,7 @@ using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Application.Agencies.Mappings;
 
 namespace RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 
@@ -139,7 +140,7 @@ public sealed class CreateAgencyInvitationHandler
             invitation,
             cancellationToken);
 
-        AgencyInvitationResponse response = ToResponse(invitation);
+        AgencyInvitationResponse response = invitation.ToResponse();
 
         return ServiceResult<AgencyInvitationResponse>.Success(response);
     }
@@ -161,19 +162,4 @@ public sealed class CreateAgencyInvitationHandler
             .ToString("D6", CultureInfo.InvariantCulture);
     }
 
-    private static AgencyInvitationResponse ToResponse(AgencyInvitation invitation)
-    {
-        return new AgencyInvitationResponse
-        {
-            Id = invitation.Id,
-            AgencyId = invitation.AgencyId,
-            Email = invitation.Email,
-            Role = invitation.Role,
-            Status = invitation.Status,
-            Token = invitation.Token,
-            Code = invitation.Code,
-            ExpiresAtUtc = invitation.ExpiresAtUtc,
-            CreatedAtUtc = invitation.CreatedAtUtc
-        };
-    }
 }
