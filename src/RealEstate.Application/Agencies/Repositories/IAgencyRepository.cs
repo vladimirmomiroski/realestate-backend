@@ -19,6 +19,12 @@ public interface IAgencyRepository
         Guid agencyId,
         CancellationToken cancellationToken);
 
+    Task<Agency?> GetByIdWithMembersForUpdateAsync(
+        Guid agencyId,
+        CancellationToken cancellationToken);
+
+    void AddMember(AgencyMember member);
+
     Task<IReadOnlyList<UserAgencyMembershipReadModel>> GetByUserIdReadOnlyAsync(
         Guid userId,
         CancellationToken cancellationToken);
