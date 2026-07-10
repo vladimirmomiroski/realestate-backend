@@ -14,7 +14,7 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed partial class ListingsEndpointTests
 {
     [Fact]
-    public async Task CreateListing_WithAgencyAsActiveMember_ReturnsCreated()
+    public async Task CreateListing_WithAgencyAsActiveOwner_ReturnsCreated()
     {
         // Arrange
         AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -64,6 +64,74 @@ public sealed partial class ListingsEndpointTests
 
             listing.CreatedByUserId.Should().Be(user.UserId);
             listing.AgencyId.Should().Be(agencyId);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task CreateListing_WithAgencyAsActiveAgent_ReturnsCreated()
+    {
+        // Arrange
+        AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        AuthenticatedTestUser agent = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid agencyId = await CreateAgencyWithMemberAsync(
+            owner.UserId,
+            agent.UserId,
+            AgencyMemberRole.Agent,
+            AgencyMemberStatus.Active);
+
+        _httpClient.AuthorizeAs(agent.AccessToken);
+
+        try
+        {
+            var request = ListingTestHelpers.CreateValidListingRequest(
+                agencyId: agencyId);
+
+            // Act
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task CreateListing_WithAgencyAsActiveManager_ReturnsForbidden()
+    {
+        // Arrange
+        AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        AuthenticatedTestUser manager = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid agencyId = await CreateAgencyWithMemberAsync(
+            owner.UserId,
+            manager.UserId,
+            AgencyMemberRole.Manager,
+            AgencyMemberStatus.Active);
+
+        _httpClient.AuthorizeAs(manager.AccessToken);
+
+        try
+        {
+            var request = ListingTestHelpers.CreateValidListingRequest(
+                agencyId: agencyId);
+
+            // Act
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         }
         finally
         {
@@ -236,5 +304,30 @@ public sealed partial class ListingsEndpointTests
         firstListing.GetProperty("id").GetGuid().Should().Be(agencyListingId);
         firstListing.GetProperty("id").GetGuid().Should().NotBe(personalListingId);
         firstListing.GetProperty("agencyId").GetGuid().Should().Be(agencyId);
+    }
+
+    private async Task<Guid> CreateAgencyWithMemberAsync(
+        Guid ownerUserId,
+        Guid memberUserId,
+        AgencyMemberRole memberRole,
+        AgencyMemberStatus memberStatus)
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+
+        var dbContext = scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        var agency = AgencyTestHelpers.CreateAgency();
+
+        agency.AddMember(ownerUserId, AgencyMemberRole.Owner);
+        agency.AddMember(
+            memberUserId,
+            memberRole,
+            memberStatus);
+
+        dbContext.Agencies.Add(agency);
+
+        await dbContext.SaveChangesAsync();
+
+        return agency.Id;
     }
 }

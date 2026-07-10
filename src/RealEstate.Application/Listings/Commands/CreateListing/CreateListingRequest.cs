@@ -8,8 +8,6 @@ public sealed class CreateListingRequest
 
     public PropertyType PropertyType { get; set; }
 
-    public ListingStatus Status { get; set; }
-
     public Guid? AgencyId { get; set; }
 
     public decimal Price { get; set; }
