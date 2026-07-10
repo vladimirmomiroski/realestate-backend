@@ -752,32 +752,14 @@ Verification:
 - Error response framework.
 - Architecture rewrite.
 
-# 9E — Accept agency invitation by token/code
+# 9E — Accept agency invitation by token
+
+Status: Completed.
 
 ## Endpoint
 
-Recommended endpoint:
-
 ```http
 PUT /api/agencies/invitations/accept
-```
-
-Alternative endpoint:
-
-```http
-PUT /api/agencies/invitations/{tokenOrCode}/accept
-```
-
-Preferred Chapter 9 endpoint:
-
-```http
-PUT /api/agencies/invitations/accept
-```
-
-Request:
-
-```text
-Token or Code
 ```
 
 Auth:
@@ -786,11 +768,27 @@ Auth:
 Requires JWT.
 ```
 
+Request:
+
+```json
+{
+  "token": "..."
+}
+```
+
+Response:
+
+```text
+200 OK with AgencyInvitationListItemResponse.
+The accept response does not expose Token or Code.
+```
+
 Reason:
 
 ```text
-Token/code should be treated as the invitation credential.
+Token is the Chapter 9 accept credential.
 Invitation id alone should not be enough to accept.
+Code remains reserved for future manual-code support.
 ```
 
 ---
@@ -807,14 +805,16 @@ Authenticated PendingVerification user whose normalized email matches invitation
 Blocked:
 
 ```text
-No token/JWT -> 401
+No JWT -> 401
+Current user cannot be resolved -> 401
+Missing token -> 400
 Disabled user -> 403
-Token/code not found -> 404
+Token not found -> 404
 Invitation email does not match current user email -> 403
 Invitation is Cancelled -> 400
 Invitation is Accepted -> 400
 Invitation is Expired -> 400
-Invitation has passed ExpiresAtUtc -> 400 and may be marked Expired
+Invitation has passed ExpiresAtUtc -> 400 and is marked Expired when still Pending
 Already a member of the agency -> 400
 ```
 
@@ -840,28 +840,48 @@ Never create duplicate agency membership for the same agency + user.
 
 ---
 
-## Why token/code instead of id-only accept
+## Implementation notes
 
-Rule:
+Completed:
 
 ```text
-Accepting an invitation must not rely only on invitation id.
+Added PUT /api/agencies/invitations/accept.
+Added AcceptAgencyInvitationRequest with Token only.
+Added AcceptAgencyInvitationHandler and validator.
+Accept handler uses IUserRepository and ICurrentUserService, not AgencyAdminAccessChecker.
+Accept handler loads invitations through GetByTokenForUpdateAsync.
+Added IAgencyRepository.GetByIdWithMembersForUpdateAsync for accept flow.
+AgencyRepository loads Members for that method so Agency.AddMember can enforce duplicate membership.
+Accept response reuses AgencyInvitationListItemResponse and does not return Token or Code.
 ```
 
-Reason:
+Tests added:
 
 ```text
-Invitation id identifies the row.
-Token/code proves the user has the invitation credential.
+No access token -> 401.
+Missing token -> 400.
+Valid token and matching email -> 200.
+Accept creates Active agency member.
+Accept marks invitation Accepted.
+PendingVerification user can accept.
+Disabled user -> 403.
+Email mismatch -> 403.
+Unknown token -> 404.
+Already accepted invitation -> 400.
+Cancelled invitation -> 400.
+Expired invitation -> 400.
+Past ExpiresAtUtc marks invitation Expired and returns 400.
+Already member -> 400.
 ```
 
-Even with email matching, token/code is still required.
-
-Reason:
+Out of scope:
 
 ```text
-Email matching protects against accepting someone else's invitation after login.
-Token/code protects against accepting by guessing or discovering an invitation id.
+Code/manual-code accept flow.
+Accepting by invitation id.
+Invitation cancellation.
+Member disabling.
+Role changes.
 ```
 
 ---
