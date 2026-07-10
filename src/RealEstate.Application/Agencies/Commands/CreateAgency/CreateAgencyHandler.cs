@@ -32,13 +32,6 @@ public sealed class CreateAgencyHandler
         CreateAgencyRequest request,
         CancellationToken cancellationToken)
     {
-        string? validationError = _validator.Validate(request);
-
-        if (validationError is not null)
-        {
-            return ServiceResult<AgencyResponse>.ValidationError(validationError);
-        }
-
         if (!_currentUserService.IsAuthenticated ||
             _currentUserService.UserId is not Guid userId)
         {
@@ -60,6 +53,13 @@ public sealed class CreateAgencyHandler
         {
             return ServiceResult<AgencyResponse>.Forbidden(
                 "Disabled users cannot create agencies.");
+        }
+
+        string? validationError = _validator.Validate(request);
+
+        if (validationError is not null)
+        {
+            return ServiceResult<AgencyResponse>.ValidationError(validationError);
         }
 
         string slug = NormalizeSlug(request.Slug);

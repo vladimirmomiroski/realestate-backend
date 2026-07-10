@@ -28,22 +28,22 @@ public sealed class UpdateAgencyHandler
         UpdateAgencyRequest request,
         CancellationToken cancellationToken)
     {
+        AgencyAdminAccessResult<AgencyResponse> accessResult =
+        await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<AgencyResponse>(
+             agencyId,
+             "User is not allowed to update this agency.",
+             cancellationToken);
+
+        if (accessResult.HasFailure)
+        {
+            return accessResult.Failure!;
+        }
+
         string? validationError = _validator.Validate(request);
 
         if (validationError is not null)
         {
             return ServiceResult<AgencyResponse>.ValidationError(validationError);
-        }
-
-        AgencyAdminAccessResult<AgencyResponse> accessResult =
-            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<AgencyResponse>(
-                agencyId,
-                "User is not allowed to update this agency.",
-                cancellationToken);
-
-        if (accessResult.HasFailure)
-        {
-            return accessResult.Failure!;
         }
 
         Agency? agency = await _agencyRepository.GetByIdForUpdateAsync(
