@@ -1,13 +1,12 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using RealEstate.Application.Agencies.Dtos;
+using RealEstate.Application.Agencies.Mappings;
+using RealEstate.Application.Agencies.Permissions;
 using RealEstate.Application.Agencies.Repositories;
 using RealEstate.Application.Common;
-using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
-using RealEstate.Domain.Enums;
-using RealEstate.Application.Agencies.Mappings;
 
 namespace RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 
@@ -15,24 +14,24 @@ public sealed class CreateAgencyInvitationHandler
 {
     private const int InvitationExpiresInDays = 7;
 
-    private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IAgencyRepository _agencyRepository;
     private readonly IAgencyInvitationRepository _agencyInvitationRepository;
     private readonly CreateAgencyInvitationValidator _validator;
+    private readonly AgencyAdminAccessChecker _agencyAdminAccessChecker;
 
     public CreateAgencyInvitationHandler(
-        ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IAgencyRepository agencyRepository,
         IAgencyInvitationRepository agencyInvitationRepository,
-        CreateAgencyInvitationValidator validator)
+        CreateAgencyInvitationValidator validator,
+        AgencyAdminAccessChecker agencyAdminAccessChecker)
     {
-        _currentUserService = currentUserService;
         _userRepository = userRepository;
         _agencyRepository = agencyRepository;
         _agencyInvitationRepository = agencyInvitationRepository;
         _validator = validator;
+        _agencyAdminAccessChecker = agencyAdminAccessChecker;
     }
 
     public async Task<ServiceResult<AgencyInvitationResponse>> HandleAsync(
@@ -40,51 +39,18 @@ public sealed class CreateAgencyInvitationHandler
         CreateAgencyInvitationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!_currentUserService.IsAuthenticated ||
-            _currentUserService.UserId is not Guid currentUserId)
+        AgencyAdminAccessResult<AgencyInvitationResponse> accessResult =
+            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<AgencyInvitationResponse>(
+                agencyId,
+                "Only active agency owners can invite members.",
+                cancellationToken);
+
+        if (accessResult.HasFailure)
         {
-            return ServiceResult<AgencyInvitationResponse>.Unauthorized(
-                "Current user could not be resolved.");
+            return accessResult.Failure!;
         }
 
-        User? currentUser = await _userRepository.GetByIdReadOnlyAsync(
-            currentUserId,
-            cancellationToken);
-
-        if (currentUser is null)
-        {
-            return ServiceResult<AgencyInvitationResponse>.Unauthorized(
-                "Current user could not be resolved.");
-        }
-
-        if (currentUser.Status == UserStatus.Disabled)
-        {
-            return ServiceResult<AgencyInvitationResponse>.Forbidden(
-                "Disabled users cannot invite agency members.");
-        }
-
-        bool agencyExists = await _agencyRepository.ExistsAsync(
-            agencyId,
-            cancellationToken);
-
-        if (!agencyExists)
-        {
-            return ServiceResult<AgencyInvitationResponse>.NotFound(
-                "Agency was not found.");
-        }
-
-        var memberAccess = await _agencyRepository.GetMemberAccessReadOnlyAsync(
-            agencyId,
-            currentUserId,
-            cancellationToken);
-
-        if (memberAccess is null ||
-            memberAccess.Status != AgencyMemberStatus.Active ||
-            memberAccess.Role != AgencyMemberRole.Owner)
-        {
-            return ServiceResult<AgencyInvitationResponse>.Forbidden(
-                "Only active agency owners can invite members.");
-        }
+        Guid currentUserId = accessResult.CurrentUserId;
 
         string? validationError = _validator.Validate(request);
 
@@ -161,5 +127,4 @@ public sealed class CreateAgencyInvitationHandler
             .GetInt32(0, 1_000_000)
             .ToString("D6", CultureInfo.InvariantCulture);
     }
-
 }

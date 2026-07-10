@@ -669,6 +669,63 @@ This is owner-level administration data.
 
 ---
 
+## 9D.1 — Chapter 9 Safety Cleanup
+
+### Goal
+
+Fix permission/API contract drift before continuing with more Chapter 9 endpoints.
+
+This cleanup is split into smaller subtasks to avoid one oversized risky change.
+
+### 9D.1A — Agency permission hardening
+
+Status: Completed.
+
+Completed:
+- Added `AgencyAdminAccessChecker` for current user resolution, disabled-user blocking, agency existence check, and Active Owner admin permission checks.
+- Refactored agency owner-admin permission checks to use the shared checker where appropriate.
+- Disabled users can no longer create agencies.
+- Disabled users can no longer access private agency member reads.
+- Disabled users remain blocked from invitation admin paths through the shared checker.
+- Added integration coverage for disabled-user agency behavior.
+
+Notes:
+- `CreateAgencyInvitationHandler` still uses `IAgencyRepository` for invitation-specific validation, such as checking whether the invited user is already an agency member. This is intentional and is not admin-access logic.
+- Private agency dashboard listing access already had disabled-user coverage and remains handled separately through listing-access rules.
+
+Test result:
+- `dotnet test` passing: 263/263.
+
+### 9D.1B — Invitation response contract cleanup
+
+Status: Pending.
+
+Planned:
+- Split invitation create/list response contracts.
+- Keep `Token` and `Code` in the create-invitation response.
+- Remove `Token` and `Code` from the invitation list response.
+- Lock Chapter 9 accept flow to use `Token` only.
+- Keep `Code` reserved for future manual-code support.
+
+### 9D.1C — Listing create permission and contract cleanup
+
+Status: Pending.
+
+Planned:
+- Remove ignored `Status` from `CreateListingRequest`.
+- New listings continue to be created as `Draft`.
+- Disabled users cannot create listings.
+- Agency listing creation requires Active Owner or Active Agent.
+- Active Manager cannot create agency listings until Manager permissions are explicitly defined.
+
+### Out of scope for 9D.1
+
+- Broad test refactor.
+- Search performance redesign.
+- Pagination contract cleanup.
+- Error response framework.
+- Architecture rewrite.
+
 # 9E — Accept agency invitation by token/code
 
 ## Endpoint

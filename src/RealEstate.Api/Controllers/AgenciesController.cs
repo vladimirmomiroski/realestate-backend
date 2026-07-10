@@ -51,6 +51,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(typeof(AgencyResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<AgencyResponse>> CreateAgency(
         [FromBody] CreateAgencyRequest request,
         CancellationToken cancellationToken)
@@ -61,6 +62,16 @@ public sealed class AgenciesController : ControllerBase
         if (result.Status == ServiceResultStatus.ValidationError)
         {
             return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
         }
 
         return Created($"/api/agencies/{result.Value!.Id}", result.Value);
@@ -127,6 +138,11 @@ public sealed class AgenciesController : ControllerBase
     {
         ServiceResult<IReadOnlyList<AgencyMemberResponse>> result =
             await _getAgencyMembersHandler.HandleAsync(id, cancellationToken);
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
 
         if (result.Status == ServiceResultStatus.NotFound)
         {
@@ -227,6 +243,11 @@ public sealed class AgenciesController : ControllerBase
         if (result.Status == ServiceResultStatus.ValidationError)
         {
             return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
         }
 
         if (result.Status == ServiceResultStatus.NotFound)

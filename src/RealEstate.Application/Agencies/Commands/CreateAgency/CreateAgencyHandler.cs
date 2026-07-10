@@ -5,6 +5,7 @@ using RealEstate.Application.Common;
 using RealEstate.Application.Common.Authentication;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Application.Users.Repositories;
 
 namespace RealEstate.Application.Agencies.Commands.CreateAgency;
 
@@ -13,30 +14,53 @@ public sealed class CreateAgencyHandler
     private readonly IAgencyRepository _agencyRepository;
     private readonly CreateAgencyValidator _validator;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
 
     public CreateAgencyHandler(
         IAgencyRepository agencyRepository,
         CreateAgencyValidator validator,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _agencyRepository = agencyRepository;
         _validator = validator;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ServiceResult<AgencyResponse>> HandleAsync(
         CreateAgencyRequest request,
         CancellationToken cancellationToken)
     {
+        if (!_currentUserService.IsAuthenticated ||
+            _currentUserService.UserId is not Guid userId)
+        {
+            return ServiceResult<AgencyResponse>.Unauthorized(
+                "Current user could not be resolved.");
+        }
+
+        User? currentUser = await _userRepository.GetByIdReadOnlyAsync(
+            userId,
+            cancellationToken);
+
+        if (currentUser is null)
+        {
+            return ServiceResult<AgencyResponse>.Unauthorized(
+                "Current user could not be resolved.");
+        }
+
+        if (currentUser.Status == UserStatus.Disabled)
+        {
+            return ServiceResult<AgencyResponse>.Forbidden(
+                "Disabled users cannot create agencies.");
+        }
+
         string? validationError = _validator.Validate(request);
 
         if (validationError is not null)
         {
             return ServiceResult<AgencyResponse>.ValidationError(validationError);
         }
-
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
 
         string slug = NormalizeSlug(request.Slug);
 
