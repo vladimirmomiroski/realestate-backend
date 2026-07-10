@@ -13,6 +13,7 @@ using RealEstate.Application.Agencies.Commands.UpdateAgency;
 using RealEstate.Application.Agencies.Queries.GetAgencyDashboardListings;
 using RealEstate.Domain.Enums;
 using RealEstate.Application.Agencies.Commands.AcceptAgencyInvitation;
+using RealEstate.Application.Agencies.Commands.CancelAgencyInvitation;
 using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 using RealEstate.Application.Agencies.Queries.GetAgencyInvitations;
 
@@ -32,9 +33,10 @@ public sealed class AgenciesController : ControllerBase
     private readonly GetAgencyDashboardListingsHandler _getAgencyDashboardListingsHandler;
     private readonly CreateAgencyInvitationHandler _createAgencyInvitationHandler;
     private readonly AcceptAgencyInvitationHandler _acceptAgencyInvitationHandler;
+    private readonly CancelAgencyInvitationHandler _cancelAgencyInvitationHandler;
     private readonly GetAgencyInvitationsHandler _getAgencyInvitationsHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -46,6 +48,7 @@ public sealed class AgenciesController : ControllerBase
         _getAgencyDashboardListingsHandler = getAgencyDashboardListingsHandler;
         _createAgencyInvitationHandler = createAgencyInvitationHandler;
         _acceptAgencyInvitationHandler = acceptAgencyInvitationHandler;
+        _cancelAgencyInvitationHandler = cancelAgencyInvitationHandler;
         _getAgencyInvitationsHandler = getAgencyInvitationsHandler;
     }
 
@@ -364,6 +367,47 @@ public sealed class AgenciesController : ControllerBase
         ServiceResult<AgencyInvitationListItemResponse> result =
             await _acceptAgencyInvitationHandler.HandleAsync(
                 request,
+                cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
+        }
+
+        return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpPut("{agencyId:guid}/invitations/{invitationId:guid}/cancel")]
+    [ProducesResponseType(typeof(AgencyInvitationListItemResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AgencyInvitationListItemResponse>> CancelAgencyInvitation(
+        Guid agencyId,
+        Guid invitationId,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<AgencyInvitationListItemResponse> result =
+            await _cancelAgencyInvitationHandler.HandleAsync(
+                agencyId,
+                invitationId,
                 cancellationToken);
 
         if (result.Status == ServiceResultStatus.ValidationError)

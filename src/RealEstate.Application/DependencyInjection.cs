@@ -26,6 +26,7 @@ using RealEstate.Application.Users.Commands.UpdateCurrentUserProfile;
 using RealEstate.Application.Users.Commands.UploadCurrentUserAvatar;
 using RealEstate.Application.Users.Commands.DeleteCurrentUserAvatar;
 using RealEstate.Application.Agencies.Commands.AcceptAgencyInvitation;
+using RealEstate.Application.Agencies.Commands.CancelAgencyInvitation;
 using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 using RealEstate.Application.Agencies.Queries.GetAgencyInvitations;
 
@@ -55,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<CreateAgencyInvitationHandler>();
         services.AddScoped<AcceptAgencyInvitationValidator>();
         services.AddScoped<AcceptAgencyInvitationHandler>();
+        services.AddScoped<CancelAgencyInvitationHandler>();
 
         services.AddScoped<GetAgencyByIdHandler>();
         services.AddScoped<GetAgencyBySlugHandler>();

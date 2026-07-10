@@ -888,9 +888,9 @@ Role changes.
 
 # 9F — Cancel agency invitation
 
-## Endpoint
+Status: Completed.
 
-Recommended endpoint:
+## Endpoint
 
 ```http
 PUT /api/agencies/{agencyId}/invitations/{invitationId}/cancel
@@ -900,6 +900,19 @@ Auth:
 
 ```text
 Requires JWT.
+```
+
+Request:
+
+```text
+No body.
+```
+
+Response:
+
+```text
+200 OK with AgencyInvitationListItemResponse.
+The cancel response does not expose Token or Code.
 ```
 
 ---
@@ -915,7 +928,8 @@ Active Owner
 Blocked:
 
 ```text
-No token -> 401
+No JWT -> 401
+Current user cannot be resolved -> 401
 Non-member -> 403
 Active Agent -> 403
 Active Manager -> 403
@@ -931,6 +945,7 @@ Reason:
 
 ```text
 Cancelling invitations is agency access administration.
+AgencyAdminAccessChecker is used so only an Active Owner member can cancel.
 ```
 
 ---
@@ -943,17 +958,13 @@ Allowed:
 Pending -> Cancelled
 ```
 
-Idempotent:
-
-```text
-Cancelled -> Cancelled
-```
-
 Blocked:
 
 ```text
 Accepted -> 400 Bad Request
+Cancelled -> 400 Bad Request
 Expired -> 400 Bad Request
+Pending with past ExpiresAtUtc -> mark Expired, persist, then 400 Bad Request
 ```
 
 Reason:
@@ -961,6 +972,53 @@ Reason:
 ```text
 Cancelling an already accepted invitation would not remove the created membership.
 Expired invitations are already unusable.
+```
+
+---
+
+## Implementation notes
+
+Completed:
+
+```text
+Added PUT /api/agencies/{agencyId}/invitations/{invitationId}/cancel.
+Added CancelAgencyInvitationHandler.
+Cancel handler uses AgencyAdminAccessChecker.
+Cancel handler loads invitations through GetByIdForUpdateAsync.
+Cancel handler returns NotFound when invitation belongs to another agency.
+Cancel handler uses AgencyInvitation.Cancel(...).
+Cancel response reuses AgencyInvitationListItemResponse and does not return Token or Code.
+```
+
+Tests added:
+
+```text
+No access token -> 401.
+Active owner can cancel pending invitation -> 200.
+Cancel marks invitation Cancelled.
+Cancel response does not expose Token or Code.
+Active Agent -> 403.
+Active Manager -> 403.
+Non-member -> 403.
+Disabled owner -> 403.
+Missing agency -> 404.
+Missing invitation -> 404.
+Invitation belongs to different agency -> 404.
+Accepted invitation -> 400.
+Cancelled invitation -> 400.
+Expired invitation -> 400.
+Pending invitation past ExpiresAtUtc marks Expired and returns 400.
+```
+
+Out of scope:
+
+```text
+Accept invitation behavior.
+Member disabling.
+Role changes.
+Logo upload.
+Admin verification.
+Code/manual-code invitation flow.
 ```
 
 ---
