@@ -265,17 +265,17 @@ public sealed class AgenciesController : ControllerBase
 
     [Authorize]
     [HttpPost("{id:guid}/invitations")]
-    [ProducesResponseType(typeof(AgencyInvitationResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(AgencyInvitationCreatedResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AgencyInvitationResponse>> CreateAgencyInvitation(
+    public async Task<ActionResult<AgencyInvitationCreatedResponse>> CreateAgencyInvitation(
     Guid id,
     [FromBody] CreateAgencyInvitationRequest request,
     CancellationToken cancellationToken)
     {
-        ServiceResult<AgencyInvitationResponse> result =
+        ServiceResult<AgencyInvitationCreatedResponse> result =
             await _createAgencyInvitationHandler.HandleAsync(
                 id,
                 request,
@@ -308,12 +308,12 @@ public sealed class AgenciesController : ControllerBase
 
     [Authorize]
     [HttpGet("{id:guid}/invitations")]
-    [ProducesResponseType(typeof(IReadOnlyList<AgencyInvitationResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<AgencyInvitationListItemResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IReadOnlyList<AgencyInvitationResponse>>> GetAgencyInvitations(
+    public async Task<ActionResult<IReadOnlyList<AgencyInvitationListItemResponse>>> GetAgencyInvitations(
     Guid id,
     [FromQuery] AgencyInvitationStatus? status,
     CancellationToken cancellationToken)
@@ -324,7 +324,7 @@ public sealed class AgenciesController : ControllerBase
             Status = status
         };
 
-        ServiceResult<IReadOnlyList<AgencyInvitationResponse>> result =
+        ServiceResult<IReadOnlyList<AgencyInvitationListItemResponse>> result =
             await _getAgencyInvitationsHandler.HandleAsync(
                 query,
                 cancellationToken);

@@ -34,13 +34,13 @@ public sealed class CreateAgencyInvitationHandler
         _agencyAdminAccessChecker = agencyAdminAccessChecker;
     }
 
-    public async Task<ServiceResult<AgencyInvitationResponse>> HandleAsync(
+    public async Task<ServiceResult<AgencyInvitationCreatedResponse>> HandleAsync(
         Guid agencyId,
         CreateAgencyInvitationRequest request,
         CancellationToken cancellationToken)
     {
-        AgencyAdminAccessResult<AgencyInvitationResponse> accessResult =
-            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<AgencyInvitationResponse>(
+        AgencyAdminAccessResult<AgencyInvitationCreatedResponse> accessResult =
+            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<AgencyInvitationCreatedResponse>(
                 agencyId,
                 "Only active agency owners can invite members.",
                 cancellationToken);
@@ -56,7 +56,7 @@ public sealed class CreateAgencyInvitationHandler
 
         if (validationError is not null)
         {
-            return ServiceResult<AgencyInvitationResponse>.ValidationError(validationError);
+            return ServiceResult<AgencyInvitationCreatedResponse>.ValidationError(validationError);
         }
 
         string email = request.Email.Trim();
@@ -70,7 +70,7 @@ public sealed class CreateAgencyInvitationHandler
 
         if (pendingInvitationExists)
         {
-            return ServiceResult<AgencyInvitationResponse>.ValidationError(
+            return ServiceResult<AgencyInvitationCreatedResponse>.ValidationError(
                 "A pending invitation already exists for this email.");
         }
 
@@ -87,7 +87,7 @@ public sealed class CreateAgencyInvitationHandler
 
             if (existingMemberAccess is not null)
             {
-                return ServiceResult<AgencyInvitationResponse>.ValidationError(
+                return ServiceResult<AgencyInvitationCreatedResponse>.ValidationError(
                     "User is already a member of this agency.");
             }
         }
@@ -106,9 +106,9 @@ public sealed class CreateAgencyInvitationHandler
             invitation,
             cancellationToken);
 
-        AgencyInvitationResponse response = invitation.ToResponse();
+        AgencyInvitationCreatedResponse response = invitation.ToCreatedResponse();
 
-        return ServiceResult<AgencyInvitationResponse>.Success(response);
+        return ServiceResult<AgencyInvitationCreatedResponse>.Success(response);
     }
 
     private static string GenerateToken()

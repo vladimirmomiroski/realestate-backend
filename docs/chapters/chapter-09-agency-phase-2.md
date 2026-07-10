@@ -698,14 +698,27 @@ Test result:
 
 ### 9D.1B — Invitation response contract cleanup
 
-Status: Pending.
+Status: Completed.
 
-Planned:
+Completed:
 - Split invitation create/list response contracts.
-- Keep `Token` and `Code` in the create-invitation response.
-- Remove `Token` and `Code` from the invitation list response.
-- Lock Chapter 9 accept flow to use `Token` only.
-- Keep `Code` reserved for future manual-code support.
+- Deleted the shared `AgencyInvitationResponse` contract.
+- `POST /api/agencies/{id}/invitations` now returns `AgencyInvitationCreatedResponse`.
+- `AgencyInvitationCreatedResponse` includes `Token` and `Code`.
+- `GET /api/agencies/{id}/invitations` now returns `IReadOnlyList<AgencyInvitationListItemResponse>`.
+- `AgencyInvitationListItemResponse` does not include `Token` or `Code`.
+- Updated invitation mapping to use separate create/list mapping methods.
+- Updated `CreateAgencyInvitationHandler`, `GetAgencyInvitationsHandler`, and `AgenciesController` to use the split contracts.
+- Updated invitation list integration coverage to assert `token` and `code` are not returned.
+- Chapter 9 accept flow remains `Token`-only.
+- `Code` remains reserved for future manual-code support.
+
+Notes:
+- `Code` remains stored on `AgencyInvitation` and returned only immediately after invitation creation.
+- Chapter 9 accept flow is not implemented yet; when implemented, it should use token lookup only.
+
+Verification note:
+- `dotnet build` / `dotnet test` could not be completed in the sandbox because generated build artifacts under `src/RealEstate.Application/obj/Debug/net10.0` were denied write access.
 
 ### 9D.1C — Listing create permission and contract cleanup
 
