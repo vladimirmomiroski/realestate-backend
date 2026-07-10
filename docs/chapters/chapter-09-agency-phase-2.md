@@ -722,14 +722,27 @@ Verification note:
 
 ### 9D.1C — Listing create permission and contract cleanup
 
-Status: Pending.
+Status: Completed.
 
-Planned:
-- Remove ignored `Status` from `CreateListingRequest`.
-- New listings continue to be created as `Draft`.
+Completed:
+- Removed ignored `Status` from `CreateListingRequest`.
+- New listings continue to be created as `Draft` in `CreateListingHandler`.
+- `CreateListingHandler` now resolves and loads the current user before validating the request.
+- Missing/unresolvable current user returns `Unauthorized`.
 - Disabled users cannot create listings.
-- Agency listing creation requires Active Owner or Active Agent.
+- Agency listing creation now uses `AgencyListingAccessChecker`.
+- Agency listing creation requires an Active Owner or Active Agent member.
 - Active Manager cannot create agency listings until Manager permissions are explicitly defined.
+- `ListingsController.CreateListing` maps handler `Unauthorized` results to HTTP 401.
+- Added/updated coverage for draft create response, disabled-user create blocking, Active Agent agency listing creation, and Active Manager blocking.
+
+Notes:
+- PendingVerification users can still create draft listings.
+- Agency status does not block draft agency listing creation; publishing remains stricter and still requires an Active agency.
+
+Verification:
+- dotnet build passed.
+- dotnet test passed.
 
 ### Out of scope for 9D.1
 

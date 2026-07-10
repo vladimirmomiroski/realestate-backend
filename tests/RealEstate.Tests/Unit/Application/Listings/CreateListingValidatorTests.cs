@@ -242,7 +242,6 @@ public sealed class CreateListingValidatorTests
         {
             ListingType = ListingType.Sale,
             PropertyType = PropertyType.Apartment,
-            Status = ListingStatus.Active,
             Price = 120_000m,
             Currency = "EUR",
             AreaSquareMeters = 60m,
@@ -273,7 +272,6 @@ public sealed class CreateListingValidatorTests
         {
             ListingType = ListingType.Sale,
             PropertyType = PropertyType.House,
-            Status = ListingStatus.Active,
             Price = 180_000m,
             Currency = "EUR",
             AreaSquareMeters = 120m,

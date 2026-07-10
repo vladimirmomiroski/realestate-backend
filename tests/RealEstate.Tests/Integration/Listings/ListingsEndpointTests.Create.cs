@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Domain.Enums;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -29,6 +30,7 @@ public sealed partial class ListingsEndpointTests
             var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
             json.GetProperty("id").GetGuid().Should().NotBeEmpty();
+            json.GetProperty("status").GetString().Should().Be(nameof(ListingStatus.Draft));
             json.GetProperty("languageCode").GetString().Should().Be("en");
             json.GetProperty("title").GetString().Should().Be("Integration test apartment");
 
@@ -73,6 +75,31 @@ public sealed partial class ListingsEndpointTests
         var response = await _httpClient.PostAsJsonAsync("/api/listings", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task CreateListing_WhenCurrentUserIsDisabled_ReturnsForbidden()
+    {
+        AuthenticatedTestUser user = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        await SetUserStatusAsync(user.UserId, UserStatus.Disabled);
+
+        _httpClient.AuthorizeAs(user.AccessToken);
+
+        try
+        {
+            var request = ListingTestHelpers.CreateValidListingRequest();
+
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 
     [Fact]

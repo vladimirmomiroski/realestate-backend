@@ -86,6 +86,11 @@ public sealed class ListingsController : ControllerBase
             return NotFound(result.Error);
         }
 
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
         if (result.Status == ServiceResultStatus.Forbidden)
         {
             return Forbid();
