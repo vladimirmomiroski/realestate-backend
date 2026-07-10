@@ -20,12 +20,12 @@ public sealed class GetAgencyInvitationsHandler
         _agencyInvitationRepository = agencyInvitationRepository;
     }
 
-    public async Task<ServiceResult<IReadOnlyList<AgencyInvitationResponse>>> HandleAsync(
-    GetAgencyInvitationsQuery query,
-    CancellationToken cancellationToken)
+    public async Task<ServiceResult<IReadOnlyList<AgencyInvitationListItemResponse>>> HandleAsync(
+        GetAgencyInvitationsQuery query,
+        CancellationToken cancellationToken)
     {
-        AgencyAdminAccessResult<IReadOnlyList<AgencyInvitationResponse>> accessResult =
-            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<IReadOnlyList<AgencyInvitationResponse>>(
+        AgencyAdminAccessResult<IReadOnlyList<AgencyInvitationListItemResponse>> accessResult =
+            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<IReadOnlyList<AgencyInvitationListItemResponse>>(
                 query.AgencyId,
                 "Only active agency owners can view invitations.",
                 cancellationToken);
@@ -41,10 +41,10 @@ public sealed class GetAgencyInvitationsHandler
                 query.Status,
                 cancellationToken);
 
-        IReadOnlyList<AgencyInvitationResponse> response = invitations
-            .Select(invitation => invitation.ToResponse())
+        IReadOnlyList<AgencyInvitationListItemResponse> response = invitations
+            .Select(invitation => invitation.ToListItemResponse())
             .ToList();
 
-        return ServiceResult<IReadOnlyList<AgencyInvitationResponse>>.Success(response);
+        return ServiceResult<IReadOnlyList<AgencyInvitationListItemResponse>>.Success(response);
     }
 }

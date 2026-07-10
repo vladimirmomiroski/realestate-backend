@@ -228,9 +228,9 @@ public sealed partial class AgenciesEndpointTests
             invitation.GetProperty("email").GetString().Should().Be(invitedEmail);
             invitation.GetProperty("role").GetString().Should().Be(nameof(AgencyMemberRole.Agent));
             invitation.GetProperty("status").GetString().Should().Be(nameof(AgencyInvitationStatus.Pending));
-            invitation.GetProperty("token").GetString().Should().NotBeNullOrWhiteSpace();
-            invitation.GetProperty("code").GetString().Should().NotBeNullOrWhiteSpace();
             invitation.GetProperty("invitedByUserId").GetGuid().Should().Be(owner.UserId);
+            invitation.TryGetProperty("token", out _).Should().BeFalse();
+            invitation.TryGetProperty("code", out _).Should().BeFalse();
         }
         finally
         {

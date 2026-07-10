@@ -1,8 +1,8 @@
-﻿using RealEstate.Domain.Enums;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Agencies.Dtos;
 
-public sealed class AgencyInvitationResponse
+public sealed class AgencyInvitationListItemResponse
 {
     public Guid Id { get; init; }
 
@@ -13,10 +13,6 @@ public sealed class AgencyInvitationResponse
     public AgencyMemberRole Role { get; init; }
 
     public AgencyInvitationStatus Status { get; init; }
-
-    public string Token { get; init; } = null!;
-
-    public string Code { get; init; } = null!;
 
     public Guid InvitedByUserId { get; init; }
 
