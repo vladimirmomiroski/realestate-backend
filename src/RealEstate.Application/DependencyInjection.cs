@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<UpdateAgencyValidator>();
         services.AddScoped<UpdateAgencyHandler>();
         services.AddScoped<AgencyListingAccessChecker>();
+        services.AddScoped<AgencyAdminAccessChecker>();
 
 
         services.AddScoped<RegisterUserHandler>();
