@@ -18,6 +18,9 @@ using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 using RealEstate.Application.Agencies.Queries.GetAgencyInvitations;
 using RealEstate.Application.Agencies.Commands.DisableAgencyMember;
 using RealEstate.Application.Agencies.Commands.ChangeAgencyMemberRole;
+using RealEstate.Application.Agencies.Commands.UploadAgencyLogo;
+using RealEstate.Application.Agencies.Commands.DeleteAgencyLogo;
+using RealEstate.Application.Common.Files;
 
 namespace RealEstate.Api.Controllers;
 
@@ -39,8 +42,10 @@ public sealed class AgenciesController : ControllerBase
     private readonly DisableAgencyMemberHandler _disableAgencyMemberHandler;
     private readonly ChangeAgencyMemberRoleHandler _changeAgencyMemberRoleHandler;
     private readonly GetAgencyInvitationsHandler _getAgencyInvitationsHandler;
+    private readonly UploadAgencyLogoHandler _uploadAgencyLogoHandler;
+    private readonly DeleteAgencyLogoHandler _deleteAgencyLogoHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, DisableAgencyMemberHandler disableAgencyMemberHandler, ChangeAgencyMemberRoleHandler changeAgencyMemberRoleHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, DisableAgencyMemberHandler disableAgencyMemberHandler, ChangeAgencyMemberRoleHandler changeAgencyMemberRoleHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler, UploadAgencyLogoHandler uploadAgencyLogoHandler, DeleteAgencyLogoHandler deleteAgencyLogoHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -56,7 +61,8 @@ public sealed class AgenciesController : ControllerBase
         _disableAgencyMemberHandler = disableAgencyMemberHandler;
         _changeAgencyMemberRoleHandler = changeAgencyMemberRoleHandler;
         _getAgencyInvitationsHandler = getAgencyInvitationsHandler;
-
+        _uploadAgencyLogoHandler = uploadAgencyLogoHandler;
+        _deleteAgencyLogoHandler = deleteAgencyLogoHandler;
     }
 
     [Authorize]
@@ -505,6 +511,92 @@ public sealed class AgenciesController : ControllerBase
         {
             return BadRequest(result.Error);
         }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
+        }
+
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpPut("{agencyId:guid}/logo")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(AgencyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AgencyResponse>> UploadAgencyLogo(
+    Guid agencyId,
+    IFormFile? file,
+    CancellationToken cancellationToken)
+    {
+        using var stream = file?.OpenReadStream();
+
+        UploadedFile? uploadedFile = file is null
+            ? null
+            : new UploadedFile(
+                stream!,
+                file.FileName,
+                file.ContentType,
+                file.Length);
+
+        ServiceResult<AgencyResponse> result =
+            await _uploadAgencyLogoHandler.HandleAsync(
+                new UploadAgencyLogoCommand(
+                    agencyId,
+                    uploadedFile),
+                cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
+        }
+
+        return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpDelete("{agencyId:guid}/logo")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteAgencyLogo(
+        Guid agencyId,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<bool> result =
+            await _deleteAgencyLogoHandler.HandleAsync(
+                new DeleteAgencyLogoCommand(agencyId),
+                cancellationToken);
 
         if (result.Status == ServiceResultStatus.Unauthorized)
         {

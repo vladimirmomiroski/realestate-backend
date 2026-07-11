@@ -29,6 +29,14 @@ public sealed class AgencyConfiguration : IEntityTypeConfiguration<Agency>
         builder.Property(agency => agency.LogoUrl)
             .HasMaxLength(500);
 
+        builder.Property(agency => agency.LogoStoredFileName)
+            .HasMaxLength(255);
+
+        builder.Property(agency => agency.LogoContentType)
+            .HasMaxLength(100);
+
+        builder.Property(agency => agency.LogoSizeBytes);
+
         builder.Property(agency => agency.PhoneNumber)
             .HasMaxLength(50);
 

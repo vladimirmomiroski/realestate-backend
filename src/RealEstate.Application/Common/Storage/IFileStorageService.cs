@@ -23,4 +23,14 @@ public interface IFileStorageService
         Guid userId,
         string storedFileName,
         CancellationToken cancellationToken);
+
+    Task<StoredFileResult> SaveAgencyLogoAsync(
+    Guid agencyId,
+    UploadedFile file,
+    CancellationToken cancellationToken);
+
+    Task DeleteAgencyLogoAsync(
+        Guid agencyId,
+        string storedFileName,
+        CancellationToken cancellationToken);
 }

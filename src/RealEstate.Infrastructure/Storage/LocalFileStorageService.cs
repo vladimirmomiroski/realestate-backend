@@ -142,4 +142,77 @@ public sealed class LocalFileStorageService : IFileStorageService
 
         return Task.CompletedTask;
     }
+
+    public async Task<StoredFileResult> SaveAgencyLogoAsync(
+    Guid agencyId,
+    UploadedFile file,
+    CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.RootPath))
+        {
+            throw new InvalidOperationException(
+                "Local file storage root path is not configured.");
+        }
+
+        string originalFileName = Path.GetFileName(file.FileName);
+        string extension = Path.GetExtension(originalFileName).ToLowerInvariant();
+
+        string storedFileName = $"{Guid.NewGuid():N}{extension}";
+
+        string logoFolderPath = Path.Combine(
+            _options.RootPath,
+            "agencies",
+            agencyId.ToString(),
+            "logo");
+
+        Directory.CreateDirectory(logoFolderPath);
+
+        string filePath = Path.Combine(
+            logoFolderPath,
+            storedFileName);
+
+        await using var outputStream = File.Create(filePath);
+
+        await file.Content.CopyToAsync(
+            outputStream,
+            cancellationToken);
+
+        string url =
+            $"{_options.PublicBasePath.TrimEnd('/')}/agencies/{agencyId}/logo/{storedFileName}";
+
+        return new StoredFileResult(
+            originalFileName,
+            storedFileName,
+            file.ContentType,
+            file.Length,
+            url);
+    }
+
+    public Task DeleteAgencyLogoAsync(
+        Guid agencyId,
+        string storedFileName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.RootPath))
+        {
+            throw new InvalidOperationException(
+                "Local file storage root path is not configured.");
+        }
+
+        string safeFileName = Path.GetFileName(storedFileName);
+
+        string filePath = Path.Combine(
+            _options.RootPath,
+            "agencies",
+            agencyId.ToString(),
+            "logo",
+            safeFileName);
+
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        return Task.CompletedTask;
+    }
 }
