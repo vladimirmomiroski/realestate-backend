@@ -5,7 +5,9 @@ namespace RealEstate.Application.Agencies.Repositories;
 
 public interface IAgencyRepository
 {
-    Task CreateAsync(Agency agency, CancellationToken cancellationToken);
+    Task CreateAsync(
+        Agency agency,
+        CancellationToken cancellationToken);
 
     Task<Agency?> GetByIdReadOnlyAsync(
         Guid agencyId,
@@ -25,6 +27,11 @@ public interface IAgencyRepository
 
     void AddMember(AgencyMember member);
 
+    Task<AgencyMember?> GetMemberByIdForUpdateAsync(
+        Guid agencyId,
+        Guid memberId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<UserAgencyMembershipReadModel>> GetByUserIdReadOnlyAsync(
         Guid userId,
         CancellationToken cancellationToken);
@@ -38,7 +45,9 @@ public interface IAgencyRepository
         Guid userId,
         CancellationToken cancellationToken);
 
-    Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken);
+    Task<bool> SlugExistsAsync(
+        string slug,
+        CancellationToken cancellationToken);
 
     Task<bool> ExistsAsync(
         Guid agencyId,
