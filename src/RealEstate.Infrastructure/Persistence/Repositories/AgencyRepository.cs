@@ -114,6 +114,19 @@ public sealed class AgencyRepository : IAgencyRepository
         _dbContext.Set<AgencyMember>().Add(member);
     }
 
+    public async Task<AgencyMember?> GetMemberByIdForUpdateAsync(
+    Guid agencyId,
+    Guid memberId,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Set<AgencyMember>()
+            .FirstOrDefaultAsync(
+                member =>
+                    member.Id == memberId &&
+                    member.AgencyId == agencyId,
+                cancellationToken);
+    }
+
     public async Task<AgencyMemberAccessReadModel?> GetMemberAccessReadOnlyAsync(
         Guid agencyId,
         Guid userId,

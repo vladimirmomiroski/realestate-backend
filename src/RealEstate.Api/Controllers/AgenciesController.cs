@@ -16,6 +16,7 @@ using RealEstate.Application.Agencies.Commands.AcceptAgencyInvitation;
 using RealEstate.Application.Agencies.Commands.CancelAgencyInvitation;
 using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 using RealEstate.Application.Agencies.Queries.GetAgencyInvitations;
+using RealEstate.Application.Agencies.Commands.DisableAgencyMember;
 
 namespace RealEstate.Api.Controllers;
 
@@ -35,8 +36,9 @@ public sealed class AgenciesController : ControllerBase
     private readonly AcceptAgencyInvitationHandler _acceptAgencyInvitationHandler;
     private readonly CancelAgencyInvitationHandler _cancelAgencyInvitationHandler;
     private readonly GetAgencyInvitationsHandler _getAgencyInvitationsHandler;
+    private readonly DisableAgencyMemberHandler _disableAgencyMemberHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, DisableAgencyMemberHandler disableAgencyMemberHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -49,6 +51,7 @@ public sealed class AgenciesController : ControllerBase
         _createAgencyInvitationHandler = createAgencyInvitationHandler;
         _acceptAgencyInvitationHandler = acceptAgencyInvitationHandler;
         _cancelAgencyInvitationHandler = cancelAgencyInvitationHandler;
+        _disableAgencyMemberHandler = disableAgencyMemberHandler;
         _getAgencyInvitationsHandler = getAgencyInvitationsHandler;
     }
 
@@ -431,5 +434,46 @@ public sealed class AgenciesController : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpPut("{agencyId:guid}/members/{memberId:guid}/disable")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DisableAgencyMember(
+    Guid agencyId,
+    Guid memberId,
+    CancellationToken cancellationToken)
+    {
+        ServiceResult<bool> result =
+            await _disableAgencyMemberHandler.HandleAsync(
+                agencyId,
+                memberId,
+                cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
+        }
+
+        return NoContent();
     }
 }

@@ -29,6 +29,7 @@ using RealEstate.Application.Agencies.Commands.AcceptAgencyInvitation;
 using RealEstate.Application.Agencies.Commands.CancelAgencyInvitation;
 using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 using RealEstate.Application.Agencies.Queries.GetAgencyInvitations;
+using RealEstate.Application.Agencies.Commands.DisableAgencyMember;
 
 namespace RealEstate.Application;
 
@@ -57,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<AcceptAgencyInvitationValidator>();
         services.AddScoped<AcceptAgencyInvitationHandler>();
         services.AddScoped<CancelAgencyInvitationHandler>();
+        services.AddScoped<DisableAgencyMemberHandler>();
 
         services.AddScoped<GetAgencyByIdHandler>();
         services.AddScoped<GetAgencyBySlugHandler>();
