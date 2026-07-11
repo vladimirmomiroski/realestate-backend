@@ -60,4 +60,41 @@ public sealed class AgencyMemberTests
         // Assert
         member.Status.Should().Be(AgencyMemberStatus.Disabled);
     }
+
+    [Theory]
+    [InlineData(AgencyMemberRole.Agent, AgencyMemberRole.Owner)]
+    [InlineData(AgencyMemberRole.Owner, AgencyMemberRole.Agent)]
+    public void ChangeRole_ShouldSetRequestedRole(
+    AgencyMemberRole initialRole,
+    AgencyMemberRole requestedRole)
+    {
+        // Arrange
+        var member = new AgencyMember(
+            agencyId: Guid.NewGuid(),
+            userId: Guid.NewGuid(),
+            role: initialRole);
+
+        // Act
+        member.ChangeRole(requestedRole);
+
+        // Assert
+        member.Role.Should().Be(requestedRole);
+    }
+
+    [Fact]
+    public void ChangeRole_ShouldBeIdempotent_WhenRoleIsUnchanged()
+    {
+        // Arrange
+        var member = new AgencyMember(
+            agencyId: Guid.NewGuid(),
+            userId: Guid.NewGuid(),
+            role: AgencyMemberRole.Owner);
+
+        // Act
+        member.ChangeRole(AgencyMemberRole.Owner);
+        member.ChangeRole(AgencyMemberRole.Owner);
+
+        // Assert
+        member.Role.Should().Be(AgencyMemberRole.Owner);
+    }
 }

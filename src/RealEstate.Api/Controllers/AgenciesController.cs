@@ -17,6 +17,7 @@ using RealEstate.Application.Agencies.Commands.CancelAgencyInvitation;
 using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 using RealEstate.Application.Agencies.Queries.GetAgencyInvitations;
 using RealEstate.Application.Agencies.Commands.DisableAgencyMember;
+using RealEstate.Application.Agencies.Commands.ChangeAgencyMemberRole;
 
 namespace RealEstate.Api.Controllers;
 
@@ -35,10 +36,11 @@ public sealed class AgenciesController : ControllerBase
     private readonly CreateAgencyInvitationHandler _createAgencyInvitationHandler;
     private readonly AcceptAgencyInvitationHandler _acceptAgencyInvitationHandler;
     private readonly CancelAgencyInvitationHandler _cancelAgencyInvitationHandler;
-    private readonly GetAgencyInvitationsHandler _getAgencyInvitationsHandler;
     private readonly DisableAgencyMemberHandler _disableAgencyMemberHandler;
+    private readonly ChangeAgencyMemberRoleHandler _changeAgencyMemberRoleHandler;
+    private readonly GetAgencyInvitationsHandler _getAgencyInvitationsHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, DisableAgencyMemberHandler disableAgencyMemberHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, DisableAgencyMemberHandler disableAgencyMemberHandler, ChangeAgencyMemberRoleHandler changeAgencyMemberRoleHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -52,7 +54,9 @@ public sealed class AgenciesController : ControllerBase
         _acceptAgencyInvitationHandler = acceptAgencyInvitationHandler;
         _cancelAgencyInvitationHandler = cancelAgencyInvitationHandler;
         _disableAgencyMemberHandler = disableAgencyMemberHandler;
+        _changeAgencyMemberRoleHandler = changeAgencyMemberRoleHandler;
         _getAgencyInvitationsHandler = getAgencyInvitationsHandler;
+
     }
 
     [Authorize]
@@ -452,6 +456,49 @@ public sealed class AgenciesController : ControllerBase
             await _disableAgencyMemberHandler.HandleAsync(
                 agencyId,
                 memberId,
+                cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
+        }
+
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpPut("{agencyId:guid}/members/{memberId:guid}/role")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ChangeAgencyMemberRole(
+    Guid agencyId,
+    Guid memberId,
+    [FromBody] ChangeAgencyMemberRoleRequest request,
+    CancellationToken cancellationToken)
+    {
+        ServiceResult<bool> result =
+            await _changeAgencyMemberRoleHandler.HandleAsync(
+                agencyId,
+                memberId,
+                request,
                 cancellationToken);
 
         if (result.Status == ServiceResultStatus.ValidationError)

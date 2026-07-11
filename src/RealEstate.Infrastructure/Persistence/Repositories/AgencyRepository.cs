@@ -127,6 +127,19 @@ public sealed class AgencyRepository : IAgencyRepository
                 cancellationToken);
     }
 
+    public async Task<int> CountActiveOwnersAsync(
+    Guid agencyId,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Set<AgencyMember>()
+            .CountAsync(
+                member =>
+                    member.AgencyId == agencyId &&
+                    member.Role == AgencyMemberRole.Owner &&
+                    member.Status == AgencyMemberStatus.Active,
+                cancellationToken);
+    }
+
     public async Task<AgencyMemberAccessReadModel?> GetMemberAccessReadOnlyAsync(
         Guid agencyId,
         Guid userId,

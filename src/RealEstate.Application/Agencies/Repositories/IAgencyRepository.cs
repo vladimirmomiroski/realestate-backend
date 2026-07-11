@@ -1,5 +1,6 @@
 ﻿using RealEstate.Application.Agencies.ReadModels;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Agencies.Repositories;
 
@@ -30,6 +31,10 @@ public interface IAgencyRepository
     Task<AgencyMember?> GetMemberByIdForUpdateAsync(
         Guid agencyId,
         Guid memberId,
+        CancellationToken cancellationToken);
+
+    Task<int> CountActiveOwnersAsync(
+        Guid agencyId,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<UserAgencyMembershipReadModel>> GetByUserIdReadOnlyAsync(

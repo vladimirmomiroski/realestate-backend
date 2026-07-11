@@ -45,6 +45,11 @@ public sealed class AgencyMember : IAuditableEntity
         Status = AgencyMemberStatus.Disabled;
     }
 
+    public void ChangeRole(AgencyMemberRole role)
+    {
+        Role = role;
+    }
+
     public Guid Id { get; private set; } = Guid.NewGuid();
 
     public Guid AgencyId { get; private set; }
