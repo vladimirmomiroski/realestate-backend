@@ -79,6 +79,26 @@ public sealed class Agency : IAuditableEntity
         Municipality = CleanNullableText(municipality);
     }
 
+    public void SetLogo(
+    string logoUrl,
+    string storedFileName,
+    string contentType,
+    long sizeBytes)
+    {
+        LogoUrl = logoUrl.Trim();
+        LogoStoredFileName = storedFileName.Trim();
+        LogoContentType = contentType.Trim();
+        LogoSizeBytes = sizeBytes;
+    }
+
+    public void RemoveLogo()
+    {
+        LogoUrl = null;
+        LogoStoredFileName = null;
+        LogoContentType = null;
+        LogoSizeBytes = null;
+    }
+
     private static string? CleanNullableText(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
@@ -95,6 +115,12 @@ public sealed class Agency : IAuditableEntity
     public string? Description { get; private set; }
 
     public string? LogoUrl { get; private set; }
+
+    public string? LogoStoredFileName { get; private set; }
+
+    public string? LogoContentType { get; private set; }
+
+    public long? LogoSizeBytes { get; private set; }
 
     public string? PhoneNumber { get; private set; }
 

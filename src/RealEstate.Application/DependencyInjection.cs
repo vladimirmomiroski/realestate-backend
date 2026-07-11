@@ -31,6 +31,8 @@ using RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 using RealEstate.Application.Agencies.Queries.GetAgencyInvitations;
 using RealEstate.Application.Agencies.Commands.DisableAgencyMember;
 using RealEstate.Application.Agencies.Commands.ChangeAgencyMemberRole;
+using RealEstate.Application.Agencies.Commands.UploadAgencyLogo;
+using RealEstate.Application.Agencies.Commands.DeleteAgencyLogo;
 
 namespace RealEstate.Application;
 
@@ -62,6 +64,8 @@ public static class DependencyInjection
         services.AddScoped<DisableAgencyMemberHandler>();
         services.AddScoped<ChangeAgencyMemberRoleValidator>();
         services.AddScoped<ChangeAgencyMemberRoleHandler>();
+        services.AddScoped<UploadAgencyLogoHandler>();
+        services.AddScoped<DeleteAgencyLogoHandler>();
 
         services.AddScoped<GetAgencyByIdHandler>();
         services.AddScoped<GetAgencyBySlugHandler>();

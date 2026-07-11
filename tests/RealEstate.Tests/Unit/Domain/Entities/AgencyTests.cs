@@ -109,6 +109,71 @@ public sealed class AgencyTests
         agency.Municipality.Should().BeNull();
     }
 
+    [Fact]
+    public void SetLogo_ShouldSetLogoMetadata()
+    {
+        // Arrange
+        var agency = CreateAgency();
+
+        // Act
+        agency.SetLogo(
+            logoUrl: "/uploads/agencies/agency-id/logo/logo.png",
+            storedFileName: "logo.png",
+            contentType: "image/png",
+            sizeBytes: 128);
+
+        // Assert
+        agency.LogoUrl.Should()
+            .Be("/uploads/agencies/agency-id/logo/logo.png");
+
+        agency.LogoStoredFileName.Should().Be("logo.png");
+        agency.LogoContentType.Should().Be("image/png");
+        agency.LogoSizeBytes.Should().Be(128);
+    }
+
+    [Fact]
+    public void RemoveLogo_ShouldClearLogoMetadata()
+    {
+        // Arrange
+        var agency = CreateAgency();
+
+        agency.SetLogo(
+            logoUrl: "/uploads/agencies/agency-id/logo/logo.png",
+            storedFileName: "logo.png",
+            contentType: "image/png",
+            sizeBytes: 128);
+
+        // Act
+        agency.RemoveLogo();
+
+        // Assert
+        agency.LogoUrl.Should().BeNull();
+        agency.LogoStoredFileName.Should().BeNull();
+        agency.LogoContentType.Should().BeNull();
+        agency.LogoSizeBytes.Should().BeNull();
+    }
+
+    [Fact]
+    public void RemoveLogo_ShouldBeIdempotent()
+    {
+        // Arrange
+        var agency = CreateAgency();
+
+        // Act
+        Action act = () =>
+        {
+            agency.RemoveLogo();
+            agency.RemoveLogo();
+        };
+
+        // Assert
+        act.Should().NotThrow();
+        agency.LogoUrl.Should().BeNull();
+        agency.LogoStoredFileName.Should().BeNull();
+        agency.LogoContentType.Should().BeNull();
+        agency.LogoSizeBytes.Should().BeNull();
+    }
+
     private static Agency CreateAgency()
     {
         return new Agency(
