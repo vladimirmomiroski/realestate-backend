@@ -33,6 +33,7 @@ using RealEstate.Application.Agencies.Commands.DisableAgencyMember;
 using RealEstate.Application.Agencies.Commands.ChangeAgencyMemberRole;
 using RealEstate.Application.Agencies.Commands.UploadAgencyLogo;
 using RealEstate.Application.Agencies.Commands.DeleteAgencyLogo;
+using RealEstate.Application.Common.Permissions;
 
 namespace RealEstate.Application;
 
@@ -76,8 +77,10 @@ public static class DependencyInjection
         services.AddScoped<GetAgencyDashboardListingsHandler>();
         services.AddScoped<UpdateAgencyValidator>();
         services.AddScoped<UpdateAgencyHandler>();
+
         services.AddScoped<AgencyListingAccessChecker>();
         services.AddScoped<AgencyAdminAccessChecker>();
+        services.AddScoped<PlatformAdminAccessChecker>();
 
 
         services.AddScoped<RegisterUserHandler>();
