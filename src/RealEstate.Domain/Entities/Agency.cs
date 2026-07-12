@@ -99,6 +99,49 @@ public sealed class Agency : IAuditableEntity
         LogoSizeBytes = null;
     }
 
+    public void Approve()
+    {
+        if (Status == AgencyStatus.Active)
+        {
+            return;
+        }
+
+        if (Status != AgencyStatus.PendingVerification &&
+            Status != AgencyStatus.Rejected)
+        {
+            throw new InvalidOperationException(
+                "Disabled agencies cannot be approved.");
+        }
+
+        Status = AgencyStatus.Active;
+    }
+
+    public void Reject()
+    {
+        if (Status == AgencyStatus.Rejected)
+        {
+            return;
+        }
+
+        if (Status != AgencyStatus.PendingVerification)
+        {
+            throw new InvalidOperationException(
+                "Only pending verification agencies can be rejected.");
+        }
+
+        Status = AgencyStatus.Rejected;
+    }
+
+    public void Disable()
+    {
+        if (Status == AgencyStatus.Disabled)
+        {
+            return;
+        }
+
+        Status = AgencyStatus.Disabled;
+    }
+
     private static string? CleanNullableText(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
