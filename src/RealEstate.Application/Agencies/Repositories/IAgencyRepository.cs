@@ -33,6 +33,11 @@ public interface IAgencyRepository
         Guid memberId,
         CancellationToken cancellationToken);
 
+    Task<AgencyDashboardSummaryReadModel?> GetDashboardSummaryReadOnlyAsync(
+        Guid agencyId,
+        DateTime utcNow,
+        CancellationToken cancellationToken);
+
     Task<int> CountActiveOwnersAsync(
         Guid agencyId,
         CancellationToken cancellationToken);
