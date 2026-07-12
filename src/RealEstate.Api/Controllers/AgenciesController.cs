@@ -21,6 +21,7 @@ using RealEstate.Application.Agencies.Commands.ChangeAgencyMemberRole;
 using RealEstate.Application.Agencies.Commands.UploadAgencyLogo;
 using RealEstate.Application.Agencies.Commands.DeleteAgencyLogo;
 using RealEstate.Application.Common.Files;
+using RealEstate.Application.Agencies.Queries.GetAgencyDashboardSummary;
 
 namespace RealEstate.Api.Controllers;
 
@@ -44,8 +45,9 @@ public sealed class AgenciesController : ControllerBase
     private readonly GetAgencyInvitationsHandler _getAgencyInvitationsHandler;
     private readonly UploadAgencyLogoHandler _uploadAgencyLogoHandler;
     private readonly DeleteAgencyLogoHandler _deleteAgencyLogoHandler;
+    private readonly GetAgencyDashboardSummaryHandler _getAgencyDashboardSummaryHandler;
 
-    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, DisableAgencyMemberHandler disableAgencyMemberHandler, ChangeAgencyMemberRoleHandler changeAgencyMemberRoleHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler, UploadAgencyLogoHandler uploadAgencyLogoHandler, DeleteAgencyLogoHandler deleteAgencyLogoHandler)
+    public AgenciesController(CreateAgencyHandler createAgencyHandler, GetAgencyByIdHandler getAgencyByIdHandler, GetMyAgenciesHandler getMyAgenciesHandler, GetAgencyMembersHandler getAgencyMembersHandler, GetAgencyBySlugHandler getAgencyBySlugHandler, GetAgencyListingsHandler getAgencyListingsHandler, UpdateAgencyHandler updateAgencyHandler, GetAgencyDashboardListingsHandler getAgencyDashboardListingsHandler, CreateAgencyInvitationHandler createAgencyInvitationHandler, AcceptAgencyInvitationHandler acceptAgencyInvitationHandler, CancelAgencyInvitationHandler cancelAgencyInvitationHandler, DisableAgencyMemberHandler disableAgencyMemberHandler, ChangeAgencyMemberRoleHandler changeAgencyMemberRoleHandler, GetAgencyInvitationsHandler getAgencyInvitationsHandler, UploadAgencyLogoHandler uploadAgencyLogoHandler, DeleteAgencyLogoHandler deleteAgencyLogoHandler, GetAgencyDashboardSummaryHandler getAgencyDashboardSummaryHandler)
     {
         _createAgencyHandler = createAgencyHandler;
         _getAgencyByIdHandler = getAgencyByIdHandler;
@@ -63,6 +65,7 @@ public sealed class AgenciesController : ControllerBase
         _getAgencyInvitationsHandler = getAgencyInvitationsHandler;
         _uploadAgencyLogoHandler = uploadAgencyLogoHandler;
         _deleteAgencyLogoHandler = deleteAgencyLogoHandler;
+        _getAgencyDashboardSummaryHandler = getAgencyDashboardSummaryHandler;
     }
 
     [Authorize]
@@ -239,6 +242,42 @@ public sealed class AgenciesController : ControllerBase
         if (result.Status == ServiceResultStatus.Forbidden)
         {
             return Forbid();
+        }
+
+        return Ok(result.Value);
+    }
+
+    [Authorize]
+    [HttpGet("{agencyId:guid}/dashboard/summary")]
+    [ProducesResponseType(
+    typeof(AgencyDashboardSummaryResponse),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AgencyDashboardSummaryResponse>>
+    GetAgencyDashboardSummary(
+        Guid agencyId,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<AgencyDashboardSummaryResponse> result =
+            await _getAgencyDashboardSummaryHandler.HandleAsync(
+                agencyId,
+                cancellationToken);
+
+        if (result.Status == ServiceResultStatus.Unauthorized)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        if (result.Status == ServiceResultStatus.Forbidden)
+        {
+            return Forbid();
+        }
+
+        if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
         }
 
         return Ok(result.Value);

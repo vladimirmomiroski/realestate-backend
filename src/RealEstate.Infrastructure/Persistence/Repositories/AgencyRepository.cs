@@ -127,6 +127,62 @@ public sealed class AgencyRepository : IAgencyRepository
                 cancellationToken);
     }
 
+    public async Task<AgencyDashboardSummaryReadModel?>
+    GetDashboardSummaryReadOnlyAsync(
+        Guid agencyId,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agencies
+            .AsNoTracking()
+            .Where(agency => agency.Id == agencyId)
+            .Select(agency => new AgencyDashboardSummaryReadModel
+            {
+                AgencyId = agency.Id,
+                AgencyName = agency.Name,
+                AgencyStatus = agency.Status,
+
+                TotalListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id),
+
+                DraftListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id &&
+                        listing.Status == ListingStatus.Draft),
+
+                ActiveListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id &&
+                        listing.Status == ListingStatus.Active),
+
+                ArchivedListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id &&
+                        listing.Status == ListingStatus.Archived),
+
+                MembersCount = _dbContext
+                    .Set<AgencyMember>()
+                    .Count(member =>
+                        member.AgencyId == agency.Id),
+
+                ActiveMembersCount = _dbContext
+                    .Set<AgencyMember>()
+                    .Count(member =>
+                        member.AgencyId == agency.Id &&
+                        member.Status == AgencyMemberStatus.Active),
+
+                PendingInvitationsCount = _dbContext
+                    .Set<AgencyInvitation>()
+                    .Count(invitation =>
+                        invitation.AgencyId == agency.Id &&
+                        invitation.Status ==
+                            AgencyInvitationStatus.Pending &&
+                        invitation.ExpiresAtUtc > utcNow)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<int> CountActiveOwnersAsync(
     Guid agencyId,
     CancellationToken cancellationToken)

@@ -37,6 +37,7 @@ using RealEstate.Application.Common.Permissions;
 using RealEstate.Application.Agencies.Commands.ApproveAgency;
 using RealEstate.Application.Agencies.Commands.RejectAgency;
 using RealEstate.Application.Agencies.Commands.DisableAgency;
+using RealEstate.Application.Agencies.Queries.GetAgencyDashboardSummary;
 
 namespace RealEstate.Application;
 
@@ -78,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<GetAgencyInvitationsHandler>();
         services.AddScoped<GetAgencyListingsHandler>();
         services.AddScoped<GetAgencyDashboardListingsHandler>();
+        services.AddScoped<GetAgencyDashboardSummaryHandler>();
         services.AddScoped<UpdateAgencyValidator>();
         services.AddScoped<UpdateAgencyHandler>();
 
