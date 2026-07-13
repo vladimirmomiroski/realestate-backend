@@ -3,7 +3,8 @@ using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Mappings;
 using RealEstate.Application.Listings.Repositories;
-using RealEstate.Application.Agencies.Repositories;
+using RealEstate.Application.Agencies.Permissions;
+using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 
@@ -17,16 +18,19 @@ public sealed class CreateListingHandler
     private readonly IListingRepository _listingRepository;
     private readonly CreateListingValidator _validator;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IAgencyRepository _agencyRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly AgencyListingAccessChecker _agencyListingAccessChecker;
 
     public CreateListingHandler(
         IListingRepository listingRepository,
-        IAgencyRepository agencyRepository,
+        IUserRepository userRepository,
+        AgencyListingAccessChecker agencyListingAccessChecker,
         CreateListingValidator validator,
         ICurrentUserService currentUserService)
     {
         _listingRepository = listingRepository;
-        _agencyRepository = agencyRepository;
+        _userRepository = userRepository;
+        _agencyListingAccessChecker = agencyListingAccessChecker;
         _validator = validator;
         _currentUserService = currentUserService;
     }
@@ -35,15 +39,38 @@ public sealed class CreateListingHandler
     CreateListingRequest request,
     CancellationToken cancellationToken)
     {
+        Guid? currentUserId = _currentUserService.UserId;
+
+        if (!currentUserId.HasValue)
+        {
+            return ServiceResult<ListingResponse>.Unauthorized(
+                "Current user could not be resolved.");
+        }
+
+        Guid userId = currentUserId.Value;
+
+        User? user = await _userRepository.GetByIdReadOnlyAsync(
+            userId,
+            cancellationToken);
+
+        if (user is null)
+        {
+            return ServiceResult<ListingResponse>.Unauthorized(
+                "Current user could not be resolved.");
+        }
+
+        if (user.Status == UserStatus.Disabled)
+        {
+            return ServiceResult<ListingResponse>.Forbidden(
+                "Disabled users cannot create listings.");
+        }
+
         var validationError = _validator.Validate(request);
 
         if (validationError is not null)
         {
             return ServiceResult<ListingResponse>.ValidationError(validationError);
         }
-
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
 
         int existingListingsCount =
             await _listingRepository.CountByCreatedByUserIdAsync(
@@ -96,24 +123,16 @@ public sealed class CreateListingHandler
 
         if (request.AgencyId.HasValue)
         {
-            bool agencyExists = await _agencyRepository.ExistsAsync(
-                request.AgencyId.Value,
-                cancellationToken);
+            ServiceResult<ListingResponse>? agencyAccessResult =
+                await _agencyListingAccessChecker.EnsureCanManageAgencyListingsAsync<ListingResponse>(
+                    request.AgencyId.Value,
+                    userId,
+                    "User is not allowed to create listings for this agency.",
+                    cancellationToken);
 
-            if (!agencyExists)
+            if (agencyAccessResult is not null)
             {
-                return ServiceResult<ListingResponse>.NotFound("Agency was not found.");
-            }
-
-            bool isActiveMember = await _agencyRepository.IsActiveMemberAsync(
-                request.AgencyId.Value,
-                userId,
-                cancellationToken);
-
-            if (!isActiveMember)
-            {
-                return ServiceResult<ListingResponse>.Forbidden(
-                    "User is not an active member of this agency.");
+                return agencyAccessResult;
             }
 
             listing.AssignAgency(request.AgencyId.Value);

@@ -1,11 +1,14 @@
 ﻿using RealEstate.Application.Agencies.ReadModels;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Agencies.Repositories;
 
 public interface IAgencyRepository
 {
-    Task CreateAsync(Agency agency, CancellationToken cancellationToken);
+    Task CreateAsync(
+        Agency agency,
+        CancellationToken cancellationToken);
 
     Task<Agency?> GetByIdReadOnlyAsync(
         Guid agencyId,
@@ -16,6 +19,26 @@ public interface IAgencyRepository
         CancellationToken cancellationToken);
 
     Task<Agency?> GetByIdForUpdateAsync(
+        Guid agencyId,
+        CancellationToken cancellationToken);
+
+    Task<Agency?> GetByIdWithMembersForUpdateAsync(
+        Guid agencyId,
+        CancellationToken cancellationToken);
+
+    void AddMember(AgencyMember member);
+
+    Task<AgencyMember?> GetMemberByIdForUpdateAsync(
+        Guid agencyId,
+        Guid memberId,
+        CancellationToken cancellationToken);
+
+    Task<AgencyDashboardSummaryReadModel?> GetDashboardSummaryReadOnlyAsync(
+        Guid agencyId,
+        DateTime utcNow,
+        CancellationToken cancellationToken);
+
+    Task<int> CountActiveOwnersAsync(
         Guid agencyId,
         CancellationToken cancellationToken);
 
@@ -32,7 +55,9 @@ public interface IAgencyRepository
         Guid userId,
         CancellationToken cancellationToken);
 
-    Task<bool> SlugExistsAsync(string slug, CancellationToken cancellationToken);
+    Task<bool> SlugExistsAsync(
+        string slug,
+        CancellationToken cancellationToken);
 
     Task<bool> ExistsAsync(
         Guid agencyId,

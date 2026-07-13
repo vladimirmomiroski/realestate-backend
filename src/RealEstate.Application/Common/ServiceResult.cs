@@ -5,7 +5,8 @@ public enum ServiceResultStatus
     Success = 1,
     ValidationError = 2,
     NotFound = 3,
-    Forbidden = 4
+    Forbidden = 4,
+    Unauthorized = 5
 }
 
 public sealed record ServiceResult<T>(
@@ -13,12 +14,6 @@ public sealed record ServiceResult<T>(
     T? Value = default,
     string? Error = null)
 {
-
-    public static ServiceResult<T> Forbidden(string error)
-    {
-        return new ServiceResult<T>(ServiceResultStatus.Forbidden, default, error);
-    }
-
     public static ServiceResult<T> Success(T value)
     {
         return new ServiceResult<T>(ServiceResultStatus.Success, value);
@@ -32,5 +27,15 @@ public sealed record ServiceResult<T>(
     public static ServiceResult<T> NotFound(string error)
     {
         return new ServiceResult<T>(ServiceResultStatus.NotFound, default, error);
+    }
+
+    public static ServiceResult<T> Forbidden(string error)
+    {
+        return new ServiceResult<T>(ServiceResultStatus.Forbidden, default, error);
+    }
+
+    public static ServiceResult<T> Unauthorized(string error)
+    {
+        return new ServiceResult<T>(ServiceResultStatus.Unauthorized, default, error);
     }
 }

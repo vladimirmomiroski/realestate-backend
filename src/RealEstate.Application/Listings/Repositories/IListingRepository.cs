@@ -1,6 +1,7 @@
 ﻿using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Listings.Repositories;
 
@@ -14,8 +15,19 @@ public interface IListingRepository
 
     Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<Listing?> GetByIdForUpdateAsync(
+    Guid id,
+    CancellationToken cancellationToken);
+
     Task<int> CountByCreatedByUserIdAsync(
     Guid createdByUserId,
+    CancellationToken cancellationToken);
+
+    Task<PagedResult<Listing>> GetByAgencyIdForDashboardReadOnlyAsync(
+    Guid agencyId,
+    ListingStatus? status,
+    int page,
+    int pageSize,
     CancellationToken cancellationToken);
 
     Task<Listing?> GetByIdWithImagesForUpdateAsync(

@@ -100,6 +100,102 @@ public sealed class AgencyRepository : IAgencyRepository
             .FirstOrDefaultAsync(agency => agency.Id == agencyId, cancellationToken);
     }
 
+    public async Task<Agency?> GetByIdWithMembersForUpdateAsync(
+        Guid agencyId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agencies
+            .Include(agency => agency.Members)
+            .FirstOrDefaultAsync(agency => agency.Id == agencyId, cancellationToken);
+    }
+
+    public void AddMember(AgencyMember member)
+    {
+        _dbContext.Set<AgencyMember>().Add(member);
+    }
+
+    public async Task<AgencyMember?> GetMemberByIdForUpdateAsync(
+    Guid agencyId,
+    Guid memberId,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Set<AgencyMember>()
+            .FirstOrDefaultAsync(
+                member =>
+                    member.Id == memberId &&
+                    member.AgencyId == agencyId,
+                cancellationToken);
+    }
+
+    public async Task<AgencyDashboardSummaryReadModel?>
+    GetDashboardSummaryReadOnlyAsync(
+        Guid agencyId,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agencies
+            .AsNoTracking()
+            .Where(agency => agency.Id == agencyId)
+            .Select(agency => new AgencyDashboardSummaryReadModel
+            {
+                AgencyId = agency.Id,
+                AgencyName = agency.Name,
+                AgencyStatus = agency.Status,
+
+                TotalListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id),
+
+                DraftListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id &&
+                        listing.Status == ListingStatus.Draft),
+
+                ActiveListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id &&
+                        listing.Status == ListingStatus.Active),
+
+                ArchivedListings = _dbContext.Listings.Count(
+                    listing =>
+                        listing.AgencyId == agency.Id &&
+                        listing.Status == ListingStatus.Archived),
+
+                MembersCount = _dbContext
+                    .Set<AgencyMember>()
+                    .Count(member =>
+                        member.AgencyId == agency.Id),
+
+                ActiveMembersCount = _dbContext
+                    .Set<AgencyMember>()
+                    .Count(member =>
+                        member.AgencyId == agency.Id &&
+                        member.Status == AgencyMemberStatus.Active),
+
+                PendingInvitationsCount = _dbContext
+                    .Set<AgencyInvitation>()
+                    .Count(invitation =>
+                        invitation.AgencyId == agency.Id &&
+                        invitation.Status ==
+                            AgencyInvitationStatus.Pending &&
+                        invitation.ExpiresAtUtc > utcNow)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<int> CountActiveOwnersAsync(
+    Guid agencyId,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.Set<AgencyMember>()
+            .CountAsync(
+                member =>
+                    member.AgencyId == agencyId &&
+                    member.Role == AgencyMemberRole.Owner &&
+                    member.Status == AgencyMemberStatus.Active,
+                cancellationToken);
+    }
+
     public async Task<AgencyMemberAccessReadModel?> GetMemberAccessReadOnlyAsync(
         Guid agencyId,
         Guid userId,

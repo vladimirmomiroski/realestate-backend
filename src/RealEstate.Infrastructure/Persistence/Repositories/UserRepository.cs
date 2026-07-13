@@ -14,12 +14,23 @@ public sealed class UserRepository : IUserRepository
     }
 
     public async Task<User?> GetByNormalizedEmailAsync(
-    string normalizedEmail,
-    CancellationToken cancellationToken)
+        string normalizedEmail,
+        CancellationToken cancellationToken)
     {
         return await _dbContext.Users.SingleOrDefaultAsync(
             user => user.NormalizedEmail == normalizedEmail,
             cancellationToken);
+    }
+
+    public async Task<User?> GetByNormalizedEmailReadOnlyAsync(
+        string normalizedEmail,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                user => user.NormalizedEmail == normalizedEmail,
+                cancellationToken);
     }
 
     public async Task<bool> ExistsByNormalizedEmailAsync(
@@ -29,6 +40,23 @@ public sealed class UserRepository : IUserRepository
         return await _dbContext.Users.AnyAsync(
             user => user.NormalizedEmail == normalizedEmail,
             cancellationToken);
+    }
+
+    public async Task<User?> GetByIdReadOnlyAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == id, cancellationToken);
+    }
+
+    public async Task<User?> GetByIdForUpdateAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Users
+            .FirstOrDefaultAsync(user => user.Id == id, cancellationToken);
     }
 
     public async Task AddAsync(

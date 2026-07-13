@@ -109,6 +109,230 @@ public sealed class AgencyTests
         agency.Municipality.Should().BeNull();
     }
 
+    [Fact]
+    public void SetLogo_ShouldSetLogoMetadata()
+    {
+        // Arrange
+        var agency = CreateAgency();
+
+        // Act
+        agency.SetLogo(
+            logoUrl: "/uploads/agencies/agency-id/logo/logo.png",
+            storedFileName: "logo.png",
+            contentType: "image/png",
+            sizeBytes: 128);
+
+        // Assert
+        agency.LogoUrl.Should()
+            .Be("/uploads/agencies/agency-id/logo/logo.png");
+
+        agency.LogoStoredFileName.Should().Be("logo.png");
+        agency.LogoContentType.Should().Be("image/png");
+        agency.LogoSizeBytes.Should().Be(128);
+    }
+
+    [Fact]
+    public void RemoveLogo_ShouldClearLogoMetadata()
+    {
+        // Arrange
+        var agency = CreateAgency();
+
+        agency.SetLogo(
+            logoUrl: "/uploads/agencies/agency-id/logo/logo.png",
+            storedFileName: "logo.png",
+            contentType: "image/png",
+            sizeBytes: 128);
+
+        // Act
+        agency.RemoveLogo();
+
+        // Assert
+        agency.LogoUrl.Should().BeNull();
+        agency.LogoStoredFileName.Should().BeNull();
+        agency.LogoContentType.Should().BeNull();
+        agency.LogoSizeBytes.Should().BeNull();
+    }
+
+    [Fact]
+    public void RemoveLogo_ShouldBeIdempotent()
+    {
+        // Arrange
+        var agency = CreateAgency();
+
+        // Act
+        Action act = () =>
+        {
+            agency.RemoveLogo();
+            agency.RemoveLogo();
+        };
+
+        // Assert
+        act.Should().NotThrow();
+        agency.LogoUrl.Should().BeNull();
+        agency.LogoStoredFileName.Should().BeNull();
+        agency.LogoContentType.Should().BeNull();
+        agency.LogoSizeBytes.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(AgencyStatus.PendingVerification)]
+    [InlineData(AgencyStatus.Rejected)]
+    public void Approve_ShouldSetStatusToActive_WhenTransitionIsAllowed(
+    AgencyStatus initialStatus)
+    {
+        // Arrange
+        Agency agency = CreateAgencyWithStatus(initialStatus);
+
+        // Act
+        agency.Approve();
+
+        // Assert
+        agency.Status.Should().Be(AgencyStatus.Active);
+    }
+
+    [Fact]
+    public void Approve_ShouldRemainActive_WhenAgencyIsAlreadyActive()
+    {
+        // Arrange
+        Agency agency = CreateAgencyWithStatus(AgencyStatus.Active);
+
+        // Act
+        Action act = agency.Approve;
+
+        // Assert
+        act.Should().NotThrow();
+        agency.Status.Should().Be(AgencyStatus.Active);
+    }
+
+    [Fact]
+    public void Approve_ShouldThrow_WhenAgencyIsDisabled()
+    {
+        // Arrange
+        Agency agency = CreateAgencyWithStatus(AgencyStatus.Disabled);
+
+        // Act
+        Action act = agency.Approve;
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("Disabled agencies cannot be approved.");
+
+        agency.Status.Should().Be(AgencyStatus.Disabled);
+    }
+
+    [Fact]
+    public void Reject_ShouldSetStatusToRejected_WhenAgencyIsPendingVerification()
+    {
+        // Arrange
+        Agency agency =
+            CreateAgencyWithStatus(AgencyStatus.PendingVerification);
+
+        // Act
+        agency.Reject();
+
+        // Assert
+        agency.Status.Should().Be(AgencyStatus.Rejected);
+    }
+
+    [Fact]
+    public void Reject_ShouldRemainRejected_WhenAgencyIsAlreadyRejected()
+    {
+        // Arrange
+        Agency agency = CreateAgencyWithStatus(AgencyStatus.Rejected);
+
+        // Act
+        Action act = agency.Reject;
+
+        // Assert
+        act.Should().NotThrow();
+        agency.Status.Should().Be(AgencyStatus.Rejected);
+    }
+
+    [Theory]
+    [InlineData(AgencyStatus.Active)]
+    [InlineData(AgencyStatus.Disabled)]
+    public void Reject_ShouldThrow_WhenTransitionIsNotAllowed(
+        AgencyStatus initialStatus)
+    {
+        // Arrange
+        Agency agency = CreateAgencyWithStatus(initialStatus);
+
+        // Act
+        Action act = agency.Reject;
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage(
+                "Only pending verification agencies can be rejected.");
+
+        agency.Status.Should().Be(initialStatus);
+    }
+
+    [Theory]
+    [InlineData(AgencyStatus.PendingVerification)]
+    [InlineData(AgencyStatus.Active)]
+    [InlineData(AgencyStatus.Rejected)]
+    public void Disable_ShouldSetStatusToDisabled_WhenAgencyIsNotDisabled(
+        AgencyStatus initialStatus)
+    {
+        // Arrange
+        Agency agency = CreateAgencyWithStatus(initialStatus);
+
+        // Act
+        agency.Disable();
+
+        // Assert
+        agency.Status.Should().Be(AgencyStatus.Disabled);
+    }
+
+    [Fact]
+    public void Disable_ShouldRemainDisabled_WhenAgencyIsAlreadyDisabled()
+    {
+        // Arrange
+        Agency agency = CreateAgencyWithStatus(AgencyStatus.Disabled);
+
+        // Act
+        Action act = agency.Disable;
+
+        // Assert
+        act.Should().NotThrow();
+        agency.Status.Should().Be(AgencyStatus.Disabled);
+    }
+
+    private static Agency CreateAgencyWithStatus(
+    AgencyStatus status)
+    {
+        Agency agency = CreateAgency();
+
+        switch (status)
+        {
+            case AgencyStatus.PendingVerification:
+                break;
+
+            case AgencyStatus.Active:
+                agency.Approve();
+                break;
+
+            case AgencyStatus.Rejected:
+                agency.Reject();
+                break;
+
+            case AgencyStatus.Disabled:
+                agency.Disable();
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(status),
+                    status,
+                    "Unsupported agency status.");
+        }
+
+        return agency;
+    }
+
     private static Agency CreateAgency()
     {
         return new Agency(

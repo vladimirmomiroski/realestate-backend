@@ -17,18 +17,37 @@ public sealed class AgencyMember : IAuditableEntity
     {
         if (agencyId == Guid.Empty)
         {
-            throw new ArgumentException("Agency id cannot be empty.", nameof(agencyId));
+            throw new ArgumentException(
+                "Agency id cannot be empty.",
+                nameof(agencyId));
         }
 
         if (userId == Guid.Empty)
         {
-            throw new ArgumentException("User id cannot be empty.", nameof(userId));
+            throw new ArgumentException(
+                "User id cannot be empty.",
+                nameof(userId));
         }
 
         AgencyId = agencyId;
         UserId = userId;
         Role = role;
         Status = status;
+    }
+
+    public void Disable()
+    {
+        if (Status == AgencyMemberStatus.Disabled)
+        {
+            return;
+        }
+
+        Status = AgencyMemberStatus.Disabled;
+    }
+
+    public void ChangeRole(AgencyMemberRole role)
+    {
+        Role = role;
     }
 
     public Guid Id { get; private set; } = Guid.NewGuid();

@@ -79,6 +79,69 @@ public sealed class Agency : IAuditableEntity
         Municipality = CleanNullableText(municipality);
     }
 
+    public void SetLogo(
+    string logoUrl,
+    string storedFileName,
+    string contentType,
+    long sizeBytes)
+    {
+        LogoUrl = logoUrl.Trim();
+        LogoStoredFileName = storedFileName.Trim();
+        LogoContentType = contentType.Trim();
+        LogoSizeBytes = sizeBytes;
+    }
+
+    public void RemoveLogo()
+    {
+        LogoUrl = null;
+        LogoStoredFileName = null;
+        LogoContentType = null;
+        LogoSizeBytes = null;
+    }
+
+    public void Approve()
+    {
+        if (Status == AgencyStatus.Active)
+        {
+            return;
+        }
+
+        if (Status != AgencyStatus.PendingVerification &&
+            Status != AgencyStatus.Rejected)
+        {
+            throw new InvalidOperationException(
+                "Disabled agencies cannot be approved.");
+        }
+
+        Status = AgencyStatus.Active;
+    }
+
+    public void Reject()
+    {
+        if (Status == AgencyStatus.Rejected)
+        {
+            return;
+        }
+
+        if (Status != AgencyStatus.PendingVerification)
+        {
+            throw new InvalidOperationException(
+                "Only pending verification agencies can be rejected.");
+        }
+
+        Status = AgencyStatus.Rejected;
+    }
+
+    public void Disable()
+    {
+        if (Status == AgencyStatus.Disabled)
+        {
+            return;
+        }
+
+        Status = AgencyStatus.Disabled;
+    }
+
     private static string? CleanNullableText(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
@@ -95,6 +158,12 @@ public sealed class Agency : IAuditableEntity
     public string? Description { get; private set; }
 
     public string? LogoUrl { get; private set; }
+
+    public string? LogoStoredFileName { get; private set; }
+
+    public string? LogoContentType { get; private set; }
+
+    public long? LogoSizeBytes { get; private set; }
 
     public string? PhoneNumber { get; private set; }
 
