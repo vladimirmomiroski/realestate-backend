@@ -1,87 +1,64 @@
-# Chapter 9 — Agency Phase 2 Rules
+# Chapter 9 — Agency Phase 2
 
-## Purpose
+## 1. Purpose
 
-Chapter 9 expands the agency system after the Agencies MVP foundation.
+Chapter 9 expands the Agencies MVP into a usable agency-management backend.
 
-This chapter adds the minimum backend functionality needed for real agency management before frontend work starts.
-
-It focuses on:
+The chapter adds:
 
 ```text
-Agency invitations
-Agency member management
-Agency logo upload/delete
-Admin agency verification
-Agency dashboard summary
-Integration tests
+agency invitations
+agency member management
+agency logo management
+platform-admin agency verification
+agency dashboard summary
+targeted permission and API-contract hardening
+integration and domain coverage
 ```
 
-This chapter must stay practical. It is not a payments, CRM, notifications, email, or advanced analytics chapter.
+Chapter 9 intentionally stays below the level of a full CRM, billing system, notification platform, or analytics product.
 
----
+Detailed implementation is complete through 9K.
+9L documentation cleanup is the final chapter task.
 
-## Implementation status
-
-Current status:
+## 2. Final implementation status
 
 ```text
-In progress
+9A  — Agency Phase 2 rules document: completed
+9B  — Agency invitation entity/foundation: completed
+9C  — Create agency invitation: completed
+9D  — Get agency invitations: completed
+9D.1 — Targeted safety cleanup/hardening: completed
+9E  — Accept agency invitation by token: completed
+9F  — Cancel agency invitation: completed
+9G  — Disable agency member: completed
+9H  — Change agency member role: completed
+9I  — Agency logo upload/delete: completed
+9J  — Platform-admin agency verification: completed
+9K  — Agency dashboard summary: completed
+9L  — Documentation/context/quality-handoff cleanup: in progress
 ```
 
-Current implemented/planned status:
+Current verification checkpoint:
 
 ```text
-9A — Agency Phase 2 rules document: completed
-9B — Agency invitation entity/foundation: completed
-9C — Invite agency member: implementation/testing stage
-9D+ — planned
+dotnet build passed
+dotnet test passed
+416/416 tests passing
 ```
 
-Chapter 9 started with this rules document before implementation.
+## 3. Final Chapter 9 scope
 
-Reason:
-
-```text
-Agency Phase 2 touches permissions, verification, public exposure, file storage, and member access.
-Those rules must be locked before code.
-```
-
----
-
-## Chapter task split
-
-Recommended implementation order:
-
-```text
-9A — Agency Phase 2 rules document
-9B — Agency invitation entity/foundation
-9C — Invite agency member
-9D — Get agency invitations
-9E — Accept agency invitation by token/code
-9F — Cancel agency invitation
-9G — Disable agency member
-9H — Change agency member role
-9I — Agency logo upload/delete
-9J — Admin agency verification endpoints
-9K — Agency dashboard summary
-9L — Docs/context update
-```
-
----
-
-## Final scope
-
-Chapter 9 includes:
+Implemented:
 
 ```text
 Create agency invitation
-List agency invitations
-Accept agency invitation by token/code
+List agency invitations with optional status filter
+Accept agency invitation by token
 Cancel agency invitation
 Disable agency member
 Change agency member role
-Upload/replace agency logo
+Upload or replace agency logo
 Delete agency logo
 Approve agency
 Reject agency
@@ -89,125 +66,81 @@ Disable agency
 Get agency dashboard summary
 ```
 
----
-
-## Out of scope
-
-Chapter 9 intentionally does not add:
+Also completed during the chapter:
 
 ```text
-Payments
-Subscriptions
-Agency plans
-Agency listing limits
-Slug update
-Slug redirect/history strategy
-Public agent profiles
-Public agency staff pages
-Email sending
-CRM
-Client notes
-Notifications
-Advanced analytics
-Audit log UI
-Agency deletion
-Hard-delete members
-Hard-delete invitations
-Owner transfer as a separate complex flow
-Refresh tokens
-Email verification
-Password reset
+shared agency-admin permission checker
+platform-admin permission checker
+disabled-user permission hardening
+invitation response-contract split
+listing-create contract cleanup
+Manager restriction cleanup
+dashboard-summary EF projection
 ```
 
-Reason:
+## 4. Out of scope
+
+Chapter 9 does not add:
 
 ```text
-Chapter 9 should make agencies manageable without turning into billing, CRM, email, notifications, or advanced admin.
+payments
+subscriptions
+agency plans
+agency listing quotas
+paid seats
+slug update/history/redirects
+public agent profiles
+public agency staff pages
+email delivery
+notifications
+CRM clients
+client notes
+advanced analytics
+audit-log UI
+agency deletion
+hard-delete members
+hard-delete invitations
+dedicated owner-transfer endpoint
+refresh tokens
+email verification
+password reset
+reactivate-agency endpoint
+verification documents
+verification notes
 ```
 
----
+These remain separate product or infrastructure decisions.
 
-## Existing agency rules that must remain unchanged
+## 5. Existing rules preserved from earlier chapters
 
-Current agency behavior remains valid:
+Chapter 9 does not weaken Chapter 8 publishing or visibility behavior.
+
+Preserved rules:
 
 ```text
 Created agencies start as PendingVerification.
-Agency creator becomes Active Owner.
-PendingVerification agencies are publicly readable for now.
-Agency profile update requires Active Owner.
-Agency dashboard listings require active Owner/Agent and user not Disabled.
-Agency dashboard listing access does not require Agency.Status Active.
+Agency creator becomes an Active Owner.
+PendingVerification agencies remain publicly readable for now.
+Public listing APIs expose only Active listings.
 Only Active agencies can publish agency listings.
-Agency unpublish/archive/dashboard management does not require Active agency.
+Agency unpublish/archive/private-dashboard access does not require Agency.Status Active.
+Agency listing work is available to active Owner and active Agent members.
+Disabled users remain blocked from protected listing-status and agency/dashboard operations.
+Same-agency members still cannot manage another creator's listing images.
 ```
 
-Important:
+Important ownership distinction:
 
 ```text
-Chapter 9 must not weaken Chapter 8 publishing/visibility rules.
+CreatedByUserId = user who created the listing
+AgencyId        = agency that owns/groups the listing
 ```
 
----
+Agency membership permissions do not replace creator ownership for listing-image mutations.
 
-## Core permission model
+## 6. Final role and status model
 
-Current agency member roles:
-
-```text
-Owner
-Manager
-Agent
-```
-
-Important Manager rule:
-
-```text
-Manager exists in code, but Chapter 9 does not give Manager special permissions yet.
-Manager cannot invite members.
-Owner cannot invite someone as Manager.
-Manager permissions should be defined later in a small dedicated role-permission task if needed.
-```
-
-Reason:
-
-```text
-A half-defined Manager role can create authorization bugs.
-Until the business meaning is locked, Owner and Agent remain the only active Chapter 9 permission roles.
-```
-
-Current agency member statuses:
-
-```text
-Active
-Pending
-Disabled
-```
-
-Chapter 9 permission baseline:
-
-```text
-Active Owner -> can manage agency profile, logo, invitations, members, roles, and dashboard.
-Active Agent -> can manage agency listings and view dashboard summary, but cannot manage members/invitations/agency profile/logo.
-Active Manager -> no special Chapter 9 permissions yet.
-Pending member -> no agency management access.
-Disabled member -> no agency management access.
-Non-member -> no agency management access.
-Disabled user -> blocked from protected agency mutations and private dashboard access.
-```
-
-Reason:
-
-```text
-Owner controls agency-level administration.
-Agent controls listing work only.
-```
-
----
-
-## User status rules
-
-Current user statuses:
+### 6.1 User statuses
 
 ```text
 Active
@@ -215,29 +148,17 @@ PendingVerification
 Disabled
 ```
 
-Chapter 9 rules:
+Chapter 9 behavior:
 
 ```text
-Active user -> can perform agency actions if membership/role rules pass.
-PendingVerification user -> can accept invitations and prepare agency membership.
-PendingVerification user -> can create agency invitations if they are an Active Owner member.
-PendingVerification user -> still cannot publish listings due to Chapter 8 rules.
-Disabled user -> cannot mutate agency data, accept invitations, manage members, manage logo, or view private agency dashboard summary.
+Active users may perform agency actions when membership/role rules pass.
+PendingVerification users may prepare agency access and accept invitations.
+PendingVerification users may administer an agency when they are an Active Owner member.
+PendingVerification users still cannot publish listings.
+Disabled users cannot create agencies, create listings, accept invitations, administer agencies, manage members/logos, or use private agency dashboards.
 ```
 
-Reason:
-
-```text
-PendingVerification users may prepare their account and agency access.
-Inviting members is agency setup work, not public exposure.
-Disabled users should not perform protected agency operations.
-```
-
----
-
-## Agency status rules
-
-Current agency statuses:
+### 6.2 Agency statuses
 
 ```text
 PendingVerification
@@ -246,137 +167,254 @@ Disabled
 Rejected
 ```
 
-Chapter 9 agency status behavior:
+Behavior:
 
 ```text
-PendingVerification agency -> owners can manage profile/logo/members/invitations/dashboard, but cannot publish listings.
-Active agency -> normal agency operation.
-Disabled agency -> owners/agents may still view/manage private dashboard data where allowed, but cannot publish listings.
-Rejected agency -> owners/agents may still view/manage private dashboard data where allowed, but cannot publish listings.
-Agency status does not block invitation creation.
+Only Active agencies can publish agency listings.
+Agency status does not block private profile/logo/member/invitation/dashboard management.
+Disabled or Rejected agencies may still need private cleanup and management.
+Admin status changes do not automatically mutate listing statuses.
 ```
 
-Admin status changes are intentionally small in Chapter 9:
+### 6.3 Agency member roles
 
 ```text
-Approve agency
-Reject agency
-Disable agency
+Owner
+Manager
+Agent
 ```
 
-No reactivation endpoint is added in Chapter 9.
-
-Reason:
+Final Manager rule:
 
 ```text
-Publishing is public exposure and requires Active agency.
-Private cleanup/management can still be needed for non-active agencies.
-Admin verification should stay small until real admin workflows exist.
+Manager exists in the enum but has no active Chapter 9 permission set.
+Manager cannot administer the agency.
+Manager cannot manage agency listings.
+Manager cannot view dashboard summary.
+Manager cannot be assigned through invitation or normal role-change input.
+An existing Manager may be changed to Owner or Agent as a recovery path.
 ```
 
----
-
-# 9B — Agency invitation foundation
-
-## New entity
-
-Add a new entity:
+### 6.4 Agency member statuses
 
 ```text
-AgencyInvitation
+Active
+Pending
+Disabled
 ```
 
-Recommended table:
+Only `Active` membership can authorize Chapter 9 agency actions.
+
+## 7. Permission architecture
+
+### 7.1 AgencyAdminAccessChecker
+
+Purpose:
 
 ```text
-AgencyInvitations
+shared agency-level administration access
 ```
 
-Recommended fields:
+Checks:
+
+```text
+current user is authenticated and resolvable
+current user is not Disabled
+agency exists
+membership exists
+membership status is Active
+membership role is Owner
+```
+
+Used by owner-admin flows such as:
+
+```text
+agency profile update
+invitation create/list/cancel
+member disable
+member role change
+agency logo upload/delete
+```
+
+### 7.2 AgencyListingAccessChecker
+
+Purpose:
+
+```text
+agency listing and private dashboard access
+```
+
+Allows:
+
+```text
+Active Owner
+Active Agent
+```
+
+Blocks:
+
+```text
+Manager
+Pending member
+Disabled member
+Non-member
+```
+
+Publishing may additionally require:
+
+```text
+Agency.Status == Active
+User.Status == Active
+```
+
+Private listing-management and dashboard access do not require an Active agency.
+
+### 7.3 PlatformAdminAccessChecker
+
+Purpose:
+
+```text
+global platform administration
+```
+
+Requires the persisted user to be:
+
+```text
+UserRole.Admin
+UserStatus.Active
+```
+
+The checker reloads the current user from the database and does not rely only on the role claim embedded in the JWT.
+
+Important separation:
+
+```text
+AgencyMemberRole.Owner is agency-local.
+UserRole.Admin is platform-global.
+Neither implies the other.
+```
+
+## 8. Chapter 9 safety cleanup completed during implementation
+
+A targeted cleanup checkpoint was inserted after invitation listing and before the remaining permission-heavy endpoints.
+
+The goal was to stop existing permission and contract drift from spreading.
+
+### 8.1 Agency permission hardening
+
+Completed:
+
+```text
+Added AgencyAdminAccessChecker.
+Centralized repeated Active Owner administration checks.
+Blocked Disabled users from agency creation.
+Blocked Disabled users from private agency member reads.
+Kept invitation administration behind the shared checker.
+Added integration coverage for disabled-user agency behavior.
+```
+
+The checker owns shared access resolution only.
+Invitation-specific rules remain in invitation handlers/repositories.
+
+### 8.2 Invitation response-contract cleanup
+
+The original shared invitation response was split.
+
+Create response:
+
+```text
+AgencyInvitationCreatedResponse
+```
+
+Includes:
+
+```text
+Token
+Code
+```
+
+List/accept/cancel response:
+
+```text
+AgencyInvitationListItemResponse
+```
+
+Does not include:
+
+```text
+Token
+Code
+```
+
+Final exposure rule:
+
+```text
+Token and Code are returned only immediately after invitation creation.
+They are not exposed by list, accept, or cancel responses.
+```
+
+### 8.3 Listing-create permission and contract cleanup
+
+Completed:
+
+```text
+Removed Status from CreateListingRequest.
+New listings always start as Draft.
+CreateListingHandler resolves and reloads the current user.
+Missing/unresolvable current user returns 401.
+Disabled users cannot create listings.
+Agency listing creation uses AgencyListingAccessChecker.
+Active Owner and Active Agent may create agency listings.
+Manager is blocked.
+Agency status does not block creating a Draft agency listing.
+```
+
+Publishing remains stricter and requires an Active agency.
+
+### 8.4 Cleanup boundaries
+
+The cleanup did not introduce:
+
+```text
+framework changes
+repository redesign
+generic policy framework
+pagination redesign
+global error framework
+broad test refactor
+search redesign
+```
+
+## 9. Agency invitation foundation
+
+### 9.1 Entity and table
+
+```text
+Entity: AgencyInvitation
+Table:  AgencyInvitations
+```
+
+Important fields:
 
 ```text
 Id
 AgencyId
 Email
 NormalizedEmail
-Role
-Status
 Token
 Code
+Role
+Status
 InvitedByUserId
 AcceptedByUserId
-CreatedAtUtc
-ModifiedAtUtc
 ExpiresAtUtc
 AcceptedAtUtc
 CancelledAtUtc
+CreatedAtUtc
+ModifiedAtUtc
 ```
 
-Field notes:
-
-```text
-Email -> original invited email.
-NormalizedEmail -> uppercase/lowercase-normalized value for matching and duplicate checks.
-Role -> role that will be assigned if accepted.
-Status -> invitation lifecycle state.
-Token/Code -> accept credential. Accept flow must not rely only on invitation id.
-InvitedByUserId -> owner who created the invitation.
-AcceptedByUserId -> user who accepted the invitation.
-ExpiresAtUtc -> optional expiration support.
-AcceptedAtUtc -> set when accepted.
-CancelledAtUtc -> set when cancelled.
-```
-
-Important token/code rule:
-
-```text
-Invitation id is not enough for accepting an invitation.
-Accept flow must use invitation Token/Code.
-```
-
-Reason:
-
-```text
-An invitation id can be guessed or leaked more easily from internal routes/logs.
-A random token/code acts as the actual invitation credential.
-```
-
-Implementation note:
-
-```text
-Chapter 9 stores both Token and Code.
-Token is the primary API/link accept credential.
-Code is reserved for short/manual invite flows or future frontend support.
-Accepting by invitation id alone is not allowed.
-```
-
-Recommended practical choice:
-
-```text
-Use Token for API/link style acceptance.
-Keep Code available for later manual-code support.
-```
-
-No email sending is added in Chapter 9.
-
-Reason:
-
-```text
-The backend can create and expose the invitation token/code to the owner for now.
-Actual email delivery is a separate notification/email chapter.
-```
-
----
-
-## Invitation statuses
-
-Add enum:
-
-```text
-AgencyInvitationStatus
-```
-
-Values:
+### 9.2 Statuses
 
 ```text
 Pending
@@ -385,93 +423,74 @@ Cancelled
 Expired
 ```
 
-Behavior:
+Lifecycle:
 
 ```text
-Pending -> can be accepted or cancelled.
-Accepted -> final successful state.
-Cancelled -> final owner-cancelled state.
-Expired -> final expired state.
+Pending -> Accepted
+Pending -> Cancelled
+Pending -> Expired
 ```
 
----
+Accepted, Cancelled, and Expired are terminal in Chapter 9.
 
-## Invitation role values
+### 9.3 Token and code
 
-Invitation role uses existing agency member role values, but Chapter 9 only allows inviting:
+Final rule:
+
+```text
+Token is the only Chapter 9 accept credential.
+Invitation ID alone cannot be used to accept.
+Code is stored and returned on creation but is reserved for possible future manual-code support.
+Chapter 9 does not accept invitations by Code.
+```
+
+`Token` has a unique database index.
+
+Chapter 9 does not rely on Code uniqueness because Code is not an active accept credential.
+
+### 9.4 Role assignment
+
+Assignable invitation roles:
 
 ```text
 Owner
 Agent
 ```
 
-Blocked invitation role:
+Blocked:
 
 ```text
 Manager
 ```
 
-Preferred Chapter 9 rule:
-
-```text
-Allow invitations for Owner and Agent.
-Reject Manager invitations with 400 Bad Request.
-```
-
-Reason:
-
-```text
-Multi-owner agencies are useful, but ownership safety is handled by disable/demotion rules.
-Manager exists in code but has no locked Chapter 9 permission meaning yet.
-```
-
----
-
-## Duplicate invitation/member rules
+### 9.5 Duplicate protection
 
 Rules:
 
 ```text
-Cannot create a pending invitation for the same agency + normalized email if one already exists.
-Cannot accept an invitation if the accepting user is already an active member of the agency.
-Cannot create duplicate AgencyMember rows for the same agency + user.
+A second Pending invitation for the same agency + normalized email is rejected.
+A user already belonging to the agency cannot accept an invitation into a duplicate membership.
+AgencyMember uniqueness protects agency + user membership duplication.
 ```
 
-Recommended behavior:
+## 10. Create agency invitation
 
-```text
-Duplicate pending invitation -> 400 Bad Request.
-Already member during accept -> 400 Bad Request or idempotent success, define in implementation.
-```
-
-Preferred Chapter 9 rule:
-
-```text
-Already member during accept -> 400 Bad Request.
-```
-
-Reason:
-
-```text
-This catches incorrect flows early and avoids silently hiding duplicate access bugs.
-```
-
----
-
-# 9C — Invite agency member
-
-## Endpoint
-
-Recommended endpoint:
+Endpoint:
 
 ```http
 POST /api/agencies/{agencyId}/invitations
 ```
 
-Auth:
+Response:
+
+```http
+201 Created
+```
+
+Response contract:
 
 ```text
-Requires JWT.
+AgencyInvitationCreatedResponse
 ```
 
 Request:
@@ -481,291 +500,96 @@ Email
 Role
 ```
 
-Response:
+Authorization:
 
 ```text
-AgencyInvitationResponse
+Active Owner membership
+current user not Disabled
+agency status does not block invitation creation
 ```
 
-Response should include:
+Allowed user status:
 
 ```text
-Id
-AgencyId
-Email
-Role
-Status
-Token
-Code
-CreatedAtUtc
-ExpiresAtUtc
-```
-
-Optional later list/detail responses may include:
-
-```text
-InvitedByUserId
-AcceptedByUserId
-AcceptedAtUtc
-CancelledAtUtc
-```
-
-Important:
-
-```text
-Returning Token/Code is acceptable in Chapter 9 because no email sending exists yet.
-Frontend/admin can display/copy it during development.
-```
-
-Later, when email sending exists:
-
-```text
-Token/Code should not be repeatedly exposed except immediately after creation or through a controlled resend flow.
-```
-
----
-
-## Permission rules
-
-Allowed:
-
-```text
-Active Owner
-PendingVerification user if they are an Active Owner member
+Active
+PendingVerification
 ```
 
 Blocked:
 
 ```text
-No token -> 401
-Non-member -> 403
-Active Agent -> 403
-Active Manager -> 403
-Pending member -> 403
-Disabled member -> 403
-Disabled user -> 403
+No JWT -> 401
+Unresolvable current user -> 401
 Missing agency -> 404
+Non-member -> 403
+Agent -> 403
+Manager -> 403
+Pending/Disabled member -> 403
+Disabled user -> 403
+Invalid request/role -> 400
+Duplicate Pending invitation -> 400
+Existing agency member for invited user -> 400
 ```
 
-Agency status:
+Validation:
 
 ```text
-Agency status does not block invitation creation.
+Email required
+Email normalized for comparison
+Email length/format validated
+Role must be Owner or Agent
+Manager rejected
+Strong random Token generated
+Short random Code generated
+Expiration timestamp assigned
 ```
 
-Reason:
+Create response exposes Token and Code because email delivery is outside Chapter 9.
 
-```text
-Inviting members changes agency access and must be owner-level.
-Inviting members is agency setup work, not public publishing.
-Publishing remains stricter and still requires Active user + Active agency.
-```
+## 11. List agency invitations
 
----
-
-## Validation rules
-
-Request validation:
-
-```text
-Email is required.
-Email must be valid enough for current project standards.
-Email cannot be longer than 254 characters.
-Role is required.
-Role must be Owner or Agent.
-Manager role is invalid for invitation creation in Chapter 9.
-```
-
-Duplicate checks:
-
-```text
-Same agency + normalized email already has Pending invitation -> 400.
-Same agency + user already member -> 400, if invited email belongs to existing user and membership can be resolved.
-```
-
-Token/code generation:
-
-```text
-Generate a strong random Token on create.
-Generate a short Code on create.
-Token must be unique enough to use as the primary accept credential.
-Code is reserved for manual-code support and should also be random.
-```
-
----
-
-# 9D — Get agency invitations
-
-## Endpoint
-
-Recommended endpoint:
+Endpoint:
 
 ```http
 GET /api/agencies/{agencyId}/invitations
 ```
 
-Auth:
+Optional filter:
 
 ```text
-Requires JWT.
+status
 ```
 
-Query parameters:
+Response:
+
+```http
+200 OK
+```
+
+Response contract:
 
 ```text
-status optional
-page optional
-pageSize optional
+IReadOnlyList<AgencyInvitationListItemResponse>
 ```
 
-MVP option:
+Rules:
 
 ```text
-Return all invitations for the agency without pagination if count is expected to be small.
+Active Owner only
+simple non-paged list
+optional status filtering
+Token and Code are never included
+agency status does not block access
 ```
 
-Preferred Chapter 9 rule:
+Blocked authorization and not-found behavior follows `AgencyAdminAccessChecker`.
 
-```text
-Use simple list, no pagination, unless current repository/test patterns make pagination easier.
-```
+## 12. Accept agency invitation
 
-Reason:
-
-```text
-Agency invitations are low-volume data.
-Do not overbuild.
-```
-
----
-
-## Permission rules
-
-Allowed:
-
-```text
-Active Owner
-```
-
-Blocked:
-
-```text
-No token -> 401
-Non-member -> 403
-Active Agent -> 403
-Active Manager -> 403
-Pending member -> 403
-Disabled member -> 403
-Disabled user -> 403
-Missing agency -> 404
-```
-
-Reason:
-
-```text
-Invitations expose pending access to the agency.
-This is owner-level administration data.
-```
-
----
-
-## 9D.1 — Chapter 9 Safety Cleanup
-
-### Goal
-
-Fix permission/API contract drift before continuing with more Chapter 9 endpoints.
-
-This cleanup is split into smaller subtasks to avoid one oversized risky change.
-
-### 9D.1A — Agency permission hardening
-
-Status: Completed.
-
-Completed:
-- Added `AgencyAdminAccessChecker` for current user resolution, disabled-user blocking, agency existence check, and Active Owner admin permission checks.
-- Refactored agency owner-admin permission checks to use the shared checker where appropriate.
-- Disabled users can no longer create agencies.
-- Disabled users can no longer access private agency member reads.
-- Disabled users remain blocked from invitation admin paths through the shared checker.
-- Added integration coverage for disabled-user agency behavior.
-
-Notes:
-- `CreateAgencyInvitationHandler` still uses `IAgencyRepository` for invitation-specific validation, such as checking whether the invited user is already an agency member. This is intentional and is not admin-access logic.
-- Private agency dashboard listing access already had disabled-user coverage and remains handled separately through listing-access rules.
-
-Test result:
-- `dotnet test` passing: 263/263.
-
-### 9D.1B — Invitation response contract cleanup
-
-Status: Completed.
-
-Completed:
-- Split invitation create/list response contracts.
-- Deleted the shared `AgencyInvitationResponse` contract.
-- `POST /api/agencies/{id}/invitations` now returns `AgencyInvitationCreatedResponse`.
-- `AgencyInvitationCreatedResponse` includes `Token` and `Code`.
-- `GET /api/agencies/{id}/invitations` now returns `IReadOnlyList<AgencyInvitationListItemResponse>`.
-- `AgencyInvitationListItemResponse` does not include `Token` or `Code`.
-- Updated invitation mapping to use separate create/list mapping methods.
-- Updated `CreateAgencyInvitationHandler`, `GetAgencyInvitationsHandler`, and `AgenciesController` to use the split contracts.
-- Updated invitation list integration coverage to assert `token` and `code` are not returned.
-- Chapter 9 accept flow remains `Token`-only.
-- `Code` remains reserved for future manual-code support.
-
-Notes:
-- `Code` remains stored on `AgencyInvitation` and returned only immediately after invitation creation.
-- Chapter 9 accept flow is not implemented yet; when implemented, it should use token lookup only.
-
-Verification note:
-- `dotnet build` / `dotnet test` could not be completed in the sandbox because generated build artifacts under `src/RealEstate.Application/obj/Debug/net10.0` were denied write access.
-
-### 9D.1C — Listing create permission and contract cleanup
-
-Status: Completed.
-
-Completed:
-- Removed ignored `Status` from `CreateListingRequest`.
-- New listings continue to be created as `Draft` in `CreateListingHandler`.
-- `CreateListingHandler` now resolves and loads the current user before validating the request.
-- Missing/unresolvable current user returns `Unauthorized`.
-- Disabled users cannot create listings.
-- Agency listing creation now uses `AgencyListingAccessChecker`.
-- Agency listing creation requires an Active Owner or Active Agent member.
-- Active Manager cannot create agency listings until Manager permissions are explicitly defined.
-- `ListingsController.CreateListing` maps handler `Unauthorized` results to HTTP 401.
-- Added/updated coverage for draft create response, disabled-user create blocking, Active Agent agency listing creation, and Active Manager blocking.
-
-Notes:
-- PendingVerification users can still create draft listings.
-- Agency status does not block draft agency listing creation; publishing remains stricter and still requires an Active agency.
-
-Verification:
-- dotnet build passed.
-- dotnet test passed.
-
-### Out of scope for 9D.1
-
-- Broad test refactor.
-- Search performance redesign.
-- Pagination contract cleanup.
-- Error response framework.
-- Architecture rewrite.
-
-# 9E — Accept agency invitation by token
-
-Status: Completed.
-
-## Endpoint
+Endpoint:
 
 ```http
 PUT /api/agencies/invitations/accept
-```
-
-Auth:
-
-```text
-Requires JWT.
 ```
 
 Request:
@@ -778,602 +602,114 @@ Request:
 
 Response:
 
-```text
-200 OK with AgencyInvitationListItemResponse.
-The accept response does not expose Token or Code.
+```http
+200 OK
 ```
 
-Reason:
+Response contract:
 
 ```text
-Token is the Chapter 9 accept credential.
-Invitation id alone should not be enough to accept.
-Code remains reserved for future manual-code support.
+AgencyInvitationListItemResponse
 ```
 
----
-
-## Accept rules
+Token and Code are not returned.
 
 Allowed:
 
 ```text
-Authenticated Active user whose normalized email matches invitation NormalizedEmail.
-Authenticated PendingVerification user whose normalized email matches invitation NormalizedEmail.
+Authenticated Active user with matching normalized email
+Authenticated PendingVerification user with matching normalized email
 ```
 
 Blocked:
 
 ```text
 No JWT -> 401
-Current user cannot be resolved -> 401
-Missing token -> 400
+Unresolvable current user -> 401
+Missing/blank token -> 400
 Disabled user -> 403
-Token not found -> 404
-Invitation email does not match current user email -> 403
-Invitation is Cancelled -> 400
-Invitation is Accepted -> 400
-Invitation is Expired -> 400
-Invitation has passed ExpiresAtUtc -> 400 and is marked Expired when still Pending
-Already a member of the agency -> 400
+Unknown token -> 404
+Invitation email mismatch -> 403
+Accepted invitation -> 400
+Cancelled invitation -> 400
+Expired invitation -> 400
+Past ExpiresAtUtc while still Pending -> mark Expired, persist, return 400
+Already an agency member -> 400
 ```
 
-On successful accept:
+On success:
 
 ```text
-Create AgencyMember.
-Set AgencyMember.AgencyId from invitation.
-Set AgencyMember.UserId from current user.
-Set AgencyMember.Role from invitation.
-Set AgencyMember.Status = Active.
-Set invitation Status = Accepted.
-Set invitation AcceptedByUserId = current user id.
-Set invitation AcceptedAtUtc.
-Save changes.
+Create Active AgencyMember.
+Copy role from invitation.
+Associate membership with current user and invitation agency.
+Mark invitation Accepted.
+Set AcceptedByUserId.
+Set AcceptedAtUtc.
+Save the membership and invitation state.
 ```
 
-Important duplicate rule:
+The accept flow uses token lookup and loads the agency with members for duplicate-membership protection.
 
-```text
-Never create duplicate agency membership for the same agency + user.
-```
+It does not use `AgencyAdminAccessChecker` because acceptance is performed by the invited user, not by an existing agency Owner.
 
----
+## 13. Cancel agency invitation
 
-## Implementation notes
-
-Completed:
-
-```text
-Added PUT /api/agencies/invitations/accept.
-Added AcceptAgencyInvitationRequest with Token only.
-Added AcceptAgencyInvitationHandler and validator.
-Accept handler uses IUserRepository and ICurrentUserService, not AgencyAdminAccessChecker.
-Accept handler loads invitations through GetByTokenForUpdateAsync.
-Added IAgencyRepository.GetByIdWithMembersForUpdateAsync for accept flow.
-AgencyRepository loads Members for that method so Agency.AddMember can enforce duplicate membership.
-Accept response reuses AgencyInvitationListItemResponse and does not return Token or Code.
-```
-
-Tests added:
-
-```text
-No access token -> 401.
-Missing token -> 400.
-Valid token and matching email -> 200.
-Accept creates Active agency member.
-Accept marks invitation Accepted.
-PendingVerification user can accept.
-Disabled user -> 403.
-Email mismatch -> 403.
-Unknown token -> 404.
-Already accepted invitation -> 400.
-Cancelled invitation -> 400.
-Expired invitation -> 400.
-Past ExpiresAtUtc marks invitation Expired and returns 400.
-Already member -> 400.
-```
-
-Out of scope:
-
-```text
-Code/manual-code accept flow.
-Accepting by invitation id.
-Invitation cancellation.
-Member disabling.
-Role changes.
-```
-
----
-
-# 9F — Cancel agency invitation
-
-Status: Completed.
-
-## Endpoint
+Endpoint:
 
 ```http
 PUT /api/agencies/{agencyId}/invitations/{invitationId}/cancel
 ```
 
-Auth:
-
-```text
-Requires JWT.
-```
-
-Request:
-
-```text
-No body.
-```
-
 Response:
 
-```text
-200 OK with AgencyInvitationListItemResponse.
-The cancel response does not expose Token or Code.
+```http
+200 OK
 ```
 
----
-
-## Permission rules
-
-Allowed:
+Response contract:
 
 ```text
-Active Owner
+AgencyInvitationListItemResponse
 ```
 
-Blocked:
+Authorization:
 
 ```text
-No JWT -> 401
-Current user cannot be resolved -> 401
-Non-member -> 403
-Active Agent -> 403
-Active Manager -> 403
-Pending member -> 403
-Disabled member -> 403
-Disabled user -> 403
+Active Owner only
+```
+
+Resource rules:
+
+```text
 Missing agency -> 404
 Missing invitation -> 404
-Invitation belongs to another agency -> 404
+Invitation belonging to another agency -> 404
 ```
 
-Reason:
-
-```text
-Cancelling invitations is agency access administration.
-AgencyAdminAccessChecker is used so only an Active Owner member can cancel.
-```
-
----
-
-## Status transition rules
-
-Allowed:
+Transitions:
 
 ```text
 Pending -> Cancelled
 ```
 
-Blocked:
+Rejected:
 
 ```text
-Accepted -> 400 Bad Request
-Cancelled -> 400 Bad Request
-Expired -> 400 Bad Request
-Pending with past ExpiresAtUtc -> mark Expired, persist, then 400 Bad Request
+Accepted -> 400
+Cancelled -> 400
+Expired -> 400
+Pending invitation past ExpiresAtUtc -> mark Expired, persist, return 400
 ```
 
-Reason:
+Cancellation does not remove an already-created membership.
 
-```text
-Cancelling an already accepted invitation would not remove the created membership.
-Expired invitations are already unusable.
-```
+## 14. Disable agency member
 
----
-
-## Implementation notes
-
-Completed:
-
-```text
-Added PUT /api/agencies/{agencyId}/invitations/{invitationId}/cancel.
-Added CancelAgencyInvitationHandler.
-Cancel handler uses AgencyAdminAccessChecker.
-Cancel handler loads invitations through GetByIdForUpdateAsync.
-Cancel handler returns NotFound when invitation belongs to another agency.
-Cancel handler uses AgencyInvitation.Cancel(...).
-Cancel response reuses AgencyInvitationListItemResponse and does not return Token or Code.
-```
-
-Tests added:
-
-```text
-No access token -> 401.
-Active owner can cancel pending invitation -> 200.
-Cancel marks invitation Cancelled.
-Cancel response does not expose Token or Code.
-Active Agent -> 403.
-Active Manager -> 403.
-Non-member -> 403.
-Disabled owner -> 403.
-Missing agency -> 404.
-Missing invitation -> 404.
-Invitation belongs to different agency -> 404.
-Accepted invitation -> 400.
-Cancelled invitation -> 400.
-Expired invitation -> 400.
-Pending invitation past ExpiresAtUtc marks Expired and returns 400.
-```
-
-Out of scope:
-
-```text
-Accept invitation behavior.
-Member disabling.
-Role changes.
-Logo upload.
-Admin verification.
-Code/manual-code invitation flow.
-```
-
----
-
-# 9G — Disable agency member
-
-## Endpoint
-
-Recommended endpoint:
+Endpoint:
 
 ```http
 PUT /api/agencies/{agencyId}/members/{memberId}/disable
-```
-
-Auth:
-
-```text
-Requires JWT.
-```
-
----
-
-## Permission rules
-
-Allowed:
-
-```text
-Active Owner can disable another agency member.
-```
-
-Blocked:
-
-```text
-No token -> 401
-Non-member -> 403
-Active Agent -> 403
-Active Manager -> 403
-Pending member -> 403
-Disabled member -> 403
-Disabled user -> 403
-Missing agency -> 404
-Missing target member -> 404
-Target member belongs to another agency -> 404
-```
-
-Self-disable:
-
-```text
-Owner should not disable themselves in Chapter 9.
-```
-
-Reason:
-
-```text
-Self-disable can accidentally lock the owner out.
-A separate leave-agency/ownership-transfer flow can be added later if needed.
-```
-
----
-
-## Last active Owner rule
-
-Rule:
-
-```text
-Cannot disable the last active Owner of an agency.
-```
-
-Behavior:
-
-```http
-400 Bad Request
-```
-
-Reason:
-
-```text
-An agency must always have at least one active Owner.
-```
-
----
-
-## Status behavior
-
-Allowed:
-
-```text
-Active -> Disabled
-Pending -> Disabled
-```
-
-Idempotent:
-
-```text
-Disabled -> Disabled
-```
-
-No hard delete:
-
-```text
-Members are not physically deleted in Chapter 9.
-```
-
-Reason:
-
-```text
-Soft disabling preserves history and avoids deleting relationships used by listings/auditing.
-```
-
----
-
-# 9H — Change agency member role
-
-## Endpoint
-
-Recommended endpoint:
-
-```http
-PUT /api/agencies/{agencyId}/members/{memberId}/role
-```
-
-Auth:
-
-```text
-Requires JWT.
-```
-
-Request:
-
-```text
-Role
-```
-
-Allowed roles:
-
-```text
-Owner
-Agent
-```
-
----
-
-## Permission rules
-
-Allowed:
-
-```text
-Active Owner
-```
-
-Blocked:
-
-```text
-No token -> 401
-Non-member -> 403
-Active Agent -> 403
-Active Manager -> 403
-Pending member -> 403
-Disabled member -> 403
-Disabled user -> 403
-Missing agency -> 404
-Missing target member -> 404
-Target member belongs to another agency -> 404
-Invalid role -> 400
-```
-
-Reason:
-
-```text
-Changing roles changes agency authority and must be owner-only.
-```
-
----
-
-## Role transition rules
-
-Allowed:
-
-```text
-Agent -> Owner
-Owner -> Agent
-```
-
-Idempotent:
-
-```text
-Owner -> Owner
-Agent -> Agent
-```
-
-Blocked:
-
-```text
-Owner -> Agent if this member is the last active Owner -> 400 Bad Request
-```
-
-Recommended target member status rule:
-
-```text
-Can change role only for Active members.
-```
-
-Reason:
-
-```text
-Changing roles for Disabled/Pending members creates confusing access expectations.
-Re-enable/reactivate member flow is not part of Chapter 9.
-```
-
----
-
-# 9I — Agency logo upload/delete
-
-## Endpoints
-
-Recommended endpoints:
-
-```http
-PUT /api/agencies/{agencyId}/logo
-DELETE /api/agencies/{agencyId}/logo
-```
-
-Auth:
-
-```text
-Requires JWT.
-```
-
----
-
-## Permission rules
-
-Allowed:
-
-```text
-Active Owner
-```
-
-Blocked:
-
-```text
-No token -> 401
-Non-member -> 403
-Active Agent -> 403
-Active Manager -> 403
-Pending member -> 403
-Disabled member -> 403
-Disabled user -> 403
-Missing agency -> 404
-```
-
-Reason:
-
-```text
-Agency logo is agency profile branding, not listing work.
-Profile branding should stay owner-controlled.
-```
-
----
-
-## Agency logo fields
-
-Existing field:
-
-```text
-LogoUrl
-```
-
-Recommended new agency fields:
-
-```text
-LogoStoredFileName
-LogoContentType
-LogoSizeBytes
-```
-
-No separate agency logo table.
-
-Reason:
-
-```text
-An agency has one current logo.
-A separate table is unnecessary for MVP.
-Metadata is useful for safe replacement/deletion.
-```
-
----
-
-## File validation
-
-Reuse existing image/avatar validation rules:
-
-```text
-Max size: 5 MB
-Allowed extensions: .jpg, .jpeg, .png, .webp
-Allowed content types: image/jpeg, image/png, image/webp
-```
-
-Storage path:
-
-```text
-wwwroot/uploads/agencies/{agencyId}/logo/{storedFileName}
-```
-
-Public URL:
-
-```text
-/uploads/agencies/{agencyId}/logo/{storedFileName}
-```
-
----
-
-## Upload/replace behavior
-
-Endpoint:
-
-```http
-PUT /api/agencies/{agencyId}/logo
-```
-
-Behavior:
-
-```text
-If agency has no logo -> upload and set logo fields.
-If agency already has logo -> store new logo, update fields, save database, then delete old logo file.
-```
-
-Important implementation rule:
-
-```text
-Do not delete the old logo file before the new logo metadata is successfully saved to the database.
-```
-
-Reason:
-
-```text
-This matches the safe avatar replacement pattern and avoids losing the old logo if database save fails.
-```
-
----
-
-## Delete logo behavior
-
-Endpoint:
-
-```http
-DELETE /api/agencies/{agencyId}/logo
-```
-
-Behavior:
-
-```text
-Clears logo fields.
-Deletes stored logo file if it exists.
-Delete is idempotent.
 ```
 
 Response:
@@ -1382,50 +718,194 @@ Response:
 204 No Content
 ```
 
-Reason:
+Authorization:
 
 ```text
-Frontend can safely call delete without checking whether a logo exists first.
+Active Owner only
 ```
 
----
-
-# 9J — Admin agency verification endpoints
-
-## Scope
-
-Admin verification is intentionally small in Chapter 9.
-
-Included:
+Rules:
 
 ```text
-Approve agency
-Reject agency
-Disable agency
+Owner cannot disable themselves.
+Target member must belong to the requested agency.
+Missing target or cross-agency target returns 404.
+Active -> Disabled.
+Pending -> Disabled.
+Disabled -> Disabled idempotent.
+No hard delete.
 ```
 
-Not included:
+Last-owner invariant:
 
 ```text
-Reactivate agency
-Admin agency edit
-Admin member management
-Verification documents
-Verification notes
-Audit log UI
+A sole Active Owner cannot disable themselves because self-disable is blocked.
+Another Active Owner may disable an Active Owner because the acting Active Owner remains.
 ```
 
-Reason:
+The disable handler does not perform an active-owner count query.
+
+## 15. Change agency member role
+
+Endpoint:
+
+```http
+PUT /api/agencies/{agencyId}/members/{memberId}/role
+```
+
+Response:
+
+```http
+204 No Content
+```
+
+Request:
 
 ```text
-The backend only needs minimum status control before frontend readiness.
+Role
 ```
 
----
+Authorization:
 
-## Endpoints
+```text
+Active Owner only
+```
 
-Recommended endpoints:
+Assignable roles:
+
+```text
+Owner
+Agent
+```
+
+Target rules:
+
+```text
+Target member must be Active.
+Agent -> Owner allowed.
+Owner -> Agent allowed when another Active Owner remains.
+Same role is idempotent.
+Manager input is rejected.
+Existing Manager may be changed to Owner or Agent as a recovery path.
+Cross-agency target returns 404.
+```
+
+Last-owner invariant:
+
+```text
+The last Active Owner cannot be demoted to Agent.
+```
+
+Recommended ownership handoff:
+
+```text
+Promote another Active member to Owner first.
+Then demote the old Owner.
+```
+
+The same concurrency risk as member disabling remains deferred to Chapter 11.
+
+## 16. Agency logo management
+
+Endpoints:
+
+```http
+PUT    /api/agencies/{agencyId}/logo
+DELETE /api/agencies/{agencyId}/logo
+```
+
+Authorization:
+
+```text
+Active Owner only
+current user not Disabled
+agency status does not block private logo management
+```
+
+### 16.1 Stored metadata
+
+Agency fields:
+
+```text
+LogoUrl
+LogoStoredFileName
+LogoContentType
+LogoSizeBytes
+```
+
+No separate logo table exists.
+
+### 16.2 Storage
+
+Filesystem path:
+
+```text
+src/RealEstate.Api/wwwroot/uploads/agencies/{agencyId}/logo/{storedFileName}
+```
+
+Public URL:
+
+```text
+/uploads/agencies/{agencyId}/logo/{storedFileName}
+```
+
+### 16.3 Validation
+
+```text
+Maximum size: 5 MB
+Allowed extensions: .jpg, .jpeg, .png, .webp
+Allowed MIME types: image/jpeg, image/png, image/webp
+Missing file -> 400
+Empty file -> 400
+Invalid extension/type/size -> 400
+```
+
+### 16.4 Upload and replacement
+
+Upload response:
+
+```http
+200 OK with AgencyResponse
+```
+
+Safe replacement order:
+
+```text
+1. Store the new file.
+2. Update Agency logo metadata.
+3. Save database changes.
+4. If save fails, delete the newly stored file and rethrow.
+5. After successful save, delete the old stored file.
+```
+
+The old logo is not removed before the replacement is safely persisted.
+
+### 16.5 Delete
+
+Delete response:
+
+```http
+204 No Content
+```
+
+Behavior:
+
+```text
+Clear database metadata.
+Save the cleared state.
+Delete the stored file when present.
+No existing logo -> 204 idempotent.
+```
+
+## 17. Platform-admin agency verification
+
+Controller scope:
+
+```text
+/api/admin/agencies
+```
+
+Endpoints:
 
 ```http
 PUT /api/admin/agencies/{agencyId}/approve
@@ -1433,182 +913,87 @@ PUT /api/admin/agencies/{agencyId}/reject
 PUT /api/admin/agencies/{agencyId}/disable
 ```
 
-Auth:
+Response:
+
+```http
+200 OK with AgencyResponse
+```
+
+Authorization:
 
 ```text
-Requires JWT.
-Requires User.Role = Admin.
-Requires User.Status = Active.
+UserRole.Admin
+UserStatus.Active
 ```
 
 Blocked:
 
 ```text
-No token -> 401
-Non-admin user -> 403
-PendingVerification admin user -> 403
-Disabled admin user -> 403
+No JWT -> 401
+Unresolvable current user -> 401
+Non-admin -> 403
+PendingVerification admin -> 403
+Disabled admin -> 403
 Missing agency -> 404
 ```
 
-Reason:
+The database user is reloaded through `PlatformAdminAccessChecker`.
 
-```text
-Agency verification changes public trust and publishability.
-Only active admins should do it.
-```
-
----
-
-## Status transition rules
-
-### Approve agency
-
-Endpoint:
-
-```http
-PUT /api/admin/agencies/{agencyId}/approve
-```
-
-Allowed:
+### 17.1 Approve
 
 ```text
 PendingVerification -> Active
-Rejected -> Active
+Rejected            -> Active
+Active              -> Active idempotent
+Disabled            -> 400
 ```
 
-Idempotent:
-
-```text
-Active -> Active
-```
-
-Blocked:
-
-```text
-Disabled -> 400 Bad Request
-```
-
-Reason:
-
-```text
-Disabled agency should not be silently reactivated by approve in Chapter 9.
-No reactivation endpoint exists yet.
-```
-
----
-
-### Reject agency
-
-Endpoint:
-
-```http
-PUT /api/admin/agencies/{agencyId}/reject
-```
-
-Allowed:
+### 17.2 Reject
 
 ```text
 PendingVerification -> Rejected
+Rejected            -> Rejected idempotent
+Active              -> 400
+Disabled            -> 400
 ```
 
-Idempotent:
-
-```text
-Rejected -> Rejected
-```
-
-Blocked:
-
-```text
-Active -> 400 Bad Request
-Disabled -> 400 Bad Request
-```
-
-Reason:
-
-```text
-Reject is for verification review, not for disabling an existing active agency.
-```
-
----
-
-### Disable agency
-
-Endpoint:
-
-```http
-PUT /api/admin/agencies/{agencyId}/disable
-```
-
-Allowed:
+### 17.3 Disable
 
 ```text
 PendingVerification -> Disabled
-Active -> Disabled
-Rejected -> Disabled
+Active              -> Disabled
+Rejected            -> Disabled
+Disabled            -> Disabled idempotent
 ```
 
-Idempotent:
+These transitions are implemented as domain methods on `Agency`.
+
+No reactivation endpoint exists in Chapter 9.
+
+### 17.4 Listing effect
 
 ```text
-Disabled -> Disabled
+Only Active agencies can publish new agency listings.
+Changing Agency.Status does not automatically archive or unpublish existing listings.
+Public listing visibility remains controlled by Listing.Status.
+Private unpublish/archive/dashboard management remains available under existing permission rules.
 ```
 
-Reason:
+## 18. Agency dashboard summary
 
-```text
-Disable is the admin safety action for removing agency publishability/access trust.
-```
-
----
-
-## Effect on listing behavior
-
-Admin status changes must respect Chapter 8 listing rules:
-
-```text
-Only Active agencies can publish agency listings.
-Agency status does not block unpublish/archive/dashboard listing management.
-Public listing visibility remains Listing.Status = Active only.
-```
-
-Important:
-
-```text
-Disabling an agency does not automatically archive/unpublish existing listings in Chapter 9.
-```
-
-Reason:
-
-```text
-Automatic listing status changes are a separate business decision.
-Chapter 9 only changes agency status.
-```
-
----
-
-# 9K — Agency dashboard summary
-
-## Endpoint
-
-Recommended endpoint:
+Endpoint:
 
 ```http
 GET /api/agencies/{agencyId}/dashboard/summary
 ```
 
-Auth:
+Response:
 
-```text
-Requires JWT.
+```http
+200 OK with AgencyDashboardSummaryResponse
 ```
 
----
-
-## Permission rules
-
-Allowed:
+Authorization:
 
 ```text
 Active Owner
@@ -1618,32 +1003,29 @@ Active Agent
 Blocked:
 
 ```text
-No token -> 401
+No JWT -> 401
+Unresolvable current user -> 401
+Missing agency -> 404
 Non-member -> 403
-Active Manager -> 403
+Manager -> 403
 Pending member -> 403
 Disabled member -> 403
 Disabled user -> 403
-Missing agency -> 404
+```
+
+User status:
+
+```text
+PendingVerification current user is allowed when membership is Active Owner or Active Agent.
 ```
 
 Agency status:
 
 ```text
-Agency.Status does not block dashboard summary viewing.
+PendingVerification, Active, Disabled, and Rejected agencies may all be viewed privately.
 ```
 
-Reason:
-
-```text
-Active members may need to inspect/manage agency dashboard data even when the agency is PendingVerification, Disabled, or Rejected.
-```
-
----
-
-## Response shape
-
-Recommended response:
+Response fields:
 
 ```text
 AgencyId
@@ -1658,556 +1040,101 @@ ActiveMembersCount
 PendingInvitationsCount
 ```
 
-Do not add advanced analytics in Chapter 9.
-
-Out of scope:
+Count semantics:
 
 ```text
-Revenue
-Lead tracking
-Listing performance
-Views/clicks
-Conversion analytics
-Charts
-Time-series stats
+TotalListings
+- all listings where Listing.AgencyId equals the requested agency
+
+DraftListings
+- requested agency + ListingStatus.Draft
+
+ActiveListings
+- requested agency + ListingStatus.Active
+
+ArchivedListings
+- requested agency + ListingStatus.Archived
+
+MembersCount
+- all AgencyMember rows for the requested agency
+
+ActiveMembersCount
+- requested agency + AgencyMemberStatus.Active
+
+PendingInvitationsCount
+- requested agency
+- AgencyInvitationStatus.Pending
+- ExpiresAtUtc > utcNow
 ```
 
-Reason:
+Important boundary:
 
 ```text
-Dashboard summary should support frontend layout and basic management only.
+ExpiresAtUtc == utcNow is not actionable and is not counted.
 ```
 
----
-
-# Architecture rules
-
-## Clean Architecture split
-
-Rules:
+Query architecture:
 
 ```text
-Controllers stay thin.
-Handlers contain use-case/application logic.
-Repositories stay data-focused.
-Domain entities own their own state transitions.
-Infrastructure owns EF Core mappings, persistence, file storage, and security.
-Application owns repository interfaces.
-Infrastructure implements repository interfaces.
+one read-only EF projection
+database-side scalar Count subqueries
+one database round trip expected
+no Include
+no collection loading
+no N+1
+DateTime.UtcNow passed into repository as utcNow
 ```
 
----
-
-## Controller rules
-
-Controllers should:
+Current conclusion:
 
 ```text
-Read route/query/body/form input.
-Call handlers.
-Map ServiceResult to HTTP response.
+Raw SQL is not justified.
+Existing AgencyId indexes are sufficient at this stage.
 ```
 
-Controllers should not contain:
+## 19. Persistence changes
+
+### 19.1 AgencyInvitations
+
+Added:
 
 ```text
-Owner checks
-Agent checks
-Invitation status transitions
-Member disable/demotion rules
-Last active Owner rule
-File storage logic
-EF Core queries
+AgencyInvitations table
+AgencyInvitationStatus enum
+AgencyInvitation EF configuration
+repository abstraction/implementation
 ```
 
----
-
-## Handler rules
-
-Handlers should:
+Important persisted fields:
 
 ```text
-Resolve current user.
-Load required agency/member/invitation/listing data.
-Apply user status rules.
-Apply member role/status rules.
-Apply invitation/member/logo/admin use-case rules.
-Call domain methods where state changes belong to entities.
-Save changes through repositories.
-Return DTO response through ServiceResult.
+agency relationship
+inviter relationship
+optional accepter relationship
+original and normalized email
+token
+code
+role
+status
+expiry
+accepted/cancelled timestamps
+auditing timestamps
 ```
 
----
-
-## Repository rules
-
-Repositories stay data-focused.
-
-Good repository methods:
+Important indexes/constraints:
 
 ```text
-Get agency by id for update
-Get agency by id read-only
-Get invitation by id for update
-Get invitation by token/code for update
-Get invitations by agency id
-Check pending invitation exists by agency + normalized email
-Get member access read model
-Get member by id for update
-Count active owners by agency id
-Get dashboard summary counts
-Save changes
+unique index on Token
+index supporting agency lookup
+index supporting normalized-email lookup
+existing AgencyMember agency+user uniqueness remains authoritative for duplicate membership
 ```
 
-Bad repository methods:
+Duplicate Pending invitations are also prevented by application-level existence checks.
 
-```text
-CanUserInviteMemberAsync
-CanUserCancelInvitationAsync
-CanUserAcceptInvitationAsync
-CanUserDisableMemberAsync
-CanUserChangeRoleAsync
-CanAdminApproveAgencyAsync
-```
+### 19.2 Agency logo metadata
 
-Reason:
-
-```text
-Repositories fetch data.
-Handlers or small application-level permission helpers decide rules.
-```
-
----
-
-## Permission helper rule
-
-A small application-level helper is allowed if repeated agency admin access checks become duplicated.
-
-Possible helper:
-
-```text
-AgencyAdminAccessChecker
-```
-
-Possible responsibilities:
-
-```text
-Ensure agency exists.
-Ensure current user is not Disabled.
-Ensure current user is Active Owner.
-Ensure current user is Active Owner or Active Agent for dashboard summary.
-```
-
-Important:
-
-```text
-Do not create this helper before duplication exists.
-```
-
-Reason:
-
-```text
-Avoid overbuilding.
-Extract only when repeated permission flow becomes noisy.
-```
-
----
-
-## Domain method rules
-
-Recommended domain methods:
-
-Agency:
-
-```text
-SetLogo(...)
-RemoveLogo()
-Approve()
-Reject()
-Disable()
-```
-
-AgencyMember:
-
-```text
-Disable()
-ChangeRole(...)
-```
-
-AgencyInvitation:
-
-```text
-Accept(...)
-Cancel()
-Expire()
-```
-
-Domain methods should handle:
-
-```text
-Entity state transitions
-Basic invariant protection that belongs to the entity
-Setting entity fields consistently
-```
-
-Domain methods should not handle:
-
-```text
-JWT/current user lookup
-HTTP status codes
-EF Core queries
-Repository calls
-Cross-entity permission checks
-File storage
-```
-
-Cross-entity rules such as last active Owner should be handled in the handler because it requires counting other members.
-
----
-
-## DTO rules
-
-Recommended DTOs:
-
-```text
-CreateAgencyInvitationRequest
-AgencyInvitationResponse
-AcceptAgencyInvitationRequest
-ChangeAgencyMemberRoleRequest
-AgencyMemberResponse or existing member response reuse
-AgencyDashboardSummaryResponse
-AgencyResponse reuse for admin verification and logo update where practical
-```
-
-Response reuse rule:
-
-```text
-Reuse existing AgencyResponse when the endpoint returns updated agency profile/status/logo state.
-Do not create unnecessary response DTOs.
-```
-
-API enum response rule:
-
-```text
-Enum values are returned as strings in API JSON responses.
-Tests should assert string enum values such as "Agent" and "Pending", not numeric values.
-```
-
-Reason:
-
-```text
-String enums are clearer for frontend, Swagger, and API clients.
-They are also safer than depending on numeric enum values.
-```
-
----
-
-# Error behavior
-
-Use:
-
-```http
-401 Unauthorized
-```
-
-When:
-
-```text
-No JWT token
-Invalid JWT token
-Current user id cannot be resolved
-```
-
-Use:
-
-```http
-403 Forbidden
-```
-
-When:
-
-```text
-Authenticated user lacks required agency role/status
-Authenticated user is Disabled
-Authenticated user is not Admin for admin endpoint
-Invitation email does not match current user email
-```
-
-Use:
-
-```http
-404 Not Found
-```
-
-When:
-
-```text
-Agency does not exist
-Invitation does not exist
-Invitation token/code does not exist
-Member does not exist
-Target resource belongs to another agency
-```
-
-Use:
-
-```http
-400 Bad Request
-```
-
-When:
-
-```text
-Validation fails
-Duplicate pending invitation exists
-Already member accepts invitation
-Invitation is not Pending during accept
-Invitation is Accepted/Expired during cancel
-Cannot disable last active Owner
-Cannot demote last active Owner
-Invalid admin status transition
-Invalid file type/extension/size
-```
-
-Use:
-
-```http
-200 OK
-```
-
-When:
-
-```text
-Invite created if not using 201
-Invitation accepted
-Invitation cancelled
-Member disabled
-Member role changed
-Logo uploaded/replaced
-Admin status changed
-Dashboard summary returned
-```
-
-Use:
-
-```http
-201 Created
-```
-
-Optional for:
-
-```text
-Invitation created
-```
-
-Preferred:
-
-```text
-Use 201 Created for POST invitation creation if route conventions are simple.
-Use 200 OK if existing controller style prefers simple ServiceResult mapping.
-```
-
-Use:
-
-```http
-204 No Content
-```
-
-When:
-
-```text
-Agency logo deleted successfully, including idempotent no-logo case.
-```
-
----
-
-# Testing rules
-
-## Testing policy
-
-Add integration tests for important API behavior and permission boundaries.
-
-Add unit tests only when there is real domain logic worth testing.
-
-Do not chase fake 100% unit coverage.
-
----
-
-## Recommended integration test files
-
-Use existing partial-class style under agencies tests.
-
-Possible files:
-
-```text
-tests/RealEstate.Tests/Integration/Agencies/AgenciesEndpointTests.Invitations.cs
-tests/RealEstate.Tests/Integration/Agencies/AgenciesEndpointTests.MemberManagement.cs
-tests/RealEstate.Tests/Integration/Agencies/AgenciesEndpointTests.Logo.cs
-tests/RealEstate.Tests/Integration/Agencies/AgenciesEndpointTests.AdminVerification.cs
-tests/RealEstate.Tests/Integration/Agencies/AgenciesEndpointTests.DashboardSummary.cs
-```
-
-Only split further if files become too large.
-
----
-
-## Invitation tests
-
-Cover:
-
-```text
-No token invite -> 401
-Active Owner can invite -> success
-PendingVerification Active Owner can invite -> success
-Active Agent cannot invite -> 403
-Active Manager cannot invite -> 403
-Non-member cannot invite -> 403
-Disabled user cannot invite -> 403
-Owner cannot invite Manager role -> 400
-Duplicate pending invitation -> 400
-Invitation response includes Token and Code on create
-Invitation response returns enum values as strings
-Active/PendingVerification invited user can accept by Token/Code -> success
-Accept with invitation id only is not supported
-Accept with wrong Token/Code -> 404
-Accept with mismatched email -> 403
-Disabled user cannot accept -> 403
-Cancelled invitation cannot be accepted -> 400
-Accepted invitation cannot be accepted again -> 400
-Expired invitation cannot be accepted -> 400
-Accept creates AgencyMember with correct role/status
-Accept marks invitation Accepted
-Accept does not create duplicate membership
-Active Owner can cancel pending invitation -> success
-Active Agent cannot cancel invitation -> 403
-Active Manager cannot cancel invitation -> 403
-Cancelled invitation cancel is idempotent
-Accepted invitation cannot be cancelled -> 400
-```
-
----
-
-## Member management tests
-
-Cover:
-
-```text
-No token disable member -> 401
-Active Owner can disable member -> success
-Active Agent cannot disable member -> 403
-Active Manager cannot disable member -> 403
-Non-member cannot disable member -> 403
-Disabled user cannot disable member -> 403
-Cannot disable last active Owner -> 400
-Owner cannot self-disable in Chapter 9 -> 400 or 403, define in implementation
-Disabling Disabled member is idempotent
-Active Owner can change Agent to Owner -> success
-Active Owner can change Owner to Agent if another active Owner exists -> success
-Cannot demote last active Owner -> 400
-Active Agent cannot change roles -> 403
-Active Manager cannot change roles -> 403
-Invalid role -> 400
-Role change for Disabled/Pending member -> 400
-```
-
-Preferred self-disable response:
-
-```http
-400 Bad Request
-```
-
-Reason:
-
-```text
-The authenticated user may have permission generally, but the requested transition is invalid.
-```
-
----
-
-## Logo tests
-
-Cover:
-
-```text
-No token upload logo -> 401
-Active Owner can upload logo -> 200
-Active Agent cannot upload logo -> 403
-Active Manager cannot upload logo -> 403
-Non-member cannot upload logo -> 403
-Disabled user cannot upload logo -> 403
-Missing agency -> 404
-Missing file -> 400
-Empty file -> 400
-Invalid extension -> 400
-Invalid content type -> 400
-Too large file -> 400
-Second upload replaces logo metadata -> 200
-Delete logo returns 204
-Delete logo with no logo still returns 204
-Active Agent cannot delete logo -> 403
-Active Manager cannot delete logo -> 403
-Logo fields persist after upload
-Logo fields clear after delete
-```
-
----
-
-## Admin verification tests
-
-Cover:
-
-```text
-No token approve/reject/disable -> 401
-Non-admin cannot approve/reject/disable -> 403
-PendingVerification admin user cannot approve/reject/disable -> 403
-Disabled admin user cannot approve/reject/disable -> 403
-Active admin can approve PendingVerification agency -> Active
-Active admin can approve Rejected agency -> Active
-Approve Active agency is idempotent
-Approve Disabled agency -> 400
-Active admin can reject PendingVerification agency -> Rejected
-Reject Rejected agency is idempotent
-Reject Active agency -> 400
-Reject Disabled agency -> 400
-Active admin can disable PendingVerification agency -> Disabled
-Active admin can disable Active agency -> Disabled
-Active admin can disable Rejected agency -> Disabled
-Disable Disabled agency is idempotent
-```
-
----
-
-## Dashboard summary tests
-
-Cover:
-
-```text
-No token -> 401
-Missing agency -> 404
-Non-member -> 403
-Active Manager -> 403
-Pending member -> 403
-Disabled member -> 403
-Disabled user -> 403
-Active Owner -> 200
-Active Agent -> 200
-Agency status does not block dashboard summary
-Counts include Draft/Active/Archived listings correctly
-Counts include active members correctly
-Counts include pending invitations correctly
-```
-
----
-
-# Database changes
-
-Expected new table:
-
-```text
-AgencyInvitations
-```
-
-Expected Agency columns:
+Added to `Agencies`:
 
 ```text
 LogoStoredFileName
@@ -2217,90 +1144,316 @@ LogoSizeBytes
 
 Existing `LogoUrl` remains.
 
-Expected constraints/indexes:
+### 19.3 Auditing
+
+`AgencyInvitation` participates in the existing auditing model:
 
 ```text
-Index on AgencyInvitations.AgencyId
-Index on AgencyInvitations.NormalizedEmail
-Unique index on AgencyInvitations.Token
-Unique filtered index on AgencyId + NormalizedEmail where Status = Pending
+CreatedAtUtc
+ModifiedAtUtc
 ```
 
-Important:
+Business timestamps remain explicit:
 
 ```text
-AgencyInvitation has its own lifecycle and repository, so exposing AgencyInvitations as a DbSet is acceptable.
-Repository methods remain data-focused.
+ExpiresAtUtc
+AcceptedAtUtc
+CancelledAtUtc
 ```
 
-Final DbSet decisions should follow current project style and avoid exposing child-only entities unnecessarily.
+## 20. Architecture rules confirmed by Chapter 9
 
----
+### Controllers
 
-# Implementation file request policy
-
-Before final implementation code, ask for exact existing files.
-
-Required files will likely include:
+Controllers:
 
 ```text
-src/RealEstate.Domain/Entities/Agency.cs
-src/RealEstate.Domain/Entities/AgencyMember.cs
-src/RealEstate.Domain/Enums/AgencyStatus.cs
-src/RealEstate.Domain/Enums/AgencyMemberRole.cs
-src/RealEstate.Domain/Enums/AgencyMemberStatus.cs
-src/RealEstate.Application/Agencies/Repositories/IAgencyRepository.cs
-src/RealEstate.Infrastructure/Persistence/Repositories/AgencyRepository.cs
-src/RealEstate.Infrastructure/Persistence/Configurations/AgencyConfiguration.cs
-src/RealEstate.Infrastructure/Persistence/Configurations/AgencyMemberConfiguration.cs
-src/RealEstate.Infrastructure/Persistence/RealEstateDbContext.cs
-src/RealEstate.Api/Controllers/AgenciesController.cs
-src/RealEstate.Api/Controllers/UsersController.cs
-src/RealEstate.Infrastructure/Storage/LocalFileStorageService.cs
-src/RealEstate.Application/Common/Storage/IFileStorageService.cs
-src/RealEstate.Application/Common/ServiceResult.cs
-src/RealEstate.Infrastructure/DependencyInjection.cs
-tests/RealEstate.Tests/Integration/Agencies/AgenciesEndpointTests.Setup.cs
-tests/RealEstate.Tests/Integration/Agencies/AgencyTestHelpers.cs
+read route/query/body/form input
+call handlers
+map ServiceResult to HTTP responses
 ```
 
-Additional files may be needed depending on current admin/auth patterns.
-
-Rule:
+Controllers do not contain:
 
 ```text
-Do not guess project-specific helper names, route mapping style, DI registration style, or test setup details.
-Ask for files first, then write compile-safe code.
+role checks
+membership-status checks
+last-owner checks
+invitation transitions
+admin transitions
+file-storage logic
+EF Core queries
 ```
 
----
+### Handlers
 
-# 9L — Docs/context update
-
-After implementation and tests pass, update:
+Handlers:
 
 ```text
+resolve current user
+apply status and permission rules
+load tracked/read-only data
+coordinate cross-entity rules
+call domain transitions
+save through repositories
+return DTOs through ServiceResult
+```
+
+### Domain
+
+Domain methods own local transitions such as:
+
+```text
+AgencyInvitation.Accept
+AgencyInvitation.Cancel
+AgencyInvitation.MarkExpired
+AgencyMember.Disable
+AgencyMember.ChangeRole
+Agency.SetLogo
+Agency.RemoveLogo
+Agency.Approve
+Agency.Reject
+Agency.Disable
+```
+
+Cross-entity rules such as counting Active Owners remain in application handlers because they require repository data.
+
+### Repositories
+
+Repositories remain data-focused.
+
+Good Chapter 9 responsibilities:
+
+```text
+get invitation by token for update
+get invitation by id for update
+list invitations
+check duplicate Pending invitation
+load agency with members
+get member for update
+count Active Owners
+project dashboard summary
+save changes
+```
+
+Authorization decisions remain outside repositories.
+
+## 21. HTTP error behavior
+
+```text
+401 Unauthorized
+- no/invalid JWT
+- current user ID or database user cannot be resolved
+
+403 Forbidden
+- authenticated user lacks required role/status
+- current user is Disabled
+- invitation email does not match current user
+- non-admin uses platform-admin endpoint
+
+404 Not Found
+- agency does not exist
+- invitation/token/member does not exist
+- target resource belongs to another agency
+
+400 Bad Request
+- validation failure
+- duplicate Pending invitation
+- already-member acceptance
+- invalid invitation state
+- expired invitation
+- self-disable
+- last-owner disable/demotion
+- invalid role
+- invalid agency status transition
+- invalid logo file
+
+201 Created
+- invitation created
+
+200 OK
+- invitation list
+- invitation accept
+- invitation cancel
+- logo upload/replace
+- admin verification transition
+- dashboard summary
+
+204 No Content
+- member disable
+- member role change
+- logo delete
+```
+
+## 22. Test coverage
+
+Chapter 9 integration and domain coverage includes:
+
+```text
+authorization: 401/403 boundaries
+resource isolation: 404 for cross-agency targets
+Disabled-user restrictions
+PendingVerification-user allowed flows
+Owner/Agent/Manager separation
+invitation create/list/accept/cancel
+Token-only acceptance
+Token/Code exposure rules
+email matching
+invitation expiry and terminal states
+duplicate membership protection
+member disable and idempotency
+role changes and idempotency
+last Active Owner protection
+logo validation, persistence, replacement, cleanup, and deletion
+platform-admin separation and status transitions
+dashboard summary permissions, status independence, counts, and data isolation
+```
+
+Dashboard-summary tests also prove exclusion of:
+
+```text
+personal listings
+other-agency listings
+other-agency invitations
+Accepted invitations
+Cancelled invitations
+Expired invitations
+expired-but-still-Pending invitations
+```
+
+Final test checkpoint:
+
+```text
+416/416 passing
+```
+
+## 23. Known deferred risks and decisions
+
+### 23.1 Last-owner concurrency
+
+Owner -> Agent demotion uses an application-level active-owner count.
+
+Risk:
+
+```text
+Two concurrent role-change operations could both observe a safe count and then demote owners.
+```
+
+Deferred to:
+
+```text
+Chapter 11 — Data Integrity and Targeted Hardening
+```
+
+### 23.2 Manager permissions
+
+Manager remains intentionally restricted.
+
+Do not expand Manager behavior without explicit product rules and tests.
+
+### 23.3 Invitation expiration consistency
+
+Acceptance, cancellation, and dashboard summary treat an expired timestamp as non-actionable.
+
+Invitation rows may remain `Pending` until an action marks them `Expired`.
+
+The dashboard summary deliberately counts only:
+
+```text
+Status == Pending && ExpiresAtUtc > utcNow
+```
+
+A broader automatic-expiration strategy is deferred.
+
+### 23.4 Email delivery
+
+Chapter 9 creates invitation credentials but does not deliver email.
+
+Email/background processing belongs to a later chapter.
+
+### 23.5 Agency reactivation
+
+No reactivate endpoint exists.
+
+`Approve` cannot reactivate a Disabled agency.
+
+### 23.6 Automatic listing status changes
+
+Agency disable/reject does not mutate listing statuses.
+
+Any moderation policy for bulk unpublish/archive must be designed separately.
+
+## 24. Chapter completion summary
+
+Chapter 9 completed the following backend capabilities:
+
+```text
+Agency invitation lifecycle
+Owner-only invitation administration
+Token-only invitation acceptance
+Active membership creation
+Member soft-disable
+Member role changes
+Last-owner protection
+Agency logo storage and lifecycle
+Active platform-admin agency verification
+Agency dashboard summary
+Shared agency-admin access enforcement
+Platform-admin separation
+Permission and DTO cleanup
+PostgreSQL-backed integration coverage
+```
+
+Chapter 9 preserved:
+
+```text
+thin controllers
+use-case-focused handlers
+domain-owned local transitions
+data-focused repositories
+feature-level DTO/read-model conventions
+existing listing publishing and visibility rules
+```
+
+Chapter 9 intentionally did not add billing, email delivery, CRM, advanced analytics, or frontend-specific infrastructure.
+
+## 25. 9L documentation closeout
+
+9L updates:
+
+```text
+docs/backend-context.md
 docs/chapters/chapter-09-agency-phase-2.md
-backend-context.md
+docs/backend-quality-handoff.md
 ```
 
-Final update should include:
+9L goals:
 
 ```text
-Final implemented endpoints
-Final permission rules
-Final database changes
-Final test count
-Important implementation notes
-Out-of-scope items that remain postponed
-Next chapter: Chapter 9.5 — Frontend readiness
+record final implemented behavior
+remove planned/recommended wording that no longer applies
+remove resolved quality findings
+keep only real deferred risks
+record 416/416 test checkpoint
+align roadmap across documentation
 ```
 
-Do not update backend-context.md as final until Chapter 9 implementation is complete and tests pass.
-
-Reason:
+## 26. Roadmap after Chapter 9
 
 ```text
-backend-context.md is the compressed AI handoff file.
-It should describe final implemented state, not planned behavior pretending to be complete.
+Chapter 10 — Search and Discovery Phase 2
+
+Chapter 11 — Data Integrity and Targeted Hardening
+
+Chapter 12 — API Consistency, Observability, and Frontend Readiness
+
+Then begin frontend development
+
+Chapter 13 — Authentication and Account Security Phase 2
+
+Chapter 14 — Background Jobs and Notifications
+
+Chapter 15 — Agency Workspace Phase 3
 ```
+
+Chapters 13–15 are later plans. Their order and scope may change after frontend work and real workflow feedback.
