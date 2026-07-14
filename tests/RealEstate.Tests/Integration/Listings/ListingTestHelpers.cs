@@ -1,28 +1,38 @@
-﻿using System.Net.Http.Json;
-using System.Text.Json;
-using RealEstate.Tests.Integration.Auth;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Tests.Integration.Auth;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace RealEstate.Tests.Integration.Listings;
 
 internal static class ListingTestHelpers
 {
-    public static async Task<Guid> CreateListingAsync(HttpClient httpClient)
+    public static async Task<Guid> CreateListingAsync(
+        HttpClient httpClient,
+        decimal price = 99000)
     {
-        (Guid listingId, _) = await CreateListingWithOwnerAsync(httpClient);
+        (Guid listingId, _) = await CreateListingWithOwnerAsync(
+            httpClient,
+            price);
 
         return listingId;
     }
 
-    public static async Task<(Guid ListingId, AuthenticatedTestUser Owner)> CreateListingWithOwnerAsync(
-        HttpClient httpClient)
+    public static async Task<(Guid ListingId, AuthenticatedTestUser Owner)>
+        CreateListingWithOwnerAsync(
+            HttpClient httpClient,
+            decimal price = 99000)
     {
-        AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(httpClient);
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(httpClient);
 
-        Guid listingId = await CreateListingAsAsync(httpClient, owner);
+        Guid listingId = await CreateListingAsAsync(
+            httpClient,
+            owner,
+            price: price);
 
         return (listingId, owner);
     }
@@ -30,15 +40,20 @@ internal static class ListingTestHelpers
     public static async Task<Guid> CreateListingAsAsync(
         HttpClient httpClient,
         AuthenticatedTestUser user,
-        Guid? agencyId = null)
+        Guid? agencyId = null,
+        decimal price = 99000)
     {
         httpClient.AuthorizeAs(user.AccessToken);
 
         try
         {
-            var request = CreateValidListingRequest(agencyId: agencyId);
+            object request = CreateValidListingRequest(
+                price: price,
+                agencyId: agencyId);
 
-            return await PostListingAndReturnIdAsync(httpClient, request);
+            return await PostListingAndReturnIdAsync(
+                httpClient,
+                request);
         }
         finally
         {
@@ -46,7 +61,9 @@ internal static class ListingTestHelpers
         }
     }
 
-    public static object CreateValidListingRequest(decimal price = 99000, Guid? agencyId = null)
+    public static object CreateValidListingRequest(
+        decimal price = 99000,
+        Guid? agencyId = null)
     {
         return new
         {
@@ -104,7 +121,8 @@ internal static class ListingTestHelpers
         };
     }
 
-    public static object CreateValidHouseListingRequest(decimal price = 150000)
+    public static object CreateValidHouseListingRequest(
+        decimal price = 150000)
     {
         return new
         {
@@ -165,28 +183,33 @@ internal static class ListingTestHelpers
         Guid listingId,
         ListingStatus status)
     {
-        await using AsyncServiceScope scope = factory.Services.CreateAsyncScope();
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
 
-        var dbContext =
+        RealEstateDbContext dbContext =
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
 
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $@"UPDATE ""Listings""
-            SET ""Status"" = {status.ToString()}
-            WHERE ""Id"" = {listingId}");
+            $"""
+             UPDATE "Listings"
+             SET "Status" = {status.ToString()}
+             WHERE "Id" = {listingId}
+             """);
     }
 
     private static async Task<Guid> PostListingAndReturnIdAsync(
         HttpClient httpClient,
         object request)
     {
-        HttpResponseMessage response = await httpClient.PostAsJsonAsync(
-            "/api/listings",
-            request);
+        HttpResponseMessage response =
+            await httpClient.PostAsJsonAsync(
+                "/api/listings",
+                request);
 
         response.EnsureSuccessStatusCode();
 
-        JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        JsonElement json =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
 
         return json.GetProperty("id").GetGuid();
     }

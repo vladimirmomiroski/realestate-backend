@@ -1,4 +1,6 @@
 ﻿using FluentAssertions;
+using RealEstate.Domain.Enums;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -10,19 +12,41 @@ public sealed partial class ListingsEndpointTests
     [Fact]
     public async Task GetListings_ReturnsPagedListings()
     {
-        await ListingTestHelpers.CreateListingAsync(_httpClient);
+        const decimal uniquePrice = 987654.32m;
 
-        var response = await _httpClient.GetAsync("/api/listings?lang=en&page=1&pageSize=20");
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(
+            _httpClient,
+            uniquePrice);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
+
+        string price = uniquePrice.ToString(CultureInfo.InvariantCulture);
+
+        var response = await _httpClient.GetAsync(
+            $"/api/listings" +
+            $"?lang=en" +
+            $"&minPrice={price}" +
+            $"&maxPrice={price}" +
+            $"&currency=EUR" +
+            $"&page=1" +
+            $"&pageSize=20");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        JsonElement json =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        json.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
-        json.GetProperty("items").GetArrayLength().Should().BeGreaterThan(0);
+        JsonElement items = json.GetProperty("items");
+
+        items.ValueKind.Should().Be(JsonValueKind.Array);
+        items.GetArrayLength().Should().Be(1);
+        items[0].GetProperty("id").GetGuid().Should().Be(listingId);
 
         json.GetProperty("page").GetInt32().Should().Be(1);
         json.GetProperty("pageSize").GetInt32().Should().Be(20);
-        json.GetProperty("totalCount").GetInt32().Should().BeGreaterThan(0);
+        json.GetProperty("totalCount").GetInt32().Should().Be(1);
     }
 }
