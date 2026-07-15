@@ -11,14 +11,18 @@ namespace RealEstate.Tests.Integration.Listings;
 internal static class ListingTestHelpers
 {
     public static async Task<Guid> CreateListingAsync(
-    HttpClient httpClient,
-    decimal price = 99000,
-    string currency = "EUR")
+     HttpClient httpClient,
+     decimal price = 99000m,
+     string currency = "EUR",
+     decimal areaSquareMeters = 58m,
+     decimal? rooms = 2m)
     {
         (Guid listingId, _) = await CreateListingWithOwnerAsync(
             httpClient,
             price,
-            currency);
+            currency,
+            areaSquareMeters,
+            rooms);
 
         return listingId;
     }
@@ -26,8 +30,10 @@ internal static class ListingTestHelpers
     public static async Task<(Guid ListingId, AuthenticatedTestUser Owner)>
         CreateListingWithOwnerAsync(
             HttpClient httpClient,
-            decimal price = 99000,
-            string currency = "EUR")
+            decimal price = 99000m,
+            string currency = "EUR",
+            decimal areaSquareMeters = 58m,
+            decimal? rooms = 2m)
     {
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(httpClient);
@@ -36,7 +42,9 @@ internal static class ListingTestHelpers
             httpClient,
             owner,
             price: price,
-            currency: currency);
+            currency: currency,
+            areaSquareMeters: areaSquareMeters,
+            rooms: rooms);
 
         return (listingId, owner);
     }
@@ -45,8 +53,10 @@ internal static class ListingTestHelpers
         HttpClient httpClient,
         AuthenticatedTestUser user,
         Guid? agencyId = null,
-        decimal price = 99000,
-        string currency = "EUR")
+        decimal price = 99000m,
+        string currency = "EUR",
+        decimal areaSquareMeters = 58m,
+        decimal? rooms = 2m)
     {
         httpClient.AuthorizeAs(user.AccessToken);
 
@@ -55,7 +65,9 @@ internal static class ListingTestHelpers
             object request = CreateValidListingRequest(
                 price: price,
                 agencyId: agencyId,
-                currency: currency);
+                currency: currency,
+                areaSquareMeters: areaSquareMeters,
+                rooms: rooms);
 
             return await PostListingAndReturnIdAsync(
                 httpClient,
@@ -70,7 +82,9 @@ internal static class ListingTestHelpers
     public static object CreateValidListingRequest(
         decimal price = 99000,
         Guid? agencyId = null,
-        string currency = "EUR")
+        string currency = "EUR",
+        decimal areaSquareMeters = 58m,
+        decimal? rooms = 2m)
     {
         return new
         {
@@ -79,8 +93,8 @@ internal static class ListingTestHelpers
             agencyId,
             price,
             currency,
-            areaSquareMeters = 58,
-            rooms = 2,
+            areaSquareMeters,
+            rooms,
             bathrooms = 1,
             apartmentDetails = new
             {

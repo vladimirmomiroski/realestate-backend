@@ -205,6 +205,34 @@ public sealed class ListingRepository : IListingRepository
                 listing.Price <= filters.MaxPrice.Value);
         }
 
+        if (filters.MinAreaSquareMeters.HasValue)
+        {
+            query = query.Where(listing =>
+                listing.AreaSquareMeters >=
+                filters.MinAreaSquareMeters.Value);
+        }
+
+        if (filters.MaxAreaSquareMeters.HasValue)
+        {
+            query = query.Where(listing =>
+                listing.AreaSquareMeters <=
+                filters.MaxAreaSquareMeters.Value);
+        }
+
+        if (filters.MinRooms.HasValue)
+        {
+            query = query.Where(listing =>
+                listing.Rooms.HasValue &&
+                listing.Rooms.Value >= filters.MinRooms.Value);
+        }
+
+        if (filters.MaxRooms.HasValue)
+        {
+            query = query.Where(listing =>
+                listing.Rooms.HasValue &&
+                listing.Rooms.Value <= filters.MaxRooms.Value);
+        }
+
         if (filters.HeatingType.HasValue)
         {
             query = query.Where(listing =>
