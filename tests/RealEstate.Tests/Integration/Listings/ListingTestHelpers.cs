@@ -11,12 +11,14 @@ namespace RealEstate.Tests.Integration.Listings;
 internal static class ListingTestHelpers
 {
     public static async Task<Guid> CreateListingAsync(
-        HttpClient httpClient,
-        decimal price = 99000)
+    HttpClient httpClient,
+    decimal price = 99000,
+    string currency = "EUR")
     {
         (Guid listingId, _) = await CreateListingWithOwnerAsync(
             httpClient,
-            price);
+            price,
+            currency);
 
         return listingId;
     }
@@ -24,7 +26,8 @@ internal static class ListingTestHelpers
     public static async Task<(Guid ListingId, AuthenticatedTestUser Owner)>
         CreateListingWithOwnerAsync(
             HttpClient httpClient,
-            decimal price = 99000)
+            decimal price = 99000,
+            string currency = "EUR")
     {
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(httpClient);
@@ -32,7 +35,8 @@ internal static class ListingTestHelpers
         Guid listingId = await CreateListingAsAsync(
             httpClient,
             owner,
-            price: price);
+            price: price,
+            currency: currency);
 
         return (listingId, owner);
     }
@@ -41,7 +45,8 @@ internal static class ListingTestHelpers
         HttpClient httpClient,
         AuthenticatedTestUser user,
         Guid? agencyId = null,
-        decimal price = 99000)
+        decimal price = 99000,
+        string currency = "EUR")
     {
         httpClient.AuthorizeAs(user.AccessToken);
 
@@ -49,7 +54,8 @@ internal static class ListingTestHelpers
         {
             object request = CreateValidListingRequest(
                 price: price,
-                agencyId: agencyId);
+                agencyId: agencyId,
+                currency: currency);
 
             return await PostListingAndReturnIdAsync(
                 httpClient,
@@ -63,7 +69,8 @@ internal static class ListingTestHelpers
 
     public static object CreateValidListingRequest(
         decimal price = 99000,
-        Guid? agencyId = null)
+        Guid? agencyId = null,
+        string currency = "EUR")
     {
         return new
         {
@@ -71,7 +78,7 @@ internal static class ListingTestHelpers
             propertyType = "Apartment",
             agencyId,
             price,
-            currency = "EUR",
+            currency,
             areaSquareMeters = 58,
             rooms = 2,
             bathrooms = 1,
@@ -195,6 +202,27 @@ internal static class ListingTestHelpers
              SET "Status" = {status.ToString()}
              WHERE "Id" = {listingId}
              """);
+    }
+
+    public static async Task SetListingStatusAndCreatedAtUtcAsync(
+        CustomWebApplicationFactory factory,
+        Guid listingId,
+        ListingStatus status,
+        DateTime createdAtUtc)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+
+        RealEstateDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+         UPDATE "Listings"
+         SET "Status" = {status.ToString()},
+             "CreatedAtUtc" = {createdAtUtc}
+         WHERE "Id" = {listingId}
+         """);
     }
 
     private static async Task<Guid> PostListingAndReturnIdAsync(

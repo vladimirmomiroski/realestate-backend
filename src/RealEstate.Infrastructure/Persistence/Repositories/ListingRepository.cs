@@ -51,8 +51,11 @@ public sealed class ListingRepository : IListingRepository
 
         int totalCount = await listingsQuery.CountAsync(cancellationToken);
 
-        List<Listing> listings = await ApplyListingIncludes(listingsQuery)
-            .OrderByDescending(listing => listing.CreatedAtUtc)
+        IOrderedQueryable<Listing> orderedQuery = ApplyOrdering(
+            listingsQuery,
+            query.SortOption);
+
+        List<Listing> listings = await ApplyListingIncludes(orderedQuery)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -184,6 +187,12 @@ public sealed class ListingRepository : IListingRepository
                 listing.PropertyType == filters.PropertyType.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(filters.Currency))
+        {
+            query = query.Where(listing =>
+                listing.Currency == filters.Currency);
+        }
+
         if (filters.MinPrice.HasValue)
         {
             query = query.Where(listing =>
@@ -300,6 +309,36 @@ public sealed class ListingRepository : IListingRepository
         }
 
         return query;
+    }
+
+    private static IOrderedQueryable<Listing> ApplyOrdering(
+        IQueryable<Listing> query,
+        ListingSortOption sortOption)
+    {
+        return sortOption switch
+        {
+            ListingSortOption.Newest =>
+                query
+                    .OrderByDescending(listing => listing.CreatedAtUtc)
+                    .ThenByDescending(listing => listing.Id),
+
+            ListingSortOption.PriceAsc =>
+                query
+                    .OrderBy(listing => listing.Price)
+                    .ThenByDescending(listing => listing.CreatedAtUtc)
+                    .ThenByDescending(listing => listing.Id),
+
+            ListingSortOption.PriceDesc =>
+                query
+                    .OrderByDescending(listing => listing.Price)
+                    .ThenByDescending(listing => listing.CreatedAtUtc)
+                    .ThenByDescending(listing => listing.Id),
+
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(sortOption),
+                sortOption,
+                "Unsupported listing sort option.")
+        };
     }
 
     private static IQueryable<Listing> ApplyListingIncludes(IQueryable<Listing> query)
