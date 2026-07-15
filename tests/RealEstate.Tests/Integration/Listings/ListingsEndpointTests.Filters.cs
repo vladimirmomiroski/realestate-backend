@@ -20,7 +20,7 @@ public sealed partial class ListingsEndpointTests
             ListingStatus.Active);
 
         var response = await _httpClient.GetAsync(
-            "/api/listings?lang=en&minPrice=90000&maxPrice=100000&page=1&pageSize=20");
+            "/api/listings?lang=en&minPrice=90000&maxPrice=100000&currency=EUR&page=1&pageSize=20");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 

@@ -47,6 +47,7 @@ public static class DependencyInjection
     {
         services.AddScoped<CreateListingValidator>();
         services.AddScoped<CreateListingHandler>();
+        services.AddScoped<GetListingsValidator>();
         services.AddScoped<GetListingsHandler>();
         services.AddScoped<GetListingByIdHandler>();
         services.AddScoped<PublishListingHandler>();
