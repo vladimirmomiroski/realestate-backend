@@ -180,25 +180,39 @@ public sealed class AgenciesController : ControllerBase
     }
 
     [HttpGet("{id:guid}/listings")]
-    [ProducesResponseType(typeof(PagedResult<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(PagedResult<ListingResponse>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResult<ListingResponse>>> GetAgencyListings(
-    Guid id,
-    [FromQuery] string? lang,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 20,
-    CancellationToken cancellationToken = default)
+        Guid id,
+        [FromQuery] string? lang,
+        [FromQuery] string sort = "newest",
+        [FromQuery] string? currency = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
         var query = new GetAgencyListingsQuery
         {
             AgencyId = id,
             LanguageCode = lang,
+            Sort = sort,
+            Currency = currency,
             Page = page,
             PageSize = pageSize
         };
 
         ServiceResult<PagedResult<ListingResponse>> result =
-            await _getAgencyListingsHandler.HandleAsync(query, cancellationToken);
+            await _getAgencyListingsHandler.HandleAsync(
+                query,
+                cancellationToken);
+
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
 
         if (result.Status == ServiceResultStatus.NotFound)
         {

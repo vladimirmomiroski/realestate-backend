@@ -103,7 +103,10 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(PagedResponse<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+    typeof(PagedResponse<ListingResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponse<ListingResponse>>> GetListings(
     [FromQuery] string lang = "mk",
     [FromQuery] ListingType? listingType = null,
@@ -120,6 +123,12 @@ public sealed class ListingsController : ControllerBase
     [FromQuery] decimal? maxYardAreaSquareMeters = null,
     [FromQuery] decimal? minPrice = null,
     [FromQuery] decimal? maxPrice = null,
+    [FromQuery] string? currency = null,
+    [FromQuery] decimal? minAreaSquareMeters = null,
+    [FromQuery] decimal? maxAreaSquareMeters = null,
+    [FromQuery] decimal? minRooms = null,
+    [FromQuery] decimal? maxRooms = null,
+    [FromQuery] string sort = "newest",
     [FromQuery] string? city = null,
     [FromQuery] string? municipality = null,
     [FromQuery] string? neighborhood = null,
@@ -144,6 +153,12 @@ public sealed class ListingsController : ControllerBase
             MaxYardAreaSquareMeters = maxYardAreaSquareMeters,
             MinPrice = minPrice,
             MaxPrice = maxPrice,
+            Currency = currency,
+            MinAreaSquareMeters = minAreaSquareMeters,
+            MaxAreaSquareMeters = maxAreaSquareMeters,
+            MinRooms = minRooms,
+            MaxRooms = maxRooms,
+            Sort = sort,
             City = city,
             Municipality = municipality,
             Neighborhood = neighborhood,
@@ -151,9 +166,17 @@ public sealed class ListingsController : ControllerBase
             PageSize = pageSize
         };
 
-        var listings = await _getListingsHandler.HandleAsync(query, cancellationToken);
+        ServiceResult<PagedResponse<ListingResponse>> result =
+            await _getListingsHandler.HandleAsync(
+                query,
+                cancellationToken);
 
-        return Ok(listings);
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
     }
 
     [Authorize]

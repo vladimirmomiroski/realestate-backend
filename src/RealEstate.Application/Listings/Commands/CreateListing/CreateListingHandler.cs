@@ -13,7 +13,7 @@ namespace RealEstate.Application.Listings.Commands.CreateListing;
 public sealed class CreateListingHandler
 {
 
-    private const int MaxFreeListingsPerUser = 3;
+    private const int MaxFreeListingsPerUser = 10;
 
     private readonly IListingRepository _listingRepository;
     private readonly CreateListingValidator _validator;

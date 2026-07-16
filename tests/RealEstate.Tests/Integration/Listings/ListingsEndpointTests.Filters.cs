@@ -10,30 +10,61 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed partial class ListingsEndpointTests
 {
     [Fact]
-    public async Task GetListings_WithPriceFilter_ReturnsMatchingListings()
+    public async Task GetListings_WithPriceFilter_ReturnsOnlyMatchingCurrency()
     {
-        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        const decimal matchingPrice = 934567.89m;
+        const string matchingCurrency = "PFX";
+        const string otherCurrency = "PFY";
+
+        Guid matchingListingId =
+            await ListingTestHelpers.CreateListingAsync(
+                _httpClient,
+                matchingPrice,
+                matchingCurrency);
+
+        Guid otherCurrencyListingId =
+            await ListingTestHelpers.CreateListingAsync(
+                _httpClient,
+                matchingPrice,
+                otherCurrency);
 
         await ListingTestHelpers.SetListingStatusAsync(
             _factory,
-            listingId,
+            matchingListingId,
+            ListingStatus.Active);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            otherCurrencyListingId,
             ListingStatus.Active);
 
         var response = await _httpClient.GetAsync(
-            "/api/listings?lang=en&minPrice=90000&maxPrice=100000&page=1&pageSize=20");
+            "/api/listings" +
+            "?lang=en" +
+            $"&minPrice={matchingPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
+            $"&maxPrice={matchingPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
+            "&currency=pfx" +
+            "&page=1" +
+            "&pageSize=20");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        JsonElement json =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        json.GetProperty("items").GetArrayLength().Should().BeGreaterThan(0);
+        JsonElement items = json.GetProperty("items");
 
-        var firstListing = json.GetProperty("items")[0];
+        items.GetArrayLength().Should().Be(1);
+        items[0].GetProperty("id").GetGuid()
+            .Should().Be(matchingListingId);
 
-        firstListing.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
-        firstListing.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
-        firstListing.GetProperty("images").GetArrayLength().Should().Be(0);
-        firstListing.GetProperty("price").GetDecimal().Should().BeInRange(90000, 100000);
+        items[0].GetProperty("currency").GetString()
+            .Should().Be(matchingCurrency);
+
+        items[0].GetProperty("price").GetDecimal()
+            .Should().Be(matchingPrice);
+
+        json.GetProperty("totalCount").GetInt32().Should().Be(1);
     }
 
     [Fact]

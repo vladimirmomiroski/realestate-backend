@@ -220,11 +220,18 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task CreateListing_WhenUserHasThreeListings_ReturnsBadRequest()
+    public async Task CreateListing_WhenUserHasReachedTemporaryLimit_ReturnsBadRequest()
     {
         AuthenticatedTestUser user =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
 
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
+        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
         await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
         await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
         await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);

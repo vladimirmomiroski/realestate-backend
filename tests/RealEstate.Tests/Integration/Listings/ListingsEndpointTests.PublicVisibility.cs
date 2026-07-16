@@ -10,46 +10,100 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed partial class ListingsEndpointTests
 {
     [Fact]
-    public async Task GetListings_ShouldOnlyReturnActiveListings()
+    public async Task GetListings_NonActiveStatuses_DoNotAffectItemsCountOrFirstPage()
     {
-        // Arrange
-        (Guid activeListingId, _) =
-            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        const string currency = "VSB";
 
-        (Guid draftListingId, _) =
-            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        (Guid activeListingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(
+                _httpClient,
+                currency: currency);
 
-        (Guid archivedListingId, _) =
-            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        Guid draftListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner,
+                currency: currency);
 
-        await SetListingStatusAsync(activeListingId, ListingStatus.Active);
-        await SetListingStatusAsync(draftListingId, ListingStatus.Draft);
-        await SetListingStatusAsync(archivedListingId, ListingStatus.Archived);
+        Guid archivedListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner,
+                currency: currency);
+
+        Guid reservedListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner,
+                currency: currency);
+
+        Guid soldListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner,
+                currency: currency);
+
+        Guid rentedListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner,
+                currency: currency);
+
+        DateTime activeCreatedAtUtc =
+            new(2032, 1, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            activeListingId,
+            ListingStatus.Active,
+            activeCreatedAtUtc);
+
+        var nonActiveListings = new[]
+        {
+        (Id: draftListingId, Status: ListingStatus.Draft),
+        (Id: archivedListingId, Status: ListingStatus.Archived),
+        (Id: reservedListingId, Status: ListingStatus.Reserved),
+        (Id: soldListingId, Status: ListingStatus.Sold),
+        (Id: rentedListingId, Status: ListingStatus.Rented)
+    };
+
+        for (int index = 0; index < nonActiveListings.Length; index++)
+        {
+            (Guid listingId, ListingStatus status) =
+                nonActiveListings[index];
+
+            await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+                _factory,
+                listingId,
+                status,
+                activeCreatedAtUtc.AddMinutes(index + 1));
+        }
 
         _httpClient.ClearAuthorization();
 
-        // Act
-        HttpResponseMessage response =
-            await _httpClient.GetAsync("/api/listings?lang=en&page=1&pageSize=100");
+        HttpResponseMessage response = await _httpClient.GetAsync(
+            "/api/listings" +
+            $"?currency={currency}" +
+            "&page=1" +
+            "&pageSize=1");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        List<JsonElement> items = await ReadPagedListingItemsAsync(response);
+        JsonElement json =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        List<Guid> listingIds = items
-            .Select(item => item.GetProperty("id").GetGuid())
-            .ToList();
+        JsonElement items = json.GetProperty("items");
 
-        listingIds.Should().Contain(activeListingId);
-        listingIds.Should().NotContain(draftListingId);
-        listingIds.Should().NotContain(archivedListingId);
+        items.GetArrayLength().Should().Be(1);
+        items[0].GetProperty("id").GetGuid()
+            .Should().Be(activeListingId);
 
-        List<ListingStatus> statuses = items
-            .Select(ReadListingStatusFromJson)
-            .ToList();
+        ReadListingStatusFromJson(items[0])
+            .Should().Be(ListingStatus.Active);
 
-        statuses.Should().OnlyContain(status => status == ListingStatus.Active);
+        json.GetProperty("totalCount").GetInt32().Should().Be(1);
+        json.GetProperty("page").GetInt32().Should().Be(1);
+        json.GetProperty("pageSize").GetInt32().Should().Be(1);
     }
 
     [Fact]
@@ -100,42 +154,84 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task GetMyListings_ShouldStillReturnDraftActiveAndArchivedListings()
+    public async Task GetMyListings_ShouldReturnAllStatusesForCurrentUser()
     {
-        // Arrange
-        (Guid activeListingId, var owner) =
-            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        (Guid activeListingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(
+                _httpClient);
 
         Guid draftListingId =
-            await ListingTestHelpers.CreateListingAsAsync(_httpClient, owner);
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner);
 
         Guid archivedListingId =
-            await ListingTestHelpers.CreateListingAsAsync(_httpClient, owner);
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner);
 
-        await SetListingStatusAsync(activeListingId, ListingStatus.Active);
-        await SetListingStatusAsync(draftListingId, ListingStatus.Draft);
-        await SetListingStatusAsync(archivedListingId, ListingStatus.Archived);
+        Guid reservedListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner);
+
+        Guid soldListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner);
+
+        Guid rentedListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner);
+
+        var expectedListings =
+            new Dictionary<Guid, ListingStatus>
+            {
+                [activeListingId] = ListingStatus.Active,
+                [draftListingId] = ListingStatus.Draft,
+                [archivedListingId] = ListingStatus.Archived,
+                [reservedListingId] = ListingStatus.Reserved,
+                [soldListingId] = ListingStatus.Sold,
+                [rentedListingId] = ListingStatus.Rented
+            };
+
+        foreach ((Guid listingId, ListingStatus status) in expectedListings)
+        {
+            await ListingTestHelpers.SetListingStatusAsync(
+                _factory,
+                listingId,
+                status);
+        }
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
         try
         {
-            // Act
             HttpResponseMessage response =
-                await _httpClient.GetAsync("/api/listings/my?lang=en&page=1&pageSize=100");
+                await _httpClient.GetAsync(
+                    "/api/listings/my" +
+                    "?lang=en" +
+                    "&page=1" +
+                    "&pageSize=100");
 
-            // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            List<JsonElement> items = await ReadPagedListingItemsAsync(response);
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
 
-            List<Guid> listingIds = items
-                .Select(item => item.GetProperty("id").GetGuid())
-                .ToList();
+            JsonElement items = json.GetProperty("items");
 
-            listingIds.Should().Contain(activeListingId);
-            listingIds.Should().Contain(draftListingId);
-            listingIds.Should().Contain(archivedListingId);
+            items.GetArrayLength().Should().Be(6);
+            json.GetProperty("totalCount").GetInt32().Should().Be(6);
+
+            Dictionary<Guid, ListingStatus> actualListings = items
+                .EnumerateArray()
+                .ToDictionary(
+                    item => item.GetProperty("id").GetGuid(),
+                    ReadListingStatusFromJson);
+
+            actualListings.Should().BeEquivalentTo(expectedListings);
         }
         finally
         {

@@ -12,19 +12,51 @@ public sealed class GetAgencyListingsHandler
 {
     private readonly IAgencyRepository _agencyRepository;
     private readonly IListingRepository _listingRepository;
+    private readonly GetListingsValidator _getListingsValidator;
 
     public GetAgencyListingsHandler(
         IAgencyRepository agencyRepository,
-        IListingRepository listingRepository)
+        IListingRepository listingRepository,
+        GetListingsValidator getListingsValidator)
     {
         _agencyRepository = agencyRepository;
         _listingRepository = listingRepository;
+        _getListingsValidator = getListingsValidator;
     }
 
     public async Task<ServiceResult<PagedResult<ListingResponse>>> HandleAsync(
         GetAgencyListingsQuery query,
         CancellationToken cancellationToken)
     {
+        var listingsQuery = new GetListingsQuery
+        {
+            AgencyId = query.AgencyId,
+            LanguageCode = NormalizeLanguageCode(query.LanguageCode),
+            Sort = NormalizeSort(query.Sort),
+            Currency = NormalizeCurrency(query.Currency),
+            Page = NormalizePage(query.Page),
+            PageSize = NormalizePageSize(query.PageSize)
+        };
+
+        string? validationError =
+            _getListingsValidator.Validate(listingsQuery);
+
+        if (validationError is not null)
+        {
+            return ServiceResult<PagedResult<ListingResponse>>
+                .ValidationError(validationError);
+        }
+
+        if (!ListingSortOptionParser.TryParse(
+                listingsQuery.Sort,
+                out ListingSortOption sortOption))
+        {
+            return ServiceResult<PagedResult<ListingResponse>>
+                .ValidationError(GetListingsValidator.InvalidSortError);
+        }
+
+        listingsQuery.SortOption = sortOption;
+
         bool agencyExists = await _agencyRepository.ExistsAsync(
             query.AgencyId,
             cancellationToken);
@@ -35,23 +67,14 @@ public sealed class GetAgencyListingsHandler
                 "Agency was not found.");
         }
 
-        string languageCode = NormalizeLanguageCode(query.LanguageCode);
-
-        var listingsQuery = new GetListingsQuery
-        {
-            AgencyId = query.AgencyId,
-            LanguageCode = languageCode,
-            Page = query.Page,
-            PageSize = query.PageSize
-        };
-
         PagedResult<Listing> listings =
             await _listingRepository.GetFilteredReadOnlyAsync(
                 listingsQuery,
                 cancellationToken);
 
-        var responseItems = listings.Items
-            .Select(listing => listing.ToResponse(languageCode))
+        IReadOnlyList<ListingResponse> responseItems = listings.Items
+            .Select(listing =>
+                listing.ToResponse(listingsQuery.LanguageCode))
             .ToList();
 
         var response = new PagedResult<ListingResponse>(
@@ -60,7 +83,8 @@ public sealed class GetAgencyListingsHandler
             listings.PageSize,
             listings.TotalCount);
 
-        return ServiceResult<PagedResult<ListingResponse>>.Success(response);
+        return ServiceResult<PagedResult<ListingResponse>>
+            .Success(response);
     }
 
     private static string NormalizeLanguageCode(string? languageCode)
@@ -68,5 +92,38 @@ public sealed class GetAgencyListingsHandler
         return string.IsNullOrWhiteSpace(languageCode)
             ? "mk"
             : languageCode.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizeSort(string? sort)
+    {
+        return sort is null
+            ? "newest"
+            : sort.Trim();
+    }
+
+    private static string? NormalizeCurrency(string? currency)
+    {
+        return currency is null
+            ? null
+            : currency.Trim().ToUpperInvariant();
+    }
+
+    private static int NormalizePage(int page)
+    {
+        return page < 1
+            ? 1
+            : page;
+    }
+
+    private static int NormalizePageSize(int pageSize)
+    {
+        if (pageSize < 1)
+        {
+            return 20;
+        }
+
+        return pageSize > 100
+            ? 100
+            : pageSize;
     }
 }
