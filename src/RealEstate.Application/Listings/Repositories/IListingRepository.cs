@@ -19,10 +19,6 @@ public interface IListingRepository
     Guid id,
     CancellationToken cancellationToken);
 
-    Task<int> CountByCreatedByUserIdAsync(
-    Guid createdByUserId,
-    CancellationToken cancellationToken);
-
     Task<PagedResult<Listing>> GetByAgencyIdForDashboardReadOnlyAsync(
     Guid agencyId,
     ListingStatus? status,

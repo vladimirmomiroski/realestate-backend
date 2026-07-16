@@ -32,14 +32,6 @@ It is a live source-controlled issue register, not a project history, completed-
   - Smallest safe direction: Decide whether listing image mutations should follow the same Disabled-user blocking rule as listing creation and listing status transitions; if yes, reload the current user in the image handlers or centralize the check behind a focused listing-owner guard.
   - Target chapter: Chapter 11 — Data Integrity and Targeted Hardening.
 
-- **Remove the per-user free-listing-limit rule end-to-end**
-  - Area: Listing creation limits.
-  - Risk: The temporary listing limit is accepted deferred debt after the Chapter 10B regression tests required more than three listings for one user. The production threshold, validation message, tests, and documentation can remain inconsistent until the rule is removed.
-  - Evidence: `CreateListingHandler` contains the temporary `MaxFreeListingsPerUser` constant and calls `IListingRepository.CountByCreatedByUserIdAsync(...)`; `ListingRepository` implements that count contract; listing creation tests cover the temporary rule; `docs/backend-context.md` and this handoff previously described the older three-listing limit.
-  - Smallest safe direction: In the immediate next cleanup task, remove the handler constant and count check, the validation message, the repository-interface count contract and repository implementation if unused afterward, related tests, and stale documentation references.
-  - Acceptance: All current issues connected to the temporary 3-to-10 listing-limit change are accepted deferred debt and do not block the Chapter 10B commit because the next task removes the rule completely.
-  - Target task: Immediate next cleanup task.
-
 - **Deterministic listing test setup uses raw SQL**
   - Area: Listing integration-test fixtures.
   - Risk: `ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(...)` bypasses normal EF change tracking for deterministic status and timestamp setup, which makes the fixture less aligned with the preferred test setup style.
