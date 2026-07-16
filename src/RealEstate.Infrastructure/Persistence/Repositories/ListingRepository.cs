@@ -25,16 +25,6 @@ public sealed class ListingRepository : IListingRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<int> CountByCreatedByUserIdAsync(
-        Guid createdByUserId,
-        CancellationToken cancellationToken)
-    {
-        return await _dbContext.Listings
-            .CountAsync(
-                listing => listing.CreatedByUserId == createdByUserId,
-                cancellationToken);
-    }
-
     public async Task<PagedResult<Listing>> GetFilteredReadOnlyAsync(
         GetListingsQuery query,
         CancellationToken cancellationToken)

@@ -483,19 +483,17 @@ user must not be Disabled
 Agency.Status does not block unpublish/archive
 ```
 
-### Listing creation limit
+### Listing creation count
 
 Current production rule:
 
 ```text
-Each user can create up to 3 listings.
-The count is based on CreatedByUserId.
-Agency listings also count against the creator's limit.
+An authenticated Active user has no application-level per-user count limit on listing creation.
+Existing authentication, Disabled-user, request-validation, and agency-permission rules still apply.
+Future subscription, billing, quota, or plan limits must be implemented separately as an explicit feature.
 ```
 
-This rule is still active but is scheduled for product review in Chapter 11.
-
-Do not change it inside unrelated chapters.
+PendingVerification draft-creation behavior remains governed by the existing user-status rules.
 
 ### Images
 
@@ -1153,14 +1151,6 @@ docs/backend-quality-handoff.md
 
 Important current decisions/risks:
 
-### Listing creation limit
-
-```text
-The 3-listing limit is probably too restrictive for early product growth.
-It also counts agency listings against the creator.
-Review/remove/redesign in Chapter 11.
-```
-
 ### Last-owner concurrency
 
 ```text
@@ -1286,7 +1276,6 @@ invitation acceptance races
 transaction boundaries
 unique-constraint handling
 idempotency review
-listing-limit product decision
 other verified quality-backlog items
 ```
 
