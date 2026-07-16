@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using RealEstate.Domain.Enums;
 using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
@@ -79,6 +80,76 @@ public sealed partial class ListingsEndpointTests
             listingIds.Should().NotContain(secondUserListingId);
 
             json.GetProperty("totalCount").GetInt32().Should().Be(1);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task GetMyListings_NewestOrderingAndPaginationRemainUnchanged()
+    {
+        (Guid oldestListingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(
+                _httpClient);
+
+        Guid middleListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner);
+
+        Guid newestListingId =
+            await ListingTestHelpers.CreateListingAsAsync(
+                _httpClient,
+                owner);
+
+        DateTime oldestTimestamp =
+            new(2032, 2, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            oldestListingId,
+            ListingStatus.Draft,
+            oldestTimestamp);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            middleListingId,
+            ListingStatus.Reserved,
+            oldestTimestamp.AddHours(1));
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            newestListingId,
+            ListingStatus.Sold,
+            oldestTimestamp.AddHours(2));
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response =
+                await _httpClient.GetAsync(
+                    "/api/listings/my" +
+                    "?lang=en" +
+                    "&page=2" +
+                    "&pageSize=1");
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            JsonElement items = json.GetProperty("items");
+
+            items.GetArrayLength().Should().Be(1);
+            items[0].GetProperty("id").GetGuid()
+                .Should().Be(middleListingId);
+
+            json.GetProperty("page").GetInt32().Should().Be(2);
+            json.GetProperty("pageSize").GetInt32().Should().Be(1);
+            json.GetProperty("totalCount").GetInt32().Should().Be(3);
         }
         finally
         {

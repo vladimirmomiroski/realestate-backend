@@ -300,8 +300,10 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task GetAgencyListings_ExcludesNonActiveListingsFromItemsAndCount()
+    public async Task GetAgencyListings_NonActiveStatuses_DoNotAffectItemsCountOrFirstPage()
     {
+        const string currency = "APV";
+
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
 
@@ -311,42 +313,78 @@ public sealed partial class AgenciesEndpointTests
             owner,
             agencyId,
             price: 100000m,
-            currency: "AGV");
+            currency: currency);
 
         Guid draftListingId = await CreateAgencyListingAsAsync(
             owner,
             agencyId,
-            price: 200000m,
-            currency: "AGV");
+            price: 110000m,
+            currency: currency);
 
         Guid archivedListingId = await CreateAgencyListingAsAsync(
             owner,
             agencyId,
-            price: 300000m,
-            currency: "AGV");
+            price: 120000m,
+            currency: currency);
 
-        await ListingTestHelpers.SetListingStatusAsync(
+        Guid reservedListingId = await CreateAgencyListingAsAsync(
+            owner,
+            agencyId,
+            price: 130000m,
+            currency: currency);
+
+        Guid soldListingId = await CreateAgencyListingAsAsync(
+            owner,
+            agencyId,
+            price: 140000m,
+            currency: currency);
+
+        Guid rentedListingId = await CreateAgencyListingAsAsync(
+            owner,
+            agencyId,
+            price: 150000m,
+            currency: currency);
+
+        DateTime activeCreatedAtUtc =
+            new(2032, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
             _factory,
             activeListingId,
-            ListingStatus.Active);
+            ListingStatus.Active,
+            activeCreatedAtUtc);
 
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            archivedListingId,
-            ListingStatus.Archived);
+        var nonActiveListings = new[]
+        {
+        (Id: draftListingId, Status: ListingStatus.Draft),
+        (Id: archivedListingId, Status: ListingStatus.Archived),
+        (Id: reservedListingId, Status: ListingStatus.Reserved),
+        (Id: soldListingId, Status: ListingStatus.Sold),
+        (Id: rentedListingId, Status: ListingStatus.Rented)
+    };
+
+        for (int index = 0; index < nonActiveListings.Length; index++)
+        {
+            (Guid listingId, ListingStatus status) =
+                nonActiveListings[index];
+
+            await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+                _factory,
+                listingId,
+                status,
+                activeCreatedAtUtc.AddMinutes(index + 1));
+        }
 
         HttpResponseMessage response = await _httpClient.GetAsync(
             $"/api/agencies/{agencyId}/listings" +
-            "?currency=AGV" +
+            $"?currency={currency}" +
             "&page=1" +
-            "&pageSize=20");
+            "&pageSize=1");
 
         (IReadOnlyList<Guid> actualIds, int totalCount) =
             await ReadAgencyListingsPageAsync(response);
 
         actualIds.Should().Equal(new[] { activeListingId });
-        actualIds.Should().NotContain(draftListingId);
-        actualIds.Should().NotContain(archivedListingId);
         totalCount.Should().Be(1);
     }
 
