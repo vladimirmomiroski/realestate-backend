@@ -89,25 +89,30 @@ public sealed partial class AgenciesEndpointTests : IClassFixture<CustomWebAppli
     }
 
     private async Task<Guid> CreateAgencyListingAsAsync(
-    AuthenticatedTestUser user,
-    Guid agencyId,
-    decimal price = 99000)
+     AuthenticatedTestUser user,
+     Guid agencyId,
+     decimal price = 99000m,
+     string currency = "EUR")
     {
         _httpClient.AuthorizeAs(user.AccessToken);
 
         try
         {
-            var request = ListingTestHelpers.CreateValidListingRequest(
-                price: price,
-                agencyId: agencyId);
+            object request =
+                ListingTestHelpers.CreateValidListingRequest(
+                    price: price,
+                    agencyId: agencyId,
+                    currency: currency);
 
-            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                "/api/listings",
-                request);
+            HttpResponseMessage response =
+                await _httpClient.PostAsJsonAsync(
+                    "/api/listings",
+                    request);
 
             response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-            JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
 
             return json.GetProperty("id").GetGuid();
         }
