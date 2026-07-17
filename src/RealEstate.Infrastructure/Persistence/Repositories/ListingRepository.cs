@@ -11,6 +11,8 @@ public sealed class ListingRepository : IListingRepository
 {
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
+    private const string PostgreSqlBytewiseCollation = "C";
+    private const string LikeEscapeCharacter = "\\";
 
     private readonly RealEstateDbContext _dbContext;
 
@@ -293,40 +295,94 @@ public sealed class ListingRepository : IListingRepository
     }
 
     private static IQueryable<Listing> ApplyLocationFilters(
-        IQueryable<Listing> query,
-        GetListingsQuery filters)
+    IQueryable<Listing> query,
+    GetListingsQuery filters)
     {
-        if (!string.IsNullOrWhiteSpace(filters.City))
-        {
-            string city = filters.City.Trim();
+        bool hasCity = filters.City is not null;
+        bool hasMunicipality = filters.Municipality is not null;
+        bool hasNeighborhood = filters.Neighborhood is not null;
 
-            query = query.Where(listing =>
-                listing.Translations.Any(translation =>
-                    translation.City != null &&
-                    EF.Functions.ILike(translation.City, $"%{city}%")));
+        if (!hasCity &&
+            !hasMunicipality &&
+            !hasNeighborhood)
+        {
+            return query;
         }
 
-        if (!string.IsNullOrWhiteSpace(filters.Municipality))
-        {
-            string municipality = filters.Municipality.Trim();
+        string requestedLanguagePattern =
+            EscapeLikePattern(filters.LanguageCode);
 
-            query = query.Where(listing =>
-                listing.Translations.Any(translation =>
-                    translation.Municipality != null &&
-                    EF.Functions.ILike(translation.Municipality, $"%{municipality}%")));
-        }
+        string macedonianLanguagePattern =
+            EscapeLikePattern("mk");
 
-        if (!string.IsNullOrWhiteSpace(filters.Neighborhood))
-        {
-            string neighborhood = filters.Neighborhood.Trim();
+        string cityPattern = hasCity
+            ? EscapeLikePattern(filters.City!)
+            : string.Empty;
 
-            query = query.Where(listing =>
-                listing.Translations.Any(translation =>
-                    translation.Neighborhood != null &&
-                    EF.Functions.ILike(translation.Neighborhood, $"%{neighborhood}%")));
-        }
+        string municipalityPattern = hasMunicipality
+            ? EscapeLikePattern(filters.Municipality!)
+            : string.Empty;
 
-        return query;
+        string neighborhoodPattern = hasNeighborhood
+            ? EscapeLikePattern(filters.Neighborhood!)
+            : string.Empty;
+
+        return query.Where(listing =>
+            listing.Translations
+                .OrderBy(translation =>
+                    EF.Functions.ILike(
+                        translation.LanguageCode,
+                        requestedLanguagePattern,
+                        LikeEscapeCharacter)
+                        ? 0
+                        : EF.Functions.ILike(
+                            translation.LanguageCode,
+                            macedonianLanguagePattern,
+                            LikeEscapeCharacter)
+                            ? 1
+                            : 2)
+                .ThenBy(translation =>
+                    EF.Functions.Collate(
+                        translation.LanguageCode,
+                        PostgreSqlBytewiseCollation))
+                .ThenBy(translation => translation.Id)
+                .Take(1)
+                .Any(translation =>
+                    (!hasCity ||
+                        (translation.City != null &&
+                         EF.Functions.ILike(
+                             translation.City,
+                             cityPattern,
+                             LikeEscapeCharacter))) &&
+                    (!hasMunicipality ||
+                        (translation.Municipality != null &&
+                         EF.Functions.ILike(
+                             translation.Municipality,
+                             municipalityPattern,
+                             LikeEscapeCharacter))) &&
+                    (!hasNeighborhood ||
+                        (translation.Neighborhood != null &&
+                         EF.Functions.ILike(
+                             translation.Neighborhood,
+                             neighborhoodPattern,
+                             LikeEscapeCharacter)))));
+    }
+
+    private static string EscapeLikePattern(string value)
+    {
+        return value
+            .Replace(
+                "\\",
+                "\\\\",
+                StringComparison.Ordinal)
+            .Replace(
+                "%",
+                "\\%",
+                StringComparison.Ordinal)
+            .Replace(
+                "_",
+                "\\_",
+                StringComparison.Ordinal);
     }
 
     private static IOrderedQueryable<Listing> ApplyOrdering(

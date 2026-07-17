@@ -498,4 +498,88 @@ public sealed partial class AgenciesEndpointTests
             _httpClient.ClearAuthorization();
         }
     }
+
+    [Fact]
+    public async Task GetAgencyDashboardListings_DeterministicFallback_PreservesPrivateResponseBehavior()
+    {
+        // Arrange
+        const string currency = "AGD";
+
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid agencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid listingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 100000m,
+                currency: currency);
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            listingId,
+            CreateCustomListingTranslation(
+                "\U00010000",
+                "Supplementary Dashboard Title",
+                city: "Supplementary Dashboard City"),
+            CreateCustomListingTranslation(
+                "\uE000",
+                "Private Use Dashboard Title",
+                city: "Private Use Dashboard City"));
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Reserved);
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            // Act
+            HttpResponseMessage response =
+                await _httpClient.GetAsync(
+                    $"/api/agencies/{agencyId}/dashboard/listings" +
+                    "?lang=de" +
+                    "&page=1" +
+                    "&pageSize=1");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            json.GetProperty("page").GetInt32().Should().Be(1);
+            json.GetProperty("pageSize").GetInt32().Should().Be(1);
+            json.GetProperty("totalCount").GetInt32().Should().Be(1);
+
+            JsonElement items = json.GetProperty("items");
+
+            items.GetArrayLength().Should().Be(1);
+
+            JsonElement item = items[0];
+
+            item.GetProperty("id").GetGuid().Should().Be(listingId);
+
+            ReadListingStatusFromJson(item)
+                .Should().Be(ListingStatus.Reserved);
+
+            item.GetProperty("languageCode").GetString()
+                .Should().Be("\uE000");
+
+            item.GetProperty("title").GetString()
+                .Should().Be("Private Use Dashboard Title");
+
+            item.GetProperty("city").GetString()
+                .Should().Be("Private Use Dashboard City");
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
 }

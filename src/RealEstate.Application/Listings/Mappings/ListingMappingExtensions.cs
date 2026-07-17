@@ -7,12 +7,10 @@ public static class ListingMappingExtensions
 {
     public static ListingResponse ToResponse(this Listing listing, string languageCode)
     {
-        var normalizedLanguageCode = NormalizeLanguageCode(languageCode);
-
-        var translation = listing.Translations
-            .FirstOrDefault(translation =>
-                translation.LanguageCode.Equals(normalizedLanguageCode, StringComparison.OrdinalIgnoreCase))
-            ?? listing.Translations.FirstOrDefault();
+        var translation =
+            EffectiveTranslationOrdering.SelectEffectiveTranslation(
+                listing.Translations,
+                languageCode);
 
         var orderedImages = listing.Images
             .OrderBy(image => image.SortOrder)
@@ -87,13 +85,4 @@ public static class ListingMappingExtensions
         };
     }
 
-    private static string NormalizeLanguageCode(string languageCode)
-    {
-        if (string.IsNullOrWhiteSpace(languageCode))
-        {
-            return "mk";
-        }
-
-        return languageCode.Trim().ToLowerInvariant();
-    }
 }

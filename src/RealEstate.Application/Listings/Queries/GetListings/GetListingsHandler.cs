@@ -23,9 +23,9 @@ public sealed class GetListingsHandler
         GetListingsQuery query,
         CancellationToken cancellationToken)
     {
-        query.LanguageCode = string.IsNullOrWhiteSpace(query.LanguageCode)
-            ? "mk"
-            : query.LanguageCode.Trim().ToLower();
+        query.LanguageCode =
+            EffectiveTranslationOrdering.NormalizeRequestedLanguageCode(
+                query.LanguageCode);
 
         query.Page = query.Page < 1
             ? 1
@@ -46,6 +46,10 @@ public sealed class GetListingsHandler
         query.Currency = query.Currency is null
             ? null
             : query.Currency.Trim().ToUpperInvariant();
+
+        query.City = NormalizeOptionalLocation(query.City);
+        query.Municipality = NormalizeOptionalLocation(query.Municipality);
+        query.Neighborhood = NormalizeOptionalLocation(query.Neighborhood);
 
         string? validationError = _validator.Validate(query);
 
@@ -84,5 +88,12 @@ public sealed class GetListingsHandler
 
         return ServiceResult<PagedResponse<ListingResponse>>
             .Success(response);
+    }
+
+    private static string? NormalizeOptionalLocation(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 }

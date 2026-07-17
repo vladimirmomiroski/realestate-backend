@@ -388,6 +388,184 @@ public sealed partial class AgenciesEndpointTests
         totalCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task GetAgencyListings_WhenRequestedLanguageIsMissing_UsesDeterministicFallback()
+    {
+        // Arrange
+        const string currency = "AGT";
+
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid agencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid listingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 100000m,
+                currency: currency);
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            listingId,
+            CreateCustomListingTranslation(
+                "\U00010000",
+                "Supplementary Title",
+                city: "Supplementary City"),
+            CreateCustomListingTranslation(
+                "\uE000",
+                "Private Use Title",
+                city: "Private Use City"));
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
+
+        _httpClient.ClearAuthorization();
+
+        // Act
+        HttpResponseMessage response =
+            await _httpClient.GetAsync(
+                $"/api/agencies/{agencyId}/listings" +
+                "?lang=de" +
+                $"&currency={currency}" +
+                "&page=1" +
+                "&pageSize=20");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        JsonElement json =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("totalCount").GetInt32().Should().Be(1);
+
+        JsonElement items = json.GetProperty("items");
+
+        items.GetArrayLength().Should().Be(1);
+
+        JsonElement item = items[0];
+
+        item.GetProperty("id").GetGuid().Should().Be(listingId);
+        item.GetProperty("agencyId").GetGuid().Should().Be(agencyId);
+        item.GetProperty("languageCode").GetString()
+            .Should().Be("\uE000");
+        item.GetProperty("title").GetString()
+            .Should().Be("Private Use Title");
+        item.GetProperty("city").GetString()
+            .Should().Be("Private Use City");
+    }
+
+    [Fact]
+    public async Task GetListings_WithAgencyIdAndLocationFilter_UsesSharedEffectiveTranslationSemantics()
+    {
+        // Arrange
+        const string currency = "AGL";
+        const string city = "Agency Scoped City";
+
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid selectedAgencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid excludedAgencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid selectedListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                selectedAgencyId,
+                price: 100000m,
+                currency: currency);
+
+        Guid excludedListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                excludedAgencyId,
+                price: 110000m,
+                currency: currency);
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            selectedListingId,
+            CreateCustomListingTranslation(
+                "en",
+                "Selected Agency Listing",
+                city: city),
+            CreateCustomListingTranslation(
+                "mk",
+                "Избран агенциски оглас",
+                city: "Друг Град"));
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            excludedListingId,
+            CreateCustomListingTranslation(
+                "en",
+                "Excluded Agency Listing",
+                city: city),
+            CreateCustomListingTranslation(
+                "mk",
+                "Исклучен агенциски оглас",
+                city: "Друг Град"));
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            selectedListingId,
+            ListingStatus.Active);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            excludedListingId,
+            ListingStatus.Active);
+
+        _httpClient.ClearAuthorization();
+
+        // Act
+        HttpResponseMessage response =
+            await _httpClient.GetAsync(
+                "/api/listings" +
+                $"?agencyId={selectedAgencyId}" +
+                "&lang=en" +
+                $"&currency={currency}" +
+                $"&city={Uri.EscapeDataString(city)}" +
+                "&page=1" +
+                "&pageSize=20");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        JsonElement json =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        json.GetProperty("totalCount").GetInt32().Should().Be(1);
+
+        JsonElement items = json.GetProperty("items");
+
+        items.GetArrayLength().Should().Be(1);
+
+        JsonElement item = items[0];
+
+        item.GetProperty("id").GetGuid()
+            .Should().Be(selectedListingId);
+
+        item.GetProperty("id").GetGuid()
+            .Should().NotBe(excludedListingId);
+
+        item.GetProperty("agencyId").GetGuid()
+            .Should().Be(selectedAgencyId);
+
+        item.GetProperty("languageCode").GetString()
+            .Should().Be("en");
+
+        item.GetProperty("city").GetString()
+            .Should().Be(city);
+    }
+
     private static async Task<(
     IReadOnlyList<Guid> Ids,
     int TotalCount)> ReadAgencyListingsPageAsync(
