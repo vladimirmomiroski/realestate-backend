@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using RealEstate.Domain.Entities;
 
 namespace RealEstate.Application.Listings.Mappings;
 
@@ -9,6 +10,58 @@ public static class EffectiveTranslationOrdering
 
     public static IComparer<Guid> TranslationIdComparer { get; } =
         new CanonicalGuidComparer();
+
+    public static ListingTranslation? SelectEffectiveTranslation(
+        IEnumerable<ListingTranslation> translations,
+        string? requestedLanguageCode)
+    {
+        ArgumentNullException.ThrowIfNull(translations);
+
+        string normalizedLanguageCode =
+            NormalizeRequestedLanguageCode(requestedLanguageCode);
+
+        return translations
+            .OrderBy(translation =>
+                GetLanguagePriority(
+                    translation.LanguageCode,
+                    normalizedLanguageCode))
+            .ThenBy(
+                translation => translation.LanguageCode,
+                LanguageCodeComparer)
+            .ThenBy(
+                translation => translation.Id,
+                TranslationIdComparer)
+            .FirstOrDefault();
+    }
+
+    public static string NormalizeRequestedLanguageCode(
+        string? languageCode)
+    {
+        return string.IsNullOrWhiteSpace(languageCode)
+            ? "mk"
+            : languageCode.Trim().ToLowerInvariant();
+    }
+
+    private static int GetLanguagePriority(
+        string storedLanguageCode,
+        string requestedLanguageCode)
+    {
+        if (storedLanguageCode.Equals(
+                requestedLanguageCode,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (storedLanguageCode.Equals(
+                "mk",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 2;
+    }
 
     private sealed class Utf8LexicographicComparer : IComparer<string>
     {
