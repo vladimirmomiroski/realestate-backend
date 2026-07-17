@@ -5,6 +5,15 @@ public sealed class GetListingsValidator
     public const string InvalidSortError =
         "Sort must be one of: newest, priceAsc, priceDesc.";
 
+    public const string CityTooLongError =
+    "City cannot exceed 100 characters.";
+
+    public const string MunicipalityTooLongError =
+        "Municipality cannot exceed 100 characters.";
+
+    public const string NeighborhoodTooLongError =
+        "Neighborhood cannot exceed 100 characters.";
+
     public string? Validate(GetListingsQuery query)
     {
         if (!ListingSortOptionParser.TryParse(
@@ -102,6 +111,21 @@ public sealed class GetListingsValidator
             query.MaxYardAreaSquareMeters.Value)
         {
             return "Minimum yard area cannot be greater than maximum yard area.";
+        }
+
+        if (query.City is { Length: > 100 })
+        {
+            return CityTooLongError;
+        }
+
+        if (query.Municipality is { Length: > 100 })
+        {
+            return MunicipalityTooLongError;
+        }
+
+        if (query.Neighborhood is { Length: > 100 })
+        {
+            return NeighborhoodTooLongError;
         }
 
         return null;
