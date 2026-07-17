@@ -14,6 +14,12 @@ public sealed class GetListingsValidator
     public const string NeighborhoodTooLongError =
         "Neighborhood cannot exceed 100 characters.";
 
+    public const string SearchTextTooShortError =
+        "Search query must contain at least 2 characters.";
+
+    public const string SearchTextTooLongError =
+        "Search query cannot exceed 100 characters.";
+
     public string? Validate(GetListingsQuery query)
     {
         if (!ListingSortOptionParser.TryParse(
@@ -126,6 +132,16 @@ public sealed class GetListingsValidator
         if (query.Neighborhood is { Length: > 100 })
         {
             return NeighborhoodTooLongError;
+        }
+
+        if (query.SearchText is { Length: < 2 })
+        {
+            return SearchTextTooShortError;
+        }
+
+        if (query.SearchText is { Length: > 100 })
+        {
+            return SearchTextTooLongError;
         }
 
         return null;

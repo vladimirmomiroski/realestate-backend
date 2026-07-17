@@ -47,6 +47,9 @@ public sealed class GetListingsHandler
             ? null
             : query.Currency.Trim().ToUpperInvariant();
 
+        query.SearchText =
+            NormalizeOptionalSearchText(query.SearchText);
+
         query.City = NormalizeOptionalLocation(query.City);
         query.Municipality = NormalizeOptionalLocation(query.Municipality);
         query.Neighborhood = NormalizeOptionalLocation(query.Neighborhood);
@@ -91,6 +94,13 @@ public sealed class GetListingsHandler
     }
 
     private static string? NormalizeOptionalLocation(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+
+    private static string? NormalizeOptionalSearchText(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
             ? null

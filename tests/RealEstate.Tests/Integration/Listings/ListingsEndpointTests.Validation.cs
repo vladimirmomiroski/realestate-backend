@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using System.Net;
+using RealEstate.Application.Listings.Queries.GetListings;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -142,5 +143,43 @@ public sealed partial class ListingsEndpointTests
             $"/api/listings?{queryString}");
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task GetListings_WithOneCharacterSearchText_ReturnsBadRequest()
+    {
+        HttpResponseMessage response =
+            await _httpClient.GetAsync(
+                "/api/listings?q=a");
+
+        string responseBody =
+            await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        responseBody.Should().Contain(
+            GetListingsValidator.SearchTextTooShortError);
+    }
+
+    [Fact]
+    public async Task GetListings_WithSearchTextOver100Characters_ReturnsBadRequest()
+    {
+        string searchText =
+            new('a', 101);
+
+        string encodedSearchText =
+            Uri.EscapeDataString(searchText);
+
+        HttpResponseMessage response =
+            await _httpClient.GetAsync(
+                $"/api/listings?q={encodedSearchText}");
+
+        string responseBody =
+            await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        responseBody.Should().Contain(
+            GetListingsValidator.SearchTextTooLongError);
     }
 }

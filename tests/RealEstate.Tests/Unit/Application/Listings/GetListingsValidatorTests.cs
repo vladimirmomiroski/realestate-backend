@@ -54,6 +54,72 @@ public sealed class GetListingsValidatorTests
         error.Should().Be(expectedError);
     }
 
+    [Fact]
+    public void Validate_WhenSearchTextHasOneCharacter_ReturnsTooShortError()
+    {
+        // Arrange
+        var query = new GetListingsQuery
+        {
+            SearchText = "a"
+        };
+
+        // Act
+        string? error = _validator.Validate(query);
+
+        // Assert
+        error.Should().Be(
+            GetListingsValidator.SearchTextTooShortError);
+    }
+
+    [Fact]
+    public void Validate_WhenSearchTextHasTwoCharacters_ReturnsNoError()
+    {
+        // Arrange
+        var query = new GetListingsQuery
+        {
+            SearchText = new string('a', 2)
+        };
+
+        // Act
+        string? error = _validator.Validate(query);
+
+        // Assert
+        error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_WhenSearchTextHas100Characters_ReturnsNoError()
+    {
+        // Arrange
+        var query = new GetListingsQuery
+        {
+            SearchText = new string('a', 100)
+        };
+
+        // Act
+        string? error = _validator.Validate(query);
+
+        // Assert
+        error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_WhenSearchTextHas101Characters_ReturnsTooLongError()
+    {
+        // Arrange
+        var query = new GetListingsQuery
+        {
+            SearchText = new string('a', 101)
+        };
+
+        // Act
+        string? error = _validator.Validate(query);
+
+        // Assert
+        error.Should().Be(
+            GetListingsValidator.SearchTextTooLongError);
+    }
+
     private static GetListingsQuery CreateQueryWithLocation(
         string field,
         string value)

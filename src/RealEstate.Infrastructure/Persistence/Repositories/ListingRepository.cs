@@ -37,7 +37,10 @@ public sealed class ListingRepository : IListingRepository
 
         listingsQuery = ApplyBasicFilters(listingsQuery, query);
         listingsQuery = ApplyPropertyDetailFilters(listingsQuery, query);
-        listingsQuery = ApplyLocationFilters(listingsQuery, query);
+        listingsQuery =
+            ApplyEffectiveTranslationFilters(
+                listingsQuery,
+                query);
 
         (int page, int pageSize) = NormalizePagination(query.Page, query.PageSize);
 
@@ -294,15 +297,24 @@ public sealed class ListingRepository : IListingRepository
         return query;
     }
 
-    private static IQueryable<Listing> ApplyLocationFilters(
-    IQueryable<Listing> query,
-    GetListingsQuery filters)
+    private static IQueryable<Listing> ApplyEffectiveTranslationFilters(
+     IQueryable<Listing> query,
+     GetListingsQuery filters)
     {
-        bool hasCity = filters.City is not null;
-        bool hasMunicipality = filters.Municipality is not null;
-        bool hasNeighborhood = filters.Neighborhood is not null;
+        bool hasSearchText =
+            filters.SearchText is not null;
 
-        if (!hasCity &&
+        bool hasCity =
+            filters.City is not null;
+
+        bool hasMunicipality =
+            filters.Municipality is not null;
+
+        bool hasNeighborhood =
+            filters.Neighborhood is not null;
+
+        if (!hasSearchText &&
+            !hasCity &&
             !hasMunicipality &&
             !hasNeighborhood)
         {
@@ -314,6 +326,10 @@ public sealed class ListingRepository : IListingRepository
 
         string macedonianLanguagePattern =
             EscapeLikePattern("mk");
+
+        string searchTextPattern = hasSearchText
+            ? $"%{EscapeLikePattern(filters.SearchText!)}%"
+            : string.Empty;
 
         string cityPattern = hasCity
             ? EscapeLikePattern(filters.City!)
@@ -354,17 +370,43 @@ public sealed class ListingRepository : IListingRepository
                              translation.City,
                              cityPattern,
                              LikeEscapeCharacter))) &&
+
                     (!hasMunicipality ||
                         (translation.Municipality != null &&
                          EF.Functions.ILike(
                              translation.Municipality,
                              municipalityPattern,
                              LikeEscapeCharacter))) &&
+
                     (!hasNeighborhood ||
                         (translation.Neighborhood != null &&
                          EF.Functions.ILike(
                              translation.Neighborhood,
                              neighborhoodPattern,
+                             LikeEscapeCharacter))) &&
+
+                    (!hasSearchText ||
+                        EF.Functions.ILike(
+                            translation.Title,
+                            searchTextPattern,
+                            LikeEscapeCharacter) ||
+
+                        (translation.City != null &&
+                         EF.Functions.ILike(
+                             translation.City,
+                             searchTextPattern,
+                             LikeEscapeCharacter)) ||
+
+                        (translation.Municipality != null &&
+                         EF.Functions.ILike(
+                             translation.Municipality,
+                             searchTextPattern,
+                             LikeEscapeCharacter)) ||
+
+                        (translation.Neighborhood != null &&
+                         EF.Functions.ILike(
+                             translation.Neighborhood,
+                             searchTextPattern,
                              LikeEscapeCharacter)))));
     }
 
