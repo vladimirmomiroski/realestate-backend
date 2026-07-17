@@ -3,8 +3,8 @@ using RealEstate.Domain.Enums;
 using RealEstate.Tests.Integration.Auth;
 using RealEstate.Tests.Integration.Listings;
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
+using System.Net.Http.Json;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -564,6 +564,200 @@ public sealed partial class AgenciesEndpointTests
 
         item.GetProperty("city").GetString()
             .Should().Be(city);
+    }
+
+    [Fact]
+    public async Task GetListings_QWithAgencyId_ReturnsOnlyMatchingListingFromSelectedAgency()
+    {
+        // Arrange
+        const string currency = "AGQ";
+        const string phrase = "Agency Search Needle";
+
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(
+                _httpClient);
+
+        Guid selectedAgencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid otherAgencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid matchingListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                selectedAgencyId,
+                price: 100000m,
+                currency: currency);
+
+        Guid nonmatchingSelectedAgencyListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                selectedAgencyId,
+                price: 110000m,
+                currency: currency);
+
+        Guid matchingOtherAgencyListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                otherAgencyId,
+                price: 120000m,
+                currency: currency);
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            matchingListingId,
+            CreateCustomListingTranslation(
+                "en",
+                $"Selected {phrase}"));
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            nonmatchingSelectedAgencyListingId,
+            CreateCustomListingTranslation(
+                "en",
+                "Selected Agency Unrelated Listing"));
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            matchingOtherAgencyListingId,
+            CreateCustomListingTranslation(
+                "en",
+                $"Other Agency {phrase}"));
+
+        foreach (Guid listingId in new[]
+                 {
+                 matchingListingId,
+                 nonmatchingSelectedAgencyListingId,
+                 matchingOtherAgencyListingId
+             })
+        {
+            await ListingTestHelpers.SetListingStatusAsync(
+                _factory,
+                listingId,
+                ListingStatus.Active);
+        }
+
+        _httpClient.ClearAuthorization();
+
+        // Act
+        HttpResponseMessage response =
+            await _httpClient.GetAsync(
+                "/api/listings" +
+                $"?agencyId={selectedAgencyId}" +
+                "&lang=en" +
+                $"&currency={currency}" +
+                $"&q={Uri.EscapeDataString(phrase)}" +
+                "&page=1" +
+                "&pageSize=20");
+
+        // Assert
+        (
+            IReadOnlyList<Guid> actualIds,
+            int totalCount
+        ) = await ReadAgencyListingsPageAsync(response);
+
+        actualIds.Should().Equal(matchingListingId);
+
+        actualIds.Should().NotContain(
+            [
+                nonmatchingSelectedAgencyListingId,
+            matchingOtherAgencyListingId
+            ]);
+
+        totalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetAgencyListings_QQueryString_IsIgnoredBecauseRouteDoesNotExposeTextSearch()
+    {
+        // Arrange
+        const string currency = "AGR";
+        const string phrase = "Ignored Agency Query";
+
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(
+                _httpClient);
+
+        Guid agencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid olderMatchingListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 100000m,
+                currency: currency);
+
+        Guid newerNonmatchingListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 110000m,
+                currency: currency);
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            olderMatchingListingId,
+            CreateCustomListingTranslation(
+                "en",
+                $"Listing With {phrase}"));
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            newerNonmatchingListingId,
+            CreateCustomListingTranslation(
+                "en",
+                "Listing Without Requested Phrase"));
+
+        DateTime olderTimestamp =
+            new(
+                2034,
+                3,
+                3,
+                10,
+                0,
+                0,
+                DateTimeKind.Utc);
+
+        DateTime newerTimestamp =
+            olderTimestamp.AddHours(1);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            olderMatchingListingId,
+            ListingStatus.Active,
+            olderTimestamp);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            newerNonmatchingListingId,
+            ListingStatus.Active,
+            newerTimestamp);
+
+        _httpClient.ClearAuthorization();
+
+        // Act
+        HttpResponseMessage response =
+            await _httpClient.GetAsync(
+                $"/api/agencies/{agencyId}/listings" +
+                "?lang=en" +
+                $"&currency={currency}" +
+                $"&q={Uri.EscapeDataString(phrase)}" +
+                "&page=1" +
+                "&pageSize=20");
+
+        // Assert
+        (
+            IReadOnlyList<Guid> actualIds,
+            int totalCount
+        ) = await ReadAgencyListingsPageAsync(response);
+
+        actualIds.Should().Equal(
+            newerNonmatchingListingId,
+            olderMatchingListingId);
+
+        totalCount.Should().Be(2);
     }
 
     private static async Task<(
