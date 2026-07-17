@@ -5,6 +5,7 @@ using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
 using System.Net.Http.Json;
 using System.Text.Json;
+using RealEstate.Domain.Entities;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -237,6 +238,36 @@ internal static class ListingTestHelpers
              "CreatedAtUtc" = {createdAtUtc}
          WHERE "Id" = {listingId}
          """);
+    }
+
+    public static async Task ReplaceListingTranslationsAsync(
+    CustomWebApplicationFactory factory,
+    Guid listingId,
+    params ListingTranslation[] translations)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+
+        RealEstateDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        await dbContext.Set<ListingTranslation>()
+            .Where(translation =>
+                translation.ListingId == listingId)
+            .ExecuteDeleteAsync();
+
+        foreach (ListingTranslation translation in translations)
+        {
+            translation.ListingId = listingId;
+        }
+
+        if (translations.Length > 0)
+        {
+            await dbContext.Set<ListingTranslation>()
+                .AddRangeAsync(translations);
+
+            await dbContext.SaveChangesAsync();
+        }
     }
 
     private static async Task<Guid> PostListingAndReturnIdAsync(

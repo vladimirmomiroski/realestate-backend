@@ -7,6 +7,7 @@ using RealEstate.Tests.Integration.Listings;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using RealEstate.Domain.Entities;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -134,6 +135,27 @@ public sealed partial class AgenciesEndpointTests : IClassFixture<CustomWebAppli
             addressLine = "Updated Street 1",
             city = "Skopje",
             municipality = "Karpos"
+        };
+    }
+
+    private static ListingTranslation CreateCustomListingTranslation(
+        string languageCode,
+        string title,
+        string? city = null,
+        string? municipality = null,
+        string? neighborhood = null,
+        Guid? id = null)
+    {
+        return new ListingTranslation
+        {
+            Id = id ?? Guid.NewGuid(),
+            LanguageCode = languageCode,
+            Title = title,
+            Description = $"{title} description",
+            AddressLine = $"{title} address",
+            City = city,
+            Municipality = municipality,
+            Neighborhood = neighborhood
         };
     }
 }
