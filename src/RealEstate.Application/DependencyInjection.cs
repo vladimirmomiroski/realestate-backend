@@ -38,6 +38,7 @@ using RealEstate.Application.Agencies.Commands.ApproveAgency;
 using RealEstate.Application.Agencies.Commands.RejectAgency;
 using RealEstate.Application.Agencies.Commands.DisableAgency;
 using RealEstate.Application.Agencies.Queries.GetAgencyDashboardSummary;
+using RealEstate.Application.Listings.Queries.GetComparableListings;
 
 namespace RealEstate.Application;
 
@@ -49,6 +50,8 @@ public static class DependencyInjection
         services.AddScoped<CreateListingHandler>();
         services.AddScoped<GetListingsValidator>();
         services.AddScoped<GetListingsHandler>();
+        services.AddScoped<GetComparableListingsValidator>();
+        services.AddScoped<GetComparableListingsHandler>();
         services.AddScoped<GetListingByIdHandler>();
         services.AddScoped<PublishListingHandler>();
         services.AddScoped<UnpublishListingHandler>();

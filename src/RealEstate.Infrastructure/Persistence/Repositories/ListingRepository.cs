@@ -62,6 +62,229 @@ public sealed class ListingRepository : IListingRepository
             totalCount);
     }
 
+    public async Task<ComparableListingsReadResult>
+    GetComparableListingsReadOnlyAsync(
+        Guid sourceListingId,
+        string languageCode,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        string requestedLanguagePattern =
+            EscapeLikePattern(languageCode);
+
+        string macedonianLanguagePattern =
+            EscapeLikePattern("mk");
+
+        var source = await _dbContext.Listings
+            .AsNoTracking()
+            .Where(listing =>
+                listing.Id == sourceListingId &&
+                listing.Status == ListingStatus.Active)
+            .SelectMany(
+                listing => listing.Translations
+                    .OrderBy(translation =>
+                        EF.Functions.ILike(
+                            translation.LanguageCode,
+                            requestedLanguagePattern,
+                            LikeEscapeCharacter)
+                            ? 0
+                            : EF.Functions.ILike(
+                                translation.LanguageCode,
+                                macedonianLanguagePattern,
+                                LikeEscapeCharacter)
+                                ? 1
+                                : 2)
+                    .ThenBy(translation =>
+                        EF.Functions.Collate(
+                            translation.LanguageCode,
+                            PostgreSqlBytewiseCollation))
+                    .ThenBy(translation => translation.Id)
+                    .Take(1)
+                    .DefaultIfEmpty(),
+                (listing, translation) => new
+                {
+                    listing.Id,
+                    listing.ListingType,
+                    listing.PropertyType,
+                    listing.Currency,
+                    listing.Price,
+                    listing.AreaSquareMeters,
+
+                    LanguageCode = translation == null
+                        ? null
+                        : translation.LanguageCode,
+
+                    City = translation == null
+                        ? null
+                        : translation.City,
+
+                    Municipality = translation == null
+                        ? null
+                        : translation.Municipality,
+
+                    Neighborhood = translation == null
+                        ? null
+                        : translation.Neighborhood
+                })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (source is null)
+        {
+            return new ComparableListingsReadResult(
+                false,
+                Array.Empty<Listing>());
+        }
+
+        if (source.Price <= 0 ||
+            source.AreaSquareMeters <= 0 ||
+            source.LanguageCode is null ||
+            string.IsNullOrWhiteSpace(source.City))
+        {
+            return new ComparableListingsReadResult(
+                true,
+                Array.Empty<Listing>());
+        }
+
+        string cityPattern =
+            EscapeLikePattern(source.City);
+
+        bool sourceHasMunicipality =
+            !string.IsNullOrWhiteSpace(source.Municipality);
+
+        bool sourceHasNeighborhood =
+            !string.IsNullOrWhiteSpace(source.Neighborhood);
+
+        string municipalityPattern =
+            sourceHasMunicipality
+                ? EscapeLikePattern(source.Municipality!)
+                : string.Empty;
+
+        string neighborhoodPattern =
+            sourceHasNeighborhood
+                ? EscapeLikePattern(source.Neighborhood!)
+                : string.Empty;
+
+        decimal sourcePricePerSquareMeter =
+            source.Price / source.AreaSquareMeters;
+
+        var candidateRows = _dbContext.Listings
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.Status == ListingStatus.Active &&
+                candidate.Id != source.Id &&
+                candidate.ListingType == source.ListingType &&
+                candidate.PropertyType == source.PropertyType &&
+                candidate.Currency == source.Currency &&
+                candidate.Price > 0 &&
+                candidate.AreaSquareMeters > 0)
+            .SelectMany(
+                candidate => candidate.Translations
+                    .OrderBy(translation =>
+                        EF.Functions.ILike(
+                            translation.LanguageCode,
+                            requestedLanguagePattern,
+                            LikeEscapeCharacter)
+                            ? 0
+                            : EF.Functions.ILike(
+                                translation.LanguageCode,
+                                macedonianLanguagePattern,
+                                LikeEscapeCharacter)
+                                ? 1
+                                : 2)
+                    .ThenBy(translation =>
+                        EF.Functions.Collate(
+                            translation.LanguageCode,
+                            PostgreSqlBytewiseCollation))
+                    .ThenBy(translation => translation.Id)
+                    .Take(1),
+                (candidate, translation) => new
+                {
+                    Listing = candidate,
+                    Translation = translation
+                })
+            .Where(row =>
+                row.Translation.LanguageCode ==
+                    source.LanguageCode &&
+
+                row.Translation.City != null &&
+                row.Translation.City.Trim() != string.Empty &&
+
+                EF.Functions.ILike(
+                    row.Translation.City,
+                    cityPattern,
+                    LikeEscapeCharacter));
+
+        var orderedCandidates = candidateRows
+            .OrderBy(row =>
+                sourceHasMunicipality &&
+                sourceHasNeighborhood &&
+
+                row.Translation.Municipality != null &&
+                row.Translation.Municipality.Trim() !=
+                    string.Empty &&
+
+                EF.Functions.ILike(
+                    row.Translation.Municipality,
+                    municipalityPattern,
+                    LikeEscapeCharacter) &&
+
+                row.Translation.Neighborhood != null &&
+                row.Translation.Neighborhood.Trim() !=
+                    string.Empty &&
+
+                EF.Functions.ILike(
+                    row.Translation.Neighborhood,
+                    neighborhoodPattern,
+                    LikeEscapeCharacter)
+                    ? 0
+
+                    : sourceHasMunicipality &&
+
+                      row.Translation.Municipality != null &&
+                      row.Translation.Municipality.Trim() !=
+                          string.Empty &&
+
+                      EF.Functions.ILike(
+                          row.Translation.Municipality,
+                          municipalityPattern,
+                          LikeEscapeCharacter)
+                        ? 1
+                        : 2)
+            .ThenBy(row =>
+                Math.Abs(
+                    row.Listing.AreaSquareMeters -
+                    source.AreaSquareMeters) /
+                source.AreaSquareMeters)
+            .ThenBy(row =>
+                Math.Abs(
+                    row.Listing.Price /
+                    row.Listing.AreaSquareMeters -
+                    sourcePricePerSquareMeter) /
+                sourcePricePerSquareMeter)
+            .ThenBy(row =>
+                Math.Abs(
+                    row.Listing.Price -
+                    source.Price) /
+                source.Price)
+            .ThenByDescending(row =>
+                row.Listing.CreatedAtUtc)
+            .ThenByDescending(row =>
+                row.Listing.Id);
+
+        IQueryable<Listing> limitedListingsQuery =
+            orderedCandidates
+                .Select(row => row.Listing)
+                .Take(limit);
+
+        List<Listing> listings =
+            await ApplyListingIncludes(limitedListingsQuery)
+                .ToListAsync(cancellationToken);
+
+        return new ComparableListingsReadResult(
+            true,
+            listings);
+    }
+
     public async Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken)
     {
         return await ApplyListingIncludes(_dbContext.Listings.AsNoTracking())

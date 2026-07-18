@@ -10,31 +10,37 @@ public interface IListingRepository
     Task CreateAsync(Listing listing, CancellationToken cancellationToken);
 
     Task<PagedResult<Listing>> GetFilteredReadOnlyAsync(
-    GetListingsQuery query,
-    CancellationToken cancellationToken);
+        GetListingsQuery query,
+        CancellationToken cancellationToken);
+
+    Task<ComparableListingsReadResult> GetComparableListingsReadOnlyAsync(
+        Guid sourceListingId,
+        string languageCode,
+        int limit,
+        CancellationToken cancellationToken);
 
     Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken);
 
     Task<Listing?> GetByIdForUpdateAsync(
-    Guid id,
-    CancellationToken cancellationToken);
+        Guid id,
+        CancellationToken cancellationToken);
 
     Task<PagedResult<Listing>> GetByAgencyIdForDashboardReadOnlyAsync(
-    Guid agencyId,
-    ListingStatus? status,
-    int page,
-    int pageSize,
-    CancellationToken cancellationToken);
+        Guid agencyId,
+        ListingStatus? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
 
     Task<Listing?> GetByIdWithImagesForUpdateAsync(
-    Guid id,
-    CancellationToken cancellationToken);
+        Guid id,
+        CancellationToken cancellationToken);
 
     Task<PagedResult<Listing>> GetByCreatedByUserIdAsync(
-    Guid createdByUserId,
-    int page,
-    int pageSize,
-    CancellationToken cancellationToken);
+        Guid createdByUserId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
 
     void AddListingImage(ListingImage image);
 
