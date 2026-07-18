@@ -85,7 +85,9 @@ internal static class ListingTestHelpers
         Guid? agencyId = null,
         string currency = "EUR",
         decimal areaSquareMeters = 58m,
-        decimal? rooms = 2m)
+        decimal? rooms = 2m,
+        decimal? latitude = 41.9981m,
+        decimal? longitude = 21.4254m)
     {
         return new
         {
@@ -115,8 +117,8 @@ internal static class ListingTestHelpers
             orientation = "SouthEast",
             yearRenovated = 2022,
             yearBuilt = 2015,
-            latitude = 41.9981,
-            longitude = 21.4254,
+            latitude,
+            longitude,
             translations = new[]
             {
                 new
@@ -238,6 +240,54 @@ internal static class ListingTestHelpers
              "CreatedAtUtc" = {createdAtUtc}
          WHERE "Id" = {listingId}
          """);
+    }
+
+    public static async Task UpdateComparableFieldsAsync(
+    CustomWebApplicationFactory factory,
+    Guid listingId,
+    ListingType? listingType = null,
+    PropertyType? propertyType = null,
+    string? currency = null,
+    decimal? price = null,
+    decimal? areaSquareMeters = null)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+
+        RealEstateDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        Listing listing =
+            await dbContext.Listings.SingleAsync(
+                item => item.Id == listingId);
+
+        if (listingType.HasValue)
+        {
+            listing.ListingType = listingType.Value;
+        }
+
+        if (propertyType.HasValue)
+        {
+            listing.PropertyType = propertyType.Value;
+        }
+
+        if (currency is not null)
+        {
+            listing.Currency = currency;
+        }
+
+        if (price.HasValue)
+        {
+            listing.Price = price.Value;
+        }
+
+        if (areaSquareMeters.HasValue)
+        {
+            listing.AreaSquareMeters =
+                areaSquareMeters.Value;
+        }
+
+        await dbContext.SaveChangesAsync();
     }
 
     public static async Task ReplaceListingTranslationsAsync(

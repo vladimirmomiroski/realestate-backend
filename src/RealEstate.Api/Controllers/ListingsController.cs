@@ -15,6 +15,7 @@ using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Listings.Commands.PublishListing;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
 using RealEstate.Application.Listings.Commands.ArchiveListing;
+using RealEstate.Application.Listings.Queries.GetComparableListings;
 
 namespace RealEstate.Api.Controllers;
 
@@ -36,11 +37,13 @@ public sealed class ListingsController : ControllerBase
     private readonly PublishListingHandler _publishListingHandler;
     private readonly UnpublishListingHandler _unpublishListingHandler;
     private readonly ArchiveListingHandler _archiveListingHandler;
+    private readonly GetComparableListingsHandler _getComparableListingsHandler;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
         GetListingsHandler getListingsHandler,
         GetListingByIdHandler getListingByIdHandler,
+        GetComparableListingsHandler getComparableListingsHandler,
         UploadListingImageHandler uploadListingImageHandler,
         DeleteListingImageHandler deleteListingImageHandler,
         SetPrimaryListingImageHandler setPrimaryListingImageHandler,
@@ -48,11 +51,13 @@ public sealed class ListingsController : ControllerBase
         GetMyListingsHandler getMyListingsHandler,  
         PublishListingHandler publishListingHandler,
         UnpublishListingHandler unpublishListingHandler,
-        ArchiveListingHandler archiveListingHandler)
+        ArchiveListingHandler archiveListingHandler
+        )
     {
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
         _getListingByIdHandler = getListingByIdHandler;
+        _getComparableListingsHandler = getComparableListingsHandler;
         _uploadListingImageHandler = uploadListingImageHandler;
         _deleteListingImageHandler = deleteListingImageHandler;
         _setPrimaryListingImageHandler = setPrimaryListingImageHandler;
@@ -61,6 +66,7 @@ public sealed class ListingsController : ControllerBase
         _publishListingHandler = publishListingHandler;
         _unpublishListingHandler = unpublishListingHandler;
         _archiveListingHandler = archiveListingHandler;
+        
     }
 
     [Authorize]
@@ -213,6 +219,46 @@ public sealed class ListingsController : ControllerBase
         var result = await _getListingByIdHandler.HandleAsync(id, lang, cancellationToken);
 
         if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/comparables")]
+    [ProducesResponseType(
+    typeof(IReadOnlyList<ListingResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ListingResponse>>>
+    GetComparableListings(
+        Guid id,
+        [FromQuery] string lang = "mk",
+        [FromQuery] int limit = 6,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetComparableListingsQuery
+        {
+            ListingId = id,
+            LanguageCode = lang,
+            Limit = limit
+        };
+
+        ServiceResult<IReadOnlyList<ListingResponse>> result =
+            await _getComparableListingsHandler.HandleAsync(
+                query,
+                cancellationToken);
+
+        if (result.Status ==
+            ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status ==
+            ServiceResultStatus.NotFound)
         {
             return NotFound(result.Error);
         }

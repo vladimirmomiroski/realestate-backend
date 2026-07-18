@@ -4,6 +4,19 @@ namespace RealEstate.Application.Listings.Commands.CreateListing;
 
 public sealed class CreateListingValidator
 {
+
+    public const string InvalidCurrencyError =
+    "Currency must contain exactly three ASCII letters.";
+
+    public const string CoordinatePairError =
+        "Latitude and longitude must both be provided or both be omitted.";
+
+    public const string LatitudeOutOfRangeError =
+        "Latitude must be between -90 and 90.";
+
+    public const string LongitudeOutOfRangeError =
+        "Longitude must be between -180 and 180.";
+
     public string? Validate(CreateListingRequest request)
     {
         if (request.Price <= 0)
@@ -19,6 +32,35 @@ public sealed class CreateListingValidator
         if (string.IsNullOrWhiteSpace(request.Currency))
         {
             return "Currency is required.";
+        }
+
+        string trimmedCurrency =
+            request.Currency.Trim();
+
+        if (!IsValidCurrency(trimmedCurrency))
+        {
+            return InvalidCurrencyError;
+        }
+
+        bool hasLatitude =
+            request.Latitude.HasValue;
+
+        bool hasLongitude =
+            request.Longitude.HasValue;
+
+        if (hasLatitude != hasLongitude)
+        {
+            return CoordinatePairError;
+        }
+
+        if (request.Latitude is < -90m or > 90m)
+        {
+            return LatitudeOutOfRangeError;
+        }
+
+        if (request.Longitude is < -180m or > 180m)
+        {
+            return LongitudeOutOfRangeError;
         }
 
         if (request.Translations is null || request.Translations.Count == 0)
@@ -127,6 +169,14 @@ public sealed class CreateListingValidator
 
 
         return null;
+    }
+
+    private static bool IsValidCurrency(string currency)
+    {
+        return currency.Length == 3 &&
+               currency.All(character =>
+                   character is >= 'A' and <= 'Z' ||
+                   character is >= 'a' and <= 'z');
     }
 
     private static string NormalizeLanguageCode(string languageCode)
