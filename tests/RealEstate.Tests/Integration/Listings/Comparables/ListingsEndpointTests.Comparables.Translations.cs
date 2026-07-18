@@ -1,21 +1,11 @@
 using FluentAssertions;
-using RealEstate.Application.Listings.Queries.GetComparableListings;
-using RealEstate.Domain.Entities;
-using RealEstate.Domain.Enums;
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 using RealEstate.Tests.Integration.Auth;
-using Microsoft.Extensions.DependencyInjection;
-using RealEstate.Infrastructure.Persistence;
-using RealEstate.Tests.Integration.Agencies;
-using System.Text.Json.Nodes;
+using System.Text.Json;
 
 namespace RealEstate.Tests.Integration.Listings;
 
 public sealed partial class ListingsEndpointTests
 {
-
     [Fact]
     public async Task GetComparables_RequestedLanguageSelection_IsCaseInsensitiveAndUsesSameResponseTranslation()
     {

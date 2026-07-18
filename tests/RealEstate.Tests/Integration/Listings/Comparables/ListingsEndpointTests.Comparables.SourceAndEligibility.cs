@@ -1,21 +1,15 @@
 using FluentAssertions;
 using RealEstate.Application.Listings.Queries.GetComparableListings;
-using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using RealEstate.Tests.Integration.Auth;
-using Microsoft.Extensions.DependencyInjection;
-using RealEstate.Infrastructure.Persistence;
-using RealEstate.Tests.Integration.Agencies;
-using System.Text.Json.Nodes;
 
 namespace RealEstate.Tests.Integration.Listings;
 
 public sealed partial class ListingsEndpointTests
 {
-
     [Theory]
     [InlineData(0)]
     [InlineData(13)]

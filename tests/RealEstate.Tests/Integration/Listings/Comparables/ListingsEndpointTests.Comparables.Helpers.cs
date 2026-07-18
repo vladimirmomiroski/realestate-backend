@@ -1,20 +1,19 @@
 using FluentAssertions;
-using RealEstate.Application.Listings.Queries.GetComparableListings;
+using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Infrastructure.Persistence;
+using RealEstate.Tests.Integration.Agencies;
+using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using RealEstate.Tests.Integration.Auth;
-using Microsoft.Extensions.DependencyInjection;
-using RealEstate.Infrastructure.Persistence;
-using RealEstate.Tests.Integration.Agencies;
-using System.Text.Json.Nodes;
 
 namespace RealEstate.Tests.Integration.Listings;
 
 public sealed partial class ListingsEndpointTests
 {
+    private static int _comparableCurrencySequence = -1;
 
     private async Task<Guid> CreateActiveComparableFromRequestAsync(
     AuthenticatedTestUser owner,
@@ -117,15 +116,28 @@ public sealed partial class ListingsEndpointTests
 
     private static string CreateUniqueCurrency()
     {
-        byte[] bytes =
-            Guid.NewGuid().ToByteArray();
+        const int alphabetSize = 26;
+        const int sequenceCapacity =
+            alphabetSize * alphabetSize * alphabetSize;
+
+        int sequence =
+            Interlocked.Increment(
+                ref _comparableCurrencySequence);
+
+        if (sequence < 0 || sequence >= sequenceCapacity)
+        {
+            throw new InvalidOperationException(
+                "Comparable test currency sequence exhausted.");
+        }
 
         return new string(
-            bytes
-                .Take(3)
-                .Select(value =>
-                    (char)('A' + value % 26))
-                .ToArray());
+        [
+            (char)('A' +
+                sequence / (alphabetSize * alphabetSize)),
+            (char)('A' +
+                sequence / alphabetSize % alphabetSize),
+            (char)('A' + sequence % alphabetSize)
+        ]);
     }
 
     private async Task<Guid> CreateActiveComparableAsync(
