@@ -85,7 +85,9 @@ internal static class ListingTestHelpers
         Guid? agencyId = null,
         string currency = "EUR",
         decimal areaSquareMeters = 58m,
-        decimal? rooms = 2m)
+        decimal? rooms = 2m,
+        decimal? latitude = 41.9981m,
+        decimal? longitude = 21.4254m)
     {
         return new
         {
@@ -115,8 +117,8 @@ internal static class ListingTestHelpers
             orientation = "SouthEast",
             yearRenovated = 2022,
             yearBuilt = 2015,
-            latitude = 41.9981,
-            longitude = 21.4254,
+            latitude,
+            longitude,
             translations = new[]
             {
                 new
