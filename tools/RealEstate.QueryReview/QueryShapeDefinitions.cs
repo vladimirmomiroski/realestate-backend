@@ -381,6 +381,7 @@ internal static class QueryShapeDefinitions
         ValidateTypedParameters(commands);
         ValidatePublicVisibilityAndOrdering(commands);
         ValidatePagedFiltersAndChildLoading(commands);
+        ValidateSetBasedEffectiveTranslationFiltering(commands);
         ValidateTextSearch(commands);
         ValidateComparableLimitBeforeIncludes(commands);
     }
@@ -490,13 +491,13 @@ internal static class QueryShapeDefinitions
         AssertSelectionPredicate(commands, L1, "\"Neighborhood\" ILIKE");
         AssertSelectionPredicate(commands, L1, "\"LanguageCode\" ILIKE");
         AssertSelectionPredicate(commands, L1, "COLLATE \"C\"");
-        AssertSelectionPredicate(commands, L1, "ORDER BY CASE");
-        AssertSelectionPredicate(commands, L1, "LIMIT 1");
+        AssertSelectionPredicate(commands, L1, "GROUP BY");
+        AssertSelectionPredicate(commands, L1, "min(CASE");
 
         AssertSelectionPredicate(commands, Q1, "\"LanguageCode\" ILIKE");
         AssertSelectionPredicate(commands, Q1, "COLLATE \"C\"");
-        AssertSelectionPredicate(commands, Q1, "ORDER BY CASE");
-        AssertSelectionPredicate(commands, Q1, "LIMIT 1");
+        AssertSelectionPredicate(commands, Q1, "GROUP BY");
+        AssertSelectionPredicate(commands, Q1, "min(CASE");
 
         foreach (CapturedCommand command in commands.Where(command =>
                      command.CommandRole is CommandRoles.TranslationSplit or
@@ -556,6 +557,65 @@ internal static class QueryShapeDefinitions
                     $"'{expectedSql}' is missing.");
             }
         }
+    }
+
+    private static void ValidateSetBasedEffectiveTranslationFiltering(
+        IReadOnlyList<CapturedCommand> commands)
+    {
+        foreach (CapturedCommand command in commands.Where(command =>
+                     (command.ShapeId is L1 or Q1) &&
+                     (command.CommandRole is CommandRoles.FilteredCount or
+                         CommandRoles.PageRoot)))
+        {
+            string sql = command.CommandText;
+            string matchingPredicate = command.ShapeId == Q1
+                ? "l0.\"Title\" ILIKE"
+                : "l0.\"City\" ILIKE";
+
+            int selectedKeyJoin = sql.LastIndexOf(
+                "\"LanguageSelectionKey\"",
+                StringComparison.Ordinal);
+            int matchingPredicatePosition = sql.IndexOf(
+                matchingPredicate,
+                StringComparison.Ordinal);
+
+            if (!sql.Contains("END ||", StringComparison.Ordinal) ||
+                !sql.Contains("GROUP BY", StringComparison.Ordinal) ||
+                CountOccurrences(sql, "\"ListingId\" IN (") < 2 ||
+                CountOccurrences(sql, "\"Status\" = 'Active'") < 3 ||
+                selectedKeyJoin < 0 ||
+                matchingPredicatePosition <= selectedKeyJoin)
+            {
+                throw new SqlCaptureValidationException(
+                    $"{command.ShapeId}/{command.CommandRole}: effective-translation " +
+                    "selection is not candidate-restricted and completed before matching.");
+            }
+
+            if (sql.Contains("ORDER BY CASE", StringComparison.Ordinal) ||
+                sql.Contains("LIMIT 1", StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{command.ShapeId}/{command.CommandRole}: the broad correlated " +
+                    "effective-translation probe remains in corrected SQL.");
+            }
+        }
+    }
+
+    private static int CountOccurrences(string value, string expected)
+    {
+        int count = 0;
+        int position = 0;
+
+        while ((position = value.IndexOf(
+                   expected,
+                   position,
+                   StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            position += expected.Length;
+        }
+
+        return count;
     }
 
     private static bool HasExpectedPriceOrdering(string orderByClause, bool descending)
