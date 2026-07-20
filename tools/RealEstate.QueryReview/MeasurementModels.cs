@@ -196,6 +196,176 @@ internal sealed record RawBaselineManifest(
     bool CredentialScanPassed,
     IReadOnlyList<RawPlanSample> Samples);
 
+internal sealed record PlanBufferMetrics(
+    long SharedHit,
+    long SharedRead,
+    long SharedDirtied,
+    long SharedWritten,
+    long LocalHit,
+    long LocalRead,
+    long LocalDirtied,
+    long LocalWritten,
+    long TempRead,
+    long TempWritten);
+
+internal sealed record PlanNodeMeasurement(
+    string Path,
+    int Depth,
+    string NodeType,
+    string? ParentRelationship,
+    string? Relation,
+    string? Schema,
+    string? Alias,
+    string? ScanDirection,
+    string? IndexName,
+    string? JoinType,
+    decimal? StartupCost,
+    decimal? TotalCost,
+    long? PlanRows,
+    long? PlanWidth,
+    decimal? ActualStartupTimeMilliseconds,
+    decimal? ActualTotalTimeMilliseconds,
+    long ActualRows,
+    long ActualLoops,
+    long RowsRemovedByFilter,
+    long RowsRemovedByIndexRecheck,
+    long RowsRemovedByJoinFilter,
+    string? Filter,
+    string? IndexCondition,
+    string? RecheckCondition,
+    string? JoinFilter,
+    string? HashCondition,
+    string? MergeCondition,
+    IReadOnlyList<string> SortKeys,
+    string? SortMethod,
+    long? SortSpaceUsedKilobytes,
+    string? SortSpaceType,
+    long? HashBatches,
+    long? PeakMemoryUsageKilobytes,
+    PlanBufferMetrics Buffers);
+
+internal sealed record PlanSampleMeasurement(
+    string CommandKey,
+    string ShapeId,
+    int ShapeSequence,
+    string CommandRole,
+    string RunKind,
+    int RunNumber,
+    string RelativePlanPath,
+    string RawPlanSha256,
+    string SqlSha256,
+    string ParameterSha256,
+    string StructuralPlanSha256,
+    decimal PlanningTimeMilliseconds,
+    decimal ExecutionTimeMilliseconds,
+    long ActualRows,
+    long ActualLoops,
+    PlanBufferMetrics TopLevelBuffers,
+    IReadOnlyDictionary<string, string> Settings,
+    bool Spilled,
+    IReadOnlyList<string> SpillReasons,
+    IReadOnlyList<string> ScanTypes,
+    IReadOnlyList<string> JoinTypes,
+    IReadOnlyList<string> SortMethods,
+    IReadOnlyList<string> IndexNames,
+    long TotalRowsRemoved,
+    long MaximumPeakMemoryUsageKilobytes,
+    IReadOnlyList<PlanNodeMeasurement> Nodes);
+
+internal sealed record MedianSelection(
+    decimal Value,
+    int RunNumber);
+
+internal sealed record CommandMeasurementSummary(
+    string CommandKey,
+    string ShapeId,
+    int ShapeSequence,
+    string CommandRole,
+    IReadOnlyList<PlanSampleMeasurement> Samples,
+    MedianSelection PlanningTimeMedian,
+    MedianSelection ExecutionTimeMedian,
+    MedianSelection SharedAccessBlocksMedian,
+    MedianSelection TempAccessBlocksMedian,
+    string ExecutionMedianPlanPath,
+    string ExecutionMedianPlanSha256,
+    bool AnySpill,
+    IReadOnlyList<string> ScanTypes,
+    IReadOnlyList<string> JoinTypes,
+    IReadOnlyList<string> SortMethods,
+    IReadOnlyList<string> IndexNames);
+
+internal sealed record SequenceRunMeasurement(
+    int RunNumber,
+    decimal PlanningTimeMilliseconds,
+    decimal ExecutionTimeMilliseconds,
+    long SharedAccessBlocks,
+    long TempAccessBlocks,
+    bool Spilled);
+
+internal sealed record SequenceMeasurementSummary(
+    string SequenceId,
+    IReadOnlyList<string> CommandKeys,
+    IReadOnlyList<SequenceRunMeasurement> Runs,
+    MedianSelection PlanningTimeMedian,
+    MedianSelection ExecutionTimeMedian,
+    MedianSelection SharedAccessBlocksMedian,
+    MedianSelection TempAccessBlocksMedian,
+    bool AnySpill);
+
+internal sealed record Q1GateResult(
+    bool Passed,
+    decimal FilteredCountMedianMilliseconds,
+    decimal FirstPageSequenceMedianMilliseconds,
+    bool AnyWarmUpOrMeasuredSpill,
+    IReadOnlyList<string> Reasons);
+
+internal sealed record BaselineMeasurementsRaw(
+    string BaselineRunId,
+    DateTime VerifiedAtUtc,
+    int CommandCount,
+    int SampleCount,
+    int WarmUpSampleCount,
+    int MeasuredSampleCount,
+    IReadOnlyList<PlanSampleMeasurement> Samples,
+    IReadOnlyList<CommandMeasurementSummary> Commands,
+    IReadOnlyList<SequenceMeasurementSummary> Sequences,
+    Q1GateResult Q1Gate,
+    IReadOnlyList<string> Anomalies);
+
+internal sealed record CuratedCommandMeasurement(
+    string CommandKey,
+    string ShapeId,
+    int ShapeSequence,
+    string CommandRole,
+    MedianSelection PlanningTimeMedian,
+    MedianSelection ExecutionTimeMedian,
+    MedianSelection SharedAccessBlocksMedian,
+    MedianSelection TempAccessBlocksMedian,
+    string ExecutionMedianPlanPath,
+    string ExecutionMedianPlanSha256,
+    bool AnySpill,
+    IReadOnlyList<string> ScanTypes,
+    IReadOnlyList<string> JoinTypes,
+    IReadOnlyList<string> SortMethods,
+    IReadOnlyList<string> IndexNames);
+
+internal sealed record CuratedBaselineMeasurements(
+    string BaselineRunId,
+    DateTime VerifiedAtUtc,
+    int CommandCount,
+    int SampleCount,
+    IReadOnlyList<CuratedCommandMeasurement> Commands,
+    IReadOnlyList<SequenceMeasurementSummary> Sequences,
+    Q1GateResult Q1Gate,
+    IReadOnlyList<string> Anomalies);
+
+internal sealed record BaselineVerificationResult(
+    BaselineMeasurementsRaw Measurements,
+    string RunDirectory,
+    string MeasurementsPath,
+    string CuratedDirectory,
+    bool CredentialScanPassed);
+
 internal static class SqlCaptureOutput
 {
     public static async Task<string> WriteAsync(

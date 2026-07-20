@@ -37,11 +37,29 @@ internal static class Program
 
     private static async Task<int> RunAsync(QueryReviewOptions options)
     {
+        if (options.Command == QueryReviewCommand.BaselineVerify)
+        {
+            try
+            {
+                return await VerifyBaselineAsync(options);
+            }
+            catch (BaselinePlanValidationException exception)
+            {
+                Console.Error.WriteLine($"Baseline verification failed: {exception.Message}");
+                return 8;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine($"Baseline artifact operation failed: {exception.Message}");
+                return 8;
+            }
+        }
+
         NpgsqlConnectionStringBuilder connectionStringBuilder;
 
         try
         {
-            connectionStringBuilder = new NpgsqlConnectionStringBuilder(options.ConnectionString);
+            connectionStringBuilder = new NpgsqlConnectionStringBuilder(options.ConnectionString!);
         }
         catch (ArgumentException exception)
         {
@@ -72,7 +90,7 @@ internal static class Program
         try
         {
             var dbContextOptions = new DbContextOptionsBuilder<RealEstateDbContext>()
-                .UseNpgsql(options.ConnectionString)
+                .UseNpgsql(options.ConnectionString!)
                 .Options;
 
             await using var dbContext = new RealEstateDbContext(dbContextOptions);
@@ -149,6 +167,8 @@ internal static class Program
                     identity.Database,
                     npgsqlConnection.PostgreSqlVersion.ToString(),
                     npgsqlConnection),
+                QueryReviewCommand.BaselineVerify => throw new InvalidOperationException(
+                    "Offline baseline verification must not enter the database command path."),
                 _ => throw new InvalidOperationException(
                     $"Unsupported command '{options.Command}'.")
             };
@@ -176,6 +196,82 @@ internal static class Program
                 exception.Message);
             return 4;
         }
+    }
+
+    private static async Task<int> VerifyBaselineAsync(QueryReviewOptions options)
+    {
+        Console.WriteLine("Running offline raw baseline verification...");
+        Console.WriteLine("No connection string was accepted and no database operation will occur.");
+
+        var result = await ExplainRunner.VerifyAsync(options.RunDirectory!);
+        var measurements = result.Measurements;
+
+        Console.WriteLine(
+            $"Verification totals: {measurements.CommandCount} commands, " +
+            $"{measurements.SampleCount} plans " +
+            $"({measurements.WarmUpSampleCount} warm-up, " +
+            $"{measurements.MeasuredSampleCount} measured).");
+        Console.WriteLine("Command medians (planning/execution ms; shared/temp blocks):");
+
+        foreach (var command in measurements.Commands)
+        {
+            Console.WriteLine(
+                $"  {command.CommandKey}: " +
+                $"plan={command.PlanningTimeMedian.Value.ToString(CultureInfo.InvariantCulture)} " +
+                $"(run {command.PlanningTimeMedian.RunNumber}), " +
+                $"exec={command.ExecutionTimeMedian.Value.ToString(CultureInfo.InvariantCulture)} " +
+                $"(run {command.ExecutionTimeMedian.RunNumber}), " +
+                $"shared={command.SharedAccessBlocksMedian.Value.ToString(CultureInfo.InvariantCulture)}, " +
+                $"temp={command.TempAccessBlocksMedian.Value.ToString(CultureInfo.InvariantCulture)}, " +
+                $"spill={(command.AnySpill ? "yes" : "no")}");
+        }
+
+        Console.WriteLine("Sequence medians (aligned per-run sums before median selection):");
+
+        foreach (var sequence in measurements.Sequences)
+        {
+            Console.WriteLine(
+                $"  {sequence.SequenceId}: " +
+                $"plan={sequence.PlanningTimeMedian.Value.ToString(CultureInfo.InvariantCulture)} " +
+                $"(run {sequence.PlanningTimeMedian.RunNumber}), " +
+                $"exec={sequence.ExecutionTimeMedian.Value.ToString(CultureInfo.InvariantCulture)} " +
+                $"(run {sequence.ExecutionTimeMedian.RunNumber}), " +
+                $"shared={sequence.SharedAccessBlocksMedian.Value.ToString(CultureInfo.InvariantCulture)}, " +
+                $"temp={sequence.TempAccessBlocksMedian.Value.ToString(CultureInfo.InvariantCulture)}, " +
+                $"spill={(sequence.AnySpill ? "yes" : "no")}");
+        }
+
+        Console.WriteLine($"Measurements: {result.MeasurementsPath}");
+        Console.WriteLine($"Temporary curated evidence: {result.CuratedDirectory}");
+        Console.WriteLine("Credential scan: SUCCESS.");
+        Console.WriteLine($"Q1 gate: {(measurements.Q1Gate.Passed ? "PASS" : "FAIL")}");
+        Console.WriteLine(
+            $"  filtered-count median: " +
+            $"{measurements.Q1Gate.FilteredCountMedianMilliseconds.ToString(CultureInfo.InvariantCulture)} ms");
+        Console.WriteLine(
+            $"  first-page sequence median: " +
+            $"{measurements.Q1Gate.FirstPageSequenceMedianMilliseconds.ToString(CultureInfo.InvariantCulture)} ms");
+        Console.WriteLine(
+            $"  any warm-up/measured Q1 spill: " +
+            $"{(measurements.Q1Gate.AnyWarmUpOrMeasuredSpill ? "yes" : "no")}");
+
+        foreach (var reason in measurements.Q1Gate.Reasons)
+        {
+            Console.Error.WriteLine($"  Q1 failure reason: {reason}");
+        }
+
+        if (!measurements.Q1Gate.Passed)
+        {
+            Console.Error.WriteLine(
+                "Baseline verification result: FAIL. Q1 requires owner review; no index or " +
+                "search-platform change is authorized.");
+            return 8;
+        }
+
+        Console.WriteLine(
+            "Baseline verification result: SUCCESS. Raw artifacts, medians, sequences, and " +
+            "the Q1 gate are valid.");
+        return 0;
     }
 
     private static int RunDoctor()
@@ -249,7 +345,7 @@ internal static class Program
         QueryShapeDefinitions.EnsureOutputIsOutsideRepository(options.OutputDirectory);
 
         var captureSession = await CaptureProductionCommandsAsync(
-            options.ConnectionString,
+            options.ConnectionString!,
             database,
             postgreSqlVersion);
         var captureRun = captureSession.CaptureRun;
@@ -299,7 +395,7 @@ internal static class Program
 
         Console.WriteLine("Invoking committed repositories for exact production command capture...");
         var captureSession = await CaptureProductionCommandsAsync(
-            options.ConnectionString,
+            options.ConnectionString!,
             database,
             postgreSqlVersion);
         var parameterCount = captureSession.CaptureRun.Commands
@@ -451,6 +547,12 @@ internal static class Program
                     "The verified production SELECT commands were replayed only through EXPLAIN " +
                     "ANALYZE for raw PostgreSQL plan capture. No median, sequence aggregation, " +
                     "Q1 decision, permanent evidence export, migration, or index operation occurred.");
+                break;
+
+            case QueryReviewCommand.BaselineVerify:
+                Console.WriteLine(
+                    "Baseline verification was offline. No database connection, profile change, " +
+                    "EXPLAIN execution, migration, DDL, or index operation occurred.");
                 break;
 
             default:

@@ -6,19 +6,22 @@ internal enum QueryReviewCommand
     ProfileCreate,
     ProfileVerify,
     CaptureSql,
-    BaselineRun
+    BaselineRun,
+    BaselineVerify
 }
 
 internal sealed record QueryReviewOptions(
     QueryReviewCommand Command,
-    string ConnectionString,
+    string? ConnectionString,
     bool ConfirmDisposable,
     string OutputDirectory,
-    string? ContainerName)
+    string? ContainerName,
+    string? RunDirectory)
 {
     private const string ConnectionStringOption = "--connection-string";
     private const string ConfirmDisposableOption = "--confirm-disposable";
     private const string ContainerNameOption = "--container-name";
+    private const string RunDirectoryOption = "--run-directory";
 
     public static string Usage =>
         "Usage:\n" +
@@ -32,7 +35,9 @@ internal sealed record QueryReviewOptions(
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- baseline run " +
         "--connection-string \"<connection-string>\" --confirm-disposable " +
-        "--container-name <container-name>";
+        "--container-name <container-name>\n" +
+        "  dotnet run --project tools/RealEstate.QueryReview -- baseline verify " +
+        "--run-directory \"<absolute-raw-run-directory>\"";
 
     public static bool TryParse(
         string[] args,
@@ -50,6 +55,7 @@ internal sealed record QueryReviewOptions(
         string? connectionString = null;
         var confirmDisposable = false;
         string? containerName = null;
+        string? runDirectory = null;
 
         for (var index = optionsStartIndex; index < args.Length; index++)
         {
@@ -97,19 +103,57 @@ internal sealed record QueryReviewOptions(
                     containerName = args[++index].Trim();
                     break;
 
+                case RunDirectoryOption:
+                    if (runDirectory is not null)
+                    {
+                        error = $"Option '{RunDirectoryOption}' may be supplied only once.";
+                        return false;
+                    }
+
+                    if (index + 1 >= args.Length || string.IsNullOrWhiteSpace(args[index + 1]))
+                    {
+                        error = $"Option '{RunDirectoryOption}' requires a value.";
+                        return false;
+                    }
+
+                    runDirectory = args[++index].Trim();
+                    break;
+
                 default:
                     error = $"Unknown option '{args[index]}'.";
                     return false;
             }
         }
 
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (command == QueryReviewCommand.BaselineVerify)
+        {
+            if (connectionString is not null || confirmDisposable || containerName is not null)
+            {
+                error =
+                    "'baseline verify' is offline and rejects connection, disposable, and " +
+                    "container options.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(runDirectory))
+            {
+                error = $"The offline baseline verifier requires '{RunDirectoryOption}'.";
+                return false;
+            }
+
+            if (!Path.IsPathFullyQualified(runDirectory))
+            {
+                error = $"Option '{RunDirectoryOption}' must be an absolute path.";
+                return false;
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(connectionString))
         {
             error = $"An explicit '{ConnectionStringOption}' value is required.";
             return false;
         }
 
-        if (!confirmDisposable)
+        if (command != QueryReviewCommand.BaselineVerify && !confirmDisposable)
         {
             error = $"The safety acknowledgement '{ConfirmDisposableOption}' is required.";
             return false;
@@ -127,6 +171,12 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
+        if (command != QueryReviewCommand.BaselineVerify && runDirectory is not null)
+        {
+            error = $"Option '{RunDirectoryOption}' is valid only for 'baseline verify'.";
+            return false;
+        }
+
         var outputDirectory = Path.GetFullPath(
             Path.Combine(Path.GetTempPath(), "realestate-queryreview"));
 
@@ -135,7 +185,8 @@ internal sealed record QueryReviewOptions(
             connectionString,
             confirmDisposable,
             outputDirectory,
-            containerName);
+            containerName,
+            runDirectory is null ? null : Path.GetFullPath(runDirectory));
 
         return true;
     }
@@ -190,9 +241,18 @@ internal sealed record QueryReviewOptions(
             return true;
         }
 
+        if (args.Length > 1 &&
+            string.Equals(args[0], "baseline", StringComparison.Ordinal) &&
+            string.Equals(args[1], "verify", StringComparison.Ordinal))
+        {
+            command = QueryReviewCommand.BaselineVerify;
+            optionsStartIndex = 2;
+            return true;
+        }
+
         error =
             "Supported commands are 'doctor', 'profile create', 'profile verify', and " +
-            "'capture-sql', and 'baseline run'.";
+            "'capture-sql', 'baseline run', and 'baseline verify'.";
         return false;
     }
 }

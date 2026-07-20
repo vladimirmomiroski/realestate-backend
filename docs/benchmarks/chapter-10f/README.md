@@ -78,4 +78,19 @@ Raw output is written only to:
 
 The directory contains `manifest.json`, `captured-commands.json`, `environment-raw.json`, and six raw plan files beneath each of the 33 command-key directories. It is intentionally outside the repository.
 
-This checkpoint does not calculate medians, aggregate page sequences, apply the Q1 gate, export permanent evidence, create or evaluate indexes, add migrations, or alter production code. `profile create` only applies migrations already committed in Infrastructure.
+## Offline baseline verification
+
+`baseline verify` reads an existing 10F.2A raw-run directory without accepting a connection string and without opening a database connection:
+
+```powershell
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -- baseline verify `
+  --run-directory "C:\Users\User\AppData\Local\Temp\realestate-queryreview\chapter-10f-v1-baseline-<UTC>-<commit>"
+```
+
+The run directory must be absolute and outside the repository. The verifier requires the fixed 33-command order and exactly six plans per command, recomputes SQL, parameter, result, structural-plan, row, and raw-plan hashes, rejects missing or additional raw plans, and recursively extracts PostgreSQL timing, buffer, spill, scan, join, sort, index, rows-removed, and memory evidence.
+
+Warm-up plans remain auditable but are excluded from medians. Each command median uses measured runs 1-5 only, sorts by the unrounded value and then original run number, and selects the third value. Page and comparable sequences are summed within each original run before the five aligned totals are median-selected.
+
+The Q1 gate fails when the filtered-count execution median exceeds 250 ms, the aligned first-page sequence execution median exceeds 250 ms, or any Q1 warm-up or measured plan spills. Equality at 250 ms passes. A failure records the evidence and stops for owner review; it does not authorize an index or a broader search implementation.
+
+The verifier writes `measurements-raw.json` and a temporary `curated` evidence directory inside the existing OS-temp raw run. It preserves credential scanning. It does not rerun EXPLAIN, connect to PostgreSQL, export evidence into the repository, create or evaluate indexes, add migrations, or alter production code.
