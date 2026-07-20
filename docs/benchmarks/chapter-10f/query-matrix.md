@@ -61,4 +61,22 @@ The command fails unless:
 - Q1 applies `ILIKE` only to Title, City, Municipality, and Neighborhood, never Description or AddressLine;
 - comparable translation/image split SQL applies the ranked `LIMIT` before joining aggregate children.
 
-These checks validate production-generated SQL and results. They do not run `EXPLAIN`, measure performance, capture medians, inspect server settings, or experiment with indexes.
+## Baseline measurement accounting
+
+The raw baseline retains all 33 commands separately. Counts are never combined with roots, translation splits, or image splits; A1 agency existence remains independent; and C1 source, ranked root, translation, and image commands remain independent.
+
+The fixed replay and verification order is N1, P1, P2, A1, R1, L1, Q1, then C1, with each shape ordered by its captured sequence. Every command must have one warm-up plan and measured runs 1-5.
+
+First-page sequences sum each measured run before selecting a median:
+
+- N1, P1, P2, R1, L1, Q1: page root + translation split + image split;
+- A1 first page: page root + translation split + image split;
+- A1 endpoint supplementary: agency existence + count + first-page commands;
+- C1 candidate page: ranked root + comparable translation split + comparable image split;
+- C1 endpoint supplementary: source + candidate-page commands.
+
+Command and sequence medians sort the five unrounded values ascending, use original run number as the deterministic tie-breaker, and select the third value. Warm-up is excluded.
+
+The Q1 gate is `FAIL` if its filtered-count execution median is greater than 250 ms, its aligned first-page sequence execution median is greater than 250 ms, or any Q1 warm-up or measured plan spills. Equality at 250 ms passes.
+
+These checks validate production-generated SQL, results, raw plans, measurements, and the Q1 planning gate. They do not create or evaluate indexes, change production SQL, or export permanent evidence.

@@ -46,6 +46,51 @@ The stable logical run ID is `chapter-10f-v1-production-sql`. Complete SQL, type
 
 Connection strings and credentials are never written. Parameter names that indicate passwords, credentials, secrets, or tokens are redacted defensively.
 
-The tool does not read a connection string from application settings or environment variables and does not print the supplied connection string. Future generated output defaults to the operating system temporary directory under `realestate-queryreview`, outside the repository; the current commands print that path but create no output there.
+The tool does not read a connection string from application settings or environment variables and does not print the supplied connection string. Generated output defaults to the operating system temporary directory under `realestate-queryreview`, outside the repository.
 
-This checkpoint does not run `EXPLAIN`, capture server settings, take benchmark timings or medians, or create, drop, or evaluate indexes. It creates no migration; `profile create` only applies migrations already committed in Infrastructure.
+## Raw baseline plan capture
+
+`baseline run` is the opt-in Chapter 10F.2A command. It requires the name of the running disposable PostgreSQL 16 Docker container so the raw environment artifact can include the image identity and resource limits:
+
+```powershell
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -- baseline run `
+  --connection-string "Host=localhost;Port=5432;Database=realestate_queryreview_local;Username=postgres;Password=<password>" `
+  --confirm-disposable `
+  --container-name realestate-queryreview-postgres16
+```
+
+The command:
+
+1. verifies all 61 deterministic profile invariants;
+2. runs one `VACUUM (ANALYZE)` before measurement;
+3. captures Git, .NET/runtime, host, Docker, PostgreSQL settings, extensions, table statistics, relation sizes, and index definitions without credentials;
+4. invokes the committed repositories and validates all 33 commands, the current 152 typed parameters, expected result counts/page sizes, and comparable order;
+5. retains original typed parameter values only in memory and replays every captured SELECT through `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)`;
+6. runs one complete warm-up round and five complete measured rounds in fixed command order;
+7. validates stable SQL, parameter, command-role, result, top-level row-count, and structural-plan hashes;
+8. writes exactly 198 raw plan JSON files and scans every output file for connection credentials.
+
+Raw output is written only to:
+
+```text
+<OS temp>/realestate-queryreview/chapter-10f-v1-baseline-<UTC>-<commit>/
+```
+
+The directory contains `manifest.json`, `captured-commands.json`, `environment-raw.json`, and six raw plan files beneath each of the 33 command-key directories. It is intentionally outside the repository.
+
+## Offline baseline verification
+
+`baseline verify` reads an existing 10F.2A raw-run directory without accepting a connection string and without opening a database connection:
+
+```powershell
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -- baseline verify `
+  --run-directory "C:\Users\User\AppData\Local\Temp\realestate-queryreview\chapter-10f-v1-baseline-<UTC>-<commit>"
+```
+
+The run directory must be absolute and outside the repository. The verifier requires the fixed 33-command order and exactly six plans per command, recomputes SQL, parameter, result, structural-plan, row, and raw-plan hashes, rejects missing or additional raw plans, and recursively extracts PostgreSQL timing, buffer, spill, scan, join, sort, index, rows-removed, and memory evidence.
+
+Warm-up plans remain auditable but are excluded from medians. Each command median uses measured runs 1-5 only, sorts by the unrounded value and then original run number, and selects the third value. Page and comparable sequences are summed within each original run before the five aligned totals are median-selected.
+
+The Q1 gate fails when the filtered-count execution median exceeds 250 ms, the aligned first-page sequence execution median exceeds 250 ms, or any Q1 warm-up or measured plan spills. Equality at 250 ms passes. A failure records the evidence and stops for owner review; it does not authorize an index or a broader search implementation.
+
+The verifier writes `measurements-raw.json` and a temporary `curated` evidence directory inside the existing OS-temp raw run. It preserves credential scanning. It does not rerun EXPLAIN, connect to PostgreSQL, export evidence into the repository, create or evaluate indexes, add migrations, or alter production code.
