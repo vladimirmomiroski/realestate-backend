@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace RealEstate.QueryReview;
 
@@ -9,6 +10,7 @@ internal sealed class ProductionCommandCaptureInterceptor : DbCommandInterceptor
 {
     private readonly AsyncLocal<CaptureScope?> _currentScope = new();
     private readonly List<CapturedCommand> _commands = new();
+    private readonly List<ReplayableCommand> _replayableCommands = new();
     private readonly object _sync = new();
 
     public ProductionCommandCaptureInterceptor(string logicalRunId)
@@ -25,6 +27,17 @@ internal sealed class ProductionCommandCaptureInterceptor : DbCommandInterceptor
             lock (_sync)
             {
                 return _commands.ToArray();
+            }
+        }
+    }
+
+    public IReadOnlyList<ReplayableCommand> ReplayableCommands
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _replayableCommands.ToArray();
             }
         }
     }
@@ -88,10 +101,10 @@ internal sealed class ProductionCommandCaptureInterceptor : DbCommandInterceptor
 
         var sequence = scope.NextSequence();
         var role = ClassifyRole(scope.ShapeId, sequence, command.CommandText);
-        var parameters = command.Parameters
+        var sourceParameters = command.Parameters
             .Cast<DbParameter>()
-            .Select(CaptureParameter)
             .ToArray();
+        var parameters = sourceParameters.Select(CaptureParameter).ToArray();
 
         var captured = new CapturedCommand(
             LogicalRunId,
@@ -101,10 +114,16 @@ internal sealed class ProductionCommandCaptureInterceptor : DbCommandInterceptor
             command.CommandType.ToString(),
             command.CommandText,
             parameters);
+        var replayable = new ReplayableCommand(
+            captured,
+            sourceParameters
+                .Select((parameter, ordinal) => CaptureReplayableParameter(parameter, ordinal))
+                .ToArray());
 
         lock (_sync)
         {
             _commands.Add(captured);
+            _replayableCommands.Add(replayable);
         }
     }
 
@@ -136,6 +155,45 @@ internal sealed class ProductionCommandCaptureInterceptor : DbCommandInterceptor
             IsSensitiveParameter(parameter.ParameterName)
                 ? "<redacted>"
                 : FormatValue(rawValue));
+    }
+
+    private static ReplayableParameter CaptureReplayableParameter(
+        DbParameter parameter,
+        int ordinal)
+    {
+        NpgsqlDbType? npgsqlDbType = null;
+        string? dataTypeName = null;
+
+        if (parameter is NpgsqlParameter npgsqlParameter)
+        {
+            npgsqlDbType = npgsqlParameter.NpgsqlDbType;
+            dataTypeName = npgsqlParameter.DataTypeName;
+        }
+
+        return new ReplayableParameter(
+            parameter.ParameterName,
+            ordinal,
+            CloneParameterValue(parameter.Value),
+            parameter.DbType,
+            npgsqlDbType,
+            dataTypeName,
+            parameter.Direction,
+            parameter.IsNullable,
+            parameter.Size,
+            parameter.Precision,
+            parameter.Scale);
+    }
+
+    private static object? CloneParameterValue(object? value)
+    {
+        return value switch
+        {
+            null or DBNull => value,
+            byte[] bytes => bytes.ToArray(),
+            char[] characters => characters.ToArray(),
+            Array array => array.Clone(),
+            _ => value
+        };
     }
 
     private static string FormatValue(object? value)

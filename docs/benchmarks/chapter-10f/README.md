@@ -46,6 +46,36 @@ The stable logical run ID is `chapter-10f-v1-production-sql`. Complete SQL, type
 
 Connection strings and credentials are never written. Parameter names that indicate passwords, credentials, secrets, or tokens are redacted defensively.
 
-The tool does not read a connection string from application settings or environment variables and does not print the supplied connection string. Future generated output defaults to the operating system temporary directory under `realestate-queryreview`, outside the repository; the current commands print that path but create no output there.
+The tool does not read a connection string from application settings or environment variables and does not print the supplied connection string. Generated output defaults to the operating system temporary directory under `realestate-queryreview`, outside the repository.
 
-This checkpoint does not run `EXPLAIN`, capture server settings, take benchmark timings or medians, or create, drop, or evaluate indexes. It creates no migration; `profile create` only applies migrations already committed in Infrastructure.
+## Raw baseline plan capture
+
+`baseline run` is the opt-in Chapter 10F.2A command. It requires the name of the running disposable PostgreSQL 16 Docker container so the raw environment artifact can include the image identity and resource limits:
+
+```powershell
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -- baseline run `
+  --connection-string "Host=localhost;Port=5432;Database=realestate_queryreview_local;Username=postgres;Password=<password>" `
+  --confirm-disposable `
+  --container-name realestate-queryreview-postgres16
+```
+
+The command:
+
+1. verifies all 61 deterministic profile invariants;
+2. runs one `VACUUM (ANALYZE)` before measurement;
+3. captures Git, .NET/runtime, host, Docker, PostgreSQL settings, extensions, table statistics, relation sizes, and index definitions without credentials;
+4. invokes the committed repositories and validates all 33 commands, the current 152 typed parameters, expected result counts/page sizes, and comparable order;
+5. retains original typed parameter values only in memory and replays every captured SELECT through `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)`;
+6. runs one complete warm-up round and five complete measured rounds in fixed command order;
+7. validates stable SQL, parameter, command-role, result, top-level row-count, and structural-plan hashes;
+8. writes exactly 198 raw plan JSON files and scans every output file for connection credentials.
+
+Raw output is written only to:
+
+```text
+<OS temp>/realestate-queryreview/chapter-10f-v1-baseline-<UTC>-<commit>/
+```
+
+The directory contains `manifest.json`, `captured-commands.json`, `environment-raw.json`, and six raw plan files beneath each of the 33 command-key directories. It is intentionally outside the repository.
+
+This checkpoint does not calculate medians, aggregate page sequences, apply the Q1 gate, export permanent evidence, create or evaluate indexes, add migrations, or alter production code. `profile create` only applies migrations already committed in Infrastructure.

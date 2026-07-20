@@ -5,17 +5,20 @@ internal enum QueryReviewCommand
     Doctor,
     ProfileCreate,
     ProfileVerify,
-    CaptureSql
+    CaptureSql,
+    BaselineRun
 }
 
 internal sealed record QueryReviewOptions(
     QueryReviewCommand Command,
     string ConnectionString,
     bool ConfirmDisposable,
-    string OutputDirectory)
+    string OutputDirectory,
+    string? ContainerName)
 {
     private const string ConnectionStringOption = "--connection-string";
     private const string ConfirmDisposableOption = "--confirm-disposable";
+    private const string ContainerNameOption = "--container-name";
 
     public static string Usage =>
         "Usage:\n" +
@@ -26,7 +29,10 @@ internal sealed record QueryReviewOptions(
         "  dotnet run --project tools/RealEstate.QueryReview -- profile verify " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- capture-sql " +
-        "--connection-string \"<connection-string>\" --confirm-disposable";
+        "--connection-string \"<connection-string>\" --confirm-disposable\n" +
+        "  dotnet run --project tools/RealEstate.QueryReview -- baseline run " +
+        "--connection-string \"<connection-string>\" --confirm-disposable " +
+        "--container-name <container-name>";
 
     public static bool TryParse(
         string[] args,
@@ -43,6 +49,7 @@ internal sealed record QueryReviewOptions(
 
         string? connectionString = null;
         var confirmDisposable = false;
+        string? containerName = null;
 
         for (var index = optionsStartIndex; index < args.Length; index++)
         {
@@ -74,6 +81,22 @@ internal sealed record QueryReviewOptions(
                     confirmDisposable = true;
                     break;
 
+                case ContainerNameOption:
+                    if (containerName is not null)
+                    {
+                        error = $"Option '{ContainerNameOption}' may be supplied only once.";
+                        return false;
+                    }
+
+                    if (index + 1 >= args.Length || string.IsNullOrWhiteSpace(args[index + 1]))
+                    {
+                        error = $"Option '{ContainerNameOption}' requires a value.";
+                        return false;
+                    }
+
+                    containerName = args[++index].Trim();
+                    break;
+
                 default:
                     error = $"Unknown option '{args[index]}'.";
                     return false;
@@ -92,6 +115,18 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
+        if (command == QueryReviewCommand.BaselineRun && string.IsNullOrWhiteSpace(containerName))
+        {
+            error = $"The official baseline command requires '{ContainerNameOption}'.";
+            return false;
+        }
+
+        if (command != QueryReviewCommand.BaselineRun && containerName is not null)
+        {
+            error = $"Option '{ContainerNameOption}' is valid only for 'baseline run'.";
+            return false;
+        }
+
         var outputDirectory = Path.GetFullPath(
             Path.Combine(Path.GetTempPath(), "realestate-queryreview"));
 
@@ -99,7 +134,8 @@ internal sealed record QueryReviewOptions(
             command,
             connectionString,
             confirmDisposable,
-            outputDirectory);
+            outputDirectory,
+            containerName);
 
         return true;
     }
@@ -145,9 +181,18 @@ internal sealed record QueryReviewOptions(
             return true;
         }
 
+        if (args.Length > 1 &&
+            string.Equals(args[0], "baseline", StringComparison.Ordinal) &&
+            string.Equals(args[1], "run", StringComparison.Ordinal))
+        {
+            command = QueryReviewCommand.BaselineRun;
+            optionsStartIndex = 2;
+            return true;
+        }
+
         error =
             "Supported commands are 'doctor', 'profile create', 'profile verify', and " +
-            "'capture-sql'.";
+            "'capture-sql', and 'baseline run'.";
         return false;
     }
 }

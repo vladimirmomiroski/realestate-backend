@@ -1,5 +1,7 @@
+using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NpgsqlTypes;
 
 namespace RealEstate.QueryReview;
 
@@ -40,14 +42,162 @@ internal sealed record SqlCaptureRun(
     IReadOnlyList<QueryShapeResult> ShapeResults,
     IReadOnlyList<CapturedCommand> Commands);
 
+internal sealed record ReplayableParameter(
+    string Name,
+    int Ordinal,
+    object? Value,
+    DbType DbType,
+    NpgsqlDbType? NpgsqlDbType,
+    string? DataTypeName,
+    ParameterDirection Direction,
+    bool IsNullable,
+    int Size,
+    byte Precision,
+    byte Scale);
+
+internal sealed record ReplayableCommand(
+    CapturedCommand CapturedCommand,
+    IReadOnlyList<ReplayableParameter> Parameters);
+
+internal sealed record ProductionCaptureSession(
+    SqlCaptureRun CaptureRun,
+    IReadOnlyList<ReplayableCommand> ReplayableCommands);
+
+internal sealed record GitEnvironmentSnapshot(
+    string Commit,
+    string Branch,
+    IReadOnlyList<string> Status);
+
+internal sealed record RuntimeEnvironmentSnapshot(
+    string OperatingSystem,
+    string OsArchitecture,
+    string ProcessArchitecture,
+    string Framework,
+    string RuntimeVersion,
+    string DotNetSdkVersion,
+    IReadOnlyList<string> DotNetRuntimes,
+    string? ProcessorIdentifier,
+    int LogicalProcessorCount,
+    long AvailableMemoryBytes);
+
+internal sealed record DockerEnvironmentSnapshot(
+    string ContainerName,
+    string ContainerId,
+    string ContainerImageId,
+    string ContainerImage,
+    string ContainerCreated,
+    string ContainerStatus,
+    long MemoryLimitBytes,
+    long NanoCpus,
+    long CpuQuota,
+    long CpuPeriod,
+    string DockerServerVersion,
+    string DockerOperatingSystem,
+    string DockerOsType,
+    string DockerArchitecture,
+    int DockerCpuCount,
+    long DockerMemoryBytes,
+    IReadOnlyList<string> ImageRepoDigests);
+
+internal sealed record PostgreSqlSettingSnapshot(
+    string Name,
+    string Setting,
+    string? Unit,
+    string Source);
+
+internal sealed record PostgreSqlExtensionSnapshot(string Name, string Version);
+
+internal sealed record PostgreSqlRelationSnapshot(
+    string Schema,
+    string Name,
+    string Kind,
+    long RelationSizeBytes,
+    long TotalRelationSizeBytes);
+
+internal sealed record PostgreSqlIndexSnapshot(
+    string Schema,
+    string Table,
+    string Name,
+    string Definition,
+    long SizeBytes);
+
+internal sealed record PostgreSqlTableStatisticsSnapshot(
+    string Schema,
+    string Table,
+    long EstimatedLiveRows,
+    long EstimatedDeadRows,
+    DateTime? LastVacuumUtc,
+    DateTime? LastAutoVacuumUtc,
+    DateTime? LastAnalyzeUtc,
+    DateTime? LastAutoAnalyzeUtc,
+    long VacuumCount,
+    long AutoVacuumCount,
+    long AnalyzeCount,
+    long AutoAnalyzeCount);
+
+internal sealed record PostgreSqlEnvironmentSnapshot(
+    string Version,
+    string ServerVersion,
+    string ServerVersionNumber,
+    string Database,
+    long DatabaseSizeBytes,
+    int ActiveVacuumCount,
+    IReadOnlyList<PostgreSqlSettingSnapshot> Settings,
+    IReadOnlyList<PostgreSqlExtensionSnapshot> Extensions,
+    IReadOnlyList<PostgreSqlRelationSnapshot> Relations,
+    IReadOnlyList<PostgreSqlIndexSnapshot> Indexes,
+    IReadOnlyList<PostgreSqlTableStatisticsSnapshot> TableStatistics);
+
+internal sealed record BaselineEnvironmentSnapshot(
+    DateTime CapturedAtUtc,
+    GitEnvironmentSnapshot Git,
+    RuntimeEnvironmentSnapshot Runtime,
+    DockerEnvironmentSnapshot Docker,
+    PostgreSqlEnvironmentSnapshot PostgreSql,
+    string EfCoreVersion,
+    string NpgsqlVersion,
+    string ToolVersion,
+    string ProfileVersion,
+    int CSharpSeed,
+    double PostgreSqlSeed,
+    TimeSpan VacuumAnalyzeDuration);
+
+internal sealed record RawPlanSample(
+    string CommandKey,
+    string ShapeId,
+    int ShapeSequence,
+    string CommandRole,
+    string RunKind,
+    int RunNumber,
+    string RelativePlanPath,
+    string SqlSha256,
+    string ParameterSha256,
+    string StructuralPlanSha256,
+    long ActualRows,
+    long ActualLoops);
+
+internal sealed record RawBaselineManifest(
+    string BaselineRunId,
+    DateTime StartedAtUtc,
+    DateTime CompletedAtUtc,
+    string ProfileVersion,
+    int CSharpSeed,
+    double PostgreSqlSeed,
+    string GitCommit,
+    string PostgreSqlVersion,
+    string ResultSha256,
+    int CommandCount,
+    int ParameterCount,
+    int WarmUpRunsPerCommand,
+    int MeasuredRunsPerCommand,
+    int PlanCount,
+    string CapturedCommandsPath,
+    string EnvironmentPath,
+    bool CredentialScanPassed,
+    IReadOnlyList<RawPlanSample> Samples);
+
 internal static class SqlCaptureOutput
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static async Task<string> WriteAsync(
         SqlCaptureRun run,
         string outputDirectory,
@@ -59,10 +209,31 @@ internal static class SqlCaptureOutput
         Directory.CreateDirectory(runDirectory);
 
         var outputPath = Path.Combine(runDirectory, "captured-commands.json");
-        var json = JsonSerializer.Serialize(run, SerializerOptions);
-
-        await File.WriteAllTextAsync(outputPath, json, cancellationToken);
+        await JsonArtifactOutput.WriteAsync(outputPath, run, cancellationToken);
 
         return outputPath;
+    }
+}
+
+internal static class JsonArtifactOutput
+{
+    public static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    public static async Task WriteAsync<T>(
+        string outputPath,
+        T value,
+        CancellationToken cancellationToken = default)
+    {
+        var directory = Path.GetDirectoryName(outputPath)
+            ?? throw new InvalidOperationException(
+                $"Output path '{outputPath}' has no parent directory.");
+
+        Directory.CreateDirectory(directory);
+        var json = JsonSerializer.Serialize(value, SerializerOptions);
+        await File.WriteAllTextAsync(outputPath, json, cancellationToken);
     }
 }

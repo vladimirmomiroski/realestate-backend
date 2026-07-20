@@ -143,6 +143,12 @@ internal static class Program
                     identity.Database,
                     npgsqlConnection.PostgreSqlVersion.ToString(),
                     npgsqlConnection),
+                QueryReviewCommand.BaselineRun => await RunBaselineAsync(
+                    options,
+                    connectionStringBuilder,
+                    identity.Database,
+                    npgsqlConnection.PostgreSqlVersion.ToString(),
+                    npgsqlConnection),
                 _ => throw new InvalidOperationException(
                     $"Unsupported command '{options.Command}'.")
             };
@@ -156,6 +162,11 @@ internal static class Program
         {
             Console.Error.WriteLine($"SQL capture validation failed: {exception.Message}");
             return 7;
+        }
+        catch (BaselinePlanValidationException exception)
+        {
+            Console.Error.WriteLine($"Baseline plan validation failed: {exception.Message}");
+            return 8;
         }
         catch (Exception exception) when (
             exception is NpgsqlException or InvalidOperationException or TimeoutException)
@@ -237,11 +248,99 @@ internal static class Program
 
         QueryShapeDefinitions.EnsureOutputIsOutsideRepository(options.OutputDirectory);
 
+        var captureSession = await CaptureProductionCommandsAsync(
+            options.ConnectionString,
+            database,
+            postgreSqlVersion);
+        var captureRun = captureSession.CaptureRun;
+
+        var outputPath = await SqlCaptureOutput.WriteAsync(
+            captureRun,
+            options.OutputDirectory);
+
+        PrintCaptureSummary(captureRun, outputPath);
+        return 0;
+    }
+
+    private static async Task<int> RunBaselineAsync(
+        QueryReviewOptions options,
+        NpgsqlConnectionStringBuilder connectionStringBuilder,
+        string database,
+        string postgreSqlVersion,
+        NpgsqlConnection measurementConnection)
+    {
+        Console.WriteLine("Verifying the deterministic profile before raw baseline capture...");
+
+        var verification = await ProfileInvariants.VerifyAsync(measurementConnection);
+        verification.EnsureValid();
+
+        Console.WriteLine(
+            $"Profile verification: SUCCESS ({verification.Invariants.Count}/" +
+            $"{verification.Invariants.Count} invariants).");
+
+        QueryShapeDefinitions.EnsureOutputIsOutsideRepository(options.OutputDirectory);
+
+        Console.WriteLine("Running one VACUUM (ANALYZE) before the measurement block...");
+        var vacuumAnalyzeDuration = await EnvironmentSnapshotCollector.VacuumAnalyzeAsync(
+            measurementConnection);
+        Console.WriteLine($"VACUUM (ANALYZE) duration: {vacuumAnalyzeDuration}.");
+
+        Console.WriteLine("Capturing Git, runtime, Docker, PostgreSQL, relation, and index metadata...");
+        var environment = await EnvironmentSnapshotCollector.CaptureAsync(
+            measurementConnection,
+            options.ContainerName!,
+            vacuumAnalyzeDuration);
+
+        if (environment.PostgreSql.ActiveVacuumCount != 0)
+        {
+            throw new BaselinePlanValidationException(
+                "A vacuum operation is still active after the baseline VACUUM (ANALYZE).");
+        }
+
+        Console.WriteLine("Invoking committed repositories for exact production command capture...");
+        var captureSession = await CaptureProductionCommandsAsync(
+            options.ConnectionString,
+            database,
+            postgreSqlVersion);
+        var parameterCount = captureSession.CaptureRun.Commands
+            .Sum(command => command.Parameters.Count);
+
+        Console.WriteLine(
+            $"Production capture validated: {captureSession.CaptureRun.Commands.Count} commands, " +
+            $"{parameterCount} typed parameters.");
+        Console.WriteLine(
+            "Replaying one warm-up and five measured rounds with EXPLAIN " +
+            "(ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)...");
+
+        var manifest = await ExplainRunner.RunAsync(
+            measurementConnection,
+            connectionStringBuilder,
+            captureSession,
+            environment,
+            options.OutputDirectory);
+        var runDirectory = Path.Combine(options.OutputDirectory, manifest.BaselineRunId);
+
+        Console.WriteLine($"Raw baseline run ID: {manifest.BaselineRunId}");
+        Console.WriteLine($"Raw JSON plans: {manifest.PlanCount}");
+        Console.WriteLine($"Structural plan and row-count validation: SUCCESS.");
+        Console.WriteLine($"Credential scan: SUCCESS.");
+        Console.WriteLine($"Raw output directory: {runDirectory}");
+        Console.WriteLine(
+            "Baseline run result: SUCCESS. No medians, sequence aggregation, Q1 gate, " +
+            "permanent evidence export, or index operation occurred.");
+        return 0;
+    }
+
+    private static async Task<ProductionCaptureSession> CaptureProductionCommandsAsync(
+        string connectionString,
+        string database,
+        string postgreSqlVersion)
+    {
         var interceptor = new ProductionCommandCaptureInterceptor(
             QueryShapeDefinitions.LogicalRunId);
 
         var captureOptions = new DbContextOptionsBuilder<RealEstateDbContext>()
-            .UseNpgsql(options.ConnectionString)
+            .UseNpgsql(connectionString)
             .AddInterceptors(interceptor)
             .Options;
 
@@ -261,16 +360,17 @@ internal static class Program
             shapeResults,
             commands);
 
-        var outputPath = await SqlCaptureOutput.WriteAsync(
-            captureRun,
-            options.OutputDirectory);
+        return new ProductionCaptureSession(captureRun, interceptor.ReplayableCommands);
+    }
 
+    private static void PrintCaptureSummary(SqlCaptureRun captureRun, string outputPath)
+    {
         Console.WriteLine($"Logical run ID: {captureRun.LogicalRunId}");
         Console.WriteLine("Captured logical shapes and command roles:");
 
-        foreach (var shape in shapeResults)
+        foreach (var shape in captureRun.ShapeResults)
         {
-            var roleCounts = commands
+            var roleCounts = captureRun.Commands
                 .Where(command => command.ShapeId == shape.ShapeId)
                 .GroupBy(command => command.CommandRole, StringComparer.Ordinal)
                 .OrderBy(group => group.Key, StringComparer.Ordinal)
@@ -282,13 +382,12 @@ internal static class Program
                 $"items={shape.ActualItemCount}");
         }
 
-        var parameters = commands.SelectMany(command => command.Parameters).ToArray();
+        var parameters = captureRun.Commands.SelectMany(command => command.Parameters).ToArray();
         Console.WriteLine(
             $"Typed parameters: {parameters.Length:N0} captured with CLR, DbType, Npgsql, " +
             "nullability, and exact-value metadata.");
         Console.WriteLine($"Complete SQL capture: {outputPath}");
         Console.WriteLine("Capture SQL result: SUCCESS. All command and result validations passed.");
-        return 0;
     }
 
     private static void PrintInvariantTotals(ProfileVerificationResult verification)
@@ -345,6 +444,13 @@ internal static class Program
                     "The verified production queries were executed only for typed SQL capture. " +
                     "No migration, seeding, EXPLAIN, performance benchmark, or index operation " +
                     "occurred.");
+                break;
+
+            case QueryReviewCommand.BaselineRun:
+                Console.WriteLine(
+                    "The verified production SELECT commands were replayed only through EXPLAIN " +
+                    "ANALYZE for raw PostgreSQL plan capture. No median, sequence aggregation, " +
+                    "Q1 decision, permanent evidence export, migration, or index operation occurred.");
                 break;
 
             default:
