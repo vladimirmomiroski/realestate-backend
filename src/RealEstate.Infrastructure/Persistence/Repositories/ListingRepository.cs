@@ -526,9 +526,9 @@ public sealed class ListingRepository : IListingRepository
         return query;
     }
 
-    private static IQueryable<Listing> ApplyEffectiveTranslationFilters(
-     IQueryable<Listing> query,
-     GetListingsQuery filters)
+    private IQueryable<Listing> ApplyEffectiveTranslationFilters(
+        IQueryable<Listing> query,
+        GetListingsQuery filters)
     {
         bool hasSearchText =
             filters.SearchText is not null;
@@ -572,71 +572,122 @@ public sealed class ListingRepository : IListingRepository
             ? EscapeLikePattern(filters.Neighborhood!)
             : string.Empty;
 
-        return query.Where(listing =>
-            listing.Translations
-                .OrderBy(translation =>
-                    EF.Functions.ILike(
+        IQueryable<Guid> candidateListingIds = query
+            .Select(listing => listing.Id);
+
+        var candidateTranslations = _dbContext
+            .Set<ListingTranslation>()
+            .AsNoTracking()
+            .Where(translation =>
+                candidateListingIds.Contains(translation.ListingId))
+            .Select(translation => new
+            {
+                translation.Id,
+                translation.ListingId,
+                translation.LanguageCode,
+                translation.Title,
+                translation.City,
+                translation.Municipality,
+                translation.Neighborhood,
+                LanguageSelectionKey =
+                    (EF.Functions.ILike(
                         translation.LanguageCode,
                         requestedLanguagePattern,
                         LikeEscapeCharacter)
-                        ? 0
+                        ? "0"
                         : EF.Functions.ILike(
                             translation.LanguageCode,
                             macedonianLanguagePattern,
                             LikeEscapeCharacter)
-                            ? 1
-                            : 2)
-                .ThenBy(translation =>
+                            ? "1"
+                            : "2") +
+                    translation.LanguageCode
+            });
+
+        var bestLanguageSelectionKeys = candidateTranslations
+            .GroupBy(translation => translation.ListingId)
+            .Select(translations => new
+            {
+                ListingId = translations.Key,
+                // The unique (ListingId, LanguageCode) key means this
+                // priority-plus-bytewise-language minimum identifies one row.
+                // A translation-UUID tie cannot exist for that selected code.
+                LanguageSelectionKey = translations.Min(translation =>
                     EF.Functions.Collate(
-                        translation.LanguageCode,
+                        translation.LanguageSelectionKey,
                         PostgreSqlBytewiseCollation))
-                .ThenBy(translation => translation.Id)
-                .Take(1)
-                .Any(translation =>
-                    (!hasCity ||
-                        (translation.City != null &&
-                         EF.Functions.ILike(
-                             translation.City,
-                             cityPattern,
-                             LikeEscapeCharacter))) &&
+            });
 
-                    (!hasMunicipality ||
-                        (translation.Municipality != null &&
-                         EF.Functions.ILike(
-                             translation.Municipality,
-                             municipalityPattern,
-                             LikeEscapeCharacter))) &&
+        var effectiveTranslations =
+            from translation in candidateTranslations
+            join bestLanguageSelectionKey in bestLanguageSelectionKeys
+                on new
+                {
+                    translation.ListingId,
+                    LanguageSelectionKey = EF.Functions.Collate(
+                        translation.LanguageSelectionKey,
+                        PostgreSqlBytewiseCollation)
+                }
+                equals new
+                {
+                    bestLanguageSelectionKey.ListingId,
+                    bestLanguageSelectionKey.LanguageSelectionKey
+                }
+            select translation;
 
-                    (!hasNeighborhood ||
-                        (translation.Neighborhood != null &&
-                         EF.Functions.ILike(
-                             translation.Neighborhood,
-                             neighborhoodPattern,
-                             LikeEscapeCharacter))) &&
+        IQueryable<Guid> matchingListingIds = effectiveTranslations
+            .Where(translation =>
+                (!hasCity ||
+                    (translation.City != null &&
+                     EF.Functions.ILike(
+                         translation.City,
+                         cityPattern,
+                         LikeEscapeCharacter))) &&
 
-                    (!hasSearchText ||
-                        EF.Functions.ILike(
-                            translation.Title,
-                            searchTextPattern,
-                            LikeEscapeCharacter) ||
+                (!hasMunicipality ||
+                    (translation.Municipality != null &&
+                     EF.Functions.ILike(
+                         translation.Municipality,
+                         municipalityPattern,
+                         LikeEscapeCharacter))) &&
 
-                        (translation.City != null &&
-                         EF.Functions.ILike(
-                             translation.City,
-                             searchTextPattern,
-                             LikeEscapeCharacter)) ||
+                (!hasNeighborhood ||
+                    (translation.Neighborhood != null &&
+                     EF.Functions.ILike(
+                         translation.Neighborhood,
+                         neighborhoodPattern,
+                         LikeEscapeCharacter))) &&
 
-                        (translation.Municipality != null &&
-                         EF.Functions.ILike(
-                             translation.Municipality,
-                             searchTextPattern,
-                             LikeEscapeCharacter)) ||
+                (!hasSearchText ||
+                    EF.Functions.ILike(
+                        translation.Title,
+                        searchTextPattern,
+                        LikeEscapeCharacter) ||
 
-                        (translation.Neighborhood != null &&
-                         EF.Functions.ILike(
-                             translation.Neighborhood,
-                             searchTextPattern,
-                             LikeEscapeCharacter)))));
+                    (translation.City != null &&
+                     EF.Functions.ILike(
+                         translation.City,
+                         searchTextPattern,
+                         LikeEscapeCharacter)) ||
+
+                    (translation.Municipality != null &&
+                     EF.Functions.ILike(
+                         translation.Municipality,
+                         searchTextPattern,
+                         LikeEscapeCharacter)) ||
+
+                    (translation.Neighborhood != null &&
+                     EF.Functions.ILike(
+                         translation.Neighborhood,
+                         searchTextPattern,
+                         LikeEscapeCharacter))))
+            .Select(translation => translation.ListingId);
+
+        return query.Join(
+            matchingListingIds,
+            listing => listing.Id,
+            listingId => listingId,
+            (listing, _) => listing);
     }
 
     private static string EscapeLikePattern(string value)
