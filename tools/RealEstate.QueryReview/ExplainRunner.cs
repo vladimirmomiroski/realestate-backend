@@ -12,7 +12,7 @@ internal static class ExplainRunner
     private const string ExplainPrefix =
         "EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)\n";
     private const int ExpectedCommandCount = 33;
-    private const int ExpectedParameterCount = 152;
+    private const int ExpectedParameterCount = 106;
     private const int WarmUpRunsPerCommand = 1;
     private const int MeasuredRunsPerCommand = 5;
     private const int ExpectedPlanCount =
@@ -385,7 +385,7 @@ internal static class ExplainRunner
             !manifest.CredentialScanPassed)
         {
             throw new BaselinePlanValidationException(
-                "Raw manifest does not contain exactly 33 commands, 152 parameters, " +
+                $"Raw manifest does not contain exactly 33 commands, {ExpectedParameterCount} parameters, " +
                 "one warm-up and five measured plans per command, and a passed credential scan.");
         }
 
@@ -401,7 +401,7 @@ internal static class ExplainRunner
         {
             throw new BaselinePlanValidationException(
                 "Captured production artifact does not contain the required 33 commands and " +
-                "152 typed parameters.");
+                $"{ExpectedParameterCount} typed parameters.");
         }
 
         for (var index = 0; index < ExpectedCommandCount; index++)
