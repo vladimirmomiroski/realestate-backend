@@ -50,10 +50,16 @@ public sealed class ListingRepository : IListingRepository
             listingsQuery,
             query.SortOption);
 
-        List<Listing> listings = await ApplyListingIncludes(orderedQuery)
+        List<Listing> listings = await orderedQuery
+            .Include(listing => listing.ApartmentDetails)
+            .Include(listing => listing.HouseDetails)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
+
+        await LoadSelectedListingCollectionsAsync(
+            listings,
+            cancellationToken);
 
         return new PagedResult<Listing>(
             listings,
@@ -688,6 +694,56 @@ public sealed class ListingRepository : IListingRepository
             .Include(listing => listing.ApartmentDetails)
             .Include(listing => listing.HouseDetails)
             .AsSplitQuery();
+    }
+
+    private async Task LoadSelectedListingCollectionsAsync(
+        IReadOnlyList<Listing> listings,
+        CancellationToken cancellationToken)
+    {
+        if (listings.Count == 0)
+        {
+            return;
+        }
+
+        Guid[] listingIds = listings
+            .Select(listing => listing.Id)
+            .ToArray();
+
+        List<ListingTranslation> translations = await (
+            from listing in _dbContext.Listings.AsNoTracking()
+            join translation in _dbContext.Set<ListingTranslation>().AsNoTracking()
+                on listing.Id equals translation.ListingId
+            where listingIds.Contains(listing.Id)
+            orderby translation.ListingId,
+                translation.Id
+            select translation)
+            .ToListAsync(cancellationToken);
+
+        List<ListingImage> images = await (
+            from listing in _dbContext.Listings.AsNoTracking()
+            join image in _dbContext.Set<ListingImage>().AsNoTracking()
+                on listing.Id equals image.ListingId
+            where listingIds.Contains(listing.Id)
+            orderby image.ListingId,
+                image.SortOrder,
+                image.Id
+            select image)
+            .ToListAsync(cancellationToken);
+
+        ILookup<Guid, ListingTranslation> translationsByListing =
+            translations.ToLookup(translation => translation.ListingId);
+
+        ILookup<Guid, ListingImage> imagesByListing =
+            images.ToLookup(image => image.ListingId);
+
+        foreach (Listing listing in listings)
+        {
+            listing.Translations = translationsByListing[listing.Id]
+                .ToList();
+
+            listing.Images = imagesByListing[listing.Id]
+                .ToList();
+        }
     }
 
     private static (int Page, int PageSize) NormalizePagination(

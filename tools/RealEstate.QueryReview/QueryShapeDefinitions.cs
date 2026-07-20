@@ -36,6 +36,22 @@ internal static class QueryShapeDefinitions
         ListingId(3007)
     ];
 
+    private static readonly IReadOnlyDictionary<string, Guid[]> ExpectedPagedIds =
+        new Dictionary<string, Guid[]>(StringComparer.Ordinal)
+        {
+            [N1] = ListingIds(startOrdinal: 3031, count: 20, step: -1),
+            [P1] = ListingIds(startOrdinal: 69_961, count: 20, step: -3_000),
+            [P2] = ListingIds(startOrdinal: 68_998, count: 20, step: -3_000),
+            [AgencyShapeId] =
+            [
+                ListingId(3001),
+                .. ListingIds(startOrdinal: 69_801, count: 19, step: -1_000)
+            ],
+            [R1] = ListingIds(startOrdinal: 69_844, count: 20, step: -1_000),
+            [L1] = ListingIds(startOrdinal: 1140, count: 20, step: -1),
+            [Q1] = ListingIds(startOrdinal: 2120, count: 20, step: -1)
+        };
+
     public static async Task<IReadOnlyList<QueryShapeResult>> ExecuteAsync(
         RealEstateDbContext dbContext,
         ProductionCommandCaptureInterceptor interceptor,
@@ -287,13 +303,27 @@ internal static class QueryShapeDefinitions
                 $"{result.Items.Count}.");
         }
 
+        Guid[] actualIds = result.Items
+            .Select(item => item.Id)
+            .ToArray();
+
+        Guid[] expectedIds = ExpectedPagedIds[shapeId];
+
+        if (!actualIds.SequenceEqual(expectedIds))
+        {
+            throw new SqlCaptureValidationException(
+                $"{shapeId}: expected page order " +
+                $"[{string.Join(", ", expectedIds)}], actual " +
+                $"[{string.Join(", ", actualIds)}].");
+        }
+
         return new QueryShapeResult(
             shapeId,
             expectedTotalCount,
             result.TotalCount,
             expectedItemCount,
             result.Items.Count,
-            result.Items.Select(item => item.Id).ToArray());
+            actualIds);
     }
 
     private static void ValidateCapturedCommands(IReadOnlyList<CapturedCommand> commands)
@@ -350,6 +380,7 @@ internal static class QueryShapeDefinitions
 
         ValidateTypedParameters(commands);
         ValidatePublicVisibilityAndOrdering(commands);
+        ValidatePagedFiltersAndChildLoading(commands);
         ValidateTextSearch(commands);
         ValidateComparableLimitBeforeIncludes(commands);
     }
@@ -381,7 +412,9 @@ internal static class QueryShapeDefinitions
         IReadOnlyList<CapturedCommand> commands)
     {
         var publicCommands = commands.Where(command =>
-            command.CommandRole != CommandRoles.AgencyExistence);
+            command.ShapeId == ComparableShapeId ||
+            command.CommandRole is CommandRoles.FilteredCount or
+                CommandRoles.PageRoot);
 
         foreach (var command in publicCommands)
         {
@@ -394,8 +427,6 @@ internal static class QueryShapeDefinitions
 
         var orderedCommands = commands.Where(command =>
             command.CommandRole is CommandRoles.PageRoot or
-                CommandRoles.TranslationSplit or
-                CommandRoles.ImageSplit or
                 CommandRoles.ComparableRankedRoot or
                 CommandRoles.ComparableTranslationSplit or
                 CommandRoles.ComparableImageSplit);
@@ -423,7 +454,7 @@ internal static class QueryShapeDefinitions
     {
         foreach (var command in commands.Where(command =>
                      command.ShapeId == shapeId &&
-                     command.CommandRole != CommandRoles.FilteredCount))
+                     command.CommandRole == CommandRoles.PageRoot))
         {
             var orderByClauses = command.CommandText
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -437,6 +468,92 @@ internal static class QueryShapeDefinitions
             {
                 throw new SqlCaptureValidationException(
                     $"{shapeId}/{command.CommandRole}: expected price direction was not captured.");
+            }
+        }
+    }
+
+    private static void ValidatePagedFiltersAndChildLoading(
+        IReadOnlyList<CapturedCommand> commands)
+    {
+        AssertSelectionPredicate(commands, P1, "\"Currency\" =");
+        AssertSelectionPredicate(commands, P2, "\"Currency\" =");
+        AssertSelectionPredicate(commands, AgencyShapeId, "\"AgencyId\" =");
+
+        AssertSelectionPredicate(commands, R1, "\"AreaSquareMeters\" >=");
+        AssertSelectionPredicate(commands, R1, "\"AreaSquareMeters\" <=");
+        AssertSelectionPredicate(commands, R1, "\"Rooms\" IS NOT NULL");
+        AssertSelectionPredicate(commands, R1, "\"Rooms\" >=");
+        AssertSelectionPredicate(commands, R1, "\"Rooms\" <=");
+
+        AssertSelectionPredicate(commands, L1, "\"City\" ILIKE");
+        AssertSelectionPredicate(commands, L1, "\"Municipality\" ILIKE");
+        AssertSelectionPredicate(commands, L1, "\"Neighborhood\" ILIKE");
+        AssertSelectionPredicate(commands, L1, "\"LanguageCode\" ILIKE");
+        AssertSelectionPredicate(commands, L1, "COLLATE \"C\"");
+        AssertSelectionPredicate(commands, L1, "ORDER BY CASE");
+        AssertSelectionPredicate(commands, L1, "LIMIT 1");
+
+        AssertSelectionPredicate(commands, Q1, "\"LanguageCode\" ILIKE");
+        AssertSelectionPredicate(commands, Q1, "COLLATE \"C\"");
+        AssertSelectionPredicate(commands, Q1, "ORDER BY CASE");
+        AssertSelectionPredicate(commands, Q1, "LIMIT 1");
+
+        foreach (CapturedCommand command in commands.Where(command =>
+                     command.CommandRole is CommandRoles.TranslationSplit or
+                         CommandRoles.ImageSplit))
+        {
+            string childTable = command.CommandRole == CommandRoles.TranslationSplit
+                ? "ListingTranslations"
+                : "ListingImages";
+
+            if (!command.CommandText.Contains(
+                    $"INNER JOIN \"{childTable}\"",
+                    StringComparison.Ordinal) ||
+                !command.CommandText.Contains("ANY", StringComparison.Ordinal) ||
+                command.Parameters.Count != 1 ||
+                !string.Equals(
+                    command.Parameters[0].ClrType,
+                    typeof(Guid[]).FullName,
+                    StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{command.ShapeId}/{command.CommandRole}: child loading is not " +
+                    "restricted to one selected-page UUID array. " +
+                    $"Parameters={command.Parameters.Count}; " +
+                    $"ClrTypes=[{string.Join(", ", command.Parameters.Select(parameter => parameter.ClrType))}]; " +
+                    $"NpgsqlTypes=[{string.Join(", ", command.Parameters.Select(parameter => parameter.NpgsqlDbType))}].");
+            }
+
+            if (command.CommandText.Contains(
+                    "\"Status\" = 'Active'",
+                    StringComparison.Ordinal) ||
+                command.CommandText.Contains(" ILIKE ", StringComparison.Ordinal) ||
+                command.CommandText.Contains("COLLATE \"C\"", StringComparison.Ordinal) ||
+                command.CommandText.Contains("CASE", StringComparison.Ordinal) ||
+                command.CommandText.Contains("LIMIT", StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{command.ShapeId}/{command.CommandRole}: child loading repeats " +
+                    "public candidate selection or pagination.");
+            }
+        }
+    }
+
+    private static void AssertSelectionPredicate(
+        IReadOnlyList<CapturedCommand> commands,
+        string shapeId,
+        string expectedSql)
+    {
+        foreach (CapturedCommand command in commands.Where(command =>
+                     command.ShapeId == shapeId &&
+                     (command.CommandRole is CommandRoles.FilteredCount or
+                         CommandRoles.PageRoot)))
+        {
+            if (!command.CommandText.Contains(expectedSql, StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{shapeId}/{command.CommandRole}: expected selection predicate " +
+                    $"'{expectedSql}' is missing.");
             }
         }
     }
@@ -464,7 +581,10 @@ internal static class QueryShapeDefinitions
 
     private static void ValidateTextSearch(IReadOnlyList<CapturedCommand> commands)
     {
-        foreach (var command in commands.Where(command => command.ShapeId == Q1))
+        foreach (var command in commands.Where(command =>
+                     command.ShapeId == Q1 &&
+                     (command.CommandRole is CommandRoles.FilteredCount or
+                         CommandRoles.PageRoot)))
         {
             foreach (var field in new[] { "Title", "City", "Municipality", "Neighborhood" })
             {
@@ -530,6 +650,16 @@ internal static class QueryShapeDefinitions
     private static Guid ListingId(int ordinal)
     {
         return Guid.Parse($"40000000-0000-0000-0000-{ordinal:x12}");
+    }
+
+    private static Guid[] ListingIds(
+        int startOrdinal,
+        int count,
+        int step)
+    {
+        return Enumerable.Range(0, count)
+            .Select(index => ListingId(startOrdinal + index * step))
+            .ToArray();
     }
 
     private static string? FindRepositoryRoot()
