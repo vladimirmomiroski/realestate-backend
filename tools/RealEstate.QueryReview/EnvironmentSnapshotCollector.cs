@@ -296,15 +296,36 @@ internal static class EnvironmentSnapshotCollector
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT i.schemaname,
-                   i.tablename,
-                   i.indexname,
-                   i.indexdef,
-                   pg_relation_size((quote_ident(i.schemaname) || '.' ||
-                                     quote_ident(i.indexname))::regclass)
-            FROM pg_indexes AS i
-            WHERE i.schemaname = 'public'
-            ORDER BY i.tablename, i.indexname;
+            SELECT namespace.nspname,
+                   table_relation.relname,
+                   index_relation.relname,
+                   pg_get_indexdef(index_relation.oid),
+                   pg_relation_size(index_relation.oid),
+                   access_method.amname,
+                   ARRAY(
+                       SELECT attribute.attname
+                       FROM unnest(index_metadata.indkey) WITH ORDINALITY AS key_column(attnum, ordinal)
+                       JOIN pg_attribute AS attribute
+                         ON attribute.attrelid = table_relation.oid
+                        AND attribute.attnum = key_column.attnum
+                       WHERE key_column.ordinal <= index_metadata.indnkeyatts
+                       ORDER BY key_column.ordinal),
+                   ARRAY(
+                       SELECT operator_class.opcname
+                       FROM unnest(index_metadata.indclass) WITH ORDINALITY AS class_column(opcoid, ordinal)
+                       JOIN pg_opclass AS operator_class ON operator_class.oid = class_column.opcoid
+                       WHERE class_column.ordinal <= index_metadata.indnkeyatts
+                       ORDER BY class_column.ordinal),
+                   index_metadata.indisvalid,
+                   index_metadata.indisready,
+                   index_metadata.indislive
+            FROM pg_index AS index_metadata
+            JOIN pg_class AS index_relation ON index_relation.oid = index_metadata.indexrelid
+            JOIN pg_class AS table_relation ON table_relation.oid = index_metadata.indrelid
+            JOIN pg_namespace AS namespace ON namespace.oid = table_relation.relnamespace
+            JOIN pg_am AS access_method ON access_method.oid = index_relation.relam
+            WHERE namespace.nspname = 'public'
+            ORDER BY table_relation.relname, index_relation.relname;
             """;
         var values = new List<PostgreSqlIndexSnapshot>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -316,7 +337,13 @@ internal static class EnvironmentSnapshotCollector
                 reader.GetString(1),
                 reader.GetString(2),
                 reader.GetString(3),
-                reader.GetInt64(4)));
+                reader.GetInt64(4),
+                reader.GetString(5),
+                reader.GetFieldValue<string[]>(6),
+                reader.GetFieldValue<string[]>(7),
+                reader.GetBoolean(8),
+                reader.GetBoolean(9),
+                reader.GetBoolean(10)));
         }
 
         return values;

@@ -52,6 +52,25 @@ internal static class QueryShapeDefinitions
             [Q1] = ListingIds(startOrdinal: 2120, count: 20, step: -1)
         };
 
+    public static IReadOnlyList<LockedQueryShapeExpectation> GetLockedResultExpectations()
+    {
+        return
+        [
+            PagedExpectation(N1, 70_000),
+            PagedExpectation(P1, 23_334),
+            PagedExpectation(P2, 23_334),
+            PagedExpectation(AgencyShapeId, 350),
+            PagedExpectation(R1, 1_050),
+            PagedExpectation(L1, 140),
+            PagedExpectation(Q1, 120),
+            new LockedQueryShapeExpectation(
+                ComparableShapeId,
+                ExpectedTotalCount: 30,
+                ExpectedItemCount: 6,
+                ExpectedComparableIds)
+        ];
+    }
+
     public static async Task<IReadOnlyList<QueryShapeResult>> ExecuteAsync(
         RealEstateDbContext dbContext,
         ProductionCommandCaptureInterceptor interceptor,
@@ -805,6 +824,17 @@ internal static class QueryShapeDefinitions
         return Enumerable.Range(0, count)
             .Select(index => ListingId(startOrdinal + index * step))
             .ToArray();
+    }
+
+    private static LockedQueryShapeExpectation PagedExpectation(
+        string shapeId,
+        int expectedTotalCount)
+    {
+        return new LockedQueryShapeExpectation(
+            shapeId,
+            expectedTotalCount,
+            ExpectedItemCount: 20,
+            ExpectedPagedIds[shapeId]);
     }
 
     private static string? FindRepositoryRoot()

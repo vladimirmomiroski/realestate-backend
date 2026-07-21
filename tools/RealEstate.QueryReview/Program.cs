@@ -461,6 +461,7 @@ internal static class Program
             connectionStringBuilder,
             captureSession,
             environment,
+            CreateProfileVerificationSnapshot(verification),
             options.OutputDirectory);
         var runDirectory = Path.Combine(options.OutputDirectory, manifest.BaselineRunId);
 
@@ -473,6 +474,25 @@ internal static class Program
             "Baseline run result: SUCCESS. No medians, sequence aggregation, Q1 gate, " +
             "permanent evidence export, or index operation occurred.");
         return 0;
+    }
+
+    private static DeterministicProfileVerificationSnapshot CreateProfileVerificationSnapshot(
+        ProfileVerificationResult verification)
+    {
+        var passed = verification.Invariants.Count(invariant => invariant.IsSatisfied);
+        var failed = verification.Invariants.Count - passed;
+        var listingCount = verification.Invariants.Single(invariant =>
+            string.Equals(invariant.Name, "listings.total", StringComparison.Ordinal));
+        var translationCount = verification.Invariants.Single(invariant =>
+            string.Equals(invariant.Name, "translations.total", StringComparison.Ordinal));
+
+        return new DeterministicProfileVerificationSnapshot(
+            DeterministicProfileSeeder.ProfileVersion,
+            listingCount.Actual,
+            translationCount.Actual,
+            verification.Invariants.Count,
+            passed,
+            failed);
     }
 
     private static async Task<ProductionCaptureSession> CaptureProductionCommandsAsync(

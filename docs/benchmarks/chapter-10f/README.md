@@ -64,7 +64,7 @@ The command:
 1. verifies all 61 deterministic profile invariants;
 2. runs one `VACUUM (ANALYZE)` before measurement;
 3. captures Git, .NET/runtime, host, Docker, PostgreSQL settings, extensions, table statistics, relation sizes, and index definitions without credentials;
-4. invokes the committed repositories and validates all 33 commands, the current 152 typed parameters, expected result counts/page sizes, and comparable order;
+4. invokes the committed repositories and validates all 33 commands, the current 80 typed parameters, expected result counts/page sizes, and comparable order;
 5. retains original typed parameter values only in memory and replays every captured SELECT through `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)`;
 6. runs one complete warm-up round and five complete measured rounds in fixed command order;
 7. validates stable SQL, parameter, command-role, result, top-level row-count, and structural-plan hashes;
@@ -76,7 +76,7 @@ Raw output is written only to:
 <OS temp>/realestate-queryreview/chapter-10f-v1-baseline-<UTC>-<commit>/
 ```
 
-The directory contains `manifest.json`, `captured-commands.json`, `environment-raw.json`, and six raw plan files beneath each of the 33 command-key directories. It is intentionally outside the repository.
+The directory contains `manifest.json`, `captured-commands.json`, `environment-raw.json`, and six raw plan files beneath each of the 33 command-key directories. The manifest persists the exact successful 61-invariant profile verification, and the environment artifact records the index access method, ordered columns/operator classes, validity, readiness, and live state. The raw directory is intentionally outside the repository.
 
 ## Offline baseline verification
 
@@ -117,4 +117,16 @@ sql/<33 command-key>.sql
 baseline-plans/<33 command-key>.json
 ```
 
-Each permanent plan is the execution-median plan selected by verified measurements. Warm-up and nonmedian plans, raw manifests, logs, and connection information are never exported. The exporter recomputes source and destination SHA-256 hashes, validates the exact file set, and scans every permanent file for credential material before reporting success.
+Each permanent plan is the execution-median plan selected by verified measurements. Warm-up and nonmedian plans, raw manifests, logs, and connection information are never exported. The summary identifies itself as the authoritative permanent Chapter 10F baseline and distinguishes these concise artifacts from the temporary raw run.
+
+`baseline-measurements.json` is the manifest-bearing root artifact. In addition to medians, it persists:
+
+- the exact profile, benchmark commit, PostgreSQL, `pg_trgm`, trigram-index, command, parameter, round, and raw-plan identities;
+- expected-versus-actual semantic result hashes, totals, item counts, and ordered IDs for every locked shape, including Q1 and the C1 six-result order;
+- the measured A1 exception comparison against the corrected pre-index baseline, including timing differences, buffers, scan/join/index topology, and the no-new-expensive-node result;
+- zero-count safety results for spills, plan switches, anomalies, and credential findings;
+- canonical SHA-256 entries for `environment.json`, `baseline-summary.md`, all 33 SQL files, and all 33 median-plan files.
+
+Artifact hashes use UTF-8 text after normalizing CRLF and lone CR line endings to LF, with no other transformation. This makes verification independent of Git checkout line-ending settings. The measurements manifest cannot contain a non-circular hash of itself; its terminal trust anchor is its committed Git blob and the containing Git tree. An independent verifier therefore checks the committed blob/tree for `baseline-measurements.json`, then uses its hash entries to validate both other root files and all 66 SQL/plan artifacts.
+
+The exporter recomputes hashes before staged publication and after publication, validates the exact 69-file set, and scans every permanent file for credential material. Missing profile/result/locked-ID evidence, an invalid A1 comparison, incomplete index catalog data, hash drift, or any failed comparison prevents publication. Staging and backup rollback preserve the previously committed evidence if publication fails.
