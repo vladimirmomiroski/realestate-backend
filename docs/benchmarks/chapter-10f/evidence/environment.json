@@ -1,0 +1,727 @@
+{
+  "CapturedAtUtc": "2026-07-21T18:34:25.8721982Z",
+  "Git": {
+    "Commit": "0232b03146f62b7d4e157322f989ba16aae5da78",
+    "Branch": "feature/chapter-10f-final-baseline-evidence",
+    "Status": [
+      "?? docs/planning/chapter-10-search-discovery-preparation.md",
+      "?? docs/planning/chapter-10-search-discovery-ultra-plan.md",
+      "?? docs/planning/chapter-10c-translation-location-determinism-audit.md",
+      "?? docs/planning/chapter-10d-minimal-general-text-search-audit.md",
+      "?? docs/planning/chapter-10e-2b-3-comparables-implementation-audit.md",
+      "?? docs/planning/chapter-10e-4-completion-coverage-audit.md",
+      "?? docs/planning/chapter-10e-comparables-coordinate-validation-audit.md",
+      "?? docs/planning/chapter-10e-final-safety-audit.md",
+      "?? docs/planning/chapter-10f-2-baseline-plans-audit.md",
+      "?? docs/planning/chapter-10f-postgresql-query-review-audit.md",
+      "?? docs/planning/chapter-10f-query-shape-corrections-audit.md"
+    ]
+  },
+  "Runtime": {
+    "OperatingSystem": "Microsoft Windows 10.0.19045",
+    "OsArchitecture": "X64",
+    "ProcessArchitecture": "X64",
+    "Framework": ".NET 10.0.10",
+    "RuntimeVersion": "10.0.10",
+    "DotNetSdkVersion": "10.0.302",
+    "DotNetRuntimes": [
+      "Microsoft.AspNetCore.App 6.0.5 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]",
+      "Microsoft.AspNetCore.App 10.0.10 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]",
+      "Microsoft.NETCore.App 6.0.5 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]",
+      "Microsoft.NETCore.App 10.0.10 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]",
+      "Microsoft.WindowsDesktop.App 6.0.5 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]",
+      "Microsoft.WindowsDesktop.App 10.0.10 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]"
+    ],
+    "ProcessorIdentifier": "AMD64 Family 23 Model 8 Stepping 2, AuthenticAMD",
+    "LogicalProcessorCount": 16,
+    "AvailableMemoryBytes": 17103040512
+  },
+  "Docker": {
+    "ContainerName": "realestate-queryreview-10f2c-final-0232b031",
+    "ContainerId": "8b5971644ab122fbb88cfd954a8e26ae9b3842d0e3a209be059d9e7ef0185427",
+    "ContainerImageId": "sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777",
+    "ContainerImage": "postgres:16.14-alpine",
+    "ContainerCreated": "2026-07-21T18:30:55.711931185Z",
+    "ContainerStatus": "running",
+    "MemoryLimitBytes": 0,
+    "NanoCpus": 0,
+    "CpuQuota": 0,
+    "CpuPeriod": 0,
+    "DockerServerVersion": "29.6.1",
+    "DockerOperatingSystem": "Docker Desktop",
+    "DockerOsType": "linux",
+    "DockerArchitecture": "x86_64",
+    "DockerCpuCount": 16,
+    "DockerMemoryBytes": 8285487104,
+    "ImageRepoDigests": [
+      "postgres@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777"
+    ]
+  },
+  "PostgreSql": {
+    "Version": "PostgreSQL 16.14 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "ServerVersion": "16.14",
+    "ServerVersionNumber": "160014",
+    "Database": "realestate_queryreview_10f2c_final_0232b031",
+    "DatabaseSizeBytes": 152420879,
+    "ActiveVacuumCount": 0,
+    "Settings": [
+      {
+        "Name": "autovacuum",
+        "Setting": "on",
+        "Source": "default"
+      },
+      {
+        "Name": "default_statistics_target",
+        "Setting": "100",
+        "Source": "default"
+      },
+      {
+        "Name": "effective_cache_size",
+        "Setting": "524288",
+        "Unit": "8kB",
+        "Source": "default"
+      },
+      {
+        "Name": "effective_io_concurrency",
+        "Setting": "1",
+        "Source": "default"
+      },
+      {
+        "Name": "jit",
+        "Setting": "on",
+        "Source": "default"
+      },
+      {
+        "Name": "max_parallel_workers_per_gather",
+        "Setting": "2",
+        "Source": "default"
+      },
+      {
+        "Name": "random_page_cost",
+        "Setting": "4",
+        "Source": "default"
+      },
+      {
+        "Name": "seq_page_cost",
+        "Setting": "1",
+        "Source": "default"
+      },
+      {
+        "Name": "shared_buffers",
+        "Setting": "16384",
+        "Unit": "8kB",
+        "Source": "configuration file"
+      },
+      {
+        "Name": "work_mem",
+        "Setting": "4096",
+        "Unit": "kB",
+        "Source": "default"
+      }
+    ],
+    "Extensions": [
+      {
+        "Name": "pg_trgm",
+        "Version": "1.6"
+      },
+      {
+        "Name": "plpgsql",
+        "Version": "1.0"
+      }
+    ],
+    "Relations": [
+      {
+        "Schema": "public",
+        "Name": "Agencies",
+        "Kind": "r",
+        "RelationSizeBytes": 24576,
+        "TotalRelationSizeBytes": 98304
+      },
+      {
+        "Schema": "public",
+        "Name": "AgencyInvitations",
+        "Kind": "r",
+        "RelationSizeBytes": 0,
+        "TotalRelationSizeBytes": 65536
+      },
+      {
+        "Schema": "public",
+        "Name": "AgencyMembers",
+        "Kind": "r",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 114688
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_Agencies_Slug",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyInvitations_AcceptedByUserId",
+        "Kind": "i",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyInvitations_AgencyId",
+        "Kind": "i",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyInvitations_AgencyId_NormalizedEmail",
+        "Kind": "i",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyInvitations_InvitedByUserId",
+        "Kind": "i",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyInvitations_NormalizedEmail",
+        "Kind": "i",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyInvitations_Token",
+        "Kind": "i",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyMembers_AgencyId",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyMembers_AgencyId_UserId",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_AgencyMembers_UserId",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_ListingImages_ListingId",
+        "Kind": "i",
+        "RelationSizeBytes": 1589248,
+        "TotalRelationSizeBytes": 1589248
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_ListingImages_ListingId_SortOrder",
+        "Kind": "i",
+        "RelationSizeBytes": 4079616,
+        "TotalRelationSizeBytes": 4079616
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_ListingTranslations_ListingId_LanguageCode",
+        "Kind": "i",
+        "RelationSizeBytes": 12197888,
+        "TotalRelationSizeBytes": 12197888
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_ListingTranslations_Q_Trigram",
+        "Kind": "i",
+        "RelationSizeBytes": 28459008,
+        "TotalRelationSizeBytes": 28483584
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_Listings_AgencyId",
+        "Kind": "i",
+        "RelationSizeBytes": 868352,
+        "TotalRelationSizeBytes": 868352
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_Listings_CreatedByUserId",
+        "Kind": "i",
+        "RelationSizeBytes": 868352,
+        "TotalRelationSizeBytes": 868352
+      },
+      {
+        "Schema": "public",
+        "Name": "IX_Users_NormalizedEmail",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "ListingApartmentDetails",
+        "Kind": "r",
+        "RelationSizeBytes": 3416064,
+        "TotalRelationSizeBytes": 5038080
+      },
+      {
+        "Schema": "public",
+        "Name": "ListingHouseDetails",
+        "Kind": "r",
+        "RelationSizeBytes": 3416064,
+        "TotalRelationSizeBytes": 5038080
+      },
+      {
+        "Schema": "public",
+        "Name": "ListingImages",
+        "Kind": "r",
+        "RelationSizeBytes": 13402112,
+        "TotalRelationSizeBytes": 21012480
+      },
+      {
+        "Schema": "public",
+        "Name": "ListingTranslations",
+        "Kind": "r",
+        "RelationSizeBytes": 40796160,
+        "TotalRelationSizeBytes": 87859200
+      },
+      {
+        "Schema": "public",
+        "Name": "Listings",
+        "Kind": "r",
+        "RelationSizeBytes": 20045824,
+        "TotalRelationSizeBytes": 24993792
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_Agencies",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_AgencyInvitations",
+        "Kind": "i",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_AgencyMembers",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_ListingApartmentDetails",
+        "Kind": "i",
+        "RelationSizeBytes": 1589248,
+        "TotalRelationSizeBytes": 1589248
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_ListingHouseDetails",
+        "Kind": "i",
+        "RelationSizeBytes": 1589248,
+        "TotalRelationSizeBytes": 1589248
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_ListingImages",
+        "Kind": "i",
+        "RelationSizeBytes": 1900544,
+        "TotalRelationSizeBytes": 1900544
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_ListingTranslations",
+        "Kind": "i",
+        "RelationSizeBytes": 6332416,
+        "TotalRelationSizeBytes": 6332416
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_Listings",
+        "Kind": "i",
+        "RelationSizeBytes": 3178496,
+        "TotalRelationSizeBytes": 3178496
+      },
+      {
+        "Schema": "public",
+        "Name": "PK_Users",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "PK___EFMigrationsHistory",
+        "Kind": "i",
+        "RelationSizeBytes": 16384,
+        "TotalRelationSizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Name": "Users",
+        "Kind": "r",
+        "RelationSizeBytes": 24576,
+        "TotalRelationSizeBytes": 98304
+      },
+      {
+        "Schema": "public",
+        "Name": "__EFMigrationsHistory",
+        "Kind": "r",
+        "RelationSizeBytes": 8192,
+        "TotalRelationSizeBytes": 57344
+      }
+    ],
+    "Indexes": [
+      {
+        "Schema": "public",
+        "Table": "Agencies",
+        "Name": "IX_Agencies_Slug",
+        "Definition": "CREATE UNIQUE INDEX \u0022IX_Agencies_Slug\u0022 ON public.\u0022Agencies\u0022 USING btree (\u0022Slug\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "Agencies",
+        "Name": "PK_Agencies",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_Agencies\u0022 ON public.\u0022Agencies\u0022 USING btree (\u0022Id\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "Name": "IX_AgencyInvitations_AcceptedByUserId",
+        "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_AcceptedByUserId\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022AcceptedByUserId\u0022)",
+        "SizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "Name": "IX_AgencyInvitations_AgencyId",
+        "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_AgencyId\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022AgencyId\u0022)",
+        "SizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "Name": "IX_AgencyInvitations_AgencyId_NormalizedEmail",
+        "Definition": "CREATE UNIQUE INDEX \u0022IX_AgencyInvitations_AgencyId_NormalizedEmail\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022AgencyId\u0022, \u0022NormalizedEmail\u0022) WHERE ((\u0022Status\u0022)::text = \u0027Pending\u0027::text)",
+        "SizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "Name": "IX_AgencyInvitations_InvitedByUserId",
+        "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_InvitedByUserId\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022InvitedByUserId\u0022)",
+        "SizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "Name": "IX_AgencyInvitations_NormalizedEmail",
+        "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_NormalizedEmail\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022NormalizedEmail\u0022)",
+        "SizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "Name": "IX_AgencyInvitations_Token",
+        "Definition": "CREATE UNIQUE INDEX \u0022IX_AgencyInvitations_Token\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022Token\u0022)",
+        "SizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "Name": "PK_AgencyInvitations",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_AgencyInvitations\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022Id\u0022)",
+        "SizeBytes": 8192
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyMembers",
+        "Name": "IX_AgencyMembers_AgencyId",
+        "Definition": "CREATE INDEX \u0022IX_AgencyMembers_AgencyId\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022AgencyId\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyMembers",
+        "Name": "IX_AgencyMembers_AgencyId_UserId",
+        "Definition": "CREATE UNIQUE INDEX \u0022IX_AgencyMembers_AgencyId_UserId\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022AgencyId\u0022, \u0022UserId\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyMembers",
+        "Name": "IX_AgencyMembers_UserId",
+        "Definition": "CREATE INDEX \u0022IX_AgencyMembers_UserId\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022UserId\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyMembers",
+        "Name": "PK_AgencyMembers",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_AgencyMembers\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022Id\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingApartmentDetails",
+        "Name": "PK_ListingApartmentDetails",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingApartmentDetails\u0022 ON public.\u0022ListingApartmentDetails\u0022 USING btree (\u0022ListingId\u0022)",
+        "SizeBytes": 1589248
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingHouseDetails",
+        "Name": "PK_ListingHouseDetails",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingHouseDetails\u0022 ON public.\u0022ListingHouseDetails\u0022 USING btree (\u0022ListingId\u0022)",
+        "SizeBytes": 1589248
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingImages",
+        "Name": "IX_ListingImages_ListingId",
+        "Definition": "CREATE UNIQUE INDEX \u0022IX_ListingImages_ListingId\u0022 ON public.\u0022ListingImages\u0022 USING btree (\u0022ListingId\u0022) WHERE (\u0022IsPrimary\u0022 = true)",
+        "SizeBytes": 1589248
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingImages",
+        "Name": "IX_ListingImages_ListingId_SortOrder",
+        "Definition": "CREATE INDEX \u0022IX_ListingImages_ListingId_SortOrder\u0022 ON public.\u0022ListingImages\u0022 USING btree (\u0022ListingId\u0022, \u0022SortOrder\u0022)",
+        "SizeBytes": 4079616
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingImages",
+        "Name": "PK_ListingImages",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingImages\u0022 ON public.\u0022ListingImages\u0022 USING btree (\u0022Id\u0022)",
+        "SizeBytes": 1900544
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingTranslations",
+        "Name": "IX_ListingTranslations_ListingId_LanguageCode",
+        "Definition": "CREATE UNIQUE INDEX \u0022IX_ListingTranslations_ListingId_LanguageCode\u0022 ON public.\u0022ListingTranslations\u0022 USING btree (\u0022ListingId\u0022, \u0022LanguageCode\u0022)",
+        "SizeBytes": 12197888
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingTranslations",
+        "Name": "IX_ListingTranslations_Q_Trigram",
+        "Definition": "CREATE INDEX \u0022IX_ListingTranslations_Q_Trigram\u0022 ON public.\u0022ListingTranslations\u0022 USING gin (\u0022Title\u0022 gin_trgm_ops, \u0022City\u0022 gin_trgm_ops, \u0022Municipality\u0022 gin_trgm_ops, \u0022Neighborhood\u0022 gin_trgm_ops)",
+        "SizeBytes": 28459008
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingTranslations",
+        "Name": "PK_ListingTranslations",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingTranslations\u0022 ON public.\u0022ListingTranslations\u0022 USING btree (\u0022Id\u0022)",
+        "SizeBytes": 6332416
+      },
+      {
+        "Schema": "public",
+        "Table": "Listings",
+        "Name": "IX_Listings_AgencyId",
+        "Definition": "CREATE INDEX \u0022IX_Listings_AgencyId\u0022 ON public.\u0022Listings\u0022 USING btree (\u0022AgencyId\u0022)",
+        "SizeBytes": 868352
+      },
+      {
+        "Schema": "public",
+        "Table": "Listings",
+        "Name": "IX_Listings_CreatedByUserId",
+        "Definition": "CREATE INDEX \u0022IX_Listings_CreatedByUserId\u0022 ON public.\u0022Listings\u0022 USING btree (\u0022CreatedByUserId\u0022)",
+        "SizeBytes": 868352
+      },
+      {
+        "Schema": "public",
+        "Table": "Listings",
+        "Name": "PK_Listings",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_Listings\u0022 ON public.\u0022Listings\u0022 USING btree (\u0022Id\u0022)",
+        "SizeBytes": 3178496
+      },
+      {
+        "Schema": "public",
+        "Table": "Users",
+        "Name": "IX_Users_NormalizedEmail",
+        "Definition": "CREATE UNIQUE INDEX \u0022IX_Users_NormalizedEmail\u0022 ON public.\u0022Users\u0022 USING btree (\u0022NormalizedEmail\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "Users",
+        "Name": "PK_Users",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK_Users\u0022 ON public.\u0022Users\u0022 USING btree (\u0022Id\u0022)",
+        "SizeBytes": 16384
+      },
+      {
+        "Schema": "public",
+        "Table": "__EFMigrationsHistory",
+        "Name": "PK___EFMigrationsHistory",
+        "Definition": "CREATE UNIQUE INDEX \u0022PK___EFMigrationsHistory\u0022 ON public.\u0022__EFMigrationsHistory\u0022 USING btree (\u0022MigrationId\u0022)",
+        "SizeBytes": 16384
+      }
+    ],
+    "TableStatistics": [
+      {
+        "Schema": "public",
+        "Table": "Agencies",
+        "EstimatedLiveRows": 100,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:17.592208Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:17.594535Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.55683Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 0,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyInvitations",
+        "EstimatedLiveRows": 0,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:17.590953Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:17.591833Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 0,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 0
+      },
+      {
+        "Schema": "public",
+        "Table": "AgencyMembers",
+        "EstimatedLiveRows": 100,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:17.123913Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:17.124863Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.098766Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 0,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingApartmentDetails",
+        "EstimatedLiveRows": 50000,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:17.008267Z",
+        "LastAutoVacuumUtc": "2026-07-21T18:33:29.99622Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:17.060321Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.036366Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 1,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingHouseDetails",
+        "EstimatedLiveRows": 50000,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:17.068139Z",
+        "LastAutoVacuumUtc": "2026-07-21T18:33:30.050987Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:17.116509Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.095217Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 1,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingImages",
+        "EstimatedLiveRows": 60000,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:16.288176Z",
+        "LastAutoVacuumUtc": "2026-07-21T18:33:29.001416Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:16.549134Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:29.267216Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 1,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "ListingTranslations",
+        "EstimatedLiveRows": 200000,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:16.604221Z",
+        "LastAutoVacuumUtc": "2026-07-21T18:33:29.616389Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:16.983079Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:29.981343Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 1,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "Listings",
+        "EstimatedLiveRows": 100000,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:17.201824Z",
+        "LastAutoVacuumUtc": "2026-07-21T18:33:30.163027Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:17.576128Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.548557Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 1,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "Users",
+        "EstimatedLiveRows": 101,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:17.583965Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:17.586238Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.553298Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 0,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 1
+      },
+      {
+        "Schema": "public",
+        "Table": "__EFMigrationsHistory",
+        "EstimatedLiveRows": 15,
+        "EstimatedDeadRows": 0,
+        "LastVacuumUtc": "2026-07-21T18:34:16.247336Z",
+        "LastAnalyzeUtc": "2026-07-21T18:34:16.247922Z",
+        "VacuumCount": 1,
+        "AutoVacuumCount": 0,
+        "AnalyzeCount": 1,
+        "AutoAnalyzeCount": 0
+      }
+    ]
+  },
+  "EfCoreVersion": "10.0.4.0",
+  "NpgsqlVersion": "10.0.3.0",
+  "ToolVersion": "1.0.0.0",
+  "ProfileVersion": "chapter-10f-v1",
+  "CSharpSeed": 1042001,
+  "PostgreSqlSeed": 0.1042001,
+  "VacuumAnalyzeDuration": "00:00:01.8233870"
+}

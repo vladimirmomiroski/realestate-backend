@@ -1,0 +1,1931 @@
+{
+  "BaselineRunId": "chapter-10f-v1-baseline-20260721T183427Z-0232b031",
+  "VerifiedAtUtc": "2026-07-21T18:35:58.9564326Z",
+  "CommandCount": 33,
+  "SampleCount": 198,
+  "Commands": [
+    {
+      "CommandKey": "N1-01-filtered-count",
+      "ShapeId": "N1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.071,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 25.211,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2447,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "b4c9e0694853e6b3f017d255f2ad049a54f8ed7cdf5f5653c9a3ae55bbf98c33",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "N1-02-page-root",
+      "ShapeId": "N1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 0.545,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 74.074,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2592,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-02-page-root/run-3.json",
+      "ExecutionMedianPlanSha256": "7eb3027a2d5e2aa3a43d7df6d38b4e0db3a313fee1108c7c305ee9684a0f0ecd",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "N1-03-translation-split",
+      "ShapeId": "N1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.392,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.317,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "c10bf38b20b05306c2040b7f1b6fb8be6c3fc0a487803222e76bfd7ef2a7e05c",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "N1-04-image-split",
+      "ShapeId": "N1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.414,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.267,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "c17cb0c5f3be785f2fcd4ed1a3ffa3fee0ed9cd26479062fde5677ee06a54951",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P1-01-filtered-count",
+      "ShapeId": "P1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.104,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 22.225,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2447,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "db10f8235a489f53ac72fe4bad4cdf2fbebb3e3369e66d8f80d77be46f0bb9da",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "P1-02-page-root",
+      "ShapeId": "P1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 0.550,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 41.414,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2547,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-02-page-root/run-5.json",
+      "ExecutionMedianPlanSha256": "f3624e2a919ee673aea2cea1e70d6b27b1e867d7c7dcf62b6ea8cff85c4309b1",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "P1-03-translation-split",
+      "ShapeId": "P1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.361,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.398,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-03-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "eaf3606d443b419fdf36011d1967554614a260096228c9b8820f63bb933f9f12",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P1-04-image-split",
+      "ShapeId": "P1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.419,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.322,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 121,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-04-image-split/run-5.json",
+      "ExecutionMedianPlanSha256": "fd129790acc565598715e8dd2e59f4f5ed53f9fc1105da20d35a0d55a6453126",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P2-01-filtered-count",
+      "ShapeId": "P2",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.082,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 23.037,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2447,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-01-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "1f5c4c259a4709037653c6bce2d74864d385f975b21c902c3e293df97beb9a41",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "P2-02-page-root",
+      "ShapeId": "P2",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 0.513,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 42.296,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2547,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-02-page-root/run-5.json",
+      "ExecutionMedianPlanSha256": "dafbf825331296baf275b0bbacab4bb2136c80646c7606a93bfe1dffcda097dd",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "P2-03-translation-split",
+      "ShapeId": "P2",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.387,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.445,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "d107d809f89cb51fd33c7aca6f4290d6199ac1905cd71d1a5da88f515c607cd9",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P2-04-image-split",
+      "ShapeId": "P2",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.439,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.332,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 141,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-04-image-split/run-5.json",
+      "ExecutionMedianPlanSha256": "c93fbb4ecaace1ff53fb2d0f6da2109dec1f11ecbde638b05a2d2abc44e40b4b",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "A1-01-agency-existence",
+      "ShapeId": "A1",
+      "ShapeSequence": 1,
+      "CommandRole": "agency-existence",
+      "PlanningTimeMedian": {
+        "Value": 0.094,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.083,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-01-agency-existence/run-4.json",
+      "ExecutionMedianPlanSha256": "9d1201d53b97204b25469e1cd5a4db2e6ec7ebe9f46d2d00b288ab68128478ae",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": [
+        "PK_Agencies"
+      ]
+    },
+    {
+      "CommandKey": "A1-02-filtered-count",
+      "ShapeId": "A1",
+      "ShapeSequence": 2,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.096,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 1.033,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 502,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-02-filtered-count/run-1.json",
+      "ExecutionMedianPlanSha256": "9c16fe5888ba2e2ccc943f8137e1084b4054142c52a10492331e127d62f34e05",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_Listings_AgencyId"
+      ]
+    },
+    {
+      "CommandKey": "A1-03-page-root",
+      "ShapeId": "A1",
+      "ShapeSequence": 3,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 0.517,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 1.907,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 602,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-03-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "40c784ac05290c8ce3b66d62ef2466cf93687401e71201be9a3a34589e4e2db5",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_Listings_AgencyId",
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "A1-04-translation-split",
+      "ShapeId": "A1",
+      "ShapeSequence": 4,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.423,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.384,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-04-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "f4f2cb8452f876f13e74eb57ce8653f858e217f7a7dbfa39616a0a612747c419",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "A1-05-image-split",
+      "ShapeId": "A1",
+      "ShapeSequence": 5,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.427,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.291,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 121,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-05-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "18de493c917bc8ed4445a0109afd7242b43eac4978defbe110957eb76e9e8745",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "R1-01-filtered-count",
+      "ShapeId": "R1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.134,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 23.023,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2447,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "561a17258f369a3773ad6c3aeeef02b498faf1e3bacf6f2953a5965380a4aff6",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "R1-02-page-root",
+      "ShapeId": "R1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 0.530,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 24.144,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2547,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "b15e614dd77c991e60b4835f81ecf11cb54f2c07a9887a9cbb13bf70c3a6b18d",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "R1-03-translation-split",
+      "ShapeId": "R1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.368,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.387,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "7c19fd5614d57c536fa4fc91412667cdd8fe5fa7ece36ee470e693c311e5b94c",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "R1-04-image-split",
+      "ShapeId": "R1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.428,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.320,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 141,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "59171927d9491864e93da4e47910fc371ce39027ec5bb61ef8c03c323201e1d2",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-01-filtered-count",
+      "ShapeId": "L1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 1.761,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 12.386,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1406,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-01-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "4518cc4898a8672eec2c4243be108dbde95bd78dcded2c4b785971ba62a7f2b8",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-02-page-root",
+      "ShapeId": "L1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 2.922,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 13.112,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1506,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-02-page-root/run-3.json",
+      "ExecutionMedianPlanSha256": "0041906577db2b809af6be32d539efe226e195e4afcae9b060ea93626fa7191b",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort",
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-03-translation-split",
+      "ShapeId": "L1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.416,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.320,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-03-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "fe5cfad8007cde213d642d89da9941b4db52be3804f48b48118bff9bdcb4c652",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-04-image-split",
+      "ShapeId": "L1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.472,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.293,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-04-image-split/run-4.json",
+      "ExecutionMedianPlanSha256": "ad75d38fe5e45f1674fb1bde4d0ad07d4eeccb87ca695d93bef6855f7c336447",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-01-filtered-count",
+      "ShapeId": "Q1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 1.994,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 12.464,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1148,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "a0cf53830b8123f33151a16f72bb3c663e72a209c15bdb6f8d0b6ee3dac850e6",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-02-page-root",
+      "ShapeId": "Q1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 3.365,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 12.182,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1248,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-02-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "577087d19c74e9fdef74f33edab68199344a5e738a69a10d9811d58a7b6f2793",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort",
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-03-translation-split",
+      "ShapeId": "Q1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.387,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.321,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "33baffdda7620959ce1bfb1ed8d4844aaec176c1dbe6b347f2f95e4fc3b97aaf",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-04-image-split",
+      "ShapeId": "Q1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.424,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.288,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-04-image-split/run-1.json",
+      "ExecutionMedianPlanSha256": "1f375cc5d5e1d5d1b684499ece33b3c63951282e4a9b62f9141629c8f267debd",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-01-comparable-source",
+      "ShapeId": "C1",
+      "ShapeSequence": 1,
+      "CommandRole": "comparable-source",
+      "PlanningTimeMedian": {
+        "Value": 0.298,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.403,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 9,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-01-comparable-source/run-5.json",
+      "ExecutionMedianPlanSha256": "8f651a02483126186ae3db534f6022091e5597c8bab8c491354db60628f2a2de",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-02-comparable-ranked-root",
+      "ShapeId": "C1",
+      "ShapeSequence": 2,
+      "CommandRole": "comparable-ranked-root",
+      "PlanningTimeMedian": {
+        "Value": 3.090,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 77.191,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 20328,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-02-comparable-ranked-root/run-1.json",
+      "ExecutionMedianPlanSha256": "01378efecb6c49a017a07ee16d7907b189efc818cc2a106b2defd1e091759cb1",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-03-comparable-translation-split",
+      "ShapeId": "C1",
+      "ShapeSequence": 3,
+      "CommandRole": "comparable-translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.393,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.201,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 49,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-03-comparable-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "ab68d09f540b5c1e9e21de47a3fddfac5fe340335744287551d14310315740e3",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-04-comparable-image-split",
+      "ShapeId": "C1",
+      "ShapeSequence": 4,
+      "CommandRole": "comparable-image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.450,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.196,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 40,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-04-comparable-image-split/run-1.json",
+      "ExecutionMedianPlanSha256": "f0150c58a4b94cea63eed43675e3c4399ecb7e5386bf9b324974844471e38416",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    }
+  ],
+  "Sequences": [
+    {
+      "SequenceId": "N1-first-page",
+      "CommandKeys": [
+        "N1-02-page-root",
+        "N1-03-translation-split",
+        "N1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.303,
+          "ExecutionTimeMilliseconds": 61.994,
+          "SharedAccessBlocks": 2886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 1.277,
+          "ExecutionTimeMilliseconds": 71.131,
+          "SharedAccessBlocks": 2886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.360,
+          "ExecutionTimeMilliseconds": 74.591,
+          "SharedAccessBlocks": 2886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.428,
+          "ExecutionTimeMilliseconds": 108.781,
+          "SharedAccessBlocks": 2886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 1.354,
+          "ExecutionTimeMilliseconds": 94.941,
+          "SharedAccessBlocks": 2886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 1.354,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 74.591,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2886,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "P1-first-page",
+      "CommandKeys": [
+        "P1-02-page-root",
+        "P1-03-translation-split",
+        "P1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.164,
+          "ExecutionTimeMilliseconds": 38.269,
+          "SharedAccessBlocks": 2829,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 1.305,
+          "ExecutionTimeMilliseconds": 41.597,
+          "SharedAccessBlocks": 2829,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.452,
+          "ExecutionTimeMilliseconds": 43.174,
+          "SharedAccessBlocks": 2829,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 1.552,
+          "ExecutionTimeMilliseconds": 49.155,
+          "SharedAccessBlocks": 2829,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 1.312,
+          "ExecutionTimeMilliseconds": 42.092,
+          "SharedAccessBlocks": 2829,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 1.312,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 42.092,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2829,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "P2-first-page",
+      "CommandKeys": [
+        "P2-02-page-root",
+        "P2-03-translation-split",
+        "P2-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.119,
+          "ExecutionTimeMilliseconds": 38.008,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 1.233,
+          "ExecutionTimeMilliseconds": 41.637,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.459,
+          "ExecutionTimeMilliseconds": 50.922,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 1.374,
+          "ExecutionTimeMilliseconds": 48.670,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 1.420,
+          "ExecutionTimeMilliseconds": 43.061,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 1.374,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 43.061,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2849,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "A1-first-page",
+      "CommandKeys": [
+        "A1-03-page-root",
+        "A1-04-translation-split",
+        "A1-05-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.187,
+          "ExecutionTimeMilliseconds": 2.136,
+          "SharedAccessBlocks": 884,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 1.493,
+          "ExecutionTimeMilliseconds": 2.125,
+          "SharedAccessBlocks": 884,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.595,
+          "ExecutionTimeMilliseconds": 3.125,
+          "SharedAccessBlocks": 884,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 1.583,
+          "ExecutionTimeMilliseconds": 2.590,
+          "SharedAccessBlocks": 884,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 1.323,
+          "ExecutionTimeMilliseconds": 2.673,
+          "SharedAccessBlocks": 884,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 1.493,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 2.590,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 884,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "A1-endpoint-supplementary",
+      "CommandKeys": [
+        "A1-01-agency-existence",
+        "A1-02-filtered-count",
+        "A1-03-page-root",
+        "A1-04-translation-split",
+        "A1-05-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.337,
+          "ExecutionTimeMilliseconds": 3.230,
+          "SharedAccessBlocks": 1388,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 1.702,
+          "ExecutionTimeMilliseconds": 3.109,
+          "SharedAccessBlocks": 1388,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.826,
+          "ExecutionTimeMilliseconds": 4.627,
+          "SharedAccessBlocks": 1388,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 1.773,
+          "ExecutionTimeMilliseconds": 3.649,
+          "SharedAccessBlocks": 1388,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 1.568,
+          "ExecutionTimeMilliseconds": 4.270,
+          "SharedAccessBlocks": 1388,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 1.702,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 3.649,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1388,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "R1-first-page",
+      "CommandKeys": [
+        "R1-02-page-root",
+        "R1-03-translation-split",
+        "R1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.205,
+          "ExecutionTimeMilliseconds": 21.925,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 1.339,
+          "ExecutionTimeMilliseconds": 24.851,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.318,
+          "ExecutionTimeMilliseconds": 28.933,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 1.381,
+          "ExecutionTimeMilliseconds": 24.319,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.116,
+          "ExecutionTimeMilliseconds": 31.786,
+          "SharedAccessBlocks": 2849,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 1.339,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 24.851,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2849,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "L1-first-page",
+      "CommandKeys": [
+        "L1-02-page-root",
+        "L1-03-translation-split",
+        "L1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 3.194,
+          "ExecutionTimeMilliseconds": 11.694,
+          "SharedAccessBlocks": 1800,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.842,
+          "ExecutionTimeMilliseconds": 13.686,
+          "SharedAccessBlocks": 1800,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 3.809,
+          "ExecutionTimeMilliseconds": 13.828,
+          "SharedAccessBlocks": 1800,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 3.503,
+          "ExecutionTimeMilliseconds": 13.098,
+          "SharedAccessBlocks": 1800,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 3.932,
+          "ExecutionTimeMilliseconds": 18.297,
+          "SharedAccessBlocks": 1800,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 3.809,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 13.686,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1800,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "Q1-first-page",
+      "CommandKeys": [
+        "Q1-02-page-root",
+        "Q1-03-translation-split",
+        "Q1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 3.832,
+          "ExecutionTimeMilliseconds": 11.060,
+          "SharedAccessBlocks": 1542,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 4.096,
+          "ExecutionTimeMilliseconds": 12.617,
+          "SharedAccessBlocks": 1542,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 5.281,
+          "ExecutionTimeMilliseconds": 16.445,
+          "SharedAccessBlocks": 1542,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 4.324,
+          "ExecutionTimeMilliseconds": 12.883,
+          "SharedAccessBlocks": 1542,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 4.986,
+          "ExecutionTimeMilliseconds": 14.253,
+          "SharedAccessBlocks": 1542,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 4.324,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 12.883,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1542,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "C1-candidate-page",
+      "CommandKeys": [
+        "C1-02-comparable-ranked-root",
+        "C1-03-comparable-translation-split",
+        "C1-04-comparable-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 3.832,
+          "ExecutionTimeMilliseconds": 77.588,
+          "SharedAccessBlocks": 20417,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.887,
+          "ExecutionTimeMilliseconds": 70.031,
+          "SharedAccessBlocks": 20417,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 4.467,
+          "ExecutionTimeMilliseconds": 100.998,
+          "SharedAccessBlocks": 20417,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 3.900,
+          "ExecutionTimeMilliseconds": 74.250,
+          "SharedAccessBlocks": 20417,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 6.152,
+          "ExecutionTimeMilliseconds": 127.860,
+          "SharedAccessBlocks": 20417,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 3.900,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 77.588,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 20417,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "C1-endpoint-supplementary",
+      "CommandKeys": [
+        "C1-01-comparable-source",
+        "C1-02-comparable-ranked-root",
+        "C1-03-comparable-translation-split",
+        "C1-04-comparable-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 4.165,
+          "ExecutionTimeMilliseconds": 78.016,
+          "SharedAccessBlocks": 20426,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 4.116,
+          "ExecutionTimeMilliseconds": 70.267,
+          "SharedAccessBlocks": 20426,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 4.765,
+          "ExecutionTimeMilliseconds": 101.276,
+          "SharedAccessBlocks": 20426,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 4.194,
+          "ExecutionTimeMilliseconds": 74.716,
+          "SharedAccessBlocks": 20426,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 6.529,
+          "ExecutionTimeMilliseconds": 128.263,
+          "SharedAccessBlocks": 20426,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 4.194,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 78.016,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 20426,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    }
+  ],
+  "Q1Gate": {
+    "Passed": true,
+    "FilteredCountMedianMilliseconds": 12.464,
+    "FirstPageSequenceMedianMilliseconds": 12.883,
+    "AnyWarmUpOrMeasuredSpill": false,
+    "Reasons": []
+  },
+  "Anomalies": []
+}
