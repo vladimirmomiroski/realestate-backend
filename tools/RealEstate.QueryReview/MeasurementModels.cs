@@ -119,7 +119,13 @@ internal sealed record PostgreSqlIndexSnapshot(
     string Table,
     string Name,
     string Definition,
-    long SizeBytes);
+    long SizeBytes,
+    string? AccessMethod = null,
+    IReadOnlyList<string>? Columns = null,
+    IReadOnlyList<string>? OperatorClasses = null,
+    bool? IsValid = null,
+    bool? IsReady = null,
+    bool? IsLive = null);
 
 internal sealed record PostgreSqlTableStatisticsSnapshot(
     string Schema,
@@ -176,6 +182,14 @@ internal sealed record RawPlanSample(
     long ActualRows,
     long ActualLoops);
 
+internal sealed record DeterministicProfileVerificationSnapshot(
+    string ProfileIdentity,
+    long ListingCount,
+    long TranslationCount,
+    int InvariantTotal,
+    int InvariantPassed,
+    int InvariantFailed);
+
 internal sealed record RawBaselineManifest(
     string BaselineRunId,
     DateTime StartedAtUtc,
@@ -194,7 +208,8 @@ internal sealed record RawBaselineManifest(
     string CapturedCommandsPath,
     string EnvironmentPath,
     bool CredentialScanPassed,
-    IReadOnlyList<RawPlanSample> Samples);
+    IReadOnlyList<RawPlanSample> Samples,
+    DeterministicProfileVerificationSnapshot? ProfileVerification = null);
 
 internal sealed record PlanBufferMetrics(
     long SharedHit,
@@ -357,7 +372,125 @@ internal sealed record CuratedBaselineMeasurements(
     IReadOnlyList<CuratedCommandMeasurement> Commands,
     IReadOnlyList<SequenceMeasurementSummary> Sequences,
     Q1GateResult Q1Gate,
-    IReadOnlyList<string> Anomalies);
+    IReadOnlyList<string> Anomalies,
+    PermanentEvidenceMetadata? PermanentEvidence = null);
+
+internal sealed record LockedQueryShapeExpectation(
+    string ShapeId,
+    int ExpectedTotalCount,
+    int ExpectedItemCount,
+    IReadOnlyList<Guid> ExpectedOrderedIds);
+
+internal sealed record ProfileVerificationEvidence(
+    string ProfileIdentity,
+    long ListingCount,
+    long TranslationCount,
+    int InvariantTotal,
+    int InvariantPassed,
+    int InvariantFailed,
+    bool Passed);
+
+internal sealed record SemanticResultIdentityEvidence(
+    string ExpectedResultSha256,
+    string ActualResultSha256,
+    bool ComparisonPassed);
+
+internal sealed record LockedResultComparisonEvidence(
+    string ShapeId,
+    int ExpectedTotalCount,
+    int ActualTotalCount,
+    bool TotalCountComparisonPassed,
+    int ExpectedItemCount,
+    int ActualItemCount,
+    bool ItemCountComparisonPassed,
+    IReadOnlyList<Guid> ExpectedOrderedIds,
+    IReadOnlyList<Guid> ActualOrderedIds,
+    string ExpectedOrderedIdsSha256,
+    string ActualOrderedIdsSha256,
+    bool OrderedIdsComparisonPassed,
+    bool Passed);
+
+internal sealed record A1SequenceExceptionEvidence(
+    string SequenceId,
+    decimal CorrectedPreIndexMilliseconds,
+    decimal IndexedRunMilliseconds,
+    decimal DifferenceMilliseconds,
+    decimal AbsoluteDifferenceMilliseconds,
+    decimal RelativeDifferencePercent,
+    bool AbsoluteDifferenceBelowOneMillisecond,
+    long ExpectedSharedAccessBlocks,
+    long ActualSharedAccessBlocks,
+    bool SharedAccessBlocksEquivalent);
+
+internal sealed record A1CommandTopologyEvidence(
+    string CommandKey,
+    IReadOnlyList<string> ExpectedNodeTypes,
+    IReadOnlyList<string> ActualNodeTypes,
+    IReadOnlyList<string> ExpectedScanTypes,
+    IReadOnlyList<string> ActualScanTypes,
+    IReadOnlyList<string> ExpectedJoinTypes,
+    IReadOnlyList<string> ActualJoinTypes,
+    IReadOnlyList<string> ExpectedIndexNames,
+    IReadOnlyList<string> ActualIndexNames,
+    bool ComparisonPassed);
+
+internal sealed record A1ApprovedExceptionEvidence(
+    A1SequenceExceptionEvidence FirstPage,
+    A1SequenceExceptionEvidence Supplementary,
+    IReadOnlyList<A1CommandTopologyEvidence> CommandTopologies,
+    bool BuffersEquivalent,
+    bool ScanJoinIndexTopologyUnchanged,
+    bool NoNewExpensiveNode,
+    bool Accepted);
+
+internal sealed record TrigramIndexEvidence(
+    string ExtensionName,
+    string ExtensionVersion,
+    string IndexName,
+    string AccessMethod,
+    IReadOnlyList<string> Columns,
+    IReadOnlyList<string> OperatorClasses,
+    bool IsValid,
+    bool IsReady,
+    bool IsLive,
+    long SizeBytes);
+
+internal sealed record CaptureIdentityEvidence(
+    string GitCommit,
+    string GitBranch,
+    string PostgreSqlVersion,
+    TrigramIndexEvidence TrigramIndex,
+    int CommandCount,
+    int TypedParameterCount,
+    int RawPlanCount,
+    int WarmUpRounds,
+    int MeasuredRounds,
+    int SpillCount,
+    int PlanSwitchCount,
+    int AnomalyCount,
+    int CredentialFindingCount);
+
+internal sealed record ArtifactHashEvidence(
+    string Path,
+    string Sha256);
+
+internal sealed record ArtifactIntegrityEvidence(
+    string Algorithm,
+    string Canonicalization,
+    string ManifestPath,
+    string ManifestTrustAnchor,
+    IReadOnlyList<ArtifactHashEvidence> RootArtifacts,
+    IReadOnlyList<ArtifactHashEvidence> NormalizedSqlArtifacts,
+    IReadOnlyList<ArtifactHashEvidence> MedianPlanArtifacts);
+
+internal sealed record PermanentEvidenceMetadata(
+    int SchemaVersion,
+    ProfileVerificationEvidence ProfileVerification,
+    SemanticResultIdentityEvidence SemanticResultIdentity,
+    IReadOnlyList<LockedResultComparisonEvidence> LockedResults,
+    A1ApprovedExceptionEvidence A1ApprovedException,
+    CaptureIdentityEvidence CaptureIdentity,
+    ArtifactIntegrityEvidence ArtifactIntegrity);
 
 internal sealed record BaselineVerificationResult(
     BaselineMeasurementsRaw Measurements,

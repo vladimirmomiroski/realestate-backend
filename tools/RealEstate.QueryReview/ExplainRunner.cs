@@ -15,6 +15,9 @@ internal static class ExplainRunner
     private const int ExpectedParameterCount = 80;
     private const int WarmUpRunsPerCommand = 1;
     private const int MeasuredRunsPerCommand = 5;
+    private const int ExpectedProfileInvariantCount = 61;
+    private const long ExpectedListingCount = 100_000;
+    private const long ExpectedTranslationCount = 200_000;
     private const int ExpectedPlanCount =
         ExpectedCommandCount * (WarmUpRunsPerCommand + MeasuredRunsPerCommand);
 
@@ -97,11 +100,13 @@ internal static class ExplainRunner
         NpgsqlConnectionStringBuilder connectionStringBuilder,
         ProductionCaptureSession captureSession,
         BaselineEnvironmentSnapshot environment,
+        DeterministicProfileVerificationSnapshot profileVerification,
         string outputDirectory,
         CancellationToken cancellationToken = default)
     {
         ValidateConnectionSettings(connectionStringBuilder);
         ValidateCaptureSession(captureSession);
+        ValidateProfileVerification(profileVerification);
 
         if (environment.PostgreSql.ActiveVacuumCount != 0)
         {
@@ -240,7 +245,8 @@ internal static class ExplainRunner
             "captured-commands.json",
             "environment-raw.json",
             CredentialScanPassed: true,
-            samples);
+            samples,
+            profileVerification);
         var manifestPath = Path.Combine(runDirectory, "manifest.json");
         await JsonArtifactOutput.WriteAsync(manifestPath, manifest, cancellationToken);
 
@@ -389,6 +395,8 @@ internal static class ExplainRunner
                 "one warm-up and five measured plans per command, and a passed credential scan.");
         }
 
+        ValidateProfileVerification(manifest.ProfileVerification);
+
         if (!string.Equals(manifest.CapturedCommandsPath, "captured-commands.json", StringComparison.Ordinal) ||
             !string.Equals(manifest.EnvironmentPath, "environment-raw.json", StringComparison.Ordinal))
         {
@@ -440,6 +448,26 @@ internal static class ExplainRunner
         {
             throw new BaselinePlanValidationException(
                 "Profile, seed, Git, or PostgreSQL identity drift exists between raw artifacts.");
+        }
+    }
+
+    private static void ValidateProfileVerification(
+        DeterministicProfileVerificationSnapshot? profileVerification)
+    {
+        if (profileVerification is null ||
+            !string.Equals(
+                profileVerification.ProfileIdentity,
+                DeterministicProfileSeeder.ProfileVersion,
+                StringComparison.Ordinal) ||
+            profileVerification.ListingCount != ExpectedListingCount ||
+            profileVerification.TranslationCount != ExpectedTranslationCount ||
+            profileVerification.InvariantTotal != ExpectedProfileInvariantCount ||
+            profileVerification.InvariantPassed != ExpectedProfileInvariantCount ||
+            profileVerification.InvariantFailed != 0)
+        {
+            throw new BaselinePlanValidationException(
+                "Raw manifest lacks the complete successful chapter-10f-v1 61-invariant " +
+                "profile verification required for baseline verification and export.");
         }
     }
 
