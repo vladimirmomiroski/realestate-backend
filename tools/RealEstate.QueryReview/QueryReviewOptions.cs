@@ -7,7 +7,8 @@ internal enum QueryReviewCommand
     ProfileVerify,
     CaptureSql,
     BaselineRun,
-    BaselineVerify
+    BaselineVerify,
+    BaselineExport
 }
 
 internal sealed record QueryReviewOptions(
@@ -16,12 +17,14 @@ internal sealed record QueryReviewOptions(
     bool ConfirmDisposable,
     string OutputDirectory,
     string? ContainerName,
-    string? RunDirectory)
+    string? RunDirectory,
+    bool ConfirmEvidenceExport)
 {
     private const string ConnectionStringOption = "--connection-string";
     private const string ConfirmDisposableOption = "--confirm-disposable";
     private const string ContainerNameOption = "--container-name";
     private const string RunDirectoryOption = "--run-directory";
+    private const string ConfirmEvidenceExportOption = "--confirm-evidence-export";
 
     public static string Usage =>
         "Usage:\n" +
@@ -37,7 +40,10 @@ internal sealed record QueryReviewOptions(
         "--connection-string \"<connection-string>\" --confirm-disposable " +
         "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- baseline verify " +
-        "--run-directory \"<absolute-raw-run-directory>\"";
+        "--run-directory \"<absolute-raw-run-directory>\"\n" +
+        "  dotnet run --project tools/RealEstate.QueryReview -- baseline export " +
+        "--run-directory \"<absolute-verified-raw-run-directory>\" " +
+        "--confirm-evidence-export";
 
     public static bool TryParse(
         string[] args,
@@ -56,6 +62,7 @@ internal sealed record QueryReviewOptions(
         var confirmDisposable = false;
         string? containerName = null;
         string? runDirectory = null;
+        var confirmEvidenceExport = false;
 
         for (var index = optionsStartIndex; index < args.Length; index++)
         {
@@ -119,18 +126,28 @@ internal sealed record QueryReviewOptions(
                     runDirectory = args[++index].Trim();
                     break;
 
+                case ConfirmEvidenceExportOption:
+                    if (confirmEvidenceExport)
+                    {
+                        error = $"Option '{ConfirmEvidenceExportOption}' may be supplied only once.";
+                        return false;
+                    }
+
+                    confirmEvidenceExport = true;
+                    break;
+
                 default:
                     error = $"Unknown option '{args[index]}'.";
                     return false;
             }
         }
 
-        if (command == QueryReviewCommand.BaselineVerify)
+        if (command is QueryReviewCommand.BaselineVerify or QueryReviewCommand.BaselineExport)
         {
             if (connectionString is not null || confirmDisposable || containerName is not null)
             {
                 error =
-                    "'baseline verify' is offline and rejects connection, disposable, and " +
+                    $"'{FormatCommand(command)}' is offline and rejects connection, disposable, and " +
                     "container options.";
                 return false;
             }
@@ -146,6 +163,21 @@ internal sealed record QueryReviewOptions(
                 error = $"Option '{RunDirectoryOption}' must be an absolute path.";
                 return false;
             }
+
+            if (command == QueryReviewCommand.BaselineVerify && confirmEvidenceExport)
+            {
+                error =
+                    $"Option '{ConfirmEvidenceExportOption}' is valid only for 'baseline export'.";
+                return false;
+            }
+
+            if (command == QueryReviewCommand.BaselineExport && !confirmEvidenceExport)
+            {
+                error =
+                    $"The permanent evidence acknowledgement '{ConfirmEvidenceExportOption}' " +
+                    "is required.";
+                return false;
+            }
         }
         else if (string.IsNullOrWhiteSpace(connectionString))
         {
@@ -153,7 +185,9 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
-        if (command != QueryReviewCommand.BaselineVerify && !confirmDisposable)
+        if (command is not QueryReviewCommand.BaselineVerify and
+            not QueryReviewCommand.BaselineExport &&
+            !confirmDisposable)
         {
             error = $"The safety acknowledgement '{ConfirmDisposableOption}' is required.";
             return false;
@@ -171,9 +205,13 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
-        if (command != QueryReviewCommand.BaselineVerify && runDirectory is not null)
+        if (command is not QueryReviewCommand.BaselineVerify and
+            not QueryReviewCommand.BaselineExport &&
+            runDirectory is not null)
         {
-            error = $"Option '{RunDirectoryOption}' is valid only for 'baseline verify'.";
+            error =
+                $"Option '{RunDirectoryOption}' is valid only for 'baseline verify' and " +
+                "'baseline export'.";
             return false;
         }
 
@@ -186,7 +224,8 @@ internal sealed record QueryReviewOptions(
             confirmDisposable,
             outputDirectory,
             containerName,
-            runDirectory is null ? null : Path.GetFullPath(runDirectory));
+            runDirectory is null ? null : Path.GetFullPath(runDirectory),
+            confirmEvidenceExport);
 
         return true;
     }
@@ -250,9 +289,28 @@ internal sealed record QueryReviewOptions(
             return true;
         }
 
+        if (args.Length > 1 &&
+            string.Equals(args[0], "baseline", StringComparison.Ordinal) &&
+            string.Equals(args[1], "export", StringComparison.Ordinal))
+        {
+            command = QueryReviewCommand.BaselineExport;
+            optionsStartIndex = 2;
+            return true;
+        }
+
         error =
             "Supported commands are 'doctor', 'profile create', 'profile verify', and " +
-            "'capture-sql', 'baseline run', and 'baseline verify'.";
+            "'capture-sql', 'baseline run', 'baseline verify', and 'baseline export'.";
         return false;
+    }
+
+    private static string FormatCommand(QueryReviewCommand command)
+    {
+        return command switch
+        {
+            QueryReviewCommand.BaselineVerify => "baseline verify",
+            QueryReviewCommand.BaselineExport => "baseline export",
+            _ => command.ToString()
+        };
     }
 }
