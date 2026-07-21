@@ -40,5 +40,20 @@ public class ListingTranslationConfiguration : IEntityTypeConfiguration<ListingT
             translation.ListingId,
             translation.LanguageCode
         }).IsUnique();
+
+        builder.HasIndex(translation => new
+        {
+            translation.Title,
+            translation.City,
+            translation.Municipality,
+            translation.Neighborhood
+        })
+            .HasDatabaseName("IX_ListingTranslations_Q_Trigram")
+            .HasMethod("gin")
+            .HasOperators(
+                "gin_trgm_ops",
+                "gin_trgm_ops",
+                "gin_trgm_ops",
+                "gin_trgm_ops");
     }
 }

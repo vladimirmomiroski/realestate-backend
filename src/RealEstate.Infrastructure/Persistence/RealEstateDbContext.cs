@@ -18,6 +18,8 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.HasPostgresExtension("pg_trgm");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(RealEstateDbContext).Assembly);
     }
 
