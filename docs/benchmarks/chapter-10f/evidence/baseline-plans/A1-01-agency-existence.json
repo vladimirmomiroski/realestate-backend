@@ -8,8 +8,8 @@
       "Total Cost": 4.17,
       "Plan Rows": 1,
       "Plan Width": 1,
-      "Actual Startup Time": 0.042,
-      "Actual Total Time": 0.042,
+      "Actual Startup Time": 0.038,
+      "Actual Total Time": 0.038,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Shared Hit Blocks": 2,
@@ -37,8 +37,8 @@
           "Total Cost": 4.16,
           "Plan Rows": 1,
           "Plan Width": 0,
-          "Actual Startup Time": 0.039,
-          "Actual Total Time": 0.040,
+          "Actual Startup Time": 0.036,
+          "Actual Total Time": 0.036,
           "Actual Rows": 1,
           "Actual Loops": 1,
           "Index Cond": "(\"Id\" = '20000000-0000-0000-0000-000000000001'::uuid)",
@@ -71,9 +71,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.094,
+    "Planning Time": 0.078,
     "Triggers": [
     ],
-    "Execution Time": 0.083
+    "Execution Time": 0.071
   }
 ]
