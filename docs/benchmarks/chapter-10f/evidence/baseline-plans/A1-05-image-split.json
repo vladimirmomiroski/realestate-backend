@@ -8,8 +8,8 @@
       "Total Cost": 258.09,
       "Plan Rows": 12,
       "Plan Width": 183,
-      "Actual Startup Time": 0.210,
-      "Actual Total Time": 0.210,
+      "Actual Startup Time": 0.189,
+      "Actual Total Time": 0.190,
       "Actual Rows": 0,
       "Actual Loops": 1,
       "Sort Key": ["l0.\"ListingId\"", "l0.\"SortOrder\"", "l0.\"Id\""],
@@ -43,8 +43,8 @@
           "Total Cost": 257.55,
           "Plan Rows": 12,
           "Plan Width": 183,
-          "Actual Startup Time": 0.189,
-          "Actual Total Time": 0.190,
+          "Actual Startup Time": 0.157,
+          "Actual Total Time": 0.157,
           "Actual Rows": 0,
           "Actual Loops": 1,
           "Inner Unique": false,
@@ -72,8 +72,8 @@
               "Total Cost": 88.70,
               "Plan Rows": 20,
               "Plan Width": 16,
-              "Actual Startup Time": 0.034,
-              "Actual Total Time": 0.097,
+              "Actual Startup Time": 0.027,
+              "Actual Total Time": 0.081,
               "Actual Rows": 20,
               "Actual Loops": 1,
               "Index Cond": "(\"Id\" = ANY ('{40000000-0000-0000-0000-000000000bb9,40000000-0000-0000-0000-0000000110a9,40000000-0000-0000-0000-000000010cc1,40000000-0000-0000-0000-0000000108d9,40000000-0000-0000-0000-0000000104f1,40000000-0000-0000-0000-000000010109,40000000-0000-0000-0000-00000000fd21,40000000-0000-0000-0000-00000000f939,40000000-0000-0000-0000-00000000f551,40000000-0000-0000-0000-00000000f169,40000000-0000-0000-0000-00000000ed81,40000000-0000-0000-0000-00000000e999,40000000-0000-0000-0000-00000000e5b1,40000000-0000-0000-0000-00000000e1c9,40000000-0000-0000-0000-00000000dde1,40000000-0000-0000-0000-00000000d9f9,40000000-0000-0000-0000-00000000d611,40000000-0000-0000-0000-00000000d229,40000000-0000-0000-0000-00000000ce41,40000000-0000-0000-0000-00000000ca59}'::uuid[]))",
@@ -103,8 +103,8 @@
               "Total Cost": 8.43,
               "Plan Rows": 1,
               "Plan Width": 183,
-              "Actual Startup Time": 0.004,
-              "Actual Total Time": 0.004,
+              "Actual Startup Time": 0.003,
+              "Actual Total Time": 0.003,
               "Actual Rows": 0,
               "Actual Loops": 20,
               "Index Cond": "(\"ListingId\" = l.\"Id\")",
@@ -138,9 +138,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.405,
+    "Planning Time": 0.409,
     "Triggers": [
     ],
-    "Execution Time": 0.291
+    "Execution Time": 0.252
   }
 ]

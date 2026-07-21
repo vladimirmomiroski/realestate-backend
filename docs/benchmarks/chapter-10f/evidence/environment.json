@@ -1,8 +1,8 @@
 {
-  "CapturedAtUtc": "2026-07-21T18:34:25.8721982Z",
+  "CapturedAtUtc": "2026-07-21T20:19:40.5057007Z",
   "Git": {
-    "Commit": "0232b03146f62b7d4e157322f989ba16aae5da78",
-    "Branch": "feature/chapter-10f-final-baseline-evidence",
+    "Commit": "db3ad3220f58a23b752c62d2f33b0a01fff864f1",
+    "Branch": "feature/chapter-10f-complete-evidence",
     "Status": [
       "?? docs/planning/chapter-10-search-discovery-preparation.md",
       "?? docs/planning/chapter-10-search-discovery-ultra-plan.md",
@@ -37,11 +37,11 @@
     "AvailableMemoryBytes": 17103040512
   },
   "Docker": {
-    "ContainerName": "realestate-queryreview-10f2c-final-0232b031",
-    "ContainerId": "8b5971644ab122fbb88cfd954a8e26ae9b3842d0e3a209be059d9e7ef0185427",
+    "ContainerName": "realestate-queryreview-10f2ccb-db3ad322",
+    "ContainerId": "51964d661192eb6728e59d33e2d4a80b7a5748d6dc71a517e0b4c9fdebed7a2c",
     "ContainerImageId": "sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777",
     "ContainerImage": "postgres:16.14-alpine",
-    "ContainerCreated": "2026-07-21T18:30:55.711931185Z",
+    "ContainerCreated": "2026-07-21T20:08:28.751834283Z",
     "ContainerStatus": "running",
     "MemoryLimitBytes": 0,
     "NanoCpus": 0,
@@ -61,8 +61,8 @@
     "Version": "PostgreSQL 16.14 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
     "ServerVersion": "16.14",
     "ServerVersionNumber": "160014",
-    "Database": "realestate_queryreview_10f2c_final_0232b031",
-    "DatabaseSizeBytes": 152420879,
+    "Database": "realestate_queryreview_10f2ccb_db3ad322",
+    "DatabaseSizeBytes": 152429071,
     "ActiveVacuumCount": 0,
     "Settings": [
       {
@@ -396,189 +396,473 @@
         "Table": "Agencies",
         "Name": "IX_Agencies_Slug",
         "Definition": "CREATE UNIQUE INDEX \u0022IX_Agencies_Slug\u0022 ON public.\u0022Agencies\u0022 USING btree (\u0022Slug\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Slug"
+        ],
+        "OperatorClasses": [
+          "text_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "Agencies",
         "Name": "PK_Agencies",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_Agencies\u0022 ON public.\u0022Agencies\u0022 USING btree (\u0022Id\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Id"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyInvitations",
         "Name": "IX_AgencyInvitations_AcceptedByUserId",
         "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_AcceptedByUserId\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022AcceptedByUserId\u0022)",
-        "SizeBytes": 8192
+        "SizeBytes": 8192,
+        "AccessMethod": "btree",
+        "Columns": [
+          "AcceptedByUserId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyInvitations",
         "Name": "IX_AgencyInvitations_AgencyId",
         "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_AgencyId\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022AgencyId\u0022)",
-        "SizeBytes": 8192
+        "SizeBytes": 8192,
+        "AccessMethod": "btree",
+        "Columns": [
+          "AgencyId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyInvitations",
         "Name": "IX_AgencyInvitations_AgencyId_NormalizedEmail",
         "Definition": "CREATE UNIQUE INDEX \u0022IX_AgencyInvitations_AgencyId_NormalizedEmail\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022AgencyId\u0022, \u0022NormalizedEmail\u0022) WHERE ((\u0022Status\u0022)::text = \u0027Pending\u0027::text)",
-        "SizeBytes": 8192
+        "SizeBytes": 8192,
+        "AccessMethod": "btree",
+        "Columns": [
+          "AgencyId",
+          "NormalizedEmail"
+        ],
+        "OperatorClasses": [
+          "uuid_ops",
+          "text_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyInvitations",
         "Name": "IX_AgencyInvitations_InvitedByUserId",
         "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_InvitedByUserId\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022InvitedByUserId\u0022)",
-        "SizeBytes": 8192
+        "SizeBytes": 8192,
+        "AccessMethod": "btree",
+        "Columns": [
+          "InvitedByUserId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyInvitations",
         "Name": "IX_AgencyInvitations_NormalizedEmail",
         "Definition": "CREATE INDEX \u0022IX_AgencyInvitations_NormalizedEmail\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022NormalizedEmail\u0022)",
-        "SizeBytes": 8192
+        "SizeBytes": 8192,
+        "AccessMethod": "btree",
+        "Columns": [
+          "NormalizedEmail"
+        ],
+        "OperatorClasses": [
+          "text_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyInvitations",
         "Name": "IX_AgencyInvitations_Token",
         "Definition": "CREATE UNIQUE INDEX \u0022IX_AgencyInvitations_Token\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022Token\u0022)",
-        "SizeBytes": 8192
+        "SizeBytes": 8192,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Token"
+        ],
+        "OperatorClasses": [
+          "text_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyInvitations",
         "Name": "PK_AgencyInvitations",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_AgencyInvitations\u0022 ON public.\u0022AgencyInvitations\u0022 USING btree (\u0022Id\u0022)",
-        "SizeBytes": 8192
+        "SizeBytes": 8192,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Id"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyMembers",
         "Name": "IX_AgencyMembers_AgencyId",
         "Definition": "CREATE INDEX \u0022IX_AgencyMembers_AgencyId\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022AgencyId\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "AgencyId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyMembers",
         "Name": "IX_AgencyMembers_AgencyId_UserId",
         "Definition": "CREATE UNIQUE INDEX \u0022IX_AgencyMembers_AgencyId_UserId\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022AgencyId\u0022, \u0022UserId\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "AgencyId",
+          "UserId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops",
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyMembers",
         "Name": "IX_AgencyMembers_UserId",
         "Definition": "CREATE INDEX \u0022IX_AgencyMembers_UserId\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022UserId\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "UserId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "AgencyMembers",
         "Name": "PK_AgencyMembers",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_AgencyMembers\u0022 ON public.\u0022AgencyMembers\u0022 USING btree (\u0022Id\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Id"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingApartmentDetails",
         "Name": "PK_ListingApartmentDetails",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingApartmentDetails\u0022 ON public.\u0022ListingApartmentDetails\u0022 USING btree (\u0022ListingId\u0022)",
-        "SizeBytes": 1589248
+        "SizeBytes": 1589248,
+        "AccessMethod": "btree",
+        "Columns": [
+          "ListingId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingHouseDetails",
         "Name": "PK_ListingHouseDetails",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingHouseDetails\u0022 ON public.\u0022ListingHouseDetails\u0022 USING btree (\u0022ListingId\u0022)",
-        "SizeBytes": 1589248
+        "SizeBytes": 1589248,
+        "AccessMethod": "btree",
+        "Columns": [
+          "ListingId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingImages",
         "Name": "IX_ListingImages_ListingId",
         "Definition": "CREATE UNIQUE INDEX \u0022IX_ListingImages_ListingId\u0022 ON public.\u0022ListingImages\u0022 USING btree (\u0022ListingId\u0022) WHERE (\u0022IsPrimary\u0022 = true)",
-        "SizeBytes": 1589248
+        "SizeBytes": 1589248,
+        "AccessMethod": "btree",
+        "Columns": [
+          "ListingId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingImages",
         "Name": "IX_ListingImages_ListingId_SortOrder",
         "Definition": "CREATE INDEX \u0022IX_ListingImages_ListingId_SortOrder\u0022 ON public.\u0022ListingImages\u0022 USING btree (\u0022ListingId\u0022, \u0022SortOrder\u0022)",
-        "SizeBytes": 4079616
+        "SizeBytes": 4079616,
+        "AccessMethod": "btree",
+        "Columns": [
+          "ListingId",
+          "SortOrder"
+        ],
+        "OperatorClasses": [
+          "uuid_ops",
+          "int4_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingImages",
         "Name": "PK_ListingImages",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingImages\u0022 ON public.\u0022ListingImages\u0022 USING btree (\u0022Id\u0022)",
-        "SizeBytes": 1900544
+        "SizeBytes": 1900544,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Id"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingTranslations",
         "Name": "IX_ListingTranslations_ListingId_LanguageCode",
         "Definition": "CREATE UNIQUE INDEX \u0022IX_ListingTranslations_ListingId_LanguageCode\u0022 ON public.\u0022ListingTranslations\u0022 USING btree (\u0022ListingId\u0022, \u0022LanguageCode\u0022)",
-        "SizeBytes": 12197888
+        "SizeBytes": 12197888,
+        "AccessMethod": "btree",
+        "Columns": [
+          "ListingId",
+          "LanguageCode"
+        ],
+        "OperatorClasses": [
+          "uuid_ops",
+          "text_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingTranslations",
         "Name": "IX_ListingTranslations_Q_Trigram",
         "Definition": "CREATE INDEX \u0022IX_ListingTranslations_Q_Trigram\u0022 ON public.\u0022ListingTranslations\u0022 USING gin (\u0022Title\u0022 gin_trgm_ops, \u0022City\u0022 gin_trgm_ops, \u0022Municipality\u0022 gin_trgm_ops, \u0022Neighborhood\u0022 gin_trgm_ops)",
-        "SizeBytes": 28459008
+        "SizeBytes": 28459008,
+        "AccessMethod": "gin",
+        "Columns": [
+          "Title",
+          "City",
+          "Municipality",
+          "Neighborhood"
+        ],
+        "OperatorClasses": [
+          "gin_trgm_ops",
+          "gin_trgm_ops",
+          "gin_trgm_ops",
+          "gin_trgm_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "ListingTranslations",
         "Name": "PK_ListingTranslations",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_ListingTranslations\u0022 ON public.\u0022ListingTranslations\u0022 USING btree (\u0022Id\u0022)",
-        "SizeBytes": 6332416
+        "SizeBytes": 6332416,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Id"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "Listings",
         "Name": "IX_Listings_AgencyId",
         "Definition": "CREATE INDEX \u0022IX_Listings_AgencyId\u0022 ON public.\u0022Listings\u0022 USING btree (\u0022AgencyId\u0022)",
-        "SizeBytes": 868352
+        "SizeBytes": 868352,
+        "AccessMethod": "btree",
+        "Columns": [
+          "AgencyId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "Listings",
         "Name": "IX_Listings_CreatedByUserId",
         "Definition": "CREATE INDEX \u0022IX_Listings_CreatedByUserId\u0022 ON public.\u0022Listings\u0022 USING btree (\u0022CreatedByUserId\u0022)",
-        "SizeBytes": 868352
+        "SizeBytes": 868352,
+        "AccessMethod": "btree",
+        "Columns": [
+          "CreatedByUserId"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "Listings",
         "Name": "PK_Listings",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_Listings\u0022 ON public.\u0022Listings\u0022 USING btree (\u0022Id\u0022)",
-        "SizeBytes": 3178496
+        "SizeBytes": 3178496,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Id"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "Users",
         "Name": "IX_Users_NormalizedEmail",
         "Definition": "CREATE UNIQUE INDEX \u0022IX_Users_NormalizedEmail\u0022 ON public.\u0022Users\u0022 USING btree (\u0022NormalizedEmail\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "NormalizedEmail"
+        ],
+        "OperatorClasses": [
+          "text_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "Users",
         "Name": "PK_Users",
         "Definition": "CREATE UNIQUE INDEX \u0022PK_Users\u0022 ON public.\u0022Users\u0022 USING btree (\u0022Id\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "Id"
+        ],
+        "OperatorClasses": [
+          "uuid_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       },
       {
         "Schema": "public",
         "Table": "__EFMigrationsHistory",
         "Name": "PK___EFMigrationsHistory",
         "Definition": "CREATE UNIQUE INDEX \u0022PK___EFMigrationsHistory\u0022 ON public.\u0022__EFMigrationsHistory\u0022 USING btree (\u0022MigrationId\u0022)",
-        "SizeBytes": 16384
+        "SizeBytes": 16384,
+        "AccessMethod": "btree",
+        "Columns": [
+          "MigrationId"
+        ],
+        "OperatorClasses": [
+          "text_ops"
+        ],
+        "IsValid": true,
+        "IsReady": true,
+        "IsLive": true
       }
     ],
     "TableStatistics": [
@@ -587,9 +871,9 @@
         "Table": "Agencies",
         "EstimatedLiveRows": 100,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:17.592208Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:17.594535Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.55683Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.917169Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.919652Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:03.764623Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 0,
         "AnalyzeCount": 1,
@@ -600,8 +884,8 @@
         "Table": "AgencyInvitations",
         "EstimatedLiveRows": 0,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:17.590953Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:17.591833Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.912476Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.915588Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 0,
         "AnalyzeCount": 1,
@@ -612,9 +896,9 @@
         "Table": "AgencyMembers",
         "EstimatedLiveRows": 100,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:17.123913Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:17.124863Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.098766Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.434557Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.435501Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:02.989271Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 0,
         "AnalyzeCount": 1,
@@ -625,10 +909,10 @@
         "Table": "ListingApartmentDetails",
         "EstimatedLiveRows": 50000,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:17.008267Z",
-        "LastAutoVacuumUtc": "2026-07-21T18:33:29.99622Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:17.060321Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.036366Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.363892Z",
+        "LastAutoVacuumUtc": "2026-07-21T20:19:02.897507Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.392524Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:02.931739Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 1,
         "AnalyzeCount": 1,
@@ -639,10 +923,10 @@
         "Table": "ListingHouseDetails",
         "EstimatedLiveRows": 50000,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:17.068139Z",
-        "LastAutoVacuumUtc": "2026-07-21T18:33:30.050987Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:17.116509Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.095217Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.394489Z",
+        "LastAutoVacuumUtc": "2026-07-21T20:19:02.945752Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.43129Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:02.985862Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 1,
         "AnalyzeCount": 1,
@@ -653,10 +937,10 @@
         "Table": "ListingImages",
         "EstimatedLiveRows": 60000,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:16.288176Z",
-        "LastAutoVacuumUtc": "2026-07-21T18:33:29.001416Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:16.549134Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:29.267216Z",
+        "LastVacuumUtc": "2026-07-21T20:19:37.708859Z",
+        "LastAutoVacuumUtc": "2026-07-21T20:19:01.935066Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:37.947664Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:02.189398Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 1,
         "AnalyzeCount": 1,
@@ -667,10 +951,10 @@
         "Table": "ListingTranslations",
         "EstimatedLiveRows": 200000,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:16.604221Z",
-        "LastAutoVacuumUtc": "2026-07-21T18:33:29.616389Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:16.983079Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:29.981343Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.052353Z",
+        "LastAutoVacuumUtc": "2026-07-21T20:19:02.541754Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.361323Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:02.882716Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 1,
         "AnalyzeCount": 1,
@@ -681,10 +965,10 @@
         "Table": "Listings",
         "EstimatedLiveRows": 100000,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:17.201824Z",
-        "LastAutoVacuumUtc": "2026-07-21T18:33:30.163027Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:17.576128Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.548557Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.526118Z",
+        "LastAutoVacuumUtc": "2026-07-21T20:19:03.382935Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.900518Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:03.757045Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 1,
         "AnalyzeCount": 1,
@@ -695,9 +979,9 @@
         "Table": "Users",
         "EstimatedLiveRows": 101,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:17.583965Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:17.586238Z",
-        "LastAutoAnalyzeUtc": "2026-07-21T18:33:30.553298Z",
+        "LastVacuumUtc": "2026-07-21T20:19:38.904413Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:38.907137Z",
+        "LastAutoAnalyzeUtc": "2026-07-21T20:19:03.761337Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 0,
         "AnalyzeCount": 1,
@@ -708,8 +992,8 @@
         "Table": "__EFMigrationsHistory",
         "EstimatedLiveRows": 15,
         "EstimatedDeadRows": 0,
-        "LastVacuumUtc": "2026-07-21T18:34:16.247336Z",
-        "LastAnalyzeUtc": "2026-07-21T18:34:16.247922Z",
+        "LastVacuumUtc": "2026-07-21T20:19:37.672776Z",
+        "LastAnalyzeUtc": "2026-07-21T20:19:37.673274Z",
         "VacuumCount": 1,
         "AutoVacuumCount": 0,
         "AnalyzeCount": 1,
@@ -723,5 +1007,5 @@
   "ProfileVersion": "chapter-10f-v1",
   "CSharpSeed": 1042001,
   "PostgreSqlSeed": 0.1042001,
-  "VacuumAnalyzeDuration": "00:00:01.8233870"
+  "VacuumAnalyzeDuration": "00:00:01.6564919"
 }

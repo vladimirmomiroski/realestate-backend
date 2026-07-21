@@ -6,12 +6,12 @@
       "Partial Mode": "Simple",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 3872.53,
-      "Total Cost": 3872.54,
+      "Startup Cost": 3872.03,
+      "Total Cost": 3872.05,
       "Plan Rows": 1,
       "Plan Width": 4,
-      "Actual Startup Time": 25.184,
-      "Actual Total Time": 25.186,
+      "Actual Startup Time": 21.358,
+      "Actual Total Time": 21.359,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Shared Hit Blocks": 2447,
@@ -34,10 +34,10 @@
           "Alias": "l",
           "Startup Cost": 0.00,
           "Total Cost": 3697.00,
-          "Plan Rows": 70210,
+          "Plan Rows": 70013,
           "Plan Width": 0,
-          "Actual Startup Time": 0.010,
-          "Actual Total Time": 20.190,
+          "Actual Startup Time": 0.008,
+          "Actual Total Time": 17.034,
           "Actual Rows": 70000,
           "Actual Loops": 1,
           "Filter": "((\"Status\")::text = 'Active'::text)",
@@ -69,9 +69,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.068,
+    "Planning Time": 0.059,
     "Triggers": [
     ],
-    "Execution Time": 25.211
+    "Execution Time": 21.381
   }
 ]

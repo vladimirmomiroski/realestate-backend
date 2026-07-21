@@ -8,8 +8,8 @@
       "Total Cost": 258.09,
       "Plan Rows": 12,
       "Plan Width": 183,
-      "Actual Startup Time": 0.192,
-      "Actual Total Time": 0.193,
+      "Actual Startup Time": 0.195,
+      "Actual Total Time": 0.196,
       "Actual Rows": 0,
       "Actual Loops": 1,
       "Sort Key": ["l0.\"ListingId\"", "l0.\"SortOrder\"", "l0.\"Id\""],
@@ -43,8 +43,8 @@
           "Total Cost": 257.55,
           "Plan Rows": 12,
           "Plan Width": 183,
-          "Actual Startup Time": 0.173,
-          "Actual Total Time": 0.173,
+          "Actual Startup Time": 0.177,
+          "Actual Total Time": 0.178,
           "Actual Rows": 0,
           "Actual Loops": 1,
           "Inner Unique": false,
@@ -72,8 +72,8 @@
               "Total Cost": 88.70,
               "Plan Rows": 20,
               "Plan Width": 16,
-              "Actual Startup Time": 0.031,
-              "Actual Total Time": 0.091,
+              "Actual Startup Time": 0.029,
+              "Actual Total Time": 0.087,
               "Actual Rows": 20,
               "Actual Loops": 1,
               "Index Cond": "(\"Id\" = ANY ('{40000000-0000-0000-0000-000000011149,40000000-0000-0000-0000-000000010591,40000000-0000-0000-0000-00000000f9d9,40000000-0000-0000-0000-00000000ee21,40000000-0000-0000-0000-00000000e269,40000000-0000-0000-0000-00000000d6b1,40000000-0000-0000-0000-00000000caf9,40000000-0000-0000-0000-00000000bf41,40000000-0000-0000-0000-00000000b389,40000000-0000-0000-0000-00000000a7d1,40000000-0000-0000-0000-000000009c19,40000000-0000-0000-0000-000000009061,40000000-0000-0000-0000-0000000084a9,40000000-0000-0000-0000-0000000078f1,40000000-0000-0000-0000-000000006d39,40000000-0000-0000-0000-000000006181,40000000-0000-0000-0000-0000000055c9,40000000-0000-0000-0000-000000004a11,40000000-0000-0000-0000-000000003e59,40000000-0000-0000-0000-0000000032a1}'::uuid[]))",
@@ -138,9 +138,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.408,
+    "Planning Time": 0.373,
     "Triggers": [
     ],
-    "Execution Time": 0.322
+    "Execution Time": 0.253
   }
 ]
