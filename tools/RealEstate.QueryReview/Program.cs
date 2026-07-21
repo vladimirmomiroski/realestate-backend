@@ -37,20 +37,39 @@ internal static class Program
 
     private static async Task<int> RunAsync(QueryReviewOptions options)
     {
-        if (options.Command == QueryReviewCommand.BaselineVerify)
+        if (options.Command is QueryReviewCommand.BaselineVerify or QueryReviewCommand.BaselineExport)
         {
             try
             {
-                return await VerifyBaselineAsync(options);
+                return options.Command switch
+                {
+                    QueryReviewCommand.BaselineVerify => await VerifyBaselineAsync(options),
+                    QueryReviewCommand.BaselineExport => await ExportBaselineAsync(options),
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported offline command '{options.Command}'.")
+                };
             }
             catch (BaselinePlanValidationException exception)
             {
-                Console.Error.WriteLine($"Baseline verification failed: {exception.Message}");
+                var operation = options.Command == QueryReviewCommand.BaselineExport
+                    ? "Baseline evidence export"
+                    : "Baseline verification";
+                Console.Error.WriteLine($"{operation} failed: {exception.Message}");
+                return 8;
+            }
+            catch (SqlCaptureValidationException exception)
+            {
+                Console.Error.WriteLine($"Baseline artifact path validation failed: {exception.Message}");
                 return 8;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
                 Console.Error.WriteLine($"Baseline artifact operation failed: {exception.Message}");
+                return 8;
+            }
+            catch (System.Text.Json.JsonException exception)
+            {
+                Console.Error.WriteLine($"Baseline artifact JSON validation failed: {exception.Message}");
                 return 8;
             }
         }
@@ -169,6 +188,8 @@ internal static class Program
                     npgsqlConnection),
                 QueryReviewCommand.BaselineVerify => throw new InvalidOperationException(
                     "Offline baseline verification must not enter the database command path."),
+                QueryReviewCommand.BaselineExport => throw new InvalidOperationException(
+                    "Offline baseline evidence export must not enter the database command path."),
                 _ => throw new InvalidOperationException(
                     $"Unsupported command '{options.Command}'.")
             };
@@ -271,6 +292,33 @@ internal static class Program
         Console.WriteLine(
             "Baseline verification result: SUCCESS. Raw artifacts, medians, sequences, and " +
             "the Q1 gate are valid.");
+        return 0;
+    }
+
+    private static async Task<int> ExportBaselineAsync(QueryReviewOptions options)
+    {
+        Console.WriteLine("Running verified offline permanent baseline evidence export...");
+        Console.WriteLine("No connection string was accepted and no database operation will occur.");
+        Console.WriteLine("Permanent evidence export confirmation: accepted.");
+
+        var verification = await ExplainRunner.VerifyAsync(options.RunDirectory!);
+
+        if (!verification.Measurements.Q1Gate.Passed)
+        {
+            throw new BaselinePlanValidationException(
+                "The verified raw run does not pass the locked Q1 gate.");
+        }
+
+        var export = await BaselineEvidenceWriter.ExportAsync(verification);
+
+        Console.WriteLine(
+            $"Verified raw totals: {verification.Measurements.CommandCount} commands, " +
+            $"{verification.Measurements.SampleCount} plans.");
+        Console.WriteLine($"Permanent evidence files: {export.FileCount}.");
+        Console.WriteLine($"Permanent evidence directory: {export.DestinationDirectory}");
+        Console.WriteLine("Exported hash verification: SUCCESS.");
+        Console.WriteLine("Exported credential scan: SUCCESS.");
+        Console.WriteLine("Baseline evidence export result: SUCCESS.");
         return 0;
     }
 
@@ -553,6 +601,13 @@ internal static class Program
                 Console.WriteLine(
                     "Baseline verification was offline. No database connection, profile change, " +
                     "EXPLAIN execution, migration, DDL, or index operation occurred.");
+                break;
+
+            case QueryReviewCommand.BaselineExport:
+                Console.WriteLine(
+                    "Baseline evidence export was offline and restricted to the permanent Chapter " +
+                    "10F evidence directory. No database connection, profile change, EXPLAIN " +
+                    "execution, migration, DDL, or index operation occurred.");
                 break;
 
             default:

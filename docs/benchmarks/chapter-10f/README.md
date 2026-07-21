@@ -94,3 +94,27 @@ Warm-up plans remain auditable but are excluded from medians. Each command media
 The Q1 gate fails when the filtered-count execution median exceeds 250 ms, the aligned first-page sequence execution median exceeds 250 ms, or any Q1 warm-up or measured plan spills. Equality at 250 ms passes. A failure records the evidence and stops for owner review; it does not authorize an index or a broader search implementation.
 
 The verifier writes `measurements-raw.json` and a temporary `curated` evidence directory inside the existing OS-temp raw run. It preserves credential scanning. It does not rerun EXPLAIN, connect to PostgreSQL, export evidence into the repository, create or evaluate indexes, add migrations, or alter production code.
+
+## Permanent baseline evidence export
+
+Export is a separate, explicit offline command. It accepts only an absolute verified raw-run directory outside the repository and requires the permanent-export acknowledgement:
+
+```powershell
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -- baseline export `
+  --run-directory "C:\Users\User\AppData\Local\Temp\realestate-queryreview\chapter-10f-v1-baseline-<UTC>-<commit>" `
+  --confirm-evidence-export
+```
+
+The exporter reruns the complete offline verifier before writing anything. It rejects incomplete or extra commands/plans, artifact identity or hash drift, a failing Q1 gate, anomalies, credential findings, relative or repository-contained raw runs, connection/database options, missing confirmation, and arbitrary destination options.
+
+The destination is fixed to `docs/benchmarks/chapter-10f/evidence/`. A successful export contains exactly:
+
+```text
+environment.json
+baseline-measurements.json
+baseline-summary.md
+sql/<33 command-key>.sql
+baseline-plans/<33 command-key>.json
+```
+
+Each permanent plan is the execution-median plan selected by verified measurements. Warm-up and nonmedian plans, raw manifests, logs, and connection information are never exported. The exporter recomputes source and destination SHA-256 hashes, validates the exact file set, and scans every permanent file for credential material before reporting success.
