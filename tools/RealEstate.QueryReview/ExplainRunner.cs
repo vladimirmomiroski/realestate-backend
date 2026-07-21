@@ -12,7 +12,7 @@ internal static class ExplainRunner
     private const string ExplainPrefix =
         "EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)\n";
     private const int ExpectedCommandCount = 33;
-    private const int ExpectedParameterCount = 106;
+    private const int ExpectedParameterCount = 80;
     private const int WarmUpRunsPerCommand = 1;
     private const int MeasuredRunsPerCommand = 5;
     private const int ExpectedPlanCount =

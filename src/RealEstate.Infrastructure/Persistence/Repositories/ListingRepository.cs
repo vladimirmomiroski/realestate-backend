@@ -173,7 +173,7 @@ public sealed class ListingRepository : IListingRepository
         decimal sourcePricePerSquareMeter =
             source.Price / source.AreaSquareMeters;
 
-        var candidateRows = _dbContext.Listings
+        IQueryable<Listing> eligibleCandidates = _dbContext.Listings
             .AsNoTracking()
             .Where(candidate =>
                 candidate.Status == ListingStatus.Active &&
@@ -182,43 +182,86 @@ public sealed class ListingRepository : IListingRepository
                 candidate.PropertyType == source.PropertyType &&
                 candidate.Currency == source.Currency &&
                 candidate.Price > 0 &&
-                candidate.AreaSquareMeters > 0)
-            .SelectMany(
-                candidate => candidate.Translations
-                    .OrderBy(translation =>
-                        EF.Functions.ILike(
+                candidate.AreaSquareMeters > 0);
+
+        IQueryable<Guid> eligibleCandidateIds = eligibleCandidates
+            .Select(candidate => candidate.Id);
+
+        var candidateTranslations = _dbContext
+            .Set<ListingTranslation>()
+            .AsNoTracking()
+            .Where(translation =>
+                eligibleCandidateIds.Contains(translation.ListingId))
+            .Select(translation => new
+            {
+                translation.Id,
+                translation.ListingId,
+                translation.LanguageCode,
+                translation.City,
+                translation.Municipality,
+                translation.Neighborhood,
+                LanguageSelectionKey =
+                    (EF.Functions.ILike(
+                        translation.LanguageCode,
+                        requestedLanguagePattern,
+                        LikeEscapeCharacter)
+                        ? "0"
+                        : EF.Functions.ILike(
                             translation.LanguageCode,
-                            requestedLanguagePattern,
+                            macedonianLanguagePattern,
                             LikeEscapeCharacter)
-                            ? 0
-                            : EF.Functions.ILike(
-                                translation.LanguageCode,
-                                macedonianLanguagePattern,
-                                LikeEscapeCharacter)
-                                ? 1
-                                : 2)
-                    .ThenBy(translation =>
-                        EF.Functions.Collate(
-                            translation.LanguageCode,
-                            PostgreSqlBytewiseCollation))
-                    .ThenBy(translation => translation.Id)
-                    .Take(1),
-                (candidate, translation) => new
+                            ? "1"
+                            : "2") +
+                    translation.LanguageCode
+            });
+
+        var bestLanguageSelectionKeys = candidateTranslations
+            .GroupBy(translation => translation.ListingId)
+            .Select(translations => new
+            {
+                ListingId = translations.Key,
+                LanguageSelectionKey = translations.Min(translation =>
+                    EF.Functions.Collate(
+                        translation.LanguageSelectionKey,
+                        PostgreSqlBytewiseCollation))
+            });
+
+        var effectiveCandidateTranslations =
+            from translation in candidateTranslations
+            join bestLanguageSelectionKey in bestLanguageSelectionKeys
+                on new
                 {
-                    Listing = candidate,
-                    Translation = translation
-                })
-            .Where(row =>
-                row.Translation.LanguageCode ==
+                    translation.ListingId,
+                    LanguageSelectionKey = EF.Functions.Collate(
+                        translation.LanguageSelectionKey,
+                        PostgreSqlBytewiseCollation)
+                }
+                equals new
+                {
+                    bestLanguageSelectionKey.ListingId,
+                    bestLanguageSelectionKey.LanguageSelectionKey
+                }
+            select translation;
+
+        var candidateRows =
+            from candidate in eligibleCandidates
+            join translation in effectiveCandidateTranslations
+                on candidate.Id equals translation.ListingId
+            where translation.LanguageCode ==
                     source.LanguageCode &&
 
-                row.Translation.City != null &&
-                row.Translation.City.Trim() != string.Empty &&
+                translation.City != null &&
+                translation.City.Trim() != string.Empty &&
 
                 EF.Functions.ILike(
-                    row.Translation.City,
+                    translation.City,
                     cityPattern,
-                    LikeEscapeCharacter));
+                    LikeEscapeCharacter)
+            select new
+            {
+                Listing = candidate,
+                Translation = translation
+            };
 
         var orderedCandidates = candidateRows
             .OrderBy(row =>
@@ -282,9 +325,14 @@ public sealed class ListingRepository : IListingRepository
                 .Select(row => row.Listing)
                 .Take(limit);
 
-        List<Listing> listings =
-            await ApplyListingIncludes(limitedListingsQuery)
-                .ToListAsync(cancellationToken);
+        List<Listing> listings = await limitedListingsQuery
+            .Include(listing => listing.ApartmentDetails)
+            .Include(listing => listing.HouseDetails)
+            .ToListAsync(cancellationToken);
+
+        await LoadSelectedListingCollectionsAsync(
+            listings,
+            cancellationToken);
 
         return new ComparableListingsReadResult(
             true,

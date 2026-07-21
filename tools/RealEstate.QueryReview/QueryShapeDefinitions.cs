@@ -383,7 +383,7 @@ internal static class QueryShapeDefinitions
         ValidatePagedFiltersAndChildLoading(commands);
         ValidateSetBasedEffectiveTranslationFiltering(commands);
         ValidateTextSearch(commands);
-        ValidateComparableLimitBeforeIncludes(commands);
+        ValidateComparableCandidateAndChildLoading(commands);
     }
 
     private static void ValidateTypedParameters(IReadOnlyList<CapturedCommand> commands)
@@ -413,9 +413,10 @@ internal static class QueryShapeDefinitions
         IReadOnlyList<CapturedCommand> commands)
     {
         var publicCommands = commands.Where(command =>
-            command.ShapeId == ComparableShapeId ||
             command.CommandRole is CommandRoles.FilteredCount or
-                CommandRoles.PageRoot);
+                CommandRoles.PageRoot or
+                CommandRoles.ComparableSource or
+                CommandRoles.ComparableRankedRoot);
 
         foreach (var command in publicCommands)
         {
@@ -428,9 +429,7 @@ internal static class QueryShapeDefinitions
 
         var orderedCommands = commands.Where(command =>
             command.CommandRole is CommandRoles.PageRoot or
-                CommandRoles.ComparableRankedRoot or
-                CommandRoles.ComparableTranslationSplit or
-                CommandRoles.ComparableImageSplit);
+                CommandRoles.ComparableRankedRoot);
 
         foreach (var command in orderedCommands)
         {
@@ -666,24 +665,110 @@ internal static class QueryShapeDefinitions
         }
     }
 
-    private static void ValidateComparableLimitBeforeIncludes(
+    private static void ValidateComparableCandidateAndChildLoading(
         IReadOnlyList<CapturedCommand> commands)
     {
-        foreach (var command in commands.Where(command =>
-                     command.CommandRole is CommandRoles.ComparableTranslationSplit or
-                         CommandRoles.ComparableImageSplit))
-        {
-            var limitPosition = command.CommandText.IndexOf("LIMIT", StringComparison.Ordinal);
-            var includePosition = command.CommandText.IndexOf(
-                command.CommandRole == CommandRoles.ComparableTranslationSplit
-                    ? "INNER JOIN \"ListingTranslations\""
-                    : "INNER JOIN \"ListingImages\"",
-                StringComparison.Ordinal);
+        CapturedCommand rankedRoot = commands.Single(command =>
+            command.ShapeId == ComparableShapeId &&
+            command.CommandRole == CommandRoles.ComparableRankedRoot);
 
-            if (limitPosition < 0 || includePosition < 0 || limitPosition > includePosition)
+        string rankedSql = rankedRoot.CommandText;
+        int selectedKeyJoin = rankedSql.LastIndexOf(
+            "\"LanguageSelectionKey\"",
+            StringComparison.Ordinal);
+
+        int cityMatch = rankedSql.IndexOf(
+            "\"City\" ILIKE @cityPattern",
+            StringComparison.Ordinal);
+
+        string[] scalarEligibilityPredicates =
+        [
+            "\"Status\" = 'Active'",
+            "\"Id\" <>",
+            "\"ListingType\" =",
+            "\"PropertyType\" =",
+            "\"Currency\" =",
+            "\"Price\" > 0.0",
+            "\"AreaSquareMeters\" > 0.0"
+        ];
+
+        if (scalarEligibilityPredicates.Any(predicate =>
+                !rankedSql.Contains(predicate, StringComparison.Ordinal)) ||
+            CountOccurrences(rankedSql, "\"ListingId\" IN (") < 2 ||
+            CountOccurrences(rankedSql, "\"Status\" = 'Active'") < 3 ||
+            !rankedSql.Contains("END ||", StringComparison.Ordinal) ||
+            !rankedSql.Contains("GROUP BY", StringComparison.Ordinal) ||
+            selectedKeyJoin < 0 ||
+            cityMatch <= selectedKeyJoin)
+        {
+            throw new SqlCaptureValidationException(
+                $"{ComparableShapeId}/{rankedRoot.CommandRole}: effective-translation " +
+                "selection is not restricted by the complete scalar-eligible candidate relation.");
+        }
+
+        if (rankedSql.Contains(
+                "ROW_NUMBER() OVER(PARTITION BY",
+                StringComparison.Ordinal))
+        {
+            throw new SqlCaptureValidationException(
+                $"{ComparableShapeId}/{rankedRoot.CommandRole}: global translation " +
+                "ranking remains in the corrected comparable root.");
+        }
+
+        foreach (string rankingFragment in new[]
+                 {
+                     "abs(",
+                     "\"Price\" /",
+                     "\"CreatedAtUtc\" DESC",
+                     "\"Id\" DESC"
+                 })
+        {
+            if (!rankedSql.Contains(rankingFragment, StringComparison.Ordinal))
             {
                 throw new SqlCaptureValidationException(
-                    $"{ComparableShapeId}/{command.CommandRole}: candidate LIMIT does not precede aggregate loading.");
+                    $"{ComparableShapeId}/{rankedRoot.CommandRole}: locked comparable " +
+                    $"ranking fragment '{rankingFragment}' is missing.");
+            }
+        }
+
+        foreach (var command in commands.Where(command =>
+                     command.CommandRole is CommandRoles.ComparableTranslationSplit or
+                          CommandRoles.ComparableImageSplit))
+        {
+            string childTable = command.CommandRole ==
+                CommandRoles.ComparableTranslationSplit
+                    ? "ListingTranslations"
+                    : "ListingImages";
+
+            if (!command.CommandText.Contains(
+                    $"INNER JOIN \"{childTable}\"",
+                    StringComparison.Ordinal) ||
+                !command.CommandText.Contains("ANY", StringComparison.Ordinal) ||
+                !command.CommandText.Contains("ORDER BY", StringComparison.Ordinal) ||
+                !command.CommandText.Contains("\"ListingId\"", StringComparison.Ordinal) ||
+                (command.CommandRole == CommandRoles.ComparableImageSplit &&
+                 !command.CommandText.Contains("\"SortOrder\"", StringComparison.Ordinal)) ||
+                command.Parameters.Count != 1 ||
+                !string.Equals(
+                    command.Parameters[0].ClrType,
+                    typeof(Guid[]).FullName,
+                    StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{ComparableShapeId}/{command.CommandRole}: child loading is not " +
+                    "restricted to one selected-comparable UUID array with deterministic child ordering.");
+            }
+
+            if (command.CommandText.Contains("\"Status\" = 'Active'", StringComparison.Ordinal) ||
+                command.CommandText.Contains(" ILIKE ", StringComparison.Ordinal) ||
+                command.CommandText.Contains("COLLATE \"C\"", StringComparison.Ordinal) ||
+                command.CommandText.Contains("CASE", StringComparison.Ordinal) ||
+                command.CommandText.Contains("GROUP BY", StringComparison.Ordinal) ||
+                command.CommandText.Contains("LIMIT", StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{ComparableShapeId}/{command.CommandRole}: child loading repeats " +
+                    "comparable candidate selection, ranking, or limiting.");
             }
         }
     }
