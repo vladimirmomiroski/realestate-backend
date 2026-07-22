@@ -37,7 +37,7 @@ It is a live source-controlled issue register, not a project history, completed-
   - Risk: `ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(...)` bypasses normal EF change tracking for deterministic status and timestamp setup, which makes the fixture less aligned with the preferred test setup style.
   - Evidence: The helper calls `RealEstateDbContext.Database.ExecuteSqlInterpolatedAsync(...)` to update `Status` and `CreatedAtUtc`; the raw SQL is test-only and is not used by production query or repository code.
   - Smallest safe direction: Later replace the helper with `ExecuteUpdateAsync` or tracked EF setup if that remains practical and deterministic.
-  - Acceptance: This is low-priority test cleanup, not a production architecture issue, and does not block Chapter 10B.
+  - Acceptance: This remains low-priority test cleanup, not a production architecture issue, and did not block Chapter 10 completion.
   - Target task: Low-priority test cleanup.
 
 - **Invitation expiry can remain status-stale until touched**
@@ -60,13 +60,6 @@ It is a live source-controlled issue register, not a project history, completed-
   - Evidence: `PagedResult<T>` and `PagedResponse<T>` both expose `Items`, `Page`, `PageSize`, `TotalCount`, `TotalPages`, `HasNextPage`, and `HasPreviousPage`; public listing search returns `PagedResponse<ListingResponse>`, while my listings, agency listings, and dashboard listings return `PagedResult<ListingResponse>`.
   - Smallest safe direction: Choose one public pagination contract and use it consistently across public, personal, agency, and dashboard listing endpoints.
   - Target chapter: Chapter 12 — API Consistency, Observability, and Frontend Readiness.
-
-- **Location filters have broad translation matching semantics**
-  - Area: Listing search filters.
-  - Risk: Location filters may match a listing through one translation while the response is rendered in another requested language, and leading-wildcard `ILike` filters can become slow as data grows.
-  - Evidence: `ListingRepository.ApplyLocationFilters(...)` searches `City`, `Municipality`, and `Neighborhood` with `EF.Functions.ILike(..., "%term%")` across `Listing.Translations.Any(...)`; it does not scope those filters to the requested display language.
-  - Smallest safe direction: In Chapter 10, define whether location filters search all translations or only the requested language, then decide whether indexing, normalized location fields, or full-text/search infrastructure is justified.
-  - Target chapter: Chapter 10 — Search and Discovery Phase 2.
 
 - **Listing image upload can orphan a file if database persistence fails**
   - Area: Local file storage and listing image upload.
