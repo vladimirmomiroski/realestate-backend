@@ -39,7 +39,7 @@ The owner decisions are:
 6. Chapter 10 uses the existing schema-free multilingual location tuple.
 7. Chapter 10 does not add location tables or canonical location IDs.
 
-Checkpoint 10A is completed by this permanent rules document. Checkpoints 10B through 10G are implementation and verification work and are not completed by this document.
+Checkpoint 10A was completed by this permanent rules document. Checkpoints 10B through 10F were subsequently implemented and verified, and 10G completed the final regression, documentation, and safety closeout. All Chapter 10 checkpoints are complete.
 
 ## 3. Non-Negotiable Boundaries
 
@@ -500,7 +500,7 @@ Measure filtered count and page retrieval where applicable for:
 
 Do not add low-selectivity single-column indexes on statuses/enums/booleans by default, and do not assume a B-tree supports contains search.
 
-`q` fails the planning gate when its filtered-count or first-page median exceeds 250 ms on the locked profile, or its plan spills to disk. Record evidence and reopen text-search planning. Do not silently add `pg_trgm`, PostgreSQL full-text search, raw SQL, or an external engine.
+`q` fails the planning gate when its filtered-count or first-page median exceeds 250 ms on the locked profile, or its plan spills to disk. The original gate failure required an explicit owner decision rather than silently adding `pg_trgm`, PostgreSQL full-text search, raw SQL, or an external engine. The later evidence-backed decision accepted only the focused `pg_trgm` index described below; it did not broaden the product search contract.
 
 These gates are reproducible planning rules, not production traffic estimates or public SLOs.
 
@@ -589,6 +589,8 @@ Complete when:
 - private listing query methods are unchanged;
 - build and tests pass.
 
+Status: completed.
+
 ### 10C — Translation and Location Determinism
 
 Scope:
@@ -609,6 +611,8 @@ Complete when:
 - the broad-translation location issue remains in `backend-quality-handoff.md` until Chapter 10 closeout, after implementation, tests, and review;
 - build and tests pass.
 
+Status: completed.
+
 ### 10D — Minimal General Text Search
 
 Scope:
@@ -626,6 +630,8 @@ Complete when:
 - hidden statuses never match publicly;
 - suggestions, full-text search, and external engines remain absent;
 - build and tests pass.
+
+Status: completed.
 
 ### 10E — Comparable Listings and Map Readiness
 
@@ -650,6 +656,8 @@ Complete when:
 - no map endpoint or GIS dependency exists;
 - build and tests pass.
 
+Status: completed.
+
 ### 10F — PostgreSQL Query Review and Conditional Indexing
 
 Scope:
@@ -672,6 +680,8 @@ Complete when:
 - no speculative index or raw SQL production query exists;
 - build and tests pass.
 
+Status: completed.
+
 ### 10G — Full Verification and Documentation Closeout
 
 Scope:
@@ -691,9 +701,11 @@ Complete when:
 - the broad-translation location issue is removed only after implementation, tests, and review;
 - any newly discovered evidence-backed unresolved issue is added to `backend-quality-handoff.md` with an assigned target chapter;
 - stale Chapter 9L present-tense wording is corrected;
-- the roadmap remains Chapters 10, 11, and 12 before frontend development.
+- Chapter 10 is recorded complete, with Chapter 11 then Chapter 12 remaining before frontend development.
 
 The Chapter 9L wording is documentation debt, not unfinished Chapter 9 implementation. Corrections include the Chapter 9 purpose/final-status wording and the backend-context project snapshot, current-completion task, and next-task policy.
+
+Status: completed. The focused smoke suite passed 445/445 tests, the full suite passed 631/631 tests, all 15 migrations applied cleanly from zero, the EF model had no pending changes, and the permanent documents were reconciled with implemented behavior.
 
 ## 19. Likely Files by Checkpoint
 
@@ -768,7 +780,7 @@ recommendation engines and personalization
 AI price estimation and automated valuation
 exchange-rate conversion or storage
 PostgreSQL full-text search
-trigram or fuzzy-search extensions
+fuzzy-search product behavior beyond the implemented literal-`ILIKE` trigram index
 suggestions and autocomplete
 saved searches
 PostGIS and spatial search
@@ -816,9 +828,48 @@ unrelated agency, authentication, or background-processing work
 | Chapter 12 work leaks in | Preserve pagination types and global errors |
 | AI scope expands early | Preserve explicit infrastructure and feature deferrals |
 
-## 22. Chapter Completion Rule
+## 22. Final Implementation and Verification Status
 
-Chapter 10 is complete only when checkpoints 10A through 10G satisfy their completion criteria.
+Chapter 10 is complete. The final implementation provides:
+
+- deterministic `newest`, `priceAsc`, and `priceDesc` public ordering with listing UUID tie-breakers;
+- inclusive area/room and existing scalar/property filters, with explicit currency required for price filtering or ordering;
+- deterministic requested-language → `mk` → PostgreSQL `C` collation → translation UUID fallback, shared by response mapping, structured location, `q`, and comparables;
+- literal structured location matching on one effective translation row and literal four-field `q` search over `Title`, `City`, `Municipality`, and `Neighborhood`;
+- same-currency comparable eligibility and exact six-key deterministic ranking;
+- coordinate-pair/range validation and existing response fields sufficient for initial map markers;
+- QS1 selected-page-ID aggregate loading, QS2 set-based effective-translation filtering, and QS3 candidate-first comparable translation selection with selected-ID aggregate loading;
+- one accepted four-column `pg_trgm` GIN index, `IX_ListingTranslations_Q_Trigram`, supporting the existing literal `%contains%` `ILIKE` contract without adding fuzzy-search behavior; and
+- permanent query evidence plus an independent clean-environment reproducibility verification.
+
+Final verified facts:
+
+```text
+PostgreSQL: 16.14
+Profile: chapter-10f-v1
+Benchmark commit: db3ad3220f58a23b752c62d2f33b0a01fff864f1
+Listings: 100,000
+Translations: 200,000
+Deterministic invariants: 61/61
+Production commands: 33
+Typed parameters: 80
+Raw plans: 198
+Full tests: 631/631
+Spills / plan switches / anomalies / credential findings: 0 / 0 / 0 / 0
+Semantic result hash: 7f74f991bf29b6f3ad24d48f2e8e13ecf9f375ea6f9eb0da8f18204c528bfb36
+Q1 total: 120, with locked ordering unchanged
+Q1 count: approximately 9–11 ms across authoritative and reproducibility runs
+Q1 first page: approximately 10–12 ms across authoritative and reproducibility runs
+Evidence: docs/benchmarks/chapter-10f/evidence/
+```
+
+The populated trigram index is approximately 27 MB. The disposable experiment measured substantial translation-write and WAL amplification, so the index is not free or universally beneficial. It was accepted because the public search path is read-heavy and Q1 improved dramatically while its literal matching semantics, total, ordered IDs, and healthy query shapes remained stable. Broader fuzzy search, full-text search, suggestions, and other product-contract expansion remain deferred.
+
+The permanent evidence retains the concise authoritative SQL, median plans, environment, measurements, and summary. Benchmark history remains in the query-review workflow and evidence rather than being copied into this chapter document.
+
+## 23. Chapter Completion Rule
+
+Chapter 10 is complete: checkpoints 10A through 10G satisfy their completion criteria.
 
 Compilation alone is insufficient. Required behavior, PostgreSQL integration coverage, Active-only regression coverage, full build/test results, smoke tests, performance evidence, and documentation closeout must all be recorded.
 
