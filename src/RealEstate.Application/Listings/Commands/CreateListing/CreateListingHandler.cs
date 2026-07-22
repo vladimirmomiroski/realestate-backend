@@ -12,9 +12,6 @@ namespace RealEstate.Application.Listings.Commands.CreateListing;
 
 public sealed class CreateListingHandler
 {
-
-    private const int MaxFreeListingsPerUser = 3;
-
     private readonly IListingRepository _listingRepository;
     private readonly CreateListingValidator _validator;
     private readonly ICurrentUserService _currentUserService;
@@ -70,17 +67,6 @@ public sealed class CreateListingHandler
         if (validationError is not null)
         {
             return ServiceResult<ListingResponse>.ValidationError(validationError);
-        }
-
-        int existingListingsCount =
-            await _listingRepository.CountByCreatedByUserIdAsync(
-                userId,
-                cancellationToken);
-
-        if (existingListingsCount >= MaxFreeListingsPerUser)
-        {
-            return ServiceResult<ListingResponse>.ValidationError(
-                "Free listing limit reached. Each user can create up to 3 listings.");
         }
 
         var listing = new Listing

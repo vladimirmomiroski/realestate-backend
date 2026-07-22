@@ -46,14 +46,14 @@ public sealed class ListingMappingExtensionsTests
     }
 
     [Fact]
-    public void ToResponse_ShouldFallbackToFirstTranslation_WhenRequestedLanguageDoesNotExist()
+    public void ToResponse_ShouldFallbackToMacedonian_WhenRequestedLanguageDoesNotExist()
     {
         // Arrange
         var listing = CreateBaseListing();
         listing.Translations =
         [
-            CreateTranslation("mk", "МК Наслов"),
-            CreateTranslation("en", "EN Title")
+            CreateTranslation("en", "EN Title"),
+        CreateTranslation("mk", "МК Наслов")
         ];
 
         // Act
@@ -62,6 +62,100 @@ public sealed class ListingMappingExtensionsTests
         // Assert
         response.LanguageCode.Should().Be("mk");
         response.Title.Should().Be("МК Наслов");
+    }
+
+    [Fact]
+    public void ToResponse_ShouldSelectRequestedTranslationCaseInsensitively()
+    {
+        // Arrange
+        var listing = CreateBaseListing();
+        listing.Translations =
+        [
+            CreateTranslation("mk", "МК Наслов"),
+        CreateTranslation("EN", "Stored English Title")
+        ];
+
+        // Act
+        var response = listing.ToResponse("  en  ");
+
+        // Assert
+        response.LanguageCode.Should().Be("EN");
+        response.Title.Should().Be("Stored English Title");
+    }
+
+    [Fact]
+    public void ToResponse_ShouldUsePostgreSqlCOrdering_WhenRequestedAndMacedonianAreMissing()
+    {
+        // Arrange
+        var listing = CreateBaseListing();
+        listing.Translations =
+        [
+            CreateTranslation("\U00010000", "Supplementary Title"),
+        CreateTranslation("\uE000", "Private Use Title")
+        ];
+
+        // Act
+        var response = listing.ToResponse("de");
+
+        // Assert
+        response.LanguageCode.Should().Be("\uE000");
+        response.Title.Should().Be("Private Use Title");
+    }
+
+    [Fact]
+    public void ToResponse_ShouldNotDependOnTranslationInsertionOrder()
+    {
+        // Arrange
+        ListingTranslation privateUseTranslation =
+            CreateTranslation("\uE000", "Private Use Title");
+
+        ListingTranslation supplementaryTranslation =
+            CreateTranslation("\U00010000", "Supplementary Title");
+
+        var firstListing = CreateBaseListing();
+        firstListing.Translations =
+        [
+            supplementaryTranslation,
+        privateUseTranslation
+        ];
+
+        var secondListing = CreateBaseListing();
+        secondListing.Translations =
+        [
+            CreateTranslation("\uE000", "Private Use Title"),
+        CreateTranslation("\U00010000", "Supplementary Title")
+        ];
+
+        // Act
+        var firstResponse = firstListing.ToResponse("de");
+        var secondResponse = secondListing.ToResponse("de");
+
+        // Assert
+        firstResponse.LanguageCode.Should().Be("\uE000");
+        firstResponse.Title.Should().Be("Private Use Title");
+
+        secondResponse.LanguageCode.Should().Be("\uE000");
+        secondResponse.Title.Should().Be("Private Use Title");
+    }
+
+    [Fact]
+    public void ToResponse_ShouldLeaveTranslatedFieldsNull_WhenListingHasNoTranslations()
+    {
+        // Arrange
+        var listing = CreateBaseListing();
+        listing.Translations = [];
+
+        // Act
+        var response = listing.ToResponse("en");
+
+        // Assert
+        response.LanguageCode.Should().BeNull();
+        response.Title.Should().BeNull();
+        response.Description.Should().BeNull();
+        response.AddressLine.Should().BeNull();
+        response.City.Should().BeNull();
+        response.Municipality.Should().BeNull();
+        response.Neighborhood.Should().BeNull();
     }
 
     [Fact]

@@ -15,6 +15,7 @@ using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Listings.Commands.PublishListing;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
 using RealEstate.Application.Listings.Commands.ArchiveListing;
+using RealEstate.Application.Listings.Queries.GetComparableListings;
 
 namespace RealEstate.Api.Controllers;
 
@@ -36,11 +37,13 @@ public sealed class ListingsController : ControllerBase
     private readonly PublishListingHandler _publishListingHandler;
     private readonly UnpublishListingHandler _unpublishListingHandler;
     private readonly ArchiveListingHandler _archiveListingHandler;
+    private readonly GetComparableListingsHandler _getComparableListingsHandler;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
         GetListingsHandler getListingsHandler,
         GetListingByIdHandler getListingByIdHandler,
+        GetComparableListingsHandler getComparableListingsHandler,
         UploadListingImageHandler uploadListingImageHandler,
         DeleteListingImageHandler deleteListingImageHandler,
         SetPrimaryListingImageHandler setPrimaryListingImageHandler,
@@ -48,11 +51,13 @@ public sealed class ListingsController : ControllerBase
         GetMyListingsHandler getMyListingsHandler,  
         PublishListingHandler publishListingHandler,
         UnpublishListingHandler unpublishListingHandler,
-        ArchiveListingHandler archiveListingHandler)
+        ArchiveListingHandler archiveListingHandler
+        )
     {
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
         _getListingByIdHandler = getListingByIdHandler;
+        _getComparableListingsHandler = getComparableListingsHandler;
         _uploadListingImageHandler = uploadListingImageHandler;
         _deleteListingImageHandler = deleteListingImageHandler;
         _setPrimaryListingImageHandler = setPrimaryListingImageHandler;
@@ -61,6 +66,7 @@ public sealed class ListingsController : ControllerBase
         _publishListingHandler = publishListingHandler;
         _unpublishListingHandler = unpublishListingHandler;
         _archiveListingHandler = archiveListingHandler;
+        
     }
 
     [Authorize]
@@ -103,33 +109,44 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(PagedResponse<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+    typeof(PagedResponse<ListingResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponse<ListingResponse>>> GetListings(
-    [FromQuery] string lang = "mk",
-    [FromQuery] ListingType? listingType = null,
-    [FromQuery] Guid? agencyId = null,
-    [FromQuery] PropertyType? propertyType = null,
-    [FromQuery] HeatingType? heatingType = null,
-    [FromQuery] FurnishingStatus? furnishingStatus = null,
-    [FromQuery] PropertyCondition? condition = null,
-    [FromQuery] bool? hasBasement = null,
-    [FromQuery] bool? hasElevator = null,
-    [FromQuery] ApartmentType? apartmentType = null,
-    [FromQuery] HouseType? houseType = null,
-    [FromQuery] decimal? minYardAreaSquareMeters = null,
-    [FromQuery] decimal? maxYardAreaSquareMeters = null,
-    [FromQuery] decimal? minPrice = null,
-    [FromQuery] decimal? maxPrice = null,
-    [FromQuery] string? city = null,
-    [FromQuery] string? municipality = null,
-    [FromQuery] string? neighborhood = null,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 20,
-    CancellationToken cancellationToken = default)
+        [FromQuery] string lang = "mk",
+        [FromQuery] string? q = null,
+        [FromQuery] ListingType? listingType = null,
+        [FromQuery] Guid? agencyId = null,
+        [FromQuery] PropertyType? propertyType = null,
+        [FromQuery] HeatingType? heatingType = null,
+        [FromQuery] FurnishingStatus? furnishingStatus = null,
+        [FromQuery] PropertyCondition? condition = null,
+        [FromQuery] bool? hasBasement = null,
+        [FromQuery] bool? hasElevator = null,
+        [FromQuery] ApartmentType? apartmentType = null,
+        [FromQuery] HouseType? houseType = null,
+        [FromQuery] decimal? minYardAreaSquareMeters = null,
+        [FromQuery] decimal? maxYardAreaSquareMeters = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] string? currency = null,
+        [FromQuery] decimal? minAreaSquareMeters = null,
+        [FromQuery] decimal? maxAreaSquareMeters = null,
+        [FromQuery] decimal? minRooms = null,
+        [FromQuery] decimal? maxRooms = null,
+        [FromQuery] string sort = "newest",
+        [FromQuery] string? city = null,
+        [FromQuery] string? municipality = null,
+        [FromQuery] string? neighborhood = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
         var query = new GetListingsQuery
         {
             LanguageCode = lang,
+            SearchText = q,
             AgencyId = agencyId,
             ListingType = listingType,
             PropertyType = propertyType,
@@ -144,6 +161,12 @@ public sealed class ListingsController : ControllerBase
             MaxYardAreaSquareMeters = maxYardAreaSquareMeters,
             MinPrice = minPrice,
             MaxPrice = maxPrice,
+            Currency = currency,
+            MinAreaSquareMeters = minAreaSquareMeters,
+            MaxAreaSquareMeters = maxAreaSquareMeters,
+            MinRooms = minRooms,
+            MaxRooms = maxRooms,
+            Sort = sort,
             City = city,
             Municipality = municipality,
             Neighborhood = neighborhood,
@@ -151,9 +174,17 @@ public sealed class ListingsController : ControllerBase
             PageSize = pageSize
         };
 
-        var listings = await _getListingsHandler.HandleAsync(query, cancellationToken);
+        ServiceResult<PagedResponse<ListingResponse>> result =
+            await _getListingsHandler.HandleAsync(
+                query,
+                cancellationToken);
 
-        return Ok(listings);
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
     }
 
     [Authorize]
@@ -188,6 +219,46 @@ public sealed class ListingsController : ControllerBase
         var result = await _getListingByIdHandler.HandleAsync(id, lang, cancellationToken);
 
         if (result.Status == ServiceResultStatus.NotFound)
+        {
+            return NotFound(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/comparables")]
+    [ProducesResponseType(
+    typeof(IReadOnlyList<ListingResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<ListingResponse>>>
+    GetComparableListings(
+        Guid id,
+        [FromQuery] string lang = "mk",
+        [FromQuery] int limit = 6,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetComparableListingsQuery
+        {
+            ListingId = id,
+            LanguageCode = lang,
+            Limit = limit
+        };
+
+        ServiceResult<IReadOnlyList<ListingResponse>> result =
+            await _getComparableListingsHandler.HandleAsync(
+                query,
+                cancellationToken);
+
+        if (result.Status ==
+            ServiceResultStatus.ValidationError)
+        {
+            return BadRequest(result.Error);
+        }
+
+        if (result.Status ==
+            ServiceResultStatus.NotFound)
         {
             return NotFound(result.Error);
         }

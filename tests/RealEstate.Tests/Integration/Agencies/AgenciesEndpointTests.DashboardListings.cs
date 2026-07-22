@@ -51,70 +51,96 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task GetAgencyDashboardListings_ShouldReturnDraftActiveAndArchivedListingsForAgency()
+    public async Task GetAgencyDashboardListings_ShouldReturnAllStatusesForAgency()
     {
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
 
         Guid agencyId = await CreateAgencyAsAsync(owner);
-        Guid otherAgencyId = await CreateAgencyAsAsync(owner);
 
-        Guid draftListingId = await CreateAgencyListingAsAsync(owner, agencyId, price: 90000);
-        Guid activeListingId = await CreateAgencyListingAsAsync(owner, agencyId, price: 100000);
-        Guid archivedListingId = await CreateAgencyListingAsAsync(owner, agencyId, price: 110000);
+        Guid activeListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 90000m);
 
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            draftListingId,
-            ListingStatus.Draft);
+        Guid draftListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 100000m);
 
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            activeListingId,
-            ListingStatus.Active);
+        Guid archivedListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 110000m);
 
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            archivedListingId,
-            ListingStatus.Archived);
+        Guid reservedListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 120000m);
+
+        Guid soldListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 130000m);
+
+        Guid rentedListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 140000m);
+
+        var expectedListings =
+            new Dictionary<Guid, ListingStatus>
+            {
+                [activeListingId] = ListingStatus.Active,
+                [draftListingId] = ListingStatus.Draft,
+                [archivedListingId] = ListingStatus.Archived,
+                [reservedListingId] = ListingStatus.Reserved,
+                [soldListingId] = ListingStatus.Sold,
+                [rentedListingId] = ListingStatus.Rented
+            };
+
+        foreach ((Guid listingId, ListingStatus status) in expectedListings)
+        {
+            await ListingTestHelpers.SetListingStatusAsync(
+                _factory,
+                listingId,
+                status);
+        }
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
         try
         {
-            HttpResponseMessage response = await _httpClient.GetAsync(
-                $"/api/agencies/{agencyId}/dashboard/listings?lang=en&page=1&pageSize=100");
+            HttpResponseMessage response =
+                await _httpClient.GetAsync(
+                    $"/api/agencies/{agencyId}/dashboard/listings" +
+                    "?lang=en" +
+                    "&page=1" +
+                    "&pageSize=100");
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
-
-            json.GetProperty("totalCount").GetInt32().Should().Be(3);
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
 
             JsonElement items = json.GetProperty("items");
 
-            items.GetArrayLength().Should().Be(3);
+            items.GetArrayLength().Should().Be(6);
+            json.GetProperty("totalCount").GetInt32().Should().Be(6);
 
-            List<Guid> listingIds = items
+            Dictionary<Guid, ListingStatus> actualListings = items
                 .EnumerateArray()
-                .Select(item => item.GetProperty("id").GetGuid())
-                .ToList();
+                .ToDictionary(
+                    item => item.GetProperty("id").GetGuid(),
+                    ReadListingStatusFromJson);
 
-            listingIds.Should().Contain(draftListingId);
-            listingIds.Should().Contain(activeListingId);
-            listingIds.Should().Contain(archivedListingId);
-
-            List<ListingStatus> statuses = items
-                .EnumerateArray()
-                .Select(ReadListingStatusFromJson)
-                .ToList();
-
-            statuses.Should().BeEquivalentTo(
-            [
-                ListingStatus.Draft,
-                ListingStatus.Active,
-                ListingStatus.Archived
-            ]);
+            actualListings.Should().BeEquivalentTo(expectedListings);
         }
         finally
         {
@@ -392,5 +418,168 @@ public sealed partial class AgenciesEndpointTests
         }
 
         return (ListingStatus)statusElement.GetInt32();
+    }
+
+    [Fact]
+    public async Task GetAgencyDashboardListings_NewestOrderingAndPaginationRemainUnchanged()
+    {
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid agencyId = await CreateAgencyAsAsync(owner);
+
+        Guid oldestListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 100000m);
+
+        Guid middleListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 110000m);
+
+        Guid newestListingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 120000m);
+
+        DateTime oldestTimestamp =
+            new(2032, 4, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            oldestListingId,
+            ListingStatus.Reserved,
+            oldestTimestamp);
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            middleListingId,
+            ListingStatus.Sold,
+            oldestTimestamp.AddHours(1));
+
+        await ListingTestHelpers.SetListingStatusAndCreatedAtUtcAsync(
+            _factory,
+            newestListingId,
+            ListingStatus.Rented,
+            oldestTimestamp.AddHours(2));
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response =
+                await _httpClient.GetAsync(
+                    $"/api/agencies/{agencyId}/dashboard/listings" +
+                    "?lang=en" +
+                    "&page=2" +
+                    "&pageSize=1");
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            JsonElement items = json.GetProperty("items");
+
+            items.GetArrayLength().Should().Be(1);
+            items[0].GetProperty("id").GetGuid()
+                .Should().Be(middleListingId);
+
+            json.GetProperty("page").GetInt32().Should().Be(2);
+            json.GetProperty("pageSize").GetInt32().Should().Be(1);
+            json.GetProperty("totalCount").GetInt32().Should().Be(3);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task GetAgencyDashboardListings_DeterministicFallback_PreservesPrivateResponseBehavior()
+    {
+        // Arrange
+        const string currency = "AGD";
+
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+
+        Guid agencyId =
+            await CreateAgencyAsAsync(owner);
+
+        Guid listingId =
+            await CreateAgencyListingAsAsync(
+                owner,
+                agencyId,
+                price: 100000m,
+                currency: currency);
+
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            listingId,
+            CreateCustomListingTranslation(
+                "\U00010000",
+                "Supplementary Dashboard Title",
+                city: "Supplementary Dashboard City"),
+            CreateCustomListingTranslation(
+                "\uE000",
+                "Private Use Dashboard Title",
+                city: "Private Use Dashboard City"));
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Reserved);
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            // Act
+            HttpResponseMessage response =
+                await _httpClient.GetAsync(
+                    $"/api/agencies/{agencyId}/dashboard/listings" +
+                    "?lang=de" +
+                    "&page=1" +
+                    "&pageSize=1");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            json.GetProperty("page").GetInt32().Should().Be(1);
+            json.GetProperty("pageSize").GetInt32().Should().Be(1);
+            json.GetProperty("totalCount").GetInt32().Should().Be(1);
+
+            JsonElement items = json.GetProperty("items");
+
+            items.GetArrayLength().Should().Be(1);
+
+            JsonElement item = items[0];
+
+            item.GetProperty("id").GetGuid().Should().Be(listingId);
+
+            ReadListingStatusFromJson(item)
+                .Should().Be(ListingStatus.Reserved);
+
+            item.GetProperty("languageCode").GetString()
+                .Should().Be("\uE000");
+
+            item.GetProperty("title").GetString()
+                .Should().Be("Private Use Dashboard Title");
+
+            item.GetProperty("city").GetString()
+                .Should().Be("Private Use Dashboard City");
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 }

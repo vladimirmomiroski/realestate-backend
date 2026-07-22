@@ -15,11 +15,12 @@ namespace RealEstate.Infrastructure.Persistence.Migrations
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
-    #pragma warning disable 612, 618
+#pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("RealEstate.Domain.Entities.Agency", b =>
@@ -485,6 +486,12 @@ namespace RealEstate.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ListingId", "LanguageCode")
                         .IsUnique();
+
+                    b.HasIndex("Title", "City", "Municipality", "Neighborhood")
+                        .HasDatabaseName("IX_ListingTranslations_Q_Trigram");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Title", "City", "Municipality", "Neighborhood"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Title", "City", "Municipality", "Neighborhood"), new[] { "gin_trgm_ops", "gin_trgm_ops", "gin_trgm_ops", "gin_trgm_ops" });
 
                     b.ToTable("ListingTranslations", (string)null);
                 });

@@ -75,20 +75,24 @@ agency logo management
 platform-admin agency verification
 agency dashboard listings
 agency dashboard summary
+deterministic multilingual public search and sorting
+structured location and literal text search
+comparable listings
+coordinate-ready listing responses
 ```
 
 Current backend phase:
 
 ```text
-Chapter 9 feature implementation is complete.
-Chapter 9L documentation cleanup is in progress.
+Chapter 9 and its 9L documentation cleanup are complete.
+Chapter 10 — Search and Discovery Phase 2 is complete.
 Frontend work has not started yet.
 ```
 
 Current test state:
 
 ```text
-416/416 tests passing
+631/631 tests passing
 ```
 
 ## 4. Tech stack
@@ -483,19 +487,17 @@ user must not be Disabled
 Agency.Status does not block unpublish/archive
 ```
 
-### Listing creation limit
+### Listing creation count
 
 Current production rule:
 
 ```text
-Each user can create up to 3 listings.
-The count is based on CreatedByUserId.
-Agency listings also count against the creator's limit.
+An authenticated Active user has no application-level per-user count limit on listing creation.
+Existing authentication, Disabled-user, request-validation, and agency-permission rules still apply.
+Future subscription, billing, quota, or plan limits must be implemented separately as an explicit feature.
 ```
 
-This rule is still active but is scheduled for product review in Chapter 11.
-
-Do not change it inside unrelated chapters.
+PendingVerification draft-creation behavior remains governed by the existing user-status rules.
 
 ### Images
 
@@ -523,16 +525,19 @@ The filtered unique primary-image index requires the existing two-phase primary-
 
 ## 11. Search and listing queries
 
-Current public listing search supports pagination and filters including:
+Public listing search uses one shared Active-only repository path for general search and public agency listings. It supports deterministic pagination and:
 
 ```text
 agency
 listing type
 property type
-price range
+newest, priceAsc, and priceDesc ordering with UUID tie-breakers
+explicit currency-safe price filtering and sorting
+inclusive area and room ranges
 city
 municipality
 neighborhood
+literal four-field q search
 heating
 furnishing
 condition
@@ -543,17 +548,19 @@ house type
 yard-area range
 ```
 
-Current repository helper structure includes:
+The effective translation is selected deterministically by requested language, then `mk`, then PostgreSQL `C` language ordering and translation UUID. Structured location and `q` predicates use that one effective row; `%`, `_`, and `\` are escaped as literal characters.
+
+Comparable listings use an Active source and Active candidates, same listing/property type and currency, positive price/area, effective-language/city eligibility, and the locked six-key deterministic order. Coordinates are validated as an all-or-nothing pair and by latitude/longitude range.
+
+Final query-shape work completed:
 
 ```text
-ApplyBasicFilters
-ApplyPropertyDetailFilters
-ApplyLocationFilters
-ApplyListingIncludes
-NormalizePagination
+QS1 — execute each ordered page root once and hydrate translations/images by selected IDs
+QS2 — set-based effective-translation filtering for location and q
+QS3 — scalar-eligible comparable candidates before translation selection, with selected-ID hydration
 ```
 
-Do not introduce specifications or a query-builder abstraction until Chapter 10 confirms the need.
+The accepted `IX_ListingTranslations_Q_Trigram` four-column GIN index supports the existing literal `%contains%` `ILIKE` contract. It does not add fuzzy search, full-text search, canonical locations, exchange rates, or a separate search platform. Permanent evidence is under `docs/benchmarks/chapter-10f/evidence/`.
 
 ## 12. Agencies
 
@@ -973,6 +980,7 @@ DELETE /api/users/me/avatar
 POST /api/listings
 GET  /api/listings
 GET  /api/listings/{id}
+GET  /api/listings/{id}/comparables
 GET  /api/listings/my
 
 PUT /api/listings/{id}/publish
@@ -1036,12 +1044,14 @@ ListingHouseDetails
 __EFMigrationsHistory
 ```
 
-Schema additions completed through Chapter 9 include:
+Schema additions completed through Chapter 10 include:
 
 ```text
 user avatar metadata
 agency invitation table
 agency logo metadata
+pg_trgm extension
+IX_ListingTranslations_Q_Trigram four-column GIN index
 ```
 
 Enums are stored as strings in PostgreSQL through EF Core conversions.
@@ -1106,6 +1116,12 @@ member disable and role change
 agency logo replacement/deletion
 platform-admin verification
 dashboard summary isolation and counts
+deterministic public sorting, filtering, count, and pagination
+effective-translation and structured-location parity
+literal q scope and wildcard escaping
+comparable eligibility and six-key ordering
+public Active-only and authorized private non-Active visibility
+pg_trgm extension and trigram-index catalog shape
 ```
 
 ## 21. Development workflow
@@ -1153,14 +1169,6 @@ docs/backend-quality-handoff.md
 
 Important current decisions/risks:
 
-### Listing creation limit
-
-```text
-The 3-listing limit is probably too restrictive for early product growth.
-It also counts agency listings against the creator.
-Review/remove/redesign in Chapter 11.
-```
-
 ### Last-owner concurrency
 
 ```text
@@ -1203,9 +1211,9 @@ Review in Chapter 12.
 ### Search/query growth
 
 ```text
-Current query structure is acceptable.
-Do not introduce a specification system prematurely.
-Chapter 10 will determine the next search/query architecture.
+Chapter 10 completed focused EF query-shape corrections without adding a specification system or raw production SQL.
+The accepted trigram GIN index is a measured read-heavy tradeoff, not a general search-framework decision.
+Broader fuzzy search, full-text search, and external search remain deferred product/infrastructure choices.
 ```
 
 ### File storage
@@ -1217,27 +1225,25 @@ Cloud/object storage is deferred until deployment needs justify it.
 
 ## 23. Locked roadmap
 
-### Current completion task
+### Current completed milestone and next work
 
 ```text
-Chapter 9L — Documentation cleanup
+Completed: Chapter 10 — Search and Discovery Phase 2
+Next: Chapter 11 — Data Integrity and Targeted Hardening
 ```
 
-Scope:
+Chapter 10 completion includes:
 
 ```text
-refresh Chapter 9 rules document
-rewrite backend-context.md
-clean docs/backend-quality-handoff.md
-remove stale/resolved information
-record the final test count and current roadmap
+deterministic public search, translation/location behavior, and comparables
+PostgreSQL query-shape corrections and the accepted trigram index
+authoritative permanent evidence and independent reproducibility verification
+631/631 passing tests
 ```
 
 ### Backend chapters before frontend
 
 ```text
-Chapter 10 — Search and Discovery Phase 2
-
 Chapter 11 — Data Integrity and Targeted Hardening
 
 Chapter 12 — API Consistency, Observability, and Frontend Readiness
@@ -1261,20 +1267,23 @@ The order and scope of Chapters 13–15 may change after frontend development an
 
 ### Chapter 10 — Search and Discovery Phase 2
 
-Likely focus:
+Completed capabilities:
 
 ```text
-sorting
-better filters
-location normalization
-text search
-suggestions
-query-shape review
-index review based on actual searches
-execution-plan analysis where needed
+deterministic sorting and currency-safe price behavior
+area/room and existing public filters
+deterministic effective translations and structured location matching
+minimal literal four-field q search
+same-currency deterministic comparable listings
+coordinate validation and map-marker readiness
+QS1/QS2/QS3 query-shape corrections
+evidence-backed pg_trgm GIN index
+permanent benchmark evidence and clean reproducibility verification
 ```
 
-Do not add raw SQL or advanced search infrastructure without evidence.
+The original Q1 first-page sequence was approximately 3,511 ms. The final reproducibility run was approximately 11 ms with the same literal matching semantics, total, locked ordered IDs, and semantic result hash. The populated index is approximately 27 MB and carries substantial measured translation-write/WAL amplification; it was accepted for the read-heavy public-search path, not as a free or universal optimization.
+
+Authoritative evidence: `docs/benchmarks/chapter-10f/evidence/` (benchmark commit `db3ad3220f58a23b752c62d2f33b0a01fff864f1`; semantic result hash `7f74f991bf29b6f3ad24d48f2e8e13ecf9f375ea6f9eb0da8f18204c528bfb36`).
 
 ### Chapter 11 — Data Integrity and Targeted Hardening
 
@@ -1286,7 +1295,6 @@ invitation acceptance races
 transaction boundaries
 unique-constraint handling
 idempotency review
-listing-limit product decision
 other verified quality-backlog items
 ```
 
@@ -1360,6 +1368,9 @@ Use read-only review for important features.
 Current next task:
 
 ```text
-Finish Chapter 9L documentation cleanup.
-Then begin Chapter 10 planning and rules.
+Begin Chapter 11 — Data Integrity and Targeted Hardening.
+Then complete Chapter 12 — API Consistency, Observability, and Frontend Readiness.
+Begin frontend development after Chapter 12.
 ```
+
+After frontend development begins, backend defects discovered through real integration may be handled on focused bugfix branches with regression tests. They must not silently expand a completed chapter or an unrelated current chapter.

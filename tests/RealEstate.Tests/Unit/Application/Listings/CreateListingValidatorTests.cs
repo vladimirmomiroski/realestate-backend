@@ -236,6 +236,174 @@ public sealed class CreateListingValidatorTests
         result.Should().Be("Year renovated cannot be earlier than year built.");
     }
 
+    [Fact]
+    public void Validate_ShouldReturnNull_WhenBothCoordinatesAreNull()
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Latitude = null;
+        request.Longitude = null;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(-90, -180)]
+    [InlineData(90, 180)]
+    [InlineData(0, 0)]
+    public void Validate_ShouldReturnNull_WhenCoordinatesAreWithinRange(
+    int latitude,
+    int longitude)
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Latitude = latitude;
+        request.Longitude = longitude;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void Validate_ShouldReturnError_WhenOnlyLatitudeIsProvided()
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Latitude = 41.9981m;
+        request.Longitude = null;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().Be(
+            CreateListingValidator.CoordinatePairError);
+    }
+
+    [Fact]
+    public void Validate_ShouldReturnError_WhenOnlyLongitudeIsProvided()
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Latitude = null;
+        request.Longitude = 21.4254m;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().Be(
+            CreateListingValidator.CoordinatePairError);
+    }
+
+    [Theory]
+    [InlineData(-91)]
+    [InlineData(91)]
+    public void Validate_ShouldReturnError_WhenLatitudeIsOutsideRange(
+    int latitude)
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Latitude = latitude;
+        request.Longitude = 21.4254m;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().Be(
+            CreateListingValidator.LatitudeOutOfRangeError);
+    }
+
+    [Theory]
+    [InlineData(-181)]
+    [InlineData(181)]
+    public void Validate_ShouldReturnError_WhenLongitudeIsOutsideRange(
+    int longitude)
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Latitude = 41.9981m;
+        request.Longitude = longitude;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().Be(
+            CreateListingValidator.LongitudeOutOfRangeError);
+    }
+
+    [Theory]
+    [InlineData("EUR")]
+    [InlineData("eur")]
+    [InlineData(" EuR ")]
+    public void Validate_ShouldReturnNull_WhenCurrencyHasThreeAsciiLetters(
+    string currency)
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Currency = currency;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("EU")]
+    [InlineData("EURO")]
+    [InlineData("E1R")]
+    [InlineData("E_R")]
+    [InlineData("EÜR")]
+    public void Validate_ShouldReturnError_WhenCurrencyIsNotThreeAsciiLetters(
+        string currency)
+    {
+        // Arrange
+        CreateListingRequest request =
+            CreateValidApartmentRequest();
+
+        request.Currency = currency;
+
+        // Act
+        string? result =
+            _validator.Validate(request);
+
+        // Assert
+        result.Should().Be(
+            CreateListingValidator.InvalidCurrencyError);
+    }
+
     private static CreateListingRequest CreateValidApartmentRequest()
     {
         return new CreateListingRequest

@@ -18,8 +18,7 @@ integration and domain coverage
 
 Chapter 9 intentionally stays below the level of a full CRM, billing system, notification platform, or analytics product.
 
-Detailed implementation is complete through 9K.
-9L documentation cleanup is the final chapter task.
+Detailed implementation and the 9L documentation cleanup are complete. Chapter 9 is closed; this document preserves its final behavior and historical verification record.
 
 ## 2. Final implementation status
 
@@ -36,10 +35,10 @@ Detailed implementation is complete through 9K.
 9I  — Agency logo upload/delete: completed
 9J  — Platform-admin agency verification: completed
 9K  — Agency dashboard summary: completed
-9L  — Documentation/context/quality-handoff cleanup: in progress
+9L  — Documentation/context/quality-handoff cleanup: completed
 ```
 
-Current verification checkpoint:
+Chapter 9 closeout verification checkpoint at completion:
 
 ```text
 dotnet build passed
@@ -803,7 +802,7 @@ Promote another Active member to Owner first.
 Then demote the old Owner.
 ```
 
-The same concurrency risk as member disabling remains deferred to Chapter 11.
+The Owner-to-Agent count-and-mutate concurrency risk remains deferred to Chapter 11.
 
 ## 16. Agency logo management
 
@@ -1419,7 +1418,7 @@ Chapter 9 intentionally did not add billing, email delivery, CRM, advanced analy
 
 ## 25. 9L documentation closeout
 
-9L updates:
+9L completed updates to:
 
 ```text
 docs/backend-context.md
@@ -1427,7 +1426,7 @@ docs/chapters/chapter-09-agency-phase-2.md
 docs/backend-quality-handoff.md
 ```
 
-9L goals:
+The completed 9L goals were:
 
 ```text
 record final implemented behavior
@@ -1439,6 +1438,8 @@ align roadmap across documentation
 ```
 
 ## 26. Roadmap after Chapter 9
+
+The following was the roadmap recorded when Chapter 9 closed. Chapter 10 has since completed; Chapter 11 is now next, followed by Chapter 12 and then frontend development.
 
 ```text
 Chapter 10 — Search and Discovery Phase 2

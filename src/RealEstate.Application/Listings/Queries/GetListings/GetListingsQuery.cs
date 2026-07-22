@@ -6,6 +6,8 @@ public sealed class GetListingsQuery
 {
     public string LanguageCode { get; set; } = "mk";
 
+    public string? SearchText { get; set; }
+
     public Guid? AgencyId { get; set; }
 
     public ListingType? ListingType { get; set; }
@@ -33,6 +35,21 @@ public sealed class GetListingsQuery
     public decimal? MinPrice { get; set; }
 
     public decimal? MaxPrice { get; set; }
+
+    public string? Currency { get; set; }
+
+    public decimal? MinAreaSquareMeters { get; set; }
+
+    public decimal? MaxAreaSquareMeters { get; set; }
+
+    public decimal? MinRooms { get; set; }
+
+    public decimal? MaxRooms { get; set; }
+
+    public string Sort { get; set; } = "newest";
+
+    public ListingSortOption SortOption { get; set; } =
+        ListingSortOption.Newest;
 
     public string? City { get; set; }
 

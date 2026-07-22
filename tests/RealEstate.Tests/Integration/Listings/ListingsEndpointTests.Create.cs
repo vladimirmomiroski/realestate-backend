@@ -220,61 +220,36 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task CreateListing_WhenUserHasThreeListings_ReturnsBadRequest()
+    public async Task CreateListing_WhenUserAlreadyHasTenListings_ReturnsCreated()
     {
         AuthenticatedTestUser user =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-
-        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
-        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
-        await ListingTestHelpers.CreateListingAsAsync(_httpClient, user);
 
         _httpClient.AuthorizeAs(user.AccessToken);
 
         try
         {
-            var request = ListingTestHelpers.CreateValidListingRequest();
+            for (int listingNumber = 1; listingNumber <= 10; listingNumber++)
+            {
+                var request = ListingTestHelpers.CreateValidListingRequest();
 
-            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
+                    "/api/listings",
+                    request);
+
+                response.StatusCode.Should().Be(
+                    HttpStatusCode.Created,
+                    $"listing {listingNumber} should be created successfully");
+            }
+
+            var eleventhRequest = ListingTestHelpers.CreateValidListingRequest();
+
+            HttpResponseMessage eleventhResponse = await _httpClient.PostAsJsonAsync(
                 "/api/listings",
-                request);
 
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+                eleventhRequest);
 
-            string error = await response.Content.ReadAsStringAsync();
-
-            error.Should().Contain("Free listing limit reached");
-        }
-        finally
-        {
-            _httpClient.ClearAuthorization();
-        }
-    }
-
-    [Fact]
-    public async Task CreateListing_LimitIsPerUser_NotGlobal()
-    {
-        AuthenticatedTestUser firstUser =
-            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-
-        AuthenticatedTestUser secondUser =
-            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-
-        await ListingTestHelpers.CreateListingAsAsync(_httpClient, firstUser);
-        await ListingTestHelpers.CreateListingAsAsync(_httpClient, firstUser);
-        await ListingTestHelpers.CreateListingAsAsync(_httpClient, firstUser);
-
-        _httpClient.AuthorizeAs(secondUser.AccessToken);
-
-        try
-        {
-            var request = ListingTestHelpers.CreateValidListingRequest();
-
-            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                "/api/listings",
-                request);
-
-            response.StatusCode.Should().Be(HttpStatusCode.Created);
+            eleventhResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         }
         finally
         {

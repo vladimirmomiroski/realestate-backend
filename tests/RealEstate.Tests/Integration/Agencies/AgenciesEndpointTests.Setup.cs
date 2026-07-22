@@ -7,6 +7,7 @@ using RealEstate.Tests.Integration.Listings;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using RealEstate.Domain.Entities;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -89,25 +90,30 @@ public sealed partial class AgenciesEndpointTests : IClassFixture<CustomWebAppli
     }
 
     private async Task<Guid> CreateAgencyListingAsAsync(
-    AuthenticatedTestUser user,
-    Guid agencyId,
-    decimal price = 99000)
+     AuthenticatedTestUser user,
+     Guid agencyId,
+     decimal price = 99000m,
+     string currency = "EUR")
     {
         _httpClient.AuthorizeAs(user.AccessToken);
 
         try
         {
-            var request = ListingTestHelpers.CreateValidListingRequest(
-                price: price,
-                agencyId: agencyId);
+            object request =
+                ListingTestHelpers.CreateValidListingRequest(
+                    price: price,
+                    agencyId: agencyId,
+                    currency: currency);
 
-            HttpResponseMessage response = await _httpClient.PostAsJsonAsync(
-                "/api/listings",
-                request);
+            HttpResponseMessage response =
+                await _httpClient.PostAsJsonAsync(
+                    "/api/listings",
+                    request);
 
             response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-            JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
 
             return json.GetProperty("id").GetGuid();
         }
@@ -129,6 +135,27 @@ public sealed partial class AgenciesEndpointTests : IClassFixture<CustomWebAppli
             addressLine = "Updated Street 1",
             city = "Skopje",
             municipality = "Karpos"
+        };
+    }
+
+    private static ListingTranslation CreateCustomListingTranslation(
+        string languageCode,
+        string title,
+        string? city = null,
+        string? municipality = null,
+        string? neighborhood = null,
+        Guid? id = null)
+    {
+        return new ListingTranslation
+        {
+            Id = id ?? Guid.NewGuid(),
+            LanguageCode = languageCode,
+            Title = title,
+            Description = $"{title} description",
+            AddressLine = $"{title} address",
+            City = city,
+            Municipality = municipality,
+            Neighborhood = neighborhood
         };
     }
 }
