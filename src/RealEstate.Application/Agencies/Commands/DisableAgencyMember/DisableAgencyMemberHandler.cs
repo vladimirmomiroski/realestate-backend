@@ -20,15 +20,18 @@ public sealed class DisableAgencyMemberHandler
     }
 
     public async Task<ServiceResult<bool>> HandleAsync(
-        Guid agencyId,
-        Guid memberId,
-        CancellationToken cancellationToken)
+     Guid agencyId,
+     Guid memberId,
+     CancellationToken cancellationToken)
     {
+        const string forbiddenMessage =
+            "Only active agency owners can disable agency members.";
+
         AgencyAdminAccessResult<bool> accessResult =
             await _agencyAdminAccessChecker
                 .EnsureCurrentUserIsActiveOwnerAsync<bool>(
                     agencyId,
-                    "Only active agency owners can disable agency members.",
+                    forbiddenMessage,
                     cancellationToken);
 
         if (accessResult.HasFailure)
@@ -36,33 +39,93 @@ public sealed class DisableAgencyMemberHandler
             return accessResult.Failure!;
         }
 
-        AgencyMember? member =
-            await _agencyRepository.GetMemberByIdForUpdateAsync(
-                agencyId,
-                memberId,
-                cancellationToken);
+        IAgencyOwnerMutationScope? ownerMutationScope =
+            await _agencyRepository
+                .BeginLastActiveOwnerMutationAsync(
+                    agencyId,
+                    cancellationToken);
 
-        if (member is null)
+        if (ownerMutationScope is null)
         {
             return ServiceResult<bool>.NotFound(
-                "Agency member was not found.");
+                "Agency was not found.");
         }
 
-        if (member.UserId == accessResult.CurrentUserId)
+        await using (ownerMutationScope)
         {
-            return ServiceResult<bool>.ValidationError(
-                "Agency owners cannot disable themselves.");
-        }
+            var protectedActorAccess =
+                await _agencyRepository
+                    .GetMemberAccessReadOnlyAsync(
+                        agencyId,
+                        accessResult.CurrentUserId,
+                        cancellationToken);
 
-        if (member.Status == AgencyMemberStatus.Disabled)
-        {
+            if (protectedActorAccess is null ||
+                protectedActorAccess.Status !=
+                    AgencyMemberStatus.Active ||
+                protectedActorAccess.Role !=
+                    AgencyMemberRole.Owner)
+            {
+                return ServiceResult<bool>.Forbidden(
+                    forbiddenMessage);
+            }
+
+            AgencyMember? member =
+                await _agencyRepository
+                    .GetMemberByIdForUpdateAsync(
+                        agencyId,
+                        memberId,
+                        cancellationToken);
+
+            if (member is null)
+            {
+                return ServiceResult<bool>.NotFound(
+                    "Agency member was not found.");
+            }
+
+            if (member.UserId ==
+                accessResult.CurrentUserId)
+            {
+                return ServiceResult<bool>.ValidationError(
+                    "Agency owners cannot disable themselves.");
+            }
+
+            if (member.Status ==
+                AgencyMemberStatus.Disabled)
+            {
+                await ownerMutationScope.CommitAsync(
+                    cancellationToken);
+
+                return ServiceResult<bool>.Success(true);
+            }
+
+            if (member.Status ==
+                    AgencyMemberStatus.Active &&
+                member.Role ==
+                    AgencyMemberRole.Owner)
+            {
+                int activeOwnerCount =
+                    await _agencyRepository
+                        .CountActiveOwnersAsync(
+                            agencyId,
+                            cancellationToken);
+
+                if (activeOwnerCount <= 1)
+                {
+                    return ServiceResult<bool>.ValidationError(
+                        "Cannot disable the last active agency owner.");
+                }
+            }
+
+            member.Disable();
+
+            await _agencyRepository.SaveChangesAsync(
+                cancellationToken);
+
+            await ownerMutationScope.CommitAsync(
+                cancellationToken);
+
             return ServiceResult<bool>.Success(true);
         }
-
-        member.Disable();
-
-        await _agencyRepository.SaveChangesAsync(cancellationToken);
-
-        return ServiceResult<bool>.Success(true);
     }
 }
