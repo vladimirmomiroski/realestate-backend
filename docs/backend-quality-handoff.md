@@ -25,6 +25,22 @@ It is a live source-controlled issue register, not a project history, completed-
   - Smallest safe direction: Add concurrency protection for Owner -> Agent demotion, or enforce the invariant with a database-backed strategy, then cover the behavior with targeted tests.
   - Target chapter: Chapter 11 — Data Integrity and Targeted Hardening.
 
+- **Transaction cleanup can replace an in-flight exception**
+  - Area: Chapter 11A agency-owner transaction cleanup.
+  - Risk: In the rare case where rollback or transaction disposal fails while another exception is already propagating, the cleanup exception may replace the original exception. This is mainly an observability and diagnostic risk, not a proven last-owner invariant gap.
+  - Evidence: `AgencyRepository.BeginLastActiveOwnerMutationAsync(...)` rolls back and disposes inside its exception path, and `AgencyOwnerMutationScope.DisposeAsync()` performs the same cleanup for an uncommitted scope; neither path separately preserves an already-propagating exception if cleanup itself fails.
+  - Smallest safe direction: Revisit exception preservation only if a later transaction or observability checkpoint naturally introduces a broader policy for retaining original and cleanup failures.
+  - Classification: Non-blocking, not required to reopen Chapter 11A, and suitable for evidence-based cleanup when related future work touches the same code.
+  - Target task: Related future transaction or observability cleanup.
+
+- **Concurrency-test request tasks are not drained after orchestration failure**
+  - Area: Chapter 11A deterministic concurrency-test cleanup.
+  - Risk: If deterministic test orchestration fails after HTTP request tasks start but before the normal awaits, the database gate is released but those tasks are not explicitly drained. The shared timeout bounds them, so this is test-failure-path hygiene rather than incomplete concurrency evidence.
+  - Evidence: `AgenciesEndpointTests.ExecuteContestedOwnerMutationAsync(...)` releases `gateTransaction` in `finally`, while `firstRequestTask` and `secondRequestTask` are awaited only on the normal path after both PostgreSQL blocking relationships are established.
+  - Smallest safe direction: Revisit task cancellation and draining only if later concurrency checkpoints naturally reuse or extract this test-local coordination mechanism.
+  - Classification: Non-blocking, not required to reopen Chapter 11A, and suitable for evidence-based cleanup when related future work touches the same code.
+  - Target task: Related future concurrency-test cleanup.
+
 - **Disabled listing creators can still mutate listing images**
   - Area: Listing image mutations.
   - Risk: A Disabled user who created a listing can still upload, delete, reorder, or set primary listing images if their JWT is otherwise valid.
