@@ -47,6 +47,14 @@ It is a live source-controlled issue register, not a project history, completed-
   - Smallest safe direction: Decide whether invitation list responses should expose stored status only, compute an effective status, or run an explicit expiration process before listing.
   - Target chapter: Chapter 12 — API Consistency, Observability, and Frontend Readiness.
 
+- **Race-time unique conflicts are not translated consistently**
+  - Area: Registration, agency creation, and HTTP conflict handling.
+  - Risk: Two concurrent requests can both pass an application-level uniqueness precheck, after which one request loses at the PostgreSQL unique index and may surface an unhandled database exception instead of the existing duplicate business outcome.
+  - Evidence: `RegisterUserHandler` checks normalized-email availability before inserting a user, and `CreateAgencyHandler` checks slug availability before inserting an agency; PostgreSQL has unique indexes for both values, but production code does not narrowly translate the resulting expected unique-constraint violations.
+  - Smallest safe direction: Keep the database constraints authoritative, catch only the expected named constraint at each affected use-case boundary, translate it to the existing duplicate/conflict result, and rethrow unrelated database failures.
+  - Scope note: The invitation-specific pending-invitation conflict is handled in Chapter 11; registration email and agency slug remain deferred.
+  - Target chapter: Chapter 12 — API Consistency, Observability, and Frontend Readiness.
+
 - **API error response shapes are inconsistent**
   - Area: HTTP error contracts.
   - Risk: Frontend clients must handle multiple error shapes for similar failures, including plain strings, `{ message = ... }` objects, empty `Forbid()` responses, and default bad-request bodies.
