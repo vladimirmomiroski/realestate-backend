@@ -5,6 +5,7 @@ using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Application.Agencies.Repositories;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -117,6 +118,133 @@ public sealed class AgencyInvitationPersistenceTests : IClassFixture<CustomWebAp
 
         // Assert
         await act.Should().ThrowAsync<DbUpdateException>();
+    }
+
+    [Fact]
+    public async Task PersistAcceptanceAsync_ShouldPropagateUnrelatedDatabaseError_AndRollback()
+    {
+        // Arrange
+        AuthenticatedTestUser inviter =
+            await AuthTestHelpers.RegisterAndLoginAsync(
+                _httpClient);
+
+        Guid agencyId;
+        Guid invitationId;
+        string token;
+
+        using (IServiceScope seedScope =
+               _factory.Services.CreateScope())
+        {
+            var seedDbContext =
+                seedScope.ServiceProvider
+                    .GetRequiredService<RealEstateDbContext>();
+
+            var agency = AgencyTestHelpers.CreateAgency();
+
+            seedDbContext.Agencies.Add(agency);
+
+            await seedDbContext.SaveChangesAsync();
+
+            var invitation = CreateInvitation(
+                agencyId: agency.Id,
+                invitedByUserId: inviter.UserId,
+                token: Guid.NewGuid().ToString("N"),
+                email: "foreign-key-test@test.com",
+                normalizedEmail:
+                    "FOREIGN-KEY-TEST@TEST.COM");
+
+            seedDbContext.AgencyInvitations.Add(
+                invitation);
+
+            await seedDbContext.SaveChangesAsync();
+
+            agencyId = agency.Id;
+            invitationId = invitation.Id;
+            token = invitation.Token;
+        }
+
+        Guid nonexistentUserId = Guid.NewGuid();
+
+        using (IServiceScope mutationServiceScope =
+               _factory.Services.CreateScope())
+        {
+            var mutationDbContext =
+                mutationServiceScope.ServiceProvider
+                    .GetRequiredService<RealEstateDbContext>();
+
+            var invitationRepository =
+                mutationServiceScope.ServiceProvider
+                    .GetRequiredService<
+                        IAgencyInvitationRepository>();
+
+            IAgencyInvitationTerminalMutationScope?
+                terminalMutationScope =
+                    await invitationRepository
+                        .BeginTerminalMutationByTokenAsync(
+                            token,
+                            CancellationToken.None);
+
+            terminalMutationScope.Should().NotBeNull();
+
+            await using (terminalMutationScope!)
+            {
+                terminalMutationScope.Invitation.Accept(
+                    inviter.UserId,
+                    DateTime.UtcNow);
+
+                var invalidMember = new AgencyMember(
+                    agencyId,
+                    nonexistentUserId,
+                    AgencyMemberRole.Agent,
+                    AgencyMemberStatus.Active);
+
+                mutationDbContext
+                    .Set<AgencyMember>()
+                    .Add(invalidMember);
+
+                // Act
+                Func<Task> act = async () =>
+                    await terminalMutationScope
+                        .PersistAcceptanceAsync(
+                            CancellationToken.None);
+
+                // Assert
+                await act.Should()
+                    .ThrowAsync<DbUpdateException>();
+            }
+        }
+
+        using IServiceScope assertionScope =
+            _factory.Services.CreateScope();
+
+        var assertionDbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        AgencyInvitation savedInvitation =
+            await assertionDbContext.AgencyInvitations
+                .AsNoTracking()
+                .SingleAsync(invitation =>
+                    invitation.Id == invitationId);
+
+        int invalidMembershipCount =
+            await assertionDbContext
+                .Set<AgencyMember>()
+                .AsNoTracking()
+                .CountAsync(member =>
+                    member.AgencyId == agencyId &&
+                    member.UserId == nonexistentUserId);
+
+        savedInvitation.Status.Should()
+            .Be(AgencyInvitationStatus.Pending);
+
+        savedInvitation.AcceptedByUserId.Should()
+            .BeNull();
+
+        savedInvitation.AcceptedAtUtc.Should()
+            .BeNull();
+
+        invalidMembershipCount.Should().Be(0);
     }
 
     private static AgencyInvitation CreateInvitation(
