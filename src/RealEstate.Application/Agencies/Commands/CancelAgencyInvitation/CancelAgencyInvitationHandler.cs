@@ -21,70 +21,117 @@ public sealed class CancelAgencyInvitationHandler
         _agencyInvitationRepository = agencyInvitationRepository;
     }
 
-    public async Task<ServiceResult<AgencyInvitationListItemResponse>> HandleAsync(
-        Guid agencyId,
-        Guid invitationId,
-        CancellationToken cancellationToken)
+    public async Task<
+        ServiceResult<AgencyInvitationListItemResponse>>
+        HandleAsync(
+            Guid agencyId,
+            Guid invitationId,
+            CancellationToken cancellationToken)
     {
-        AgencyAdminAccessResult<AgencyInvitationListItemResponse> accessResult =
-            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<AgencyInvitationListItemResponse>(
-                agencyId,
-                "Only active agency owners can cancel invitations.",
-                cancellationToken);
+        AgencyAdminAccessResult<
+            AgencyInvitationListItemResponse>
+            accessResult =
+                await _agencyAdminAccessChecker
+                    .EnsureCurrentUserIsActiveOwnerAsync<
+                        AgencyInvitationListItemResponse>(
+                        agencyId,
+                        "Only active agency owners can cancel invitations.",
+                        cancellationToken);
 
         if (accessResult.HasFailure)
         {
             return accessResult.Failure!;
         }
 
-        AgencyInvitation? invitation =
-            await _agencyInvitationRepository.GetByIdForUpdateAsync(
-                invitationId,
+        IAgencyInvitationTerminalMutationScope?
+            terminalMutationScope =
+                await _agencyInvitationRepository
+                    .BeginTerminalMutationByIdAsync(
+                        invitationId,
+                        cancellationToken);
+
+        if (terminalMutationScope is null)
+        {
+            return ServiceResult<
+                AgencyInvitationListItemResponse>
+                .NotFound(
+                    "Invitation was not found.");
+        }
+
+        await using (terminalMutationScope)
+        {
+            AgencyInvitation invitation =
+                terminalMutationScope.Invitation;
+
+            if (invitation.AgencyId != agencyId)
+            {
+                return ServiceResult<
+                    AgencyInvitationListItemResponse>
+                    .NotFound(
+                        "Invitation was not found.");
+            }
+
+            if (invitation.Status ==
+                AgencyInvitationStatus.Accepted)
+            {
+                return ServiceResult<
+                    AgencyInvitationListItemResponse>
+                    .ValidationError(
+                        "Accepted invitation cannot be cancelled.");
+            }
+
+            if (invitation.Status ==
+                AgencyInvitationStatus.Cancelled)
+            {
+                return ServiceResult<
+                    AgencyInvitationListItemResponse>
+                    .ValidationError(
+                        "Invitation has already been cancelled.");
+            }
+
+            if (invitation.Status ==
+                AgencyInvitationStatus.Expired)
+            {
+                return ServiceResult<
+                    AgencyInvitationListItemResponse>
+                    .ValidationError(
+                        "Expired invitation cannot be cancelled.");
+            }
+
+            DateTime utcNow = DateTime.UtcNow;
+
+            if (invitation.ExpiresAtUtc <= utcNow)
+            {
+                invitation.MarkExpired(utcNow);
+
+                await terminalMutationScope
+                    .PersistTerminalTransitionAsync(
+                        cancellationToken);
+
+                await terminalMutationScope.CommitAsync(
+                    cancellationToken);
+
+                return ServiceResult<
+                    AgencyInvitationListItemResponse>
+                    .ValidationError(
+                        "Expired invitation cannot be cancelled.");
+            }
+
+            invitation.Cancel(utcNow);
+
+            await terminalMutationScope
+                .PersistTerminalTransitionAsync(
+                    cancellationToken);
+
+            await terminalMutationScope.CommitAsync(
                 cancellationToken);
 
-        if (invitation is null ||
-            invitation.AgencyId != agencyId)
-        {
-            return ServiceResult<AgencyInvitationListItemResponse>.NotFound(
-                "Invitation was not found.");
+            AgencyInvitationListItemResponse response =
+                invitation.ToListItemResponse();
+
+            return ServiceResult<
+                AgencyInvitationListItemResponse>
+                .Success(response);
         }
-
-        if (invitation.Status == AgencyInvitationStatus.Accepted)
-        {
-            return ServiceResult<AgencyInvitationListItemResponse>.ValidationError(
-                "Accepted invitation cannot be cancelled.");
-        }
-
-        if (invitation.Status == AgencyInvitationStatus.Cancelled)
-        {
-            return ServiceResult<AgencyInvitationListItemResponse>.ValidationError(
-                "Invitation has already been cancelled.");
-        }
-
-        if (invitation.Status == AgencyInvitationStatus.Expired)
-        {
-            return ServiceResult<AgencyInvitationListItemResponse>.ValidationError(
-                "Expired invitation cannot be cancelled.");
-        }
-
-        DateTime utcNow = DateTime.UtcNow;
-
-        if (invitation.ExpiresAtUtc <= utcNow)
-        {
-            invitation.MarkExpired(utcNow);
-
-            await _agencyInvitationRepository.SaveChangesAsync(cancellationToken);
-
-            return ServiceResult<AgencyInvitationListItemResponse>.ValidationError(
-                "Expired invitation cannot be cancelled.");
-        }
-
-        invitation.Cancel(utcNow);
-
-        await _agencyInvitationRepository.SaveChangesAsync(cancellationToken);
-
-        AgencyInvitationListItemResponse response = invitation.ToListItemResponse();
-
-        return ServiceResult<AgencyInvitationListItemResponse>.Success(response);
     }
 }
