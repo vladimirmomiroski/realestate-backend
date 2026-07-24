@@ -2,6 +2,8 @@
 using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Repositories;
+using RealEstate.Application.Users.Repositories;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Listings.Commands.SetPrimaryListingImage;
 
@@ -9,11 +11,16 @@ public sealed class SetPrimaryListingImageHandler
 {
     private readonly ICurrentUserService _currentUserService;
     private readonly IListingRepository _listingRepository;
+    private readonly IUserRepository _userRepository;
 
-    public SetPrimaryListingImageHandler(IListingRepository listingRepository, ICurrentUserService currentUserService)
+    public SetPrimaryListingImageHandler(
+        IListingRepository listingRepository,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _listingRepository = listingRepository;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<SetPrimaryListingImageResult> Handle(
@@ -30,11 +37,20 @@ public sealed class SetPrimaryListingImageHandler
         }
 
         Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+            ?? throw new InvalidOperationException(
+                "Authenticated user id is not available.");
 
-        if (listing.CreatedByUserId != userId)
+        var actor =
+            await _userRepository.GetByIdReadOnlyAsync(
+                userId,
+                cancellationToken);
+
+        if (actor is null ||
+            actor.Status == UserStatus.Disabled ||
+            listing.CreatedByUserId != userId)
         {
-            return SetPrimaryListingImageResult.Failure(SetPrimaryListingImageError.NotListingOwner);
+            return SetPrimaryListingImageResult.Failure(
+                SetPrimaryListingImageError.NotListingOwner);
         }
 
         var selectedImage = listing.Images.FirstOrDefault(image => image.Id == command.ImageId);

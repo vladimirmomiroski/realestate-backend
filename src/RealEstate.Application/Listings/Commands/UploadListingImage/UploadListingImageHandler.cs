@@ -3,15 +3,17 @@ using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Application.Common.Authentication;
+using RealEstate.Application.Users.Repositories;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Listings.Commands.UploadListingImage;
 
 public sealed class UploadListingImageHandler
 {
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
     private const long MaxFileSizeBytes = 5 * 1024 * 1024;
     private const int MaxImagesPerListing = 20;
-
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg",
@@ -33,11 +35,13 @@ public sealed class UploadListingImageHandler
     public UploadListingImageHandler(
         IListingRepository listingRepository,
         IFileStorageService fileStorageService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _listingRepository = listingRepository;
         _fileStorageService = fileStorageService;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<UploadListingImageResult> Handle(
@@ -61,11 +65,20 @@ public sealed class UploadListingImageHandler
         }
 
         Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+            ?? throw new InvalidOperationException(
+                "Authenticated user id is not available.");
 
-        if (listing.CreatedByUserId != userId)
+        var actor =
+            await _userRepository.GetByIdReadOnlyAsync(
+                userId,
+                cancellationToken);
+
+        if (actor is null ||
+            actor.Status == UserStatus.Disabled ||
+            listing.CreatedByUserId != userId)
         {
-            return UploadListingImageResult.Failure(UploadListingImageError.NotListingOwner);
+            return UploadListingImageResult.Failure(
+                UploadListingImageError.NotListingOwner);
         }
 
         if (listing.Images.Count >= MaxImagesPerListing)

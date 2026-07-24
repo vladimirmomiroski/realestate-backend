@@ -1,6 +1,8 @@
 ﻿using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Common.Storage;
 using RealEstate.Application.Listings.Repositories;
+using RealEstate.Application.Users.Repositories;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Listings.Commands.DeleteListingImage;
 
@@ -9,15 +11,18 @@ public sealed class DeleteListingImageHandler
     private readonly ICurrentUserService _currentUserService;
     private readonly IListingRepository _listingRepository;
     private readonly IFileStorageService _fileStorageService;
+    private readonly IUserRepository _userRepository;
 
     public DeleteListingImageHandler(
         IListingRepository listingRepository,
         IFileStorageService fileStorageService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _listingRepository = listingRepository;
         _fileStorageService = fileStorageService;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<DeleteListingImageResult> Handle(
@@ -34,11 +39,20 @@ public sealed class DeleteListingImageHandler
         }
 
         Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+            ?? throw new InvalidOperationException(
+                "Authenticated user id is not available.");
 
-        if (listing.CreatedByUserId != userId)
+        var actor =
+            await _userRepository.GetByIdReadOnlyAsync(
+                userId,
+                cancellationToken);
+
+        if (actor is null ||
+            actor.Status == UserStatus.Disabled ||
+            listing.CreatedByUserId != userId)
         {
-            return DeleteListingImageResult.Failure(DeleteListingImageError.NotListingOwner);
+            return DeleteListingImageResult.Failure(
+                DeleteListingImageError.NotListingOwner);
         }
 
         var image = listing.Images.FirstOrDefault(image => image.Id == command.ImageId);
