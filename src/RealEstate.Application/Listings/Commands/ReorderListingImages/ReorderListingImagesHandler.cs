@@ -2,6 +2,8 @@
 using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Repositories;
+using RealEstate.Application.Users.Repositories;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Listings.Commands.ReorderListingImages;
 
@@ -9,11 +11,16 @@ public sealed class ReorderListingImagesHandler
 {
     private readonly ICurrentUserService _currentUserService;
     private readonly IListingRepository _listingRepository;
+    private readonly IUserRepository _userRepository;
 
-    public ReorderListingImagesHandler(IListingRepository listingRepository, ICurrentUserService currentUserService)
+    public ReorderListingImagesHandler(
+        IListingRepository listingRepository,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _listingRepository = listingRepository;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ReorderListingImagesResult> Handle(
@@ -35,11 +42,20 @@ public sealed class ReorderListingImagesHandler
         }
 
         Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+            ?? throw new InvalidOperationException(
+                "Authenticated user id is not available.");
 
-        if (listing.CreatedByUserId != userId)
+        var actor =
+            await _userRepository.GetByIdReadOnlyAsync(
+                userId,
+                cancellationToken);
+
+        if (actor is null ||
+            actor.Status == UserStatus.Disabled ||
+            listing.CreatedByUserId != userId)
         {
-            return ReorderListingImagesResult.Failure(ReorderListingImagesError.NotListingOwner);
+            return ReorderListingImagesResult.Failure(
+                ReorderListingImagesError.NotListingOwner);
         }
 
         if (listing.Images.Count != command.ImageIds.Count)
