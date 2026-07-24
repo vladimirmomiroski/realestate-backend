@@ -9,6 +9,12 @@ public enum AgencyInvitationAcceptancePersistenceResult
     MembershipAlreadyExists = 2
 }
 
+public enum AgencyInvitationCreationPersistenceResult
+{
+    Succeeded = 1,
+    PendingInvitationAlreadyExists = 2
+}
+
 public interface IAgencyInvitationTerminalMutationScope
     : IAsyncDisposable
 {
@@ -25,11 +31,30 @@ public interface IAgencyInvitationTerminalMutationScope
         CancellationToken cancellationToken);
 }
 
+public interface IAgencyInvitationCreationScope
+    : IAsyncDisposable
+{
+    AgencyInvitation? PendingInvitation { get; }
+
+    Task PersistObservedExpiryAsync(
+        CancellationToken cancellationToken);
+
+    Task<AgencyInvitationCreationPersistenceResult>
+        PersistNewInvitationAsync(
+            AgencyInvitation invitation,
+            CancellationToken cancellationToken);
+
+    Task CommitAsync(
+        CancellationToken cancellationToken);
+}
+
 public interface IAgencyInvitationRepository
 {
-    Task CreateAsync(
-        AgencyInvitation invitation,
-        CancellationToken cancellationToken);
+    Task<IAgencyInvitationCreationScope>
+        BeginCreateOrReplaceAsync(
+            Guid agencyId,
+            string normalizedEmail,
+            CancellationToken cancellationToken);
 
     Task<IAgencyInvitationTerminalMutationScope?>
         BeginTerminalMutationByTokenAsync(
@@ -46,11 +71,6 @@ public interface IAgencyInvitationRepository
             Guid agencyId,
             AgencyInvitationStatus? status,
             CancellationToken cancellationToken);
-
-    Task<bool> ExistsPendingForAgencyEmailAsync(
-        Guid agencyId,
-        string normalizedEmail,
-        CancellationToken cancellationToken);
 
     Task SaveChangesAsync(
         CancellationToken cancellationToken);
