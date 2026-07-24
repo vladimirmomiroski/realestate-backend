@@ -16,9 +16,11 @@ public sealed class CreateAgencyInvitationHandler
 
     private readonly IUserRepository _userRepository;
     private readonly IAgencyRepository _agencyRepository;
-    private readonly IAgencyInvitationRepository _agencyInvitationRepository;
+    private readonly IAgencyInvitationRepository
+        _agencyInvitationRepository;
     private readonly CreateAgencyInvitationValidator _validator;
-    private readonly AgencyAdminAccessChecker _agencyAdminAccessChecker;
+    private readonly AgencyAdminAccessChecker
+        _agencyAdminAccessChecker;
 
     public CreateAgencyInvitationHandler(
         IUserRepository userRepository,
@@ -29,95 +31,169 @@ public sealed class CreateAgencyInvitationHandler
     {
         _userRepository = userRepository;
         _agencyRepository = agencyRepository;
-        _agencyInvitationRepository = agencyInvitationRepository;
+        _agencyInvitationRepository =
+            agencyInvitationRepository;
         _validator = validator;
-        _agencyAdminAccessChecker = agencyAdminAccessChecker;
+        _agencyAdminAccessChecker =
+            agencyAdminAccessChecker;
     }
 
-    public async Task<ServiceResult<AgencyInvitationCreatedResponse>> HandleAsync(
-        Guid agencyId,
-        CreateAgencyInvitationRequest request,
-        CancellationToken cancellationToken)
+    public async Task<
+        ServiceResult<AgencyInvitationCreatedResponse>>
+        HandleAsync(
+            Guid agencyId,
+            CreateAgencyInvitationRequest request,
+            CancellationToken cancellationToken)
     {
-        AgencyAdminAccessResult<AgencyInvitationCreatedResponse> accessResult =
-            await _agencyAdminAccessChecker.EnsureCurrentUserIsActiveOwnerAsync<AgencyInvitationCreatedResponse>(
-                agencyId,
-                "Only active agency owners can invite members.",
-                cancellationToken);
+        AgencyAdminAccessResult<
+            AgencyInvitationCreatedResponse>
+            accessResult =
+                await _agencyAdminAccessChecker
+                    .EnsureCurrentUserIsActiveOwnerAsync<
+                        AgencyInvitationCreatedResponse>(
+                        agencyId,
+                        "Only active agency owners can invite members.",
+                        cancellationToken);
 
         if (accessResult.HasFailure)
         {
             return accessResult.Failure!;
         }
 
-        Guid currentUserId = accessResult.CurrentUserId;
+        Guid currentUserId =
+            accessResult.CurrentUserId;
 
-        string? validationError = _validator.Validate(request);
+        string? validationError =
+            _validator.Validate(request);
 
         if (validationError is not null)
         {
-            return ServiceResult<AgencyInvitationCreatedResponse>.ValidationError(validationError);
+            return ServiceResult<
+                AgencyInvitationCreatedResponse>
+                .ValidationError(validationError);
         }
 
         string email = request.Email.Trim();
-        string normalizedEmail = email.ToUpperInvariant();
 
-        bool pendingInvitationExists =
-            await _agencyInvitationRepository.ExistsPendingForAgencyEmailAsync(
-                agencyId,
-                normalizedEmail,
-                cancellationToken);
+        string normalizedEmail =
+            email.ToUpperInvariant();
 
-        if (pendingInvitationExists)
+        IAgencyInvitationCreationScope creationScope =
+            await _agencyInvitationRepository
+                .BeginCreateOrReplaceAsync(
+                    agencyId,
+                    normalizedEmail,
+                    cancellationToken);
+
+        await using (creationScope)
         {
-            return ServiceResult<AgencyInvitationCreatedResponse>.ValidationError(
-                "A pending invitation already exists for this email.");
-        }
+            User? invitedUser =
+                await _userRepository
+                    .GetByNormalizedEmailReadOnlyAsync(
+                        normalizedEmail,
+                        cancellationToken);
 
-        User? invitedUser = await _userRepository.GetByNormalizedEmailReadOnlyAsync(
-            normalizedEmail,
-            cancellationToken);
+            bool invitedUserIsAlreadyMember = false;
 
-        if (invitedUser is not null)
-        {
-            var existingMemberAccess = await _agencyRepository.GetMemberAccessReadOnlyAsync(
-                agencyId,
-                invitedUser.Id,
-                cancellationToken);
-
-            if (existingMemberAccess is not null)
+            if (invitedUser is not null)
             {
-                return ServiceResult<AgencyInvitationCreatedResponse>.ValidationError(
-                    "User is already a member of this agency.");
+                var existingMemberAccess =
+                    await _agencyRepository
+                        .GetMemberAccessReadOnlyAsync(
+                            agencyId,
+                            invitedUser.Id,
+                            cancellationToken);
+
+                invitedUserIsAlreadyMember =
+                    existingMemberAccess is not null;
             }
+
+            DateTime utcNow = DateTime.UtcNow;
+
+            AgencyInvitation? pendingInvitation =
+                creationScope.PendingInvitation;
+
+            if (pendingInvitation is not null &&
+                pendingInvitation.ExpiresAtUtc > utcNow)
+            {
+                return ServiceResult<
+                    AgencyInvitationCreatedResponse>
+                    .ValidationError(
+                        "A pending invitation already exists for this email.");
+            }
+
+            if (invitedUserIsAlreadyMember)
+            {
+                return ServiceResult<
+                    AgencyInvitationCreatedResponse>
+                    .ValidationError(
+                        "User is already a member of this agency.");
+            }
+
+            if (pendingInvitation is not null)
+            {
+                pendingInvitation.MarkExpired(utcNow);
+
+                await creationScope
+                    .PersistObservedExpiryAsync(
+                        cancellationToken);
+            }
+
+            var invitation = new AgencyInvitation(
+                agencyId: agencyId,
+                email: email,
+                normalizedEmail: normalizedEmail,
+                token: GenerateToken(),
+                code: GenerateCode(),
+                role: request.Role,
+                invitedByUserId: currentUserId,
+                expiresAtUtc:
+                    DateTime.UtcNow.AddDays(
+                        InvitationExpiresInDays));
+
+            AgencyInvitationCreationPersistenceResult
+                persistenceResult =
+                    await creationScope
+                        .PersistNewInvitationAsync(
+                            invitation,
+                            cancellationToken);
+
+            if (persistenceResult ==
+                AgencyInvitationCreationPersistenceResult
+                    .PendingInvitationAlreadyExists)
+            {
+                return ServiceResult<
+                    AgencyInvitationCreatedResponse>
+                    .ValidationError(
+                        "A pending invitation already exists for this email.");
+            }
+
+            await creationScope.CommitAsync(
+                cancellationToken);
+
+            AgencyInvitationCreatedResponse response =
+                invitation.ToCreatedResponse();
+
+            return ServiceResult<
+                AgencyInvitationCreatedResponse>
+                .Success(response);
         }
-
-        var invitation = new AgencyInvitation(
-            agencyId: agencyId,
-            email: email,
-            normalizedEmail: normalizedEmail,
-            token: GenerateToken(),
-            code: GenerateCode(),
-            role: request.Role,
-            invitedByUserId: currentUserId,
-            expiresAtUtc: DateTime.UtcNow.AddDays(InvitationExpiresInDays));
-
-        await _agencyInvitationRepository.CreateAsync(
-            invitation,
-            cancellationToken);
-
-        AgencyInvitationCreatedResponse response = invitation.ToCreatedResponse();
-
-        return ServiceResult<AgencyInvitationCreatedResponse>.Success(response);
     }
 
     private static string GenerateToken()
     {
-        byte[] bytes = RandomNumberGenerator.GetBytes(32);
+        byte[] bytes =
+            RandomNumberGenerator.GetBytes(32);
 
         return Convert.ToBase64String(bytes)
-            .Replace("+", "-", StringComparison.Ordinal)
-            .Replace("/", "_", StringComparison.Ordinal)
+            .Replace(
+                "+",
+                "-",
+                StringComparison.Ordinal)
+            .Replace(
+                "/",
+                "_",
+                StringComparison.Ordinal)
             .TrimEnd('=');
     }
 
@@ -125,6 +201,8 @@ public sealed class CreateAgencyInvitationHandler
     {
         return RandomNumberGenerator
             .GetInt32(0, 1_000_000)
-            .ToString("D6", CultureInfo.InvariantCulture);
+            .ToString(
+                "D6",
+                CultureInfo.InvariantCulture);
     }
 }

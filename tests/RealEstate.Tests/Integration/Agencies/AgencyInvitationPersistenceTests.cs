@@ -247,6 +247,190 @@ public sealed class AgencyInvitationPersistenceTests : IClassFixture<CustomWebAp
         invalidMembershipCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task PersistNewInvitationAsync_ShouldPropagateTokenConflict_AndRollbackObservedExpiry()
+    {
+        // Arrange
+        AuthenticatedTestUser inviter =
+            await AuthTestHelpers.RegisterAndLoginAsync(
+                _httpClient);
+
+        Guid agencyId;
+        Guid elapsedInvitationId;
+
+        string invitedEmail =
+            $"replacement-{Guid.NewGuid():N}@test.com";
+
+        string normalizedEmail =
+            invitedEmail.ToUpperInvariant();
+
+        string duplicateToken =
+            Guid.NewGuid().ToString("N");
+
+        using (IServiceScope seedScope =
+               _factory.Services.CreateScope())
+        {
+            var seedDbContext =
+                seedScope.ServiceProvider
+                    .GetRequiredService<
+                        RealEstateDbContext>();
+
+            var agency =
+                AgencyTestHelpers.CreateAgency();
+
+            seedDbContext.Agencies.Add(agency);
+
+            await seedDbContext.SaveChangesAsync();
+
+            var elapsedInvitation =
+                new AgencyInvitation(
+                    agencyId: agency.Id,
+                    email: invitedEmail,
+                    normalizedEmail:
+                        normalizedEmail,
+                    token:
+                        Guid.NewGuid().ToString("N"),
+                    code: "123456",
+                    role: AgencyMemberRole.Agent,
+                    invitedByUserId: inviter.UserId,
+                    expiresAtUtc:
+                        DateTime.UtcNow.AddDays(-1));
+
+            var tokenCollisionInvitation =
+                new AgencyInvitation(
+                    agencyId: agency.Id,
+                    email:
+                        $"token-owner-{Guid.NewGuid():N}@test.com",
+                    normalizedEmail:
+                        $"TOKEN-OWNER-{Guid.NewGuid():N}@TEST.COM",
+                    token: duplicateToken,
+                    code: "654321",
+                    role: AgencyMemberRole.Agent,
+                    invitedByUserId: inviter.UserId,
+                    expiresAtUtc:
+                        DateTime.UtcNow.AddDays(7));
+
+            tokenCollisionInvitation.Cancel(
+                DateTime.UtcNow);
+
+            seedDbContext.AgencyInvitations.AddRange(
+                elapsedInvitation,
+                tokenCollisionInvitation);
+
+            await seedDbContext.SaveChangesAsync();
+
+            agencyId = agency.Id;
+            elapsedInvitationId =
+                elapsedInvitation.Id;
+        }
+
+        Guid attemptedReplacementId =
+            Guid.Empty;
+
+        using (IServiceScope mutationScope =
+               _factory.Services.CreateScope())
+        {
+            var repository =
+                mutationScope.ServiceProvider
+                    .GetRequiredService<
+                        IAgencyInvitationRepository>();
+
+            IAgencyInvitationCreationScope
+                creationScope =
+                    await repository
+                        .BeginCreateOrReplaceAsync(
+                            agencyId,
+                            normalizedEmail,
+                            CancellationToken.None);
+
+            await using (creationScope)
+            {
+                creationScope.PendingInvitation
+                    .Should()
+                    .NotBeNull();
+
+                creationScope.PendingInvitation!.Id
+                    .Should()
+                    .Be(elapsedInvitationId);
+
+                creationScope.PendingInvitation
+                    .MarkExpired(DateTime.UtcNow);
+
+                await creationScope
+                    .PersistObservedExpiryAsync(
+                        CancellationToken.None);
+
+                var replacement =
+                    new AgencyInvitation(
+                        agencyId: agencyId,
+                        email: invitedEmail,
+                        normalizedEmail:
+                            normalizedEmail,
+                        token: duplicateToken,
+                        code: "111111",
+                        role: AgencyMemberRole.Agent,
+                        invitedByUserId:
+                            inviter.UserId,
+                        expiresAtUtc:
+                            DateTime.UtcNow.AddDays(7));
+
+                attemptedReplacementId =
+                    replacement.Id;
+
+                // Act
+                Func<Task> act = async () =>
+                    await creationScope
+                        .PersistNewInvitationAsync(
+                            replacement,
+                            CancellationToken.None);
+
+                // Assert
+                await act.Should()
+                    .ThrowAsync<DbUpdateException>();
+            }
+        }
+
+        using IServiceScope assertionScope =
+            _factory.Services.CreateScope();
+
+        var assertionDbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        List<AgencyInvitation> matchingInvitations =
+            await assertionDbContext
+                .AgencyInvitations
+                .AsNoTracking()
+                .Where(invitation =>
+                    invitation.AgencyId == agencyId &&
+                    invitation.NormalizedEmail ==
+                        normalizedEmail)
+                .ToListAsync();
+
+        matchingInvitations.Should()
+            .ContainSingle();
+
+        AgencyInvitation savedInvitation =
+            matchingInvitations.Single();
+
+        savedInvitation.Id.Should()
+            .Be(elapsedInvitationId);
+
+        savedInvitation.Status.Should()
+            .Be(AgencyInvitationStatus.Pending);
+
+        bool attemptedReplacementExists =
+            await assertionDbContext
+                .AgencyInvitations
+                .AsNoTracking()
+                .AnyAsync(invitation =>
+                    invitation.Id ==
+                    attemptedReplacementId);
+
+        attemptedReplacementExists.Should()
+            .BeFalse();
+    }
+
     private static AgencyInvitation CreateInvitation(
         Guid agencyId,
         Guid invitedByUserId,

@@ -11,6 +11,7 @@ using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using System.Text.Json;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -320,6 +321,232 @@ public sealed partial class AgenciesEndpointTests
 
         membership.Status.Should()
             .Be(AgencyMemberStatus.Active);
+    }
+
+    [Fact]
+    public async Task
+    AgencyInvitationConcurrency_AcceptVersusCreate_ShouldNotCreatePendingInvitationForNewMember()
+    {
+        // Arrange
+        InvitationConcurrencySeed seed =
+            await CreateInvitationConcurrencySeedAsync();
+
+        using HttpClient acceptClient =
+            CreateInvitationConcurrencyClient(
+                seed.InvitedUser.AccessToken);
+
+        using HttpClient createClient =
+            CreateInvitationConcurrencyClient(
+                seed.Owner.AccessToken);
+
+        // Act
+        (
+            HttpResponseMessage acceptResponse,
+            HttpResponseMessage createResponse
+        ) = await ExecuteMembershipGateRaceAsync(
+            seed.AgencyId,
+            seed.InvitedUser.UserId,
+            firstRequest: cancellationToken =>
+                acceptClient.PutAsJsonAsync(
+                    "/api/agencies/invitations/accept",
+                    new { token = seed.Token },
+                    cancellationToken),
+            secondRequest: cancellationToken =>
+                createClient.PostAsJsonAsync(
+                    $"/api/agencies/{seed.AgencyId}" +
+                    "/invitations",
+                    CreateValidCreateAgencyInvitationRequest(
+                        seed.InvitedUser.Email),
+                    cancellationToken));
+
+        using (acceptResponse)
+        using (createResponse)
+        {
+            // Assert
+            acceptResponse.StatusCode.Should()
+                .Be(HttpStatusCode.OK);
+
+            createResponse.StatusCode.Should()
+                .Be(HttpStatusCode.BadRequest);
+
+            string createBody =
+                await createResponse.Content
+                    .ReadAsStringAsync();
+
+            createBody.Should().Contain(
+                "User is already a member of this agency.");
+        }
+
+        InvitationCommittedState state =
+            await ReadInvitationCommittedStateAsync(
+                seed.InvitationId,
+                seed.AgencyId,
+                seed.InvitedUser.UserId);
+
+        state.Status.Should()
+            .Be(AgencyInvitationStatus.Accepted);
+
+        state.AcceptedByUserId.Should()
+            .Be(seed.InvitedUser.UserId);
+
+        state.Memberships.Should()
+            .ContainSingle();
+
+        using IServiceScope assertionScope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        List<AgencyInvitation> matchingInvitations =
+            await dbContext.AgencyInvitations
+                .AsNoTracking()
+                .Where(invitation =>
+                    invitation.AgencyId ==
+                        seed.AgencyId &&
+                    invitation.NormalizedEmail ==
+                        seed.InvitedUser.Email
+                            .ToUpperInvariant())
+                .ToListAsync();
+
+        matchingInvitations.Should()
+            .ContainSingle();
+
+        matchingInvitations.Single().Id.Should()
+            .Be(seed.InvitationId);
+
+        matchingInvitations.Single().Status.Should()
+            .Be(AgencyInvitationStatus.Accepted);
+
+        matchingInvitations.Should()
+            .NotContain(invitation =>
+                invitation.Status ==
+                AgencyInvitationStatus.Pending);
+    }
+
+    [Fact]
+    public async Task
+    AgencyInvitationConcurrency_CreateVersusCreate_ShouldHaveOnePendingWinner()
+    {
+        // Arrange
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(
+                _httpClient);
+
+        Guid agencyId =
+            await CreateAgencyAsAsync(owner);
+
+        string invitedEmail =
+            $"concurrent-create-{Guid.NewGuid():N}@test.com";
+
+        string normalizedEmail =
+            invitedEmail.ToUpperInvariant();
+
+        using HttpClient firstClient =
+            CreateInvitationConcurrencyClient(
+                owner.AccessToken);
+
+        using HttpClient secondClient =
+            CreateInvitationConcurrencyClient(
+                owner.AccessToken);
+
+        // Act
+        (
+            HttpResponseMessage firstResponse,
+            HttpResponseMessage secondResponse,
+            Guid gateInvitationId
+        ) = await ExecuteConcurrentCreateGateRaceAsync(
+            agencyId,
+            owner.UserId,
+            invitedEmail,
+            firstRequest: cancellationToken =>
+                firstClient.PostAsJsonAsync(
+                    $"/api/agencies/{agencyId}/invitations",
+                    CreateValidCreateAgencyInvitationRequest(
+                        invitedEmail),
+                    cancellationToken),
+            secondRequest: cancellationToken =>
+                secondClient.PostAsJsonAsync(
+                    $"/api/agencies/{agencyId}/invitations",
+                    CreateValidCreateAgencyInvitationRequest(
+                        invitedEmail),
+                    cancellationToken));
+
+        Guid winnerInvitationId;
+
+        using (firstResponse)
+        using (secondResponse)
+        {
+            // Assert
+            new[]
+            {
+            firstResponse.StatusCode,
+            secondResponse.StatusCode
+        }.Should().BeEquivalentTo(
+                new[]
+                {
+                HttpStatusCode.Created,
+                HttpStatusCode.BadRequest
+                });
+
+            HttpResponseMessage winnerResponse =
+                firstResponse.StatusCode ==
+                HttpStatusCode.Created
+                    ? firstResponse
+                    : secondResponse;
+
+            HttpResponseMessage loserResponse =
+                firstResponse.StatusCode ==
+                HttpStatusCode.BadRequest
+                    ? firstResponse
+                    : secondResponse;
+
+            JsonElement winnerJson =
+                await winnerResponse.Content
+                    .ReadFromJsonAsync<JsonElement>();
+
+            winnerInvitationId =
+                winnerJson.GetProperty("id").GetGuid();
+
+            string loserBody =
+                await loserResponse.Content
+                    .ReadAsStringAsync();
+
+            loserBody.Should().Contain(
+                "A pending invitation already exists for this email.");
+        }
+
+        using IServiceScope assertionScope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        List<AgencyInvitation> matchingInvitations =
+            await dbContext.AgencyInvitations
+                .AsNoTracking()
+                .Where(invitation =>
+                    invitation.AgencyId == agencyId &&
+                    invitation.NormalizedEmail ==
+                        normalizedEmail)
+                .ToListAsync();
+
+        matchingInvitations.Should()
+            .ContainSingle();
+
+        AgencyInvitation committedInvitation =
+            matchingInvitations.Single();
+
+        committedInvitation.Id.Should()
+            .Be(winnerInvitationId);
+
+        committedInvitation.Id.Should()
+            .NotBe(gateInvitationId);
+
+        committedInvitation.Status.Should()
+            .Be(AgencyInvitationStatus.Pending);
     }
 
     private async Task<InvitationConcurrencySeed>
@@ -756,6 +983,154 @@ public sealed partial class AgenciesEndpointTests
         }
     }
 
+    private async Task<(
+    HttpResponseMessage FirstResponse,
+    HttpResponseMessage SecondResponse,
+    Guid GateInvitationId)>
+    ExecuteConcurrentCreateGateRaceAsync(
+        Guid agencyId,
+        Guid invitedByUserId,
+        string email,
+        Func<CancellationToken,
+            Task<HttpResponseMessage>> firstRequest,
+        Func<CancellationToken,
+            Task<HttpResponseMessage>> secondRequest)
+    {
+        using var timeout =
+            new CancellationTokenSource(
+                InvitationConcurrencyTimeout);
+
+        CancellationToken cancellationToken =
+            timeout.Token;
+
+        using IServiceScope gateScope =
+            _factory.Services.CreateScope();
+
+        using IServiceScope observerScope =
+            _factory.Services.CreateScope();
+
+        var gateDbContext =
+            gateScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        var observerDbContext =
+            observerScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        await using IDbContextTransaction
+            gateTransaction =
+                await gateDbContext.Database
+                    .BeginTransactionAsync(
+                        IsolationLevel.ReadCommitted,
+                        cancellationToken);
+
+        var gateInvitation =
+            new AgencyInvitation(
+                agencyId: agencyId,
+                email: email,
+                normalizedEmail:
+                    email.ToUpperInvariant(),
+                token: Guid.NewGuid().ToString("N"),
+                code: "123456",
+                role: AgencyMemberRole.Agent,
+                invitedByUserId: invitedByUserId,
+                expiresAtUtc:
+                    DateTime.UtcNow.AddDays(7));
+
+        gateDbContext.AgencyInvitations.Add(
+            gateInvitation);
+
+        await gateDbContext.SaveChangesAsync(
+            cancellationToken);
+
+        int gateBackendPid =
+            await GetBackendPidAsync(
+                gateDbContext,
+                cancellationToken);
+
+        Task<HttpResponseMessage>? firstTask = null;
+        Task<HttpResponseMessage>? secondTask = null;
+
+        bool gateReleased = false;
+        bool responsesCompleted = false;
+
+        try
+        {
+            firstTask = firstRequest(
+                cancellationToken);
+
+            int firstRequestBackendPid =
+                await WaitForBlockedBackendAsync(
+                    observerDbContext,
+                    blockingBackendPid:
+                        gateBackendPid,
+                    queryPattern:
+                        "%INSERT INTO \"AgencyInvitations\"%",
+                    requireForUpdate: false,
+                    cancellationToken);
+
+            secondTask = secondRequest(
+                cancellationToken);
+
+            await WaitForBlockedBackendAsync(
+                observerDbContext,
+                blockingBackendPid:
+                    gateBackendPid,
+                queryPattern:
+                    "%INSERT INTO \"AgencyInvitations\"%",
+                requireForUpdate: false,
+                cancellationToken,
+                excludedBackendPid:
+                    firstRequestBackendPid);
+
+            await gateTransaction.RollbackAsync(
+                CancellationToken.None);
+
+            gateReleased = true;
+
+            HttpResponseMessage firstResponse =
+                await firstTask.WaitAsync(
+                    cancellationToken);
+
+            HttpResponseMessage secondResponse =
+                await secondTask.WaitAsync(
+                    cancellationToken);
+
+            responsesCompleted = true;
+
+            return (
+                firstResponse,
+                secondResponse,
+                gateInvitation.Id);
+        }
+        finally
+        {
+            if (!gateReleased)
+            {
+                try
+                {
+                    await gateTransaction.RollbackAsync(
+                        CancellationToken.None);
+                }
+                catch
+                {
+                    // Preserve original orchestration failure.
+                }
+            }
+
+            if (!responsesCompleted)
+            {
+                timeout.Cancel();
+
+                await DrainAndDisposeResponseTaskAsync(
+                    firstTask);
+
+                await DrainAndDisposeResponseTaskAsync(
+                    secondTask);
+            }
+        }
+    }
+
     private static async Task<int>
         GetBackendPidAsync(
             RealEstateDbContext dbContext,
@@ -832,12 +1207,13 @@ public sealed partial class AgenciesEndpointTests
     }
 
     private static async Task<int>
-        WaitForBlockedBackendAsync(
-            RealEstateDbContext observerDbContext,
-            int blockingBackendPid,
-            string queryPattern,
-            bool requireForUpdate,
-            CancellationToken cancellationToken)
+    WaitForBlockedBackendAsync(
+        RealEstateDbContext observerDbContext,
+        int blockingBackendPid,
+        string queryPattern,
+        bool requireForUpdate,
+        CancellationToken cancellationToken,
+        int? excludedBackendPid = null)
     {
         await EnsureConnectionOpenAsync(
             observerDbContext,
@@ -860,20 +1236,35 @@ public sealed partial class AgenciesEndpointTests
                 SELECT activity.pid
                 FROM pg_stat_activity AS activity
                 WHERE activity.datname = current_database()
-                  AND activity.pid <> pg_backend_pid()
-                  AND activity.wait_event_type = 'Lock'
-                  AND activity.query ILIKE @queryPattern
-                  AND (
-                        @requireForUpdate = FALSE
-                        OR activity.query ILIKE '%FOR UPDATE%'
-                      )
-                  AND @blockingBackendPid =
-                      ANY(pg_blocking_pids(activity.pid))
+                    AND activity.pid <> pg_backend_pid()
+                    AND (
+                         @excludedBackendPid IS NULL
+                         OR activity.pid <> @excludedBackendPid
+                        )
+                    AND activity.wait_event_type = 'Lock'
+                    AND activity.query ILIKE @queryPattern
+                    AND (
+                         @requireForUpdate = FALSE
+                         OR activity.query ILIKE '%FOR UPDATE%'
+                        )
+                    AND @blockingBackendPid =
+                        ANY(pg_blocking_pids(activity.pid))
                 ORDER BY activity.query_start
                 LIMIT 1;
                 """;
 
             command.CommandTimeout = 2;
+
+            object excludedBackendPidValue =
+                excludedBackendPid.HasValue
+                    ? excludedBackendPid.Value
+                    : DBNull.Value;
+
+            AddParameter(
+                command,
+                "excludedBackendPid",
+                DbType.Int32,
+                excludedBackendPidValue);
 
             AddParameter(
                 command,
