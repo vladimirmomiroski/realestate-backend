@@ -8,57 +8,35 @@ public sealed class LocalFileStorageService : IFileStorageService
 {
     private readonly LocalFileStorageOptions _options;
 
-    public LocalFileStorageService(IOptions<LocalFileStorageOptions> options)
+    public LocalFileStorageService(
+        IOptions<LocalFileStorageOptions> options)
     {
         _options = options.Value;
     }
 
-    public async Task<StoredFileResult> SaveListingImageAsync(
+    public Task<StoredFileResult> SaveListingImageAsync(
         Guid listingId,
         UploadedFile file,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.RootPath))
-        {
-            throw new InvalidOperationException("Local file storage root path is not configured.");
-        }
-
-        var originalFileName = Path.GetFileName(file.FileName);
-        var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
-
-        var storedFileName = $"{Guid.NewGuid():N}{extension}";
-
-        var listingFolderPath = Path.Combine(
-            _options.RootPath,
-            "listings",
-            listingId.ToString());
-
-        Directory.CreateDirectory(listingFolderPath);
-
-        var filePath = Path.Combine(listingFolderPath, storedFileName);
-
-        await using var outputStream = File.Create(filePath);
-
-        await file.Content.CopyToAsync(outputStream, cancellationToken);
-
-        var url = $"{_options.PublicBasePath.TrimEnd('/')}/listings/{listingId}/{storedFileName}";
-
-        return new StoredFileResult(
-            originalFileName,
-            storedFileName,
-            file.ContentType,
-            file.Length,
-            url);
+        return SaveFileAsync(
+            file,
+            Path.Combine(
+                "listings",
+                listingId.ToString()),
+            $"listings/{listingId}",
+            cancellationToken);
     }
 
     public Task DeleteListingImageAsync(
-    Guid listingId,
-    string storedFileName,
-    CancellationToken cancellationToken)
+        Guid listingId,
+        string storedFileName,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_options.RootPath))
         {
-            throw new InvalidOperationException("Local file storage root path is not configured.");
+            throw new InvalidOperationException(
+                "Local file storage root path is not configured.");
         }
 
         var safeFileName = Path.GetFileName(storedFileName);
@@ -77,43 +55,19 @@ public sealed class LocalFileStorageService : IFileStorageService
         return Task.CompletedTask;
     }
 
-    public async Task<StoredFileResult> SaveUserAvatarAsync(
-    Guid userId,
-    UploadedFile file,
-    CancellationToken cancellationToken)
+    public Task<StoredFileResult> SaveUserAvatarAsync(
+        Guid userId,
+        UploadedFile file,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.RootPath))
-        {
-            throw new InvalidOperationException("Local file storage root path is not configured.");
-        }
-
-        var originalFileName = Path.GetFileName(file.FileName);
-        var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
-
-        var storedFileName = $"{Guid.NewGuid():N}{extension}";
-
-        var avatarFolderPath = Path.Combine(
-            _options.RootPath,
-            "users",
-            userId.ToString(),
-            "avatar");
-
-        Directory.CreateDirectory(avatarFolderPath);
-
-        var filePath = Path.Combine(avatarFolderPath, storedFileName);
-
-        await using var outputStream = File.Create(filePath);
-
-        await file.Content.CopyToAsync(outputStream, cancellationToken);
-
-        var url = $"{_options.PublicBasePath.TrimEnd('/')}/users/{userId}/avatar/{storedFileName}";
-
-        return new StoredFileResult(
-            originalFileName,
-            storedFileName,
-            file.ContentType,
-            file.Length,
-            url);
+        return SaveFileAsync(
+            file,
+            Path.Combine(
+                "users",
+                userId.ToString(),
+                "avatar"),
+            $"users/{userId}/avatar",
+            cancellationToken);
     }
 
     public Task DeleteUserAvatarAsync(
@@ -123,7 +77,8 @@ public sealed class LocalFileStorageService : IFileStorageService
     {
         if (string.IsNullOrWhiteSpace(_options.RootPath))
         {
-            throw new InvalidOperationException("Local file storage root path is not configured.");
+            throw new InvalidOperationException(
+                "Local file storage root path is not configured.");
         }
 
         var safeFileName = Path.GetFileName(storedFileName);
@@ -143,49 +98,19 @@ public sealed class LocalFileStorageService : IFileStorageService
         return Task.CompletedTask;
     }
 
-    public async Task<StoredFileResult> SaveAgencyLogoAsync(
-    Guid agencyId,
-    UploadedFile file,
-    CancellationToken cancellationToken)
+    public Task<StoredFileResult> SaveAgencyLogoAsync(
+        Guid agencyId,
+        UploadedFile file,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.RootPath))
-        {
-            throw new InvalidOperationException(
-                "Local file storage root path is not configured.");
-        }
-
-        string originalFileName = Path.GetFileName(file.FileName);
-        string extension = Path.GetExtension(originalFileName).ToLowerInvariant();
-
-        string storedFileName = $"{Guid.NewGuid():N}{extension}";
-
-        string logoFolderPath = Path.Combine(
-            _options.RootPath,
-            "agencies",
-            agencyId.ToString(),
-            "logo");
-
-        Directory.CreateDirectory(logoFolderPath);
-
-        string filePath = Path.Combine(
-            logoFolderPath,
-            storedFileName);
-
-        await using var outputStream = File.Create(filePath);
-
-        await file.Content.CopyToAsync(
-            outputStream,
+        return SaveFileAsync(
+            file,
+            Path.Combine(
+                "agencies",
+                agencyId.ToString(),
+                "logo"),
+            $"agencies/{agencyId}/logo",
             cancellationToken);
-
-        string url =
-            $"{_options.PublicBasePath.TrimEnd('/')}/agencies/{agencyId}/logo/{storedFileName}";
-
-        return new StoredFileResult(
-            originalFileName,
-            storedFileName,
-            file.ContentType,
-            file.Length,
-            url);
     }
 
     public Task DeleteAgencyLogoAsync(
@@ -199,9 +124,9 @@ public sealed class LocalFileStorageService : IFileStorageService
                 "Local file storage root path is not configured.");
         }
 
-        string safeFileName = Path.GetFileName(storedFileName);
+        var safeFileName = Path.GetFileName(storedFileName);
 
-        string filePath = Path.Combine(
+        var filePath = Path.Combine(
             _options.RootPath,
             "agencies",
             agencyId.ToString(),
@@ -214,5 +139,95 @@ public sealed class LocalFileStorageService : IFileStorageService
         }
 
         return Task.CompletedTask;
+    }
+
+    private async Task<StoredFileResult> SaveFileAsync(
+        UploadedFile file,
+        string relativeFolderPath,
+        string relativeUrlPath,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.RootPath))
+        {
+            throw new InvalidOperationException(
+                "Local file storage root path is not configured.");
+        }
+
+        string originalFileName =
+            Path.GetFileName(file.FileName);
+
+        string extension =
+            Path.GetExtension(originalFileName)
+                .ToLowerInvariant();
+
+        string storedFileName =
+            $"{Guid.NewGuid():N}{extension}";
+
+        string destinationDirectory =
+            Path.Combine(
+                _options.RootPath,
+                relativeFolderPath);
+
+        Directory.CreateDirectory(destinationDirectory);
+
+        string finalPath =
+            Path.Combine(
+                destinationDirectory,
+                storedFileName);
+
+        string temporaryFileName =
+            $".{storedFileName}.{Guid.NewGuid():N}.tmp";
+
+        string temporaryPath =
+            Path.Combine(
+                destinationDirectory,
+                temporaryFileName);
+
+        bool ownsTemporaryFile = false;
+
+        try
+        {
+            await using (var outputStream = new FileStream(
+                temporaryPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 81_920,
+                useAsync: true))
+            {
+                ownsTemporaryFile = true;
+
+                await file.Content.CopyToAsync(
+                    outputStream,
+                    cancellationToken);
+            }
+
+            File.Move(
+                temporaryPath,
+                finalPath);
+
+            ownsTemporaryFile = false;
+        }
+        catch
+        {
+            if (ownsTemporaryFile &&
+                File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+
+            throw;
+        }
+
+        string url =
+            $"{_options.PublicBasePath.TrimEnd('/')}" +
+            $"/{relativeUrlPath}/{storedFileName}";
+
+        return new StoredFileResult(
+            originalFileName,
+            storedFileName,
+            file.ContentType,
+            file.Length,
+            url);
     }
 }
