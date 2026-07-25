@@ -91,29 +91,51 @@ public sealed class UploadListingImageHandler
             command.File!,
             cancellationToken);
 
-        var sortOrder = listing.Images.Count == 0
-            ? 0
-            : listing.Images.Max(image => image.SortOrder) + 1;
+        ListingImage image;
 
-        var isPrimary = listing.Images.Count == 0;
-
-        var image = new ListingImage
+        try
         {
-            Id = Guid.NewGuid(),
-            ListingId = listing.Id,
-            OriginalFileName = storedFile.OriginalFileName,
-            StoredFileName = storedFile.StoredFileName,
-            ContentType = storedFile.ContentType,
-            SizeBytes = storedFile.SizeBytes,
-            Url = storedFile.Url,
-            SortOrder = sortOrder,
-            IsPrimary = isPrimary
-        };
+            var sortOrder = listing.Images.Count == 0
+                ? 0
+                : listing.Images.Max(existingImage => existingImage.SortOrder) + 1;
 
+            var isPrimary = listing.Images.Count == 0;
 
-        _listingRepository.AddListingImage(image);
+            image = new ListingImage
+            {
+                Id = Guid.NewGuid(),
+                ListingId = listing.Id,
+                OriginalFileName = storedFile.OriginalFileName,
+                StoredFileName = storedFile.StoredFileName,
+                ContentType = storedFile.ContentType,
+                SizeBytes = storedFile.SizeBytes,
+                Url = storedFile.Url,
+                SortOrder = sortOrder,
+                IsPrimary = isPrimary
+            };
 
-        await _listingRepository.SaveChangesAsync(cancellationToken);
+            _listingRepository.AddListingImage(image);
+
+            await _listingRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception persistenceFailure)
+        {
+            try
+            {
+                await _fileStorageService.DeleteListingImageAsync(
+                    listing.Id,
+                    storedFile.StoredFileName,
+                    CancellationToken.None);
+            }
+            catch (Exception cleanupFailure)
+            {
+                throw new AggregateException(
+                    persistenceFailure,
+                    cleanupFailure);
+            }
+
+            throw;
+        }
 
         var response = new ListingImageResponse
         {
