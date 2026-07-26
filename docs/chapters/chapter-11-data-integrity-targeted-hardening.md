@@ -4,7 +4,7 @@
 
 Chapter 11 hardens already-approved agency, invitation, and listing-image behavior against concurrent requests and partial failures. It does not introduce new product capabilities. Its purpose is to make the existing invariants remain true when requests overlap, persistence fails, file copying is interrupted, or a database uniqueness constraint becomes the final arbiter of a race.
 
-The chapter is implementation-ready for eight confirmed, bounded findings. Each correction is intentionally narrow, uses the existing Controller → handler → repository interface → Infrastructure repository → PostgreSQL flow, and must preserve current HTTP contracts unless this document explicitly says otherwise.
+Chapter 11 is complete for its eight confirmed, bounded findings. Each correction remained intentionally narrow, used the existing Controller → handler → repository interface → Infrastructure repository → PostgreSQL flow, and preserved current HTTP contracts unless this document explicitly said otherwise.
 
 This document is the permanent Chapter 11 plan. The temporary audit handoff under `docs/planning/` remains supporting evidence only.
 
@@ -45,14 +45,14 @@ The chapter baseline does not assume that application prechecks are concurrency 
 
 | Audit ID | Confirmed finding | Disposition |
 |---|---|---|
-| CH11-OWN-01 | Owner-to-Agent demotion and member disable use check/count-then-mutate flows that can jointly leave an agency with no active owner. | Implement in 11A. |
-| CH11-INV-01 | Concurrent invitation accept/cancel/expire operations can overwrite terminal state, and membership creation can diverge from the winning transition. | Implement in 11B. |
-| CH11-INV-02 | An elapsed invitation may remain stored as `Pending`, block a replacement through the filtered unique index, and race with another create. | Implement in 11C while preserving Chapter 9's action-triggered expiry rule. |
-| CH11-IMG-01 | A disabled listing creator can still upload, delete, set primary, and reorder listing images. | Implement in 11D. |
-| CH11-IMG-03 | Direct copying to a final storage path can leave a partial file after failure or cancellation. | Implement in 11E. |
-| CH11-IMG-02 | A successfully written listing-image file remains orphaned if later database persistence fails. | Implement in 11F after 11E. |
-| CH11-IMG-05 | Concurrent uploads can exceed the 20-image cap, calculate the same append order, or race when choosing the first primary image. | Implement in 11G after storage compensation exists. |
-| CH11-IMG-04 | Set-primary and primary-delete use multiple saves without one transaction and can leave zero primary after a mid-operation failure. | Implement in 11H; make all image mutations participate in the listing lock. |
+| CH11-OWN-01 | Owner-to-Agent demotion and member disable use check/count-then-mutate flows that can jointly leave an agency with no active owner. | Completed and proven in 11A. |
+| CH11-INV-01 | Concurrent invitation accept/cancel/expire operations can overwrite terminal state, and membership creation can diverge from the winning transition. | Completed and proven in 11B. |
+| CH11-INV-02 | An elapsed invitation may remain stored as `Pending`, block a replacement through the filtered unique index, and race with another create. | Completed and proven in 11C while preserving Chapter 9's action-triggered expiry rule. |
+| CH11-IMG-01 | A disabled listing creator can still upload, delete, set primary, and reorder listing images. | Completed and proven in 11D. |
+| CH11-IMG-03 | Direct copying to a final storage path can leave a partial file after failure or cancellation. | Completed and proven in 11E. |
+| CH11-IMG-02 | A successfully written listing-image file remains orphaned if later database persistence fails. | Completed and proven in 11F. |
+| CH11-IMG-05 | Concurrent uploads can exceed the 20-image cap, calculate the same append order, or race when choosing the first primary image. | Completed and proven in 11G. |
+| CH11-IMG-04 | Set-primary and primary-delete use multiple saves without one transaction and can leave zero primary after a mid-operation failure. | Completed and proven in 11H; all image mutations participate in the listing lock. |
 
 The audit also confirmed three issues that are not Chapter 11 implementation work:
 
@@ -71,7 +71,7 @@ The following concerns are not implementation findings for this chapter:
 
 ## 5. Owner decisions
 
-Four audited areas remain intentionally unresolved. None may be implemented implicitly inside the locked checkpoints.
+Five audited areas remain intentionally unresolved or accepted. None may be implemented implicitly inside the locked checkpoints.
 
 ### CH11-DB-01 — Required listing creator relationship
 
@@ -91,13 +91,19 @@ The application has no general concurrency token or policy for every listing, us
 
 Locked interim disposition: preserve current last-write-wins behavior outside the protected invariants. A broader optimistic-concurrency or authorization-freshness policy needs an owner decision and separate per-aggregate tasks.
 
+### CH11-STATE-02 — Action-triggered invitation expiry presentation
+
+An elapsed invitation may remain stored and listed as `Pending` until an invitation action observes it and persists `Expired`; dashboard counts independently exclude elapsed invitations by timestamp.
+
+Locked interim disposition: retain the action-triggered lifecycle and stored-status list contract. Any effective-status projection or scheduled expiry policy remains a separate owner/API decision.
+
 ### CH11-FILE-01 — Post-commit physical deletion durability
 
 Deleting a database media row and then failing to delete the physical file can leave an orphaned file. Fully durable recovery would require an approved operational policy and likely a persisted deletion intent, retry worker, or reconciliation process.
 
 Locked interim disposition: retain the current post-commit deletion boundary in 11H and report failures through existing behavior. Do not introduce an outbox or background worker. The owner must later choose between accepting this operational risk and funding a separately designed durable cleanup workflow.
 
-These decisions are non-blocking for the eight locked corrections, but 11I must preserve their unresolved status in permanent project documentation.
+These decisions are non-blocking for the eight completed corrections and remain preserved after 11I.
 
 ## 6. Locked technical decisions
 
@@ -329,6 +335,21 @@ Chapter 11 does not include:
 - **Completion criteria:** focused and full tests pass; fresh migrations, repeat update, pending model, and catalog checks pass; all three documents agree on completed and deferred scope; the final checkpoint is committed as documentation closeout; no tracked or staged changes or generated artifacts remain afterward.
 - **Expected commit purpose:** `Close Chapter 11 data integrity hardening`.
 
+### Verified completion record
+
+- **11A completed:** agency-parent serialization and post-lock actor/target revalidation prevent concurrent owner demotion/disable from producing zero Active Owners.
+- **11B completed:** invitation-row serialization gives terminal transitions one winner and keeps accepted status atomic with membership persistence; only the named membership conflict is translated.
+- **11C completed:** an elapsed stored Pending invitation is expired and replaced atomically, concurrent creates produce one live Pending winner, and accept-versus-replacement rechecks membership after locking.
+- **11D completed:** missing and Disabled listing creators receive the existing forbidden result before upload, delete, set-primary, or reorder mutation; Active and PendingVerification behavior remains intact.
+- **11E completed:** listing, avatar, and agency-logo writes publish only a completely copied same-directory temporary file; failure and cancellation leave no final or temporary residue.
+- **11F completed:** a listing-image persistence path that throws before successful save return deletes exactly the new stored file and preserves ordered persistence/cleanup failures.
+- **11G completed:** listing-parent serialization protects the 20-image cap, append ordering, first-primary selection, and losing-upload file compensation.
+- **11H completed:** delete, set-primary, and reorder reuse the listing-image write scope; two-save primary changes roll back atomically and all image mutations serialize against upload.
+- **11I completed:** `RealEstate.QueryReview` and the solution built with 0 warnings and 0 errors. Focused groups passed 38 agency owner-role/disable, 51 invitation transition/replacement/persistence, 14 disabled/missing listing-image actor, 12 local-file write, 18 upload compensation/concurrency, 7 image-mutation persistence/concurrency, and 48 listing-image endpoint tests. The complete suite passed 704/704 with 0 failed and 0 skipped.
+- **Database verification:** a fresh PostgreSQL 16 database applied all 15 committed migrations from zero. The second update reported no migrations, the EF pending-model check was clean, and the relevant indexes and foreign keys were present with the expected definitions.
+- **Catalog verification:** `IX_AgencyMembers_AgencyId_UserId` and `IX_AgencyInvitations_Token` are unique, valid, and ready; `IX_AgencyInvitations_AgencyId_NormalizedEmail` is unique, valid, and ready with the Pending predicate; `IX_ListingImages_ListingId` is unique, valid, and ready with the `IsPrimary = true` predicate. Eight relevant agency-member, invitation, listing, and listing-image foreign keys are validated with the expected Cascade, Restrict, and Set Null delete actions.
+- **Final verdict:** Chapter 11's bounded implementation and verification scope is complete. The documentation closeout is ready to stage and commit; Chapter 12 is next.
+
 Dependency order:
 
 ```text
@@ -425,7 +446,7 @@ Only 11I performs permanent documentation reconciliation.
   - close disabled-user image authorization only after 11D evidence;
   - close partial-write and upload precommit-orphan issues only after 11E/11F evidence;
   - close image cap/order/primary transaction issues only after 11G/11H evidence;
-  - retain CH11-FILE-01, CH11-DB-01, CH11-DB-02, and CH11-STATE-01 with their exact unresolved dispositions;
+  - retain CH11-FILE-01, CH11-DB-01, CH11-DB-02, CH11-STATE-01, and CH11-STATE-02 with their exact unresolved or accepted dispositions;
   - retain Chapter 12 API error/conflict/pagination issues;
   - do not describe accepted test SQL or nullable lifecycle relationships as defects.
 - Do not claim durable file deletion, database-wide checks, required listing creators, global optimistic concurrency, or standardized conflict responses were implemented.
@@ -483,4 +504,4 @@ Chapter 11 is complete only when all of the following are true:
 11. Permanent documentation accurately closes only proven findings and retains all owner decisions and Chapter 12 issues.
 12. `git diff --check` and `git diff --cached --check` pass, no generated artifacts remain, the closeout commit is complete, and Git has no tracked, staged, or unexpected untracked changes. An expressly retained temporary planning artifact may remain intentionally untracked only when its status is recorded accurately.
 
-The unresolved CH11-DB-01, CH11-DB-02, CH11-STATE-01, and CH11-FILE-01 decisions do not become implicit implementation requirements. Chapter 11 may close with them explicitly retained only because this plan defines a complete, independently correct bounded scope. Any later owner approval must become new separately planned work, not a retroactive expansion of a completed checkpoint.
+The unresolved CH11-DB-01, CH11-DB-02, CH11-STATE-01, CH11-STATE-02, and CH11-FILE-01 decisions do not become implicit implementation requirements. Chapter 11 closes with them explicitly retained only because this plan defines a complete, independently correct bounded scope. Any later owner approval must become new separately planned work, not a retroactive expansion of a completed checkpoint.
