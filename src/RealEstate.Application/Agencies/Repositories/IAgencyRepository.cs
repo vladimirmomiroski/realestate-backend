@@ -4,6 +4,11 @@ using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Agencies.Repositories;
 
+public interface IAgencyOwnerMutationScope : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken cancellationToken);
+}
+
 public interface IAgencyRepository
 {
     Task CreateAsync(
@@ -27,6 +32,10 @@ public interface IAgencyRepository
         CancellationToken cancellationToken);
 
     void AddMember(AgencyMember member);
+
+    Task<IAgencyOwnerMutationScope?> BeginLastActiveOwnerMutationAsync(
+    Guid agencyId,
+    CancellationToken cancellationToken);
 
     Task<AgencyMember?> GetMemberByIdForUpdateAsync(
         Guid agencyId,

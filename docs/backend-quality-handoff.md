@@ -18,19 +18,53 @@ It is a live source-controlled issue register, not a project history, completed-
 
 ## Unresolved Issues
 
-- **Last-owner role-change concurrency**
-  - Area: Agency member role changes.
-  - Risk: Two concurrent Owner -> Agent demotions may both observe a safe active-owner count and leave the agency without an active Owner.
-  - Evidence: `ChangeAgencyMemberRoleHandler` calls `IAgencyRepository.CountActiveOwnersAsync(...)` before `AgencyMember.ChangeRole(...)`; there is no transaction, row lock, concurrency token, or database-backed invariant protecting the count-and-mutate sequence.
-  - Smallest safe direction: Add concurrency protection for Owner -> Agent demotion, or enforce the invariant with a database-backed strategy, then cover the behavior with targeted tests.
-  - Target chapter: Chapter 11 — Data Integrity and Targeted Hardening.
+- **Transaction cleanup can replace an in-flight exception**
+  - Area: Chapter 11A agency-owner transaction cleanup.
+  - Risk: In the rare case where rollback or transaction disposal fails while another exception is already propagating, the cleanup exception may replace the original exception. This is mainly an observability and diagnostic risk, not a proven last-owner invariant gap.
+  - Evidence: `AgencyRepository.BeginLastActiveOwnerMutationAsync(...)` rolls back and disposes inside its exception path, and `AgencyOwnerMutationScope.DisposeAsync()` performs the same cleanup for an uncommitted scope; neither path separately preserves an already-propagating exception if cleanup itself fails.
+  - Smallest safe direction: Revisit exception preservation only if a later transaction or observability checkpoint naturally introduces a broader policy for retaining original and cleanup failures.
+  - Classification: Non-blocking, not required to reopen Chapter 11A, and suitable for evidence-based cleanup when related future work touches the same code.
+  - Target task: Related future transaction or observability cleanup.
 
-- **Disabled listing creators can still mutate listing images**
-  - Area: Listing image mutations.
-  - Risk: A Disabled user who created a listing can still upload, delete, reorder, or set primary listing images if their JWT is otherwise valid.
-  - Evidence: `UploadListingImageHandler`, `DeleteListingImageHandler`, `SetPrimaryListingImageHandler`, and `ReorderListingImagesHandler` enforce authenticated `CreatedByUserId` ownership but do not reload the current `User` or check `UserStatus.Disabled`.
-  - Smallest safe direction: Decide whether listing image mutations should follow the same Disabled-user blocking rule as listing creation and listing status transitions; if yes, reload the current user in the image handlers or centralize the check behind a focused listing-owner guard.
-  - Target chapter: Chapter 11 — Data Integrity and Targeted Hardening.
+- **Concurrency-test request tasks are not drained after orchestration failure**
+  - Area: Chapter 11A deterministic concurrency-test cleanup.
+  - Risk: If deterministic test orchestration fails after HTTP request tasks start but before the normal awaits, the database gate is released but those tasks are not explicitly drained. The shared timeout bounds them, so this is test-failure-path hygiene rather than incomplete concurrency evidence.
+  - Evidence: `AgenciesEndpointTests.ExecuteContestedOwnerMutationAsync(...)` releases `gateTransaction` in `finally`, while `firstRequestTask` and `secondRequestTask` are awaited only on the normal path after both PostgreSQL blocking relationships are established.
+  - Smallest safe direction: Revisit task cancellation and draining only if later concurrency checkpoints naturally reuse or extract this test-local coordination mechanism.
+  - Classification: Non-blocking, not required to reopen Chapter 11A, and suitable for evidence-based cleanup when related future work touches the same code.
+  - Target task: Related future concurrency-test cleanup.
+
+- **CH11-DB-01: Listing creator relationship remains nullable**
+  - Area: Listing relational model and deployed-data compatibility.
+  - Risk: PostgreSQL permits a listing without `CreatedByUserId`; making the relationship required without knowing deployed data or an authorized backfill could make an otherwise desirable invariant unsafe to migrate.
+  - Evidence: `Listing.CreatedByUserId` remains nullable and `ListingConfiguration` configures the existing optional creator relationship with Restrict delete behavior; Chapter 11 added no schema change.
+  - Smallest safe direction: Perform an authorized data audit, choose a backfill policy, and implement one focused migration only if the owner approves a required creator relationship.
+  - Classification: Accepted owner decision; Chapter 11 is complete without resolving it.
+  - Target task: Separate owner-approved data/migration checkpoint.
+
+- **CH11-DB-02: Request validation is not duplicated broadly as database checks**
+  - Area: Listing numeric, range, and coordinate integrity.
+  - Risk: Direct database writes are not guarded by every rule enforced by request validators, while adding blanket constraints could reject legacy data or prematurely encode product policy.
+  - Evidence: Listing validators enforce business ranges, while current listing EF configurations and the 15 committed migrations do not define a corresponding comprehensive check-constraint family.
+  - Smallest safe direction: Audit deployed data and approve each constraint family before adding a focused migration.
+  - Classification: Accepted owner decision; Chapter 11 is complete without resolving it.
+  - Target task: Separate owner-approved data/migration checkpoint.
+
+- **CH11-STATE-01: Broad concurrency and authorization freshness remain undefined**
+  - Area: Cross-aggregate state transitions and in-flight authorization.
+  - Risk: Commands outside the specifically protected agency-owner, invitation, and listing-image invariants may retain last-write-wins behavior or complete after a later authorization change.
+  - Evidence: Chapter 11 adds narrow parent/row write scopes only to the protected handlers and does not add concurrency tokens or a global actor-freshness policy.
+  - Smallest safe direction: Decide the desired policy per aggregate, then implement focused optimistic-concurrency or post-wait authorization tasks rather than a generic framework.
+  - Classification: Accepted owner decision; Chapter 11 is complete without resolving it.
+  - Target task: Separate owner-approved concurrency/authorization work.
+
+- **CH11-FILE-01: Post-commit physical deletion is not durably recoverable**
+  - Area: Database/media deletion boundary.
+  - Risk: A database media deletion can commit and a later physical-file deletion can fail, leaving an orphan file.
+  - Evidence: `DeleteListingImageHandler` commits and disposes its listing-image write scope before calling `DeleteListingImageAsync`; upload compensation does not and cannot reverse this post-commit boundary.
+  - Smallest safe direction: Either formally accept the orphan risk or design a persisted deletion intent with retry/reconciliation as a separate operational feature.
+  - Classification: Accepted limitation; Chapter 11 intentionally preserves the existing post-commit exception behavior.
+  - Target task: Separate owner-approved durable media-cleanup workflow.
 
 - **Deterministic listing test setup uses raw SQL**
   - Area: Listing integration-test fixtures.
@@ -40,11 +74,20 @@ It is a live source-controlled issue register, not a project history, completed-
   - Acceptance: This remains low-priority test cleanup, not a production architecture issue, and did not block Chapter 10 completion.
   - Target task: Low-priority test cleanup.
 
-- **Invitation expiry can remain status-stale until touched**
+- **CH11-STATE-02: Invitation expiry can remain status-stale until touched**
   - Area: Agency invitation lifecycle and API contract.
   - Risk: An invitation can remain `Status = Pending` after `ExpiresAtUtc` has passed, so list responses may show an expired-but-still-Pending row until accept/cancel logic touches and marks it Expired.
   - Evidence: `AcceptAgencyInvitationHandler` and `CancelAgencyInvitationHandler` mark a Pending invitation Expired when `ExpiresAtUtc <= utcNow`; `GetAgencyInvitationsHandler` lists invitations by stored status only; dashboard summary deliberately counts only `Status == Pending && ExpiresAtUtc > utcNow`.
   - Smallest safe direction: Decide whether invitation list responses should expose stored status only, compute an effective status, or run an explicit expiration process before listing.
+  - Classification: Accepted lifecycle and API-contract decision; Chapter 11 preserved and tested the action-triggered behavior.
+  - Target chapter: Chapter 12 — API Consistency, Observability, and Frontend Readiness.
+
+- **Race-time unique conflicts are not translated consistently**
+  - Area: Registration, agency creation, and HTTP conflict handling.
+  - Risk: Two concurrent requests can both pass an application-level uniqueness precheck, after which one request loses at the PostgreSQL unique index and may surface an unhandled database exception instead of the existing duplicate business outcome.
+  - Evidence: `RegisterUserHandler` checks normalized-email availability before inserting a user, and `CreateAgencyHandler` checks slug availability before inserting an agency; PostgreSQL has unique indexes for both values, but production code does not narrowly translate the resulting expected unique-constraint violations.
+  - Smallest safe direction: Keep the database constraints authoritative, catch only the expected named constraint at each affected use-case boundary, translate it to the existing duplicate/conflict result, and rethrow unrelated database failures.
+  - Scope note: The invitation-specific pending-invitation conflict is handled in Chapter 11; registration email and agency slug remain deferred.
   - Target chapter: Chapter 12 — API Consistency, Observability, and Frontend Readiness.
 
 - **API error response shapes are inconsistent**
@@ -60,10 +103,3 @@ It is a live source-controlled issue register, not a project history, completed-
   - Evidence: `PagedResult<T>` and `PagedResponse<T>` both expose `Items`, `Page`, `PageSize`, `TotalCount`, `TotalPages`, `HasNextPage`, and `HasPreviousPage`; public listing search returns `PagedResponse<ListingResponse>`, while my listings, agency listings, and dashboard listings return `PagedResult<ListingResponse>`.
   - Smallest safe direction: Choose one public pagination contract and use it consistently across public, personal, agency, and dashboard listing endpoints.
   - Target chapter: Chapter 12 — API Consistency, Observability, and Frontend Readiness.
-
-- **Listing image upload can orphan a file if database persistence fails**
-  - Area: Local file storage and listing image upload.
-  - Risk: A physical listing image file can remain on disk if the file save succeeds but `SaveChangesAsync` fails while adding the `ListingImage` row.
-  - Evidence: `UploadListingImageHandler` calls `SaveListingImageAsync(...)`, then adds the `ListingImage`, then calls `SaveChangesAsync(...)` without a cleanup catch; `UploadCurrentUserAvatarHandler` and `UploadAgencyLogoHandler` already delete the newly stored file when database persistence fails.
-  - Smallest safe direction: Add the same cleanup-on-save-failure pattern used by avatar and agency logo upload, then cover the behavior with a focused test or storage fake if practical.
-  - Target chapter: Chapter 11 — Data Integrity and Targeted Hardening.

@@ -3,6 +3,9 @@ using RealEstate.Application.Agencies.ReadModels;
 using RealEstate.Application.Agencies.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using System.Data;
+using System.Data.Common;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace RealEstate.Infrastructure.Persistence.Repositories;
 
@@ -112,6 +115,77 @@ public sealed class AgencyRepository : IAgencyRepository
     public void AddMember(AgencyMember member)
     {
         _dbContext.Set<AgencyMember>().Add(member);
+    }
+
+    public async Task<IAgencyOwnerMutationScope?>
+    BeginLastActiveOwnerMutationAsync(
+        Guid agencyId,
+        CancellationToken cancellationToken)
+    {
+        IDbContextTransaction transaction =
+            await _dbContext.Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken);
+
+        try
+        {
+            DbConnection connection =
+                _dbContext.Database.GetDbConnection();
+
+            await using DbCommand command =
+                connection.CreateCommand();
+
+            command.Transaction =
+                transaction.GetDbTransaction();
+
+            command.CommandText =
+                """
+            SELECT "Id"
+            FROM "Agencies"
+            WHERE "Id" = @agencyId
+            FOR UPDATE;
+            """;
+
+            DbParameter agencyIdParameter =
+                command.CreateParameter();
+
+            agencyIdParameter.ParameterName = "@agencyId";
+            agencyIdParameter.Value = agencyId;
+
+            command.Parameters.Add(agencyIdParameter);
+
+            object? lockedAgencyId =
+                await command.ExecuteScalarAsync(
+                    cancellationToken);
+
+            if (lockedAgencyId is null ||
+                lockedAgencyId is DBNull)
+            {
+                await transaction.RollbackAsync(
+                    CancellationToken.None);
+
+                await transaction.DisposeAsync();
+
+                return null;
+            }
+
+            return new AgencyOwnerMutationScope(
+                transaction);
+        }
+        catch
+        {
+            try
+            {
+                await transaction.RollbackAsync(
+                    CancellationToken.None);
+            }
+            finally
+            {
+                await transaction.DisposeAsync();
+            }
+
+            throw;
+        }
     }
 
     public async Task<AgencyMember?> GetMemberByIdForUpdateAsync(
@@ -247,5 +321,63 @@ public sealed class AgencyRepository : IAgencyRepository
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private sealed class AgencyOwnerMutationScope
+    : IAgencyOwnerMutationScope
+    {
+        private readonly IDbContextTransaction _transaction;
+
+        private bool _committed;
+        private bool _disposed;
+
+        public AgencyOwnerMutationScope(
+            IDbContextTransaction transaction)
+        {
+            _transaction = transaction;
+        }
+
+        public async Task CommitAsync(
+            CancellationToken cancellationToken)
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(
+                    nameof(AgencyOwnerMutationScope));
+            }
+
+            if (_committed)
+            {
+                return;
+            }
+
+            await _transaction.CommitAsync(
+                cancellationToken);
+
+            _committed = true;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            try
+            {
+                if (!_committed)
+                {
+                    await _transaction.RollbackAsync(
+                        CancellationToken.None);
+                }
+            }
+            finally
+            {
+                await _transaction.DisposeAsync();
+            }
+        }
     }
 }

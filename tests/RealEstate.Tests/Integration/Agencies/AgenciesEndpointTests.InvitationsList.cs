@@ -7,6 +7,7 @@ using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using Microsoft.EntityFrameworkCore;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -337,42 +338,209 @@ public sealed partial class AgenciesEndpointTests
         }
     }
 
-    private async Task CreateAgencyInvitationForListAsync(
-        Guid agencyId,
-        Guid invitedByUserId,
-        string email,
-        AgencyInvitationStatus status)
+    [Fact]
+    public async Task GetAgencyInvitations_ShouldExposeStoredPendingUntilReplacementPersistsExpiry()
     {
-        using IServiceScope scope = _factory.Services.CreateScope();
+        // Arrange
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(
+                _httpClient);
 
-        var dbContext = scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+        Guid agencyId =
+            await CreateAgencyAsAsync(owner);
+
+        string invitedEmail =
+            $"stored-status-{Guid.NewGuid():N}@test.com";
+
+        string normalizedEmail =
+            invitedEmail.ToUpperInvariant();
+
+        Guid elapsedInvitationId =
+            await CreateAgencyInvitationForListAsync(
+                agencyId,
+                owner.UserId,
+                invitedEmail,
+                AgencyInvitationStatus.Pending,
+                expiresAtUtc:
+                    DateTime.UtcNow.AddDays(-1));
+
+        Guid replacementInvitationId =
+            Guid.Empty;
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            // Act: list before an action observes expiry
+            HttpResponseMessage beforeResponse =
+                await _httpClient.GetAsync(
+                    $"/api/agencies/{agencyId}/invitations");
+
+            // Assert
+            beforeResponse.StatusCode.Should()
+                .Be(HttpStatusCode.OK);
+
+            JsonElement beforeJson =
+                await beforeResponse.Content
+                    .ReadFromJsonAsync<JsonElement>();
+
+            JsonElement beforeInvitation =
+                beforeJson.EnumerateArray()
+                    .Single(invitation =>
+                        invitation.GetProperty("id")
+                            .GetGuid() ==
+                        elapsedInvitationId);
+
+            beforeInvitation.GetProperty("status")
+                .GetString()
+                .Should()
+                .Be(nameof(
+                    AgencyInvitationStatus.Pending));
+
+            // Act: create observes elapsed Pending
+            HttpResponseMessage createResponse =
+                await _httpClient.PostAsJsonAsync(
+                    $"/api/agencies/{agencyId}/invitations",
+                    CreateValidCreateAgencyInvitationRequest(
+                        invitedEmail));
+
+            createResponse.StatusCode.Should()
+                .Be(HttpStatusCode.Created);
+
+            JsonElement createdJson =
+                await createResponse.Content
+                    .ReadFromJsonAsync<JsonElement>();
+
+            replacementInvitationId =
+                createdJson.GetProperty("id").GetGuid();
+
+            // Act: list after replacement
+            HttpResponseMessage afterResponse =
+                await _httpClient.GetAsync(
+                    $"/api/agencies/{agencyId}/invitations");
+
+            afterResponse.StatusCode.Should()
+                .Be(HttpStatusCode.OK);
+
+            JsonElement afterJson =
+                await afterResponse.Content
+                    .ReadFromJsonAsync<JsonElement>();
+
+            JsonElement oldInvitation =
+                afterJson.EnumerateArray()
+                    .Single(invitation =>
+                        invitation.GetProperty("id")
+                            .GetGuid() ==
+                        elapsedInvitationId);
+
+            JsonElement replacementInvitation =
+                afterJson.EnumerateArray()
+                    .Single(invitation =>
+                        invitation.GetProperty("id")
+                            .GetGuid() ==
+                        replacementInvitationId);
+
+            oldInvitation.GetProperty("status")
+                .GetString()
+                .Should()
+                .Be(nameof(
+                    AgencyInvitationStatus.Expired));
+
+            replacementInvitation.GetProperty("status")
+                .GetString()
+                .Should()
+                .Be(nameof(
+                    AgencyInvitationStatus.Pending));
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+
+        using IServiceScope assertionScope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        List<AgencyInvitation> storedInvitations =
+            await dbContext.AgencyInvitations
+                .AsNoTracking()
+                .Where(invitation =>
+                    invitation.AgencyId == agencyId &&
+                    invitation.NormalizedEmail ==
+                        normalizedEmail)
+                .ToListAsync();
+
+        storedInvitations.Should().HaveCount(2);
+
+        storedInvitations.Single(invitation =>
+                invitation.Id == elapsedInvitationId)
+            .Status.Should()
+            .Be(AgencyInvitationStatus.Expired);
+
+        storedInvitations.Single(invitation =>
+                invitation.Id ==
+                replacementInvitationId)
+            .Status.Should()
+            .Be(AgencyInvitationStatus.Pending);
+    }
+
+    private async Task<Guid>
+     CreateAgencyInvitationForListAsync(
+         Guid agencyId,
+         Guid invitedByUserId,
+         string email,
+         AgencyInvitationStatus status,
+         DateTime? expiresAtUtc = null)
+    {
+        using IServiceScope scope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
 
         DateTime utcNow = DateTime.UtcNow;
 
         var invitation = new AgencyInvitation(
             agencyId: agencyId,
             email: email,
-            normalizedEmail: email.ToUpperInvariant(),
+            normalizedEmail:
+                email.ToUpperInvariant(),
             token: Guid.NewGuid().ToString("N"),
-            code: Random.Shared.Next(0, 1_000_000).ToString("D6"),
+            code: Random.Shared
+                .Next(0, 1_000_000)
+                .ToString("D6"),
             role: AgencyMemberRole.Agent,
             invitedByUserId: invitedByUserId,
-            expiresAtUtc: status == AgencyInvitationStatus.Expired
-                ? utcNow.AddDays(-1)
-                : utcNow.AddDays(7));
+            expiresAtUtc:
+                expiresAtUtc ??
+                (
+                    status ==
+                    AgencyInvitationStatus.Expired
+                        ? utcNow.AddDays(-1)
+                        : utcNow.AddDays(7)
+                ));
 
-        if (status == AgencyInvitationStatus.Cancelled)
+        if (status ==
+            AgencyInvitationStatus.Cancelled)
         {
             invitation.Cancel(utcNow);
         }
 
-        if (status == AgencyInvitationStatus.Expired)
+        if (status ==
+            AgencyInvitationStatus.Expired)
         {
             invitation.MarkExpired(utcNow);
         }
 
-        dbContext.AgencyInvitations.Add(invitation);
+        dbContext.AgencyInvitations.Add(
+            invitation);
 
         await dbContext.SaveChangesAsync();
+
+        return invitation.Id;
     }
 }

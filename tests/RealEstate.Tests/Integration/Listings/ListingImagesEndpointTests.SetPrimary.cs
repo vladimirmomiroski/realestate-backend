@@ -1,5 +1,9 @@
 ﻿using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
@@ -9,6 +13,73 @@ namespace RealEstate.Tests.Integration.Listings;
 
 public sealed partial class ListingImagesEndpointTests
 {
+    [Fact]
+    public async Task SetPrimaryListingImage_WhenAlreadyPrimary_ReturnsExistingSuccess()
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+
+        var firstImage = await UploadImageAsync(
+            listingId,
+            owner,
+            "already-primary.png");
+
+        var secondImage = await UploadImageAsync(
+            listingId,
+            owner,
+            "secondary.png");
+
+        Guid firstImageId = firstImage.GetProperty("id").GetGuid();
+        Guid secondImageId = secondImage.GetProperty("id").GetGuid();
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/images/{firstImageId}/primary",
+                null);
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            json.GetProperty("id").GetGuid().Should().Be(firstImageId);
+            json.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
+            json.GetProperty("sortOrder").GetInt32().Should().Be(0);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+
+        await using AsyncServiceScope assertionScope =
+            _factory.Services.CreateAsyncScope();
+
+        RealEstateDbContext assertionDbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        List<ListingImage> savedImages =
+            await assertionDbContext.Set<ListingImage>()
+                .AsNoTracking()
+                .Where(image => image.ListingId == listingId)
+                .OrderBy(image => image.SortOrder)
+                .ToListAsync();
+
+        savedImages.Should().HaveCount(2);
+        savedImages.Select(image => image.Id)
+            .Should().Equal(firstImageId, secondImageId);
+        savedImages.Select(image => image.SortOrder)
+            .Should().Equal(0, 1);
+        savedImages.Count(image => image.IsPrimary).Should().Be(1);
+        savedImages.Single(image => image.Id == firstImageId)
+            .IsPrimary.Should().BeTrue();
+        savedImages.Single(image => image.Id == secondImageId)
+            .IsPrimary.Should().BeFalse();
+    }
+
     [Fact]
     public async Task SetPrimaryListingImage_WithExistingImage_ReturnsOk()
     {

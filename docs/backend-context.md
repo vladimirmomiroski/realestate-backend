@@ -86,13 +86,14 @@ Current backend phase:
 ```text
 Chapter 9 and its 9L documentation cleanup are complete.
 Chapter 10 — Search and Discovery Phase 2 is complete.
+Chapter 11 — Data Integrity and Targeted Hardening is complete.
 Frontend work has not started yet.
 ```
 
 Current test state:
 
 ```text
-631/631 tests passing
+704/704 tests passing
 ```
 
 ## 4. Tech stack
@@ -523,6 +524,18 @@ Same-agency members can manage listing publishing/status, but cannot manage anot
 
 The filtered unique primary-image index requires the existing two-phase primary-image update.
 
+Chapter 11 image-integrity guarantees:
+
+```text
+Disabled creators cannot upload, delete, set primary, or reorder images.
+Failed or cancelled local copies leave no partial final or temporary file.
+A noncommitted listing-image upload compensates exactly its newly stored file.
+Upload, delete, set-primary, and reorder serialize on the Listings parent row.
+The 20-image cap, append order, and single-primary invariant are revalidated under that lock.
+Primary delete and set-primary keep both save phases in one transaction.
+Physical deletion remains post-commit and may leave an orphan if deletion fails (CH11-FILE-01).
+```
+
 ## 11. Search and listing queries
 
 Public listing search uses one shared Active-only repository path for general search and public agency listings. It supports deterministic pagination and:
@@ -744,6 +757,10 @@ Duplicate pending invitations are blocked.
 Invitation email must match the accepting user.
 Expired invitations cannot be accepted.
 Acceptance creates an Active agency membership.
+Accept and cancel serialize terminal transitions on the invitation row.
+Membership creation and Pending -> Accepted commit atomically.
+An elapsed Pending invitation can be expired and replaced atomically.
+Concurrent creates retain at most one live stored Pending invitation.
 ```
 
 List responses do not expose token or code.
@@ -783,13 +800,13 @@ ownership handoff is done by promoting another Owner first
 existing Manager may be changed to Owner or Agent as a recovery path
 ```
 
-Known risk:
+Concurrency guarantee:
 
 ```text
-The active-owner count check is not yet protected against a concurrency race.
+Owner demotion and member disable serialize on the Agencies parent row.
+The actor, target, and Active Owner count are re-read after locking.
+Concurrent mutations cannot leave an agency without an Active Owner.
 ```
-
-This belongs in Chapter 11.
 
 ## 15. Agency logo management
 
@@ -1054,6 +1071,8 @@ pg_trgm extension
 IX_ListingTranslations_Q_Trigram four-column GIN index
 ```
 
+Chapter 11 added no schema or migration. The repository remains at 15 committed migrations, and final zero-to-latest PostgreSQL verification, repeat update, catalog inspection, and pending-model verification all passed.
+
 Enums are stored as strings in PostgreSQL through EF Core conversions.
 
 ### Auditing
@@ -1080,6 +1099,8 @@ Current local storage areas:
 ```
 
 `wwwroot/uploads` is ignored by Git.
+
+All three local save areas use one residue-free write primitive: copy to a unique same-directory temporary file, dispose the completed stream, then publish with a non-overwriting move. Failed and cancelled copies remove the operation-owned temporary file.
 
 ## 20. Testing strategy
 
@@ -1122,6 +1143,10 @@ literal q scope and wildcard escaping
 comparable eligibility and six-key ordering
 public Active-only and authorized private non-Active visibility
 pg_trgm extension and trigram-index catalog shape
+deterministic owner, invitation, and listing-image PostgreSQL lock races
+invitation and image transaction rollback at injected persistence boundaries
+local-file failure/cancellation residue cleanup
+listing-image database/filesystem compensation boundaries
 ```
 
 ## 21. Development workflow
@@ -1169,12 +1194,13 @@ docs/backend-quality-handoff.md
 
 Important current decisions/risks:
 
-### Last-owner concurrency
+### Chapter 11 retained limitations and owner decisions
 
 ```text
-The last-active-owner demotion rule currently depends on an application-level count.
-Concurrent operations could race.
-Address in Chapter 11.
+CH11-DB-01: Listings.CreatedByUserId remains nullable pending an authorized data/backfill decision.
+CH11-DB-02: request validation is not broadly duplicated as PostgreSQL check constraints without a data/policy decision.
+CH11-STATE-01: no global optimistic-concurrency or authorization-freshness policy was introduced outside protected invariants.
+CH11-FILE-01: a committed database deletion followed by failed physical deletion can still leave an orphan file.
 ```
 
 ### Manager role
@@ -1187,6 +1213,7 @@ Do not expand Manager permissions without explicit product rules.
 ### Invitation expiration consistency
 
 ```text
+CH11-STATE-02 remains accepted.
 Dashboard summary counts only actionable Pending invitations.
 Invitation-list behavior is primarily status-based.
 A pending row may remain Pending until an action marks it Expired.
@@ -1228,8 +1255,8 @@ Cloud/object storage is deferred until deployment needs justify it.
 ### Current completed milestone and next work
 
 ```text
-Completed: Chapter 10 — Search and Discovery Phase 2
-Next: Chapter 11 — Data Integrity and Targeted Hardening
+Completed: Chapter 11 — Data Integrity and Targeted Hardening
+Next: Chapter 12 — API Consistency, Observability, and Frontend Readiness
 ```
 
 Chapter 10 completion includes:
@@ -1239,6 +1266,17 @@ deterministic public search, translation/location behavior, and comparables
 PostgreSQL query-shape corrections and the accepted trigram index
 authoritative permanent evidence and independent reproducibility verification
 631/631 passing tests
+```
+
+Chapter 11 completion includes:
+
+```text
+serialized last-active-owner, invitation-terminal, and listing-image aggregate mutations
+atomic elapsed-invitation replacement and named uniqueness-conflict handling
+disabled-user listing-image authorization
+residue-free local writes and listing-image upload compensation
+15/15 fresh migrations, empty repeat update, valid catalog objects, and no pending model changes
+704/704 passing tests
 ```
 
 ### Backend chapters before frontend
@@ -1287,15 +1325,17 @@ Authoritative evidence: `docs/benchmarks/chapter-10f/evidence/` (benchmark commi
 
 ### Chapter 11 — Data Integrity and Targeted Hardening
 
-Likely focus:
+Completed capabilities:
 
 ```text
-last-owner concurrency
-invitation acceptance races
-transaction boundaries
-unique-constraint handling
-idempotency review
-other verified quality-backlog items
+agency-owner parent-row serialization and post-lock actor revalidation
+invitation terminal/replacement serialization and narrow named-conflict translation
+disabled-user listing-image authorization
+residue-free listing/avatar/logo writes
+listing-image upload compensation
+serialized image cap, ordering, primary, delete, and reorder invariants
+deterministic PostgreSQL concurrency and injected rollback evidence
+fresh migration, repeat-update, pending-model, and catalog verification
 ```
 
 ### Chapter 12 — API Consistency, Observability, and Frontend Readiness
@@ -1368,8 +1408,7 @@ Use read-only review for important features.
 Current next task:
 
 ```text
-Begin Chapter 11 — Data Integrity and Targeted Hardening.
-Then complete Chapter 12 — API Consistency, Observability, and Frontend Readiness.
+Begin Chapter 12 — API Consistency, Observability, and Frontend Readiness.
 Begin frontend development after Chapter 12.
 ```
 
