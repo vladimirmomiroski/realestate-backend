@@ -1,9 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using System.Data;
+using System.Data.Common;
 
 namespace RealEstate.Infrastructure.Persistence.Repositories;
 
@@ -403,6 +406,121 @@ public sealed class ListingRepository : IListingRepository
             page,
             pageSize,
             totalCount);
+    }
+
+    public async Task<ListingImageUploadProbeReadModel?>
+    GetListingImageUploadProbeReadOnlyAsync(
+        Guid listingId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.Listings
+            .AsNoTracking()
+            .Where(listing =>
+                listing.Id == listingId)
+            .Select(listing =>
+                new ListingImageUploadProbeReadModel(
+                    listing.Id,
+                    listing.CreatedByUserId,
+                    listing.Images.Count))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IListingImageWriteScope?>
+    BeginListingImageWriteAsync(
+        Guid listingId,
+        CancellationToken cancellationToken)
+    {
+        IDbContextTransaction transaction =
+            await _dbContext.Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken);
+
+        try
+        {
+            DbConnection connection =
+                _dbContext.Database.GetDbConnection();
+
+            await using DbCommand command =
+                connection.CreateCommand();
+
+            command.Transaction =
+                transaction.GetDbTransaction();
+
+            command.CommandText =
+                """
+            SELECT "Id"
+            FROM "Listings"
+            WHERE "Id" = @listingId
+            FOR UPDATE;
+            """;
+
+            DbParameter listingIdParameter =
+                command.CreateParameter();
+
+            listingIdParameter.ParameterName =
+                "@listingId";
+
+            listingIdParameter.DbType =
+                DbType.Guid;
+
+            listingIdParameter.Value =
+                listingId;
+
+            command.Parameters.Add(
+                listingIdParameter);
+
+            object? lockedListingId =
+                await command.ExecuteScalarAsync(
+                    cancellationToken);
+
+            if (lockedListingId is null ||
+                lockedListingId is DBNull)
+            {
+                await transaction.RollbackAsync(
+                    CancellationToken.None);
+
+                await transaction.DisposeAsync();
+
+                return null;
+            }
+
+            Listing? listing =
+                await _dbContext.Listings
+                    .Include(currentListing =>
+                        currentListing.Images)
+                    .SingleOrDefaultAsync(
+                        currentListing =>
+                            currentListing.Id == listingId,
+                        cancellationToken);
+
+            if (listing is null)
+            {
+                await transaction.RollbackAsync(
+                    CancellationToken.None);
+
+                await transaction.DisposeAsync();
+
+                return null;
+            }
+
+            return new ListingImageWriteScope(
+                listing,
+                transaction);
+        }
+        catch
+        {
+            try
+            {
+                await transaction.RollbackAsync(
+                    CancellationToken.None);
+            }
+            finally
+            {
+                await transaction.DisposeAsync();
+            }
+
+            throw;
+        }
     }
 
     public async Task<Listing?> GetByIdWithImagesForUpdateAsync(
@@ -859,5 +977,67 @@ public sealed class ListingRepository : IListingRepository
         pageSize = Math.Min(pageSize, MaxPageSize);
 
         return (page, pageSize);
+    }
+
+    private sealed class ListingImageWriteScope
+    : IListingImageWriteScope
+    {
+        private readonly IDbContextTransaction _transaction;
+
+        private bool _committed;
+        private bool _disposed;
+
+        public ListingImageWriteScope(
+            Listing listing,
+            IDbContextTransaction transaction)
+        {
+            Listing = listing;
+            _transaction = transaction;
+        }
+
+        public Listing Listing { get; }
+
+        public async Task CommitAsync(
+            CancellationToken cancellationToken)
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(
+                    nameof(ListingImageWriteScope));
+            }
+
+            if (_committed)
+            {
+                return;
+            }
+
+            await _transaction.CommitAsync(
+                cancellationToken);
+
+            _committed = true;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            try
+            {
+                if (!_committed)
+                {
+                    await _transaction.RollbackAsync(
+                        CancellationToken.None);
+                }
+            }
+            finally
+            {
+                await _transaction.DisposeAsync();
+            }
+        }
     }
 }
