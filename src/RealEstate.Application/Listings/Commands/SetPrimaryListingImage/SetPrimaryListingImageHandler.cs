@@ -27,56 +27,67 @@ public sealed class SetPrimaryListingImageHandler
         SetPrimaryListingImageCommand command,
         CancellationToken cancellationToken)
     {
-        var listing = await _listingRepository.GetByIdWithImagesForUpdateAsync(
+        IListingImageWriteScope? writeScope =
+            await _listingRepository.BeginListingImageWriteAsync(
             command.ListingId,
             cancellationToken);
 
-        if (listing is null)
+        if (writeScope is null)
         {
             return SetPrimaryListingImageResult.Failure(SetPrimaryListingImageError.ListingNotFound);
         }
 
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException(
-                "Authenticated user id is not available.");
+        Domain.Entities.ListingImage selectedImage;
 
-        var actor =
-            await _userRepository.GetByIdReadOnlyAsync(
-                userId,
-                cancellationToken);
-
-        if (actor is null ||
-            actor.Status == UserStatus.Disabled ||
-            listing.CreatedByUserId != userId)
+        await using (writeScope)
         {
-            return SetPrimaryListingImageResult.Failure(
-                SetPrimaryListingImageError.NotListingOwner);
+            var listing = writeScope.Listing;
+
+            Guid userId = _currentUserService.UserId
+                ?? throw new InvalidOperationException(
+                    "Authenticated user id is not available.");
+
+            var actor =
+                await _userRepository.GetByIdReadOnlyAsync(
+                    userId,
+                    cancellationToken);
+
+            if (actor is null ||
+                actor.Status == UserStatus.Disabled ||
+                listing.CreatedByUserId != userId)
+            {
+                return SetPrimaryListingImageResult.Failure(
+                    SetPrimaryListingImageError.NotListingOwner);
+            }
+
+            var protectedSelectedImage = listing.Images.FirstOrDefault(
+                image => image.Id == command.ImageId);
+
+            if (protectedSelectedImage is null)
+            {
+                return SetPrimaryListingImageResult.Failure(SetPrimaryListingImageError.ImageNotFound);
+            }
+
+            selectedImage = protectedSelectedImage;
+
+            if (!selectedImage.IsPrimary)
+            {
+                foreach (var image in listing.Images)
+                {
+                    image.IsPrimary = false;
+                }
+
+                // Save in two phases because the database enforces only one primary image per listing.
+                // A single SaveChanges call can fail if EF updates the new primary before clearing the old one.
+                await _listingRepository.SaveChangesAsync(cancellationToken);
+
+                selectedImage.IsPrimary = true;
+
+                await _listingRepository.SaveChangesAsync(cancellationToken);
+
+                await writeScope.CommitAsync(cancellationToken);
+            }
         }
-
-        var selectedImage = listing.Images.FirstOrDefault(image => image.Id == command.ImageId);
-
-        if (selectedImage is null)
-        {
-            return SetPrimaryListingImageResult.Failure(SetPrimaryListingImageError.ImageNotFound);
-        }
-
-        if (selectedImage.IsPrimary)
-        {
-            return SetPrimaryListingImageResult.Success(ToResponse(selectedImage));
-        }
-
-        foreach (var image in listing.Images)
-        {
-            image.IsPrimary = false;
-        }
-
-        // Save in two phases because the database enforces only one primary image per listing.
-        // A single SaveChanges call can fail if EF updates the new primary before clearing the old one.
-        await _listingRepository.SaveChangesAsync(cancellationToken);
-
-        selectedImage.IsPrimary = true;
-
-        await _listingRepository.SaveChangesAsync(cancellationToken);
 
         return SetPrimaryListingImageResult.Success(ToResponse(selectedImage));
     }

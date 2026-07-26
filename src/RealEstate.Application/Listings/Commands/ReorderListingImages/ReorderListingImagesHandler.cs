@@ -32,62 +32,76 @@ public sealed class ReorderListingImagesHandler
             return ReorderListingImagesResult.Failure(ReorderListingImagesError.ImageIdsMissing);
         }
 
-        var listing = await _listingRepository.GetByIdWithImagesForUpdateAsync(
+        IListingImageWriteScope? writeScope =
+            await _listingRepository.BeginListingImageWriteAsync(
             command.ListingId,
             cancellationToken);
 
-        if (listing is null)
+        if (writeScope is null)
         {
             return ReorderListingImagesResult.Failure(ReorderListingImagesError.ListingNotFound);
         }
 
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException(
-                "Authenticated user id is not available.");
+        List<Domain.Entities.ListingImage> orderedImages;
 
-        var actor =
-            await _userRepository.GetByIdReadOnlyAsync(
-                userId,
-                cancellationToken);
-
-        if (actor is null ||
-            actor.Status == UserStatus.Disabled ||
-            listing.CreatedByUserId != userId)
+        await using (writeScope)
         {
-            return ReorderListingImagesResult.Failure(
-                ReorderListingImagesError.NotListingOwner);
+            var listing = writeScope.Listing;
+
+            Guid userId = _currentUserService.UserId
+                ?? throw new InvalidOperationException(
+                    "Authenticated user id is not available.");
+
+            var actor =
+                await _userRepository.GetByIdReadOnlyAsync(
+                    userId,
+                    cancellationToken);
+
+            if (actor is null ||
+                actor.Status == UserStatus.Disabled ||
+                listing.CreatedByUserId != userId)
+            {
+                return ReorderListingImagesResult.Failure(
+                    ReorderListingImagesError.NotListingOwner);
+            }
+
+            if (listing.Images.Count != command.ImageIds.Count)
+            {
+                return ReorderListingImagesResult.Failure(ReorderListingImagesError.ImageSetMismatch);
+            }
+
+            var listingImageIds = listing.Images
+                .Select(image => image.Id)
+                .ToHashSet();
+
+            var requestedImageIds = command.ImageIds.ToHashSet();
+
+            if (!listingImageIds.SetEquals(requestedImageIds))
+            {
+                return ReorderListingImagesResult.Failure(ReorderListingImagesError.ImageSetMismatch);
+            }
+
+            var order = 0;
+
+            foreach (var imageId in command.ImageIds)
+            {
+                var image = listing.Images.First(image => image.Id == imageId);
+
+                image.SortOrder = order;
+
+                order++;
+            }
+
+            await _listingRepository.SaveChangesAsync(cancellationToken);
+
+            await writeScope.CommitAsync(cancellationToken);
+
+            orderedImages = listing.Images
+                .OrderBy(image => image.SortOrder)
+                .ToList();
         }
 
-        if (listing.Images.Count != command.ImageIds.Count)
-        {
-            return ReorderListingImagesResult.Failure(ReorderListingImagesError.ImageSetMismatch);
-        }
-
-        var listingImageIds = listing.Images
-            .Select(image => image.Id)
-            .ToHashSet();
-
-        var requestedImageIds = command.ImageIds.ToHashSet();
-
-        if (!listingImageIds.SetEquals(requestedImageIds))
-        {
-            return ReorderListingImagesResult.Failure(ReorderListingImagesError.ImageSetMismatch);
-        }
-
-        var order = 0;
-
-        foreach (var imageId in command.ImageIds)
-        {
-            var image = listing.Images.First(image => image.Id == imageId);
-
-            image.SortOrder = order;
-
-            order++;
-        }
-
-        await _listingRepository.SaveChangesAsync(cancellationToken);
-
-        var response = listing.Images
+        var response = orderedImages
             .OrderBy(image => image.SortOrder)
             .Select(image => new ListingImageResponse
             {
