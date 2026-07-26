@@ -45,87 +45,160 @@ public sealed class UploadListingImageHandler
     }
 
     public async Task<UploadListingImageResult> Handle(
-        UploadListingImageCommand command,
-        CancellationToken cancellationToken)
+    UploadListingImageCommand command,
+    CancellationToken cancellationToken)
     {
         var fileValidationError = ValidateFile(command.File);
 
         if (fileValidationError is not UploadListingImageError.None)
         {
-            return UploadListingImageResult.Failure(fileValidationError);
+            return UploadListingImageResult.Failure(
+                fileValidationError);
         }
 
-        var listing = await _listingRepository.GetByIdWithImagesForUpdateAsync(
-            command.ListingId,
-            cancellationToken);
+        ListingImageUploadProbeReadModel? uploadProbe =
+            await _listingRepository
+                .GetListingImageUploadProbeReadOnlyAsync(
+                    command.ListingId,
+                    cancellationToken);
 
-        if (listing is null)
+        if (uploadProbe is null)
         {
-            return UploadListingImageResult.Failure(UploadListingImageError.ListingNotFound);
+            return UploadListingImageResult.Failure(
+                UploadListingImageError.ListingNotFound);
         }
 
         Guid userId = _currentUserService.UserId
             ?? throw new InvalidOperationException(
                 "Authenticated user id is not available.");
 
-        var actor =
+        User? actor =
             await _userRepository.GetByIdReadOnlyAsync(
                 userId,
                 cancellationToken);
 
         if (actor is null ||
             actor.Status == UserStatus.Disabled ||
-            listing.CreatedByUserId != userId)
+            uploadProbe.CreatedByUserId != userId)
         {
             return UploadListingImageResult.Failure(
                 UploadListingImageError.NotListingOwner);
         }
 
-        if (listing.Images.Count >= MaxImagesPerListing)
+        if (uploadProbe.ImageCount >= MaxImagesPerListing)
         {
-            return UploadListingImageResult.Failure(UploadListingImageError.ImageLimitReached);
+            return UploadListingImageResult.Failure(
+                UploadListingImageError.ImageLimitReached);
         }
 
-        var storedFile = await _fileStorageService.SaveListingImageAsync(
-            listing.Id,
-            command.File!,
-            cancellationToken);
+        StoredFileResult storedFile =
+            await _fileStorageService.SaveListingImageAsync(
+                uploadProbe.ListingId,
+                command.File!,
+                cancellationToken);
 
-        ListingImage image;
+        ListingImage? image = null;
+
+        UploadListingImageError protectedError =
+            UploadListingImageError.None;
+
+        bool commitReturned = false;
 
         try
         {
-            var sortOrder = listing.Images.Count == 0
-                ? 0
-                : listing.Images.Max(existingImage => existingImage.SortOrder) + 1;
+            IListingImageWriteScope? writeScope =
+                await _listingRepository
+                    .BeginListingImageWriteAsync(
+                        uploadProbe.ListingId,
+                        cancellationToken);
 
-            var isPrimary = listing.Images.Count == 0;
-
-            image = new ListingImage
+            if (writeScope is null)
             {
-                Id = Guid.NewGuid(),
-                ListingId = listing.Id,
-                OriginalFileName = storedFile.OriginalFileName,
-                StoredFileName = storedFile.StoredFileName,
-                ContentType = storedFile.ContentType,
-                SizeBytes = storedFile.SizeBytes,
-                Url = storedFile.Url,
-                SortOrder = sortOrder,
-                IsPrimary = isPrimary
-            };
+                protectedError =
+                    UploadListingImageError.ListingNotFound;
+            }
+            else
+            {
+                await using (writeScope)
+                {
+                    Listing protectedListing =
+                        writeScope.Listing;
 
-            _listingRepository.AddListingImage(image);
+                    User? protectedActor =
+                        await _userRepository.GetByIdReadOnlyAsync(
+                            userId,
+                            cancellationToken);
 
-            await _listingRepository.SaveChangesAsync(cancellationToken);
+                    if (protectedActor is null ||
+                        protectedActor.Status == UserStatus.Disabled ||
+                        protectedListing.CreatedByUserId != userId)
+                    {
+                        protectedError =
+                            UploadListingImageError.NotListingOwner;
+                    }
+                    else if (
+                        protectedListing.Images.Count >=
+                        MaxImagesPerListing)
+                    {
+                        protectedError =
+                            UploadListingImageError.ImageLimitReached;
+                    }
+                    else
+                    {
+                        int sortOrder =
+                            protectedListing.Images.Count == 0
+                                ? 0
+                                : protectedListing.Images
+                                    .Max(existingImage =>
+                                        existingImage.SortOrder) + 1;
+
+                        bool isPrimary =
+                            protectedListing.Images.Count == 0;
+
+                        image = new ListingImage
+                        {
+                            Id = Guid.NewGuid(),
+                            ListingId = protectedListing.Id,
+                            OriginalFileName =
+                                storedFile.OriginalFileName,
+                            StoredFileName =
+                                storedFile.StoredFileName,
+                            ContentType =
+                                storedFile.ContentType,
+                            SizeBytes =
+                                storedFile.SizeBytes,
+                            Url =
+                                storedFile.Url,
+                            SortOrder =
+                                sortOrder,
+                            IsPrimary =
+                                isPrimary
+                        };
+
+                        _listingRepository.AddListingImage(
+                            image);
+
+                        await _listingRepository.SaveChangesAsync(
+                            cancellationToken);
+
+                        await writeScope.CommitAsync(
+                            cancellationToken);
+
+                        commitReturned = true;
+                    }
+                }
+            }
         }
         catch (Exception persistenceFailure)
+            when (!commitReturned)
         {
             try
             {
-                await _fileStorageService.DeleteListingImageAsync(
-                    listing.Id,
-                    storedFile.StoredFileName,
-                    CancellationToken.None);
+                await _fileStorageService
+                    .DeleteListingImageAsync(
+                        uploadProbe.ListingId,
+                        storedFile.StoredFileName,
+                        CancellationToken.None);
             }
             catch (Exception cleanupFailure)
             {
@@ -135,6 +208,23 @@ public sealed class UploadListingImageHandler
             }
 
             throw;
+        }
+
+        if (protectedError is not UploadListingImageError.None)
+        {
+            await _fileStorageService.DeleteListingImageAsync(
+                uploadProbe.ListingId,
+                storedFile.StoredFileName,
+                CancellationToken.None);
+
+            return UploadListingImageResult.Failure(
+                protectedError);
+        }
+
+        if (image is null)
+        {
+            throw new InvalidOperationException(
+                "Listing image persistence completed without an image.");
         }
 
         var response = new ListingImageResponse

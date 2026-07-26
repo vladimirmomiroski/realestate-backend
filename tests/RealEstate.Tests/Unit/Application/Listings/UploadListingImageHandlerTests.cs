@@ -58,6 +58,12 @@ public sealed class UploadListingImageHandlerTests
         context.FileStorage.DeleteCalls.Should()
             .ContainSingle();
 
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
         DeleteListingImageCall deleteCall =
             context.FileStorage.DeleteCalls.Single();
 
@@ -75,12 +81,15 @@ public sealed class UploadListingImageHandlerTests
 
         context.Calls.Should()
             .Equal(
-                "listing.get",
+                "listing.probe",
                 "current-user.id",
                 "user.get",
                 "storage.save",
+                "listing.scope.begin",
+                "user.get",
                 "listing.add",
                 "listing.save",
+                "listing.scope.dispose",
                 "storage.delete");
     }
 
@@ -127,6 +136,12 @@ public sealed class UploadListingImageHandlerTests
         context.FileStorage.DeleteCalls.Should()
             .ContainSingle();
 
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
         DeleteListingImageCall deleteCall =
             context.FileStorage.DeleteCalls.Single();
 
@@ -151,12 +166,15 @@ public sealed class UploadListingImageHandlerTests
 
         context.Calls.Should()
             .Equal(
-                "listing.get",
+                "listing.probe",
                 "current-user.id",
                 "user.get",
                 "storage.save",
+                "listing.scope.begin",
+                "user.get",
                 "listing.add",
                 "listing.save",
+                "listing.scope.dispose",
                 "storage.delete");
     }
 
@@ -205,6 +223,12 @@ public sealed class UploadListingImageHandlerTests
         context.FileStorage.DeleteCalls.Should()
             .ContainSingle();
 
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
         DeleteListingImageCall deleteCall =
             context.FileStorage.DeleteCalls.Single();
 
@@ -219,12 +243,15 @@ public sealed class UploadListingImageHandlerTests
 
         context.Calls.Should()
             .Equal(
-                "listing.get",
+                "listing.probe",
                 "current-user.id",
                 "user.get",
                 "storage.save",
+                "listing.scope.begin",
+                "user.get",
                 "listing.add",
                 "listing.save",
+                "listing.scope.dispose",
                 "storage.delete");
     }
 
@@ -252,29 +279,38 @@ public sealed class UploadListingImageHandlerTests
         result.Image.Should()
             .NotBeNull();
 
-        context.ListingRepository.GetListingCalls.Should()
+        context.ListingRepository.UploadProbeCalls.Should()
             .ContainSingle();
 
-        GetListingCall getListingCall =
-            context.ListingRepository.GetListingCalls.Single();
+        GetListingCall uploadProbeCall =
+            context.ListingRepository.UploadProbeCalls.Single();
 
-        getListingCall.ListingId.Should()
+        uploadProbeCall.ListingId.Should()
             .Be(context.Command.ListingId);
 
-        getListingCall.CancellationToken.Should()
+        uploadProbeCall.CancellationToken.Should()
+            .Be(requestCancellationSource.Token);
+
+        context.ListingRepository.BeginWriteScopeCalls.Should()
+            .ContainSingle();
+
+        GetListingCall beginWriteScopeCall =
+            context.ListingRepository.BeginWriteScopeCalls.Single();
+
+        beginWriteScopeCall.ListingId.Should()
+            .Be(context.Command.ListingId);
+
+        beginWriteScopeCall.CancellationToken.Should()
             .Be(requestCancellationSource.Token);
 
         context.UserRepository.GetUserCalls.Should()
-            .ContainSingle();
+            .HaveCount(2);
 
-        GetUserCall getUserCall =
-            context.UserRepository.GetUserCalls.Single();
-
-        getUserCall.UserId.Should()
-            .Be(context.Actor.Id);
-
-        getUserCall.CancellationToken.Should()
-            .Be(requestCancellationSource.Token);
+        context.UserRepository.GetUserCalls.Should()
+            .OnlyContain(call =>
+                call.UserId == context.Actor.Id &&
+                call.CancellationToken ==
+                    requestCancellationSource.Token);
 
         context.ListingRepository.AddedImages.Should()
             .ContainSingle();
@@ -332,6 +368,17 @@ public sealed class UploadListingImageHandlerTests
             .Which.Should()
             .Be(requestCancellationSource.Token);
 
+        context.WriteScope.CommitCallCount.Should()
+            .Be(1);
+
+        context.WriteScope.CommitTokens.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(requestCancellationSource.Token);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
         context.FileStorage.SaveCalls.Should()
             .ContainSingle();
 
@@ -352,12 +399,16 @@ public sealed class UploadListingImageHandlerTests
 
         context.Calls.Should()
             .Equal(
-                "listing.get",
+                "listing.probe",
                 "current-user.id",
                 "user.get",
                 "storage.save",
+                "listing.scope.begin",
+                "user.get",
                 "listing.add",
-                "listing.save");
+                "listing.save",
+                "listing.scope.commit",
+                "listing.scope.dispose");
     }
 
     [Fact]
@@ -401,9 +452,18 @@ public sealed class UploadListingImageHandlerTests
         context.ListingRepository.SaveChangesCallCount.Should()
             .Be(0);
 
+        context.ListingRepository.BeginWriteScopeCalls.Should()
+            .BeEmpty();
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(0);
+
         context.Calls.Should()
             .Equal(
-                "listing.get",
+                "listing.probe",
                 "current-user.id",
                 "user.get",
                 "storage.save");
@@ -444,6 +504,12 @@ public sealed class UploadListingImageHandlerTests
         context.ListingRepository.SaveChangesCallCount.Should()
             .Be(0);
 
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
         context.FileStorage.DeleteCalls.Should()
             .ContainSingle();
 
@@ -461,11 +527,14 @@ public sealed class UploadListingImageHandlerTests
 
         context.Calls.Should()
             .Equal(
-                "listing.get",
+                "listing.probe",
                 "current-user.id",
                 "user.get",
                 "storage.save",
+                "listing.scope.begin",
+                "user.get",
                 "listing.add",
+                "listing.scope.dispose",
                 "storage.delete");
     }
 
@@ -531,6 +600,551 @@ public sealed class UploadListingImageHandlerTests
 
         addedImage.IsPrimary.Should()
             .BeFalse();
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "user.get",
+                "listing.add",
+                "listing.save",
+                "listing.scope.dispose",
+                "storage.delete");
+    }
+
+    [Fact]
+    public async Task Handle_WhenProtectedCapacityIsReached_DisposesScopeThenDeletesFileAndReturnsLimit()
+    {
+        // Arrange
+        using var context = new TestContext();
+
+        context.ListingRepository.UploadProbeResult =
+            new ListingImageUploadProbeReadModel(
+                context.Listing.Id,
+                context.Actor.Id,
+                ImageCount: 19);
+
+        AddExistingImages(
+            context.Listing,
+            count: 20);
+
+        // Act
+        UploadListingImageResult result =
+            await context.Handler.Handle(
+                context.Command,
+                CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should()
+            .BeFalse();
+
+        result.Error.Should()
+            .Be(UploadListingImageError.ImageLimitReached);
+
+        result.Image.Should()
+            .BeNull();
+
+        context.ListingRepository.AddedImages.Should()
+            .BeEmpty();
+
+        context.ListingRepository.SaveChangesCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
+        context.FileStorage.DeleteCalls.Should()
+            .ContainSingle();
+
+        DeleteListingImageCall deleteCall =
+            context.FileStorage.DeleteCalls.Single();
+
+        deleteCall.ListingId.Should()
+            .Be(context.Listing.Id);
+
+        deleteCall.StoredFileName.Should()
+            .Be(context.StoredFile.StoredFileName);
+
+        deleteCall.CancellationToken.Should()
+            .Be(CancellationToken.None);
+
+        context.UserRepository.GetUserCalls.Should()
+            .HaveCount(2);
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "user.get",
+                "listing.scope.dispose",
+                "storage.delete");
+    }
+
+    [Fact]
+    public async Task Handle_WhenProtectedListingOwnerChanges_DisposesScopeThenDeletesFileAndReturnsNotOwner()
+    {
+        // Arrange
+        using var context = new TestContext();
+
+        context.ListingRepository.UploadProbeResult =
+            new ListingImageUploadProbeReadModel(
+                context.Listing.Id,
+                context.Actor.Id,
+                ImageCount: 0);
+
+        context.Listing.AssignCreator(
+            Guid.NewGuid());
+
+        // Act
+        UploadListingImageResult result =
+            await context.Handler.Handle(
+                context.Command,
+                CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should()
+            .BeFalse();
+
+        result.Error.Should()
+            .Be(UploadListingImageError.NotListingOwner);
+
+        result.Image.Should()
+            .BeNull();
+
+        context.ListingRepository.AddedImages.Should()
+            .BeEmpty();
+
+        context.ListingRepository.SaveChangesCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
+        context.FileStorage.DeleteCalls.Should()
+            .ContainSingle();
+
+        DeleteListingImageCall deleteCall =
+            context.FileStorage.DeleteCalls.Single();
+
+        deleteCall.ListingId.Should()
+            .Be(context.Listing.Id);
+
+        deleteCall.StoredFileName.Should()
+            .Be(context.StoredFile.StoredFileName);
+
+        deleteCall.CancellationToken.Should()
+            .Be(CancellationToken.None);
+
+        context.UserRepository.GetUserCalls.Should()
+            .HaveCount(2);
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "user.get",
+                "listing.scope.dispose",
+                "storage.delete");
+    }
+
+    [Fact]
+    public async Task Handle_WhenWriteScopeReturnsNull_DeletesStoredFileAndReturnsListingNotFound()
+    {
+        // Arrange
+        using var context = new TestContext();
+
+        context.ListingRepository.WriteScopeResult = null;
+
+        // Act
+        UploadListingImageResult result =
+            await context.Handler.Handle(
+                context.Command,
+                CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should()
+            .BeFalse();
+
+        result.Error.Should()
+            .Be(UploadListingImageError.ListingNotFound);
+
+        result.Image.Should()
+            .BeNull();
+
+        context.ListingRepository.AddedImages.Should()
+            .BeEmpty();
+
+        context.ListingRepository.SaveChangesCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(0);
+
+        context.FileStorage.DeleteCalls.Should()
+            .ContainSingle();
+
+        DeleteListingImageCall deleteCall =
+            context.FileStorage.DeleteCalls.Single();
+
+        deleteCall.ListingId.Should()
+            .Be(context.Listing.Id);
+
+        deleteCall.StoredFileName.Should()
+            .Be(context.StoredFile.StoredFileName);
+
+        deleteCall.CancellationToken.Should()
+            .Be(CancellationToken.None);
+
+        context.UserRepository.GetUserCalls.Should()
+            .ContainSingle();
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "storage.delete");
+    }
+
+    [Fact]
+    public async Task Handle_WhenCommitThrows_DisposesScopeDeletesFileAndRethrowsOriginal()
+    {
+        // Arrange
+        using var context = new TestContext();
+
+        var commitFailure =
+            new InvalidOperationException(
+                "Injected commit failure.");
+
+        context.WriteScope.CommitException =
+            commitFailure;
+
+        // Act
+        Func<Task> act = async () =>
+        {
+            await context.Handler.Handle(
+                context.Command,
+                CancellationToken.None);
+        };
+
+        // Assert
+        var thrown =
+            await act.Should()
+                .ThrowExactlyAsync<InvalidOperationException>();
+
+        thrown.Which.Should()
+            .BeSameAs(commitFailure);
+
+        context.ListingRepository.AddedImages.Should()
+            .ContainSingle();
+
+        context.ListingRepository.SaveChangesCallCount.Should()
+            .Be(1);
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(1);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
+        context.FileStorage.DeleteCalls.Should()
+            .ContainSingle();
+
+        DeleteListingImageCall deleteCall =
+            context.FileStorage.DeleteCalls.Single();
+
+        deleteCall.ListingId.Should()
+            .Be(context.Listing.Id);
+
+        deleteCall.StoredFileName.Should()
+            .Be(context.StoredFile.StoredFileName);
+
+        deleteCall.CancellationToken.Should()
+            .Be(CancellationToken.None);
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "user.get",
+                "listing.add",
+                "listing.save",
+                "listing.scope.commit",
+                "listing.scope.dispose",
+                "storage.delete");
+    }
+
+    [Fact]
+    public async Task Handle_WhenCommitIsCancelled_UsesNonCancelledCleanupToken()
+    {
+        // Arrange
+        using var context = new TestContext();
+        using var requestCancellationSource =
+            new CancellationTokenSource();
+
+        var commitCancellation =
+            new OperationCanceledException(
+                "Injected commit cancellation.",
+                requestCancellationSource.Token);
+
+        context.WriteScope.BeforeCommit =
+            _ => requestCancellationSource.Cancel();
+
+        context.WriteScope.CommitException =
+            commitCancellation;
+
+        // Act
+        Func<Task> act = async () =>
+        {
+            await context.Handler.Handle(
+                context.Command,
+                requestCancellationSource.Token);
+        };
+
+        // Assert
+        var thrown =
+            await act.Should()
+                .ThrowExactlyAsync<OperationCanceledException>();
+
+        thrown.Which.Should()
+            .BeSameAs(commitCancellation);
+
+        requestCancellationSource
+            .IsCancellationRequested
+            .Should()
+            .BeTrue();
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(1);
+
+        context.WriteScope.CommitTokens.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(requestCancellationSource.Token);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
+        context.FileStorage.DeleteCalls.Should()
+            .ContainSingle();
+
+        DeleteListingImageCall deleteCall =
+            context.FileStorage.DeleteCalls.Single();
+
+        deleteCall.ListingId.Should()
+            .Be(context.Listing.Id);
+
+        deleteCall.StoredFileName.Should()
+            .Be(context.StoredFile.StoredFileName);
+
+        deleteCall.CancellationToken.Should()
+            .Be(CancellationToken.None);
+
+        deleteCall.CancellationToken
+            .CanBeCanceled
+            .Should()
+            .BeFalse();
+
+        deleteCall.CancellationToken
+            .IsCancellationRequested
+            .Should()
+            .BeFalse();
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "user.get",
+                "listing.add",
+                "listing.save",
+                "listing.scope.commit",
+                "listing.scope.dispose",
+                "storage.delete");
+    }
+
+    [Fact]
+    public async Task Handle_WhenCommitSucceedsButScopeDisposalThrows_DoesNotDeleteCommittedFile()
+    {
+        // Arrange
+        using var context = new TestContext();
+
+        var disposalFailure =
+            new InvalidOperationException(
+                "Injected scope disposal failure.");
+
+        context.WriteScope.DisposeException =
+            disposalFailure;
+
+        // Act
+        Func<Task> act = async () =>
+        {
+            await context.Handler.Handle(
+                context.Command,
+                CancellationToken.None);
+        };
+
+        // Assert
+        var thrown =
+            await act.Should()
+                .ThrowExactlyAsync<InvalidOperationException>();
+
+        thrown.Which.Should()
+            .BeSameAs(disposalFailure);
+
+        context.ListingRepository.AddedImages.Should()
+            .ContainSingle();
+
+        context.ListingRepository.SaveChangesCallCount.Should()
+            .Be(1);
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(1);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
+        context.FileStorage.DeleteCalls.Should()
+            .BeEmpty();
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "user.get",
+                "listing.add",
+                "listing.save",
+                "listing.scope.commit",
+                "listing.scope.dispose");
+    }
+
+    [Fact]
+    public async Task Handle_WhenCapacityCleanupThrows_PropagatesCleanupFailure()
+    {
+        // Arrange
+        using var context = new TestContext();
+
+        context.ListingRepository.UploadProbeResult =
+            new ListingImageUploadProbeReadModel(
+                context.Listing.Id,
+                context.Actor.Id,
+                ImageCount: 19);
+
+        AddExistingImages(
+            context.Listing,
+            count: 20);
+
+        var cleanupFailure =
+            new IOException(
+                "Injected capacity cleanup failure.");
+
+        context.FileStorage.DeleteException =
+            cleanupFailure;
+
+        // Act
+        Func<Task> act = async () =>
+        {
+            await context.Handler.Handle(
+                context.Command,
+                CancellationToken.None);
+        };
+
+        // Assert
+        var thrown =
+            await act.Should()
+                .ThrowExactlyAsync<IOException>();
+
+        thrown.Which.Should()
+            .BeSameAs(cleanupFailure);
+
+        context.ListingRepository.AddedImages.Should()
+            .BeEmpty();
+
+        context.ListingRepository.SaveChangesCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.CommitCallCount.Should()
+            .Be(0);
+
+        context.WriteScope.DisposeCallCount.Should()
+            .Be(1);
+
+        context.FileStorage.DeleteCalls.Should()
+            .ContainSingle();
+
+        DeleteListingImageCall deleteCall =
+            context.FileStorage.DeleteCalls.Single();
+
+        deleteCall.ListingId.Should()
+            .Be(context.Listing.Id);
+
+        deleteCall.StoredFileName.Should()
+            .Be(context.StoredFile.StoredFileName);
+
+        deleteCall.CancellationToken.Should()
+            .Be(CancellationToken.None);
+
+        context.Calls.Should()
+            .Equal(
+                "listing.probe",
+                "current-user.id",
+                "user.get",
+                "storage.save",
+                "listing.scope.begin",
+                "user.get",
+                "listing.scope.dispose",
+                "storage.delete");
+    }
+
+    private static void AddExistingImages(
+        Listing listing,
+        int count)
+    {
+        for (int sortOrder = 0;
+             sortOrder < count;
+             sortOrder++)
+        {
+            listing.Images.Add(
+                CreateExistingImage(
+                    listing.Id,
+                    $"existing-{sortOrder}.jpg",
+                    sortOrder,
+                    isPrimary: sortOrder == 0));
+        }
     }
 
     private static ListingImage CreateExistingImage(
@@ -603,10 +1217,22 @@ public sealed class UploadListingImageHandlerTests
                 $"/uploads/listings/" +
                 $"{Listing.Id}/new-listing-image.jpg");
 
+            UploadProbe =
+                new ListingImageUploadProbeReadModel(
+                    Listing.Id,
+                    Listing.CreatedByUserId,
+                    Listing.Images.Count);
+
+            WriteScope =
+                new FakeListingImageWriteScope(
+                    Listing,
+                    Calls);
+
             ListingRepository =
                 new FakeListingRepository(Calls)
                 {
-                    ListingResult = Listing
+                    UploadProbeResult = UploadProbe,
+                    WriteScopeResult = WriteScope
                 };
 
             FileStorage =
@@ -646,6 +1272,10 @@ public sealed class UploadListingImageHandlerTests
 
         public StoredFileResult StoredFile { get; }
 
+        public ListingImageUploadProbeReadModel UploadProbe { get; }
+
+        public FakeListingImageWriteScope WriteScope { get; }
+
         public FakeListingRepository ListingRepository { get; }
 
         public FakeFileStorageService FileStorage { get; }
@@ -673,9 +1303,17 @@ public sealed class UploadListingImageHandlerTests
             _calls = calls;
         }
 
-        public Listing? ListingResult { get; set; }
+        public ListingImageUploadProbeReadModel?
+            UploadProbeResult
+            { get; set; }
 
-        public List<GetListingCall> GetListingCalls { get; } = [];
+        public IListingImageWriteScope?
+            WriteScopeResult
+            { get; set; }
+
+        public List<GetListingCall> UploadProbeCalls { get; } = [];
+
+        public List<GetListingCall> BeginWriteScopeCalls { get; } = [];
 
         public Exception? AddListingImageException { get; set; }
 
@@ -689,18 +1327,44 @@ public sealed class UploadListingImageHandlerTests
 
         public int SaveChangesCallCount { get; private set; }
 
+        public Task<ListingImageUploadProbeReadModel?>
+            GetListingImageUploadProbeReadOnlyAsync(
+                Guid listingId,
+                CancellationToken cancellationToken)
+        {
+            _calls.Add("listing.probe");
+
+            UploadProbeCalls.Add(
+                new GetListingCall(
+                    listingId,
+                    cancellationToken));
+
+            return Task.FromResult(
+                UploadProbeResult);
+        }
+
+        public Task<IListingImageWriteScope?>
+            BeginListingImageWriteAsync(
+                Guid listingId,
+                CancellationToken cancellationToken)
+        {
+            _calls.Add("listing.scope.begin");
+
+            BeginWriteScopeCalls.Add(
+                new GetListingCall(
+                    listingId,
+                    cancellationToken));
+
+            return Task.FromResult(
+                WriteScopeResult);
+        }
+
         public Task<Listing?> GetByIdWithImagesForUpdateAsync(
             Guid id,
             CancellationToken cancellationToken)
         {
-            _calls.Add("listing.get");
-
-            GetListingCalls.Add(
-                new GetListingCall(
-                    id,
-                    cancellationToken));
-
-            return Task.FromResult(ListingResult);
+            throw UnexpectedCall(
+                nameof(GetByIdWithImagesForUpdateAsync));
         }
 
         public void AddListingImage(
@@ -806,6 +1470,67 @@ public sealed class UploadListingImageHandlerTests
         }
     }
 
+    private sealed class FakeListingImageWriteScope
+        : IListingImageWriteScope
+    {
+        private readonly List<string> _calls;
+
+        public FakeListingImageWriteScope(
+            Listing listing,
+            List<string> calls)
+        {
+            Listing = listing;
+            _calls = calls;
+        }
+
+        public Listing Listing { get; }
+
+        public Exception? CommitException { get; set; }
+
+        public Exception? DisposeException { get; set; }
+
+        public Action<CancellationToken>? BeforeCommit { get; set; }
+
+        public int CommitCallCount { get; private set; }
+
+        public int DisposeCallCount { get; private set; }
+
+        public List<CancellationToken> CommitTokens { get; } = [];
+
+        public Task CommitAsync(
+            CancellationToken cancellationToken)
+        {
+            _calls.Add("listing.scope.commit");
+
+            CommitCallCount++;
+            CommitTokens.Add(cancellationToken);
+
+            BeforeCommit?.Invoke(cancellationToken);
+
+            if (CommitException is not null)
+            {
+                throw CommitException;
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            _calls.Add("listing.scope.dispose");
+
+            DisposeCallCount++;
+
+            if (DisposeException is not null)
+            {
+                return ValueTask.FromException(
+                    DisposeException);
+            }
+
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class FakeFileStorageService
         : IFileStorageService
     {
@@ -907,6 +1632,7 @@ public sealed class UploadListingImageHandlerTests
             throw UnexpectedCall(
                 nameof(DeleteAgencyLogoAsync));
         }
+
     }
 
     private sealed class FakeUserRepository

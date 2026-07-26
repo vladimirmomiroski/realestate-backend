@@ -5,6 +5,14 @@ using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Listings.Repositories;
 
+public interface IListingImageWriteScope : IAsyncDisposable
+{
+    Listing Listing { get; }
+
+    Task CommitAsync(
+        CancellationToken cancellationToken);
+}
+
 public interface IListingRepository
 {
     Task CreateAsync(Listing listing, CancellationToken cancellationToken);
@@ -31,6 +39,16 @@ public interface IListingRepository
         int page,
         int pageSize,
         CancellationToken cancellationToken);
+
+    Task<ListingImageUploadProbeReadModel?>
+    GetListingImageUploadProbeReadOnlyAsync(
+        Guid listingId,
+        CancellationToken cancellationToken);
+
+    Task<IListingImageWriteScope?>
+        BeginListingImageWriteAsync(
+            Guid listingId,
+            CancellationToken cancellationToken);
 
     Task<Listing?> GetByIdWithImagesForUpdateAsync(
         Guid id,
