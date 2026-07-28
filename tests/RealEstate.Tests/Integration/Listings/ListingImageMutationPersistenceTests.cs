@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -72,20 +75,19 @@ public sealed class ListingImageMutationPersistenceTests
 
             client.AuthorizeAs(owner.AccessToken);
 
-            Func<Task> act = async () =>
-            {
-                using HttpResponseMessage response =
-                    await client.PutAsync(
-                        $"/api/listings/{listingId}/images/{requestedPrimary.Id}/primary",
-                        null);
-            };
+            using HttpResponseMessage response =
+                await client.PutAsync(
+                    $"/api/listings/{listingId}/images/{requestedPrimary.Id}/primary",
+                    null);
 
-            ListingImageSecondSaveException thrownException =
-                (await act.Should()
-                    .ThrowAsync<ListingImageSecondSaveException>())
-                .Which;
-
-            thrownException.Should().BeSameAs(injectedFailure);
+            response.StatusCode.Should()
+                .Be(HttpStatusCode.InternalServerError);
+            JsonElement problem =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+            problem.GetProperty("code").GetString().Should()
+                .Be("server.unexpected");
+            problem.GetProperty("detail").GetString().Should()
+                .Be("An unexpected error occurred.");
             failurePlan.SaveCallCount.Should().Be(2);
 
             List<ListingImage> savedImages =
@@ -165,19 +167,18 @@ public sealed class ListingImageMutationPersistenceTests
 
             client.AuthorizeAs(owner.AccessToken);
 
-            Func<Task> act = async () =>
-            {
-                using HttpResponseMessage response =
-                    await client.DeleteAsync(
-                        $"/api/listings/{listingId}/images/{originalPrimary.Id}");
-            };
+            using HttpResponseMessage response =
+                await client.DeleteAsync(
+                    $"/api/listings/{listingId}/images/{originalPrimary.Id}");
 
-            ListingImageSecondSaveException thrownException =
-                (await act.Should()
-                    .ThrowAsync<ListingImageSecondSaveException>())
-                .Which;
-
-            thrownException.Should().BeSameAs(injectedFailure);
+            response.StatusCode.Should()
+                .Be(HttpStatusCode.InternalServerError);
+            JsonElement problem =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+            problem.GetProperty("code").GetString().Should()
+                .Be("server.unexpected");
+            problem.GetProperty("detail").GetString().Should()
+                .Be("An unexpected error occurred.");
             failurePlan.SaveCallCount.Should().Be(2);
 
             List<ListingImage> savedImages =
