@@ -1,4 +1,7 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using RealEstate.Infrastructure;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Application;
@@ -8,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RealEstate.Api.Authentication;
+using RealEstate.Api.Errors;
 using RealEstate.Application.Common.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -52,6 +56,25 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+builder.Services.AddSingleton<ApiFailureService>();
+builder.Services.Replace(
+    ServiceDescriptor.Singleton<IClientErrorFactory, ApiClientErrorFactory>());
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        ApiFailureService failureService = context.HttpContext
+            .RequestServices
+            .GetRequiredService<ApiFailureService>();
+
+        ApiValidationProblemDetailsResponse problemDetails =
+            failureService.CreateValidation(
+                context.HttpContext,
+                context.ModelState);
+
+        return failureService.CreateResult(problemDetails);
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -110,6 +133,41 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 var app = builder.Build();
 
 // Pipeline
+app.UseMiddleware<RequestIdentifierMiddleware>();
+
+app.UseStatusCodePages(async statusCodeContext =>
+{
+    HttpContext httpContext = statusCodeContext.HttpContext;
+
+    if (!ApiRequestPath.IsApi(httpContext.Request.Path))
+    {
+        return;
+    }
+
+    ApiFailureDescriptor? descriptor = httpContext.Response.StatusCode switch
+    {
+        StatusCodes.Status404NotFound =>
+            ApiFailureDescriptor.ResourceNotFound,
+        StatusCodes.Status405MethodNotAllowed =>
+            ApiFailureDescriptor.MethodNotAllowed,
+        StatusCodes.Status415UnsupportedMediaType =>
+            ApiFailureDescriptor.MediaTypeNotSupported,
+        _ => null
+    };
+
+    if (descriptor is null)
+    {
+        return;
+    }
+
+    ApiFailureService failureService = httpContext.RequestServices
+        .GetRequiredService<ApiFailureService>();
+
+    await failureService.TryWriteAsync(
+        httpContext,
+        failureService.Create(httpContext, descriptor));
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
