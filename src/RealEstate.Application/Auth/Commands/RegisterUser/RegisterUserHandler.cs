@@ -53,8 +53,23 @@ public sealed class RegisterUserHandler
             request.LastName,
             request.PhoneNumber);
 
-        await _userRepository.AddAsync(user, cancellationToken);
-        await _userRepository.SaveChangesAsync(cancellationToken);
+        UserRegistrationPersistenceResult persistenceResult =
+            await _userRepository.PersistRegistrationAsync(
+                user,
+                cancellationToken);
+
+        if (persistenceResult ==
+            UserRegistrationPersistenceResult.NormalizedEmailAlreadyExists)
+        {
+            return RegisterUserResult.EmailAlreadyExists();
+        }
+
+        if (persistenceResult !=
+            UserRegistrationPersistenceResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "The registration persistence result was not mapped.");
+        }
 
         var response = new AuthResponse(
             new AuthUserResponse(

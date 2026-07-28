@@ -261,6 +261,12 @@ public sealed class AvatarFailureContractTests
         public Task AddAsync(User user, CancellationToken cancellationToken) =>
             inner.AddAsync(user, cancellationToken);
 
+        public Task<UserRegistrationPersistenceResult>
+            PersistRegistrationAsync(
+                User user,
+                CancellationToken cancellationToken) =>
+            inner.PersistRegistrationAsync(user, cancellationToken);
+
         public Task SaveChangesAsync(CancellationToken cancellationToken) =>
             throw new InjectedAvatarPersistenceException();
     }

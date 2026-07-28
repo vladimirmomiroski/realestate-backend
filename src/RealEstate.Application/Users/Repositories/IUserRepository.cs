@@ -2,6 +2,12 @@
 
 namespace RealEstate.Application.Users.Repositories;
 
+public enum UserRegistrationPersistenceResult
+{
+    Succeeded,
+    NormalizedEmailAlreadyExists
+}
+
 public interface IUserRepository
 {
     Task<bool> ExistsByNormalizedEmailAsync(
@@ -25,6 +31,10 @@ public interface IUserRepository
         CancellationToken cancellationToken);
 
     Task AddAsync(
+        User user,
+        CancellationToken cancellationToken);
+
+    Task<UserRegistrationPersistenceResult> PersistRegistrationAsync(
         User user,
         CancellationToken cancellationToken);
 
