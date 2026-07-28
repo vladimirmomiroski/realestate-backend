@@ -4,7 +4,11 @@ using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Application.Common;
+using RealEstate.Infrastructure.Persistence;
 
 namespace RealEstate.Tests.Integration.Api;
 
@@ -211,8 +215,23 @@ public sealed class ApiFailureContractTests
 
         try
         {
+            string connectionString = GetInitializedConnectionString();
             using var factory = _factory.WithWebHostBuilder(
-                builder => builder.UseWebRoot(webRoot));
+                builder =>
+                {
+                    builder.UseWebRoot(webRoot);
+                    builder.UseSetting(
+                        "ConnectionStrings:DefaultConnection",
+                        connectionString);
+                    builder.ConfigureAppConfiguration(
+                        (_, configuration) =>
+                            configuration.AddInMemoryCollection(
+                                new Dictionary<string, string?>
+                                {
+                                    ["ConnectionStrings:DefaultConnection"] =
+                                        connectionString
+                                }));
+                });
             using HttpClient client = factory.CreateClient();
 
             HttpResponseMessage response = await client.GetAsync(
@@ -227,6 +246,17 @@ public sealed class ApiFailureContractTests
         {
             Directory.Delete(webRoot, recursive: true);
         }
+    }
+
+    private string GetInitializedConnectionString()
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        return dbContext.Database.GetConnectionString()
+            ?? throw new InvalidOperationException(
+                "The initialized test connection string is unavailable.");
     }
 
     [Fact]
