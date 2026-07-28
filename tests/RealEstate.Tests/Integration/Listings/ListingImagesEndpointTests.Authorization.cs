@@ -15,6 +15,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using RealEstate.Application.Users.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Hosting;
+using RealEstate.Application.Common;
+using RealEstate.Tests.Integration.Api;
 
 
 namespace RealEstate.Tests.Integration.Listings;
@@ -93,7 +95,11 @@ namespace RealEstate.Tests.Integration.Listings;
                 $"/api/listings/{listingId}/images",
                 content);
 
-            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationForbidden,
+                $"/api/listings/{listingId}/images");
         }
         finally
         {

@@ -2,6 +2,8 @@
 using RealEstate.Application.Auth.Commands.LoginUser;
 using RealEstate.Application.Auth.Commands.RegisterUser;
 using RealEstate.Application.Auth.Dtos;
+using RealEstate.Api.Errors;
+using RealEstate.Application.Common;
 
 namespace RealEstate.Api.Controllers;
 
@@ -11,13 +13,16 @@ public sealed class AuthController : ControllerBase
 {
     private readonly RegisterUserHandler _registerUserHandler;
     private readonly LoginUserHandler _loginUserHandler;
+    private readonly ApiFailureService _failureService;
 
     public AuthController(
         RegisterUserHandler registerUserHandler,
-        LoginUserHandler loginUserHandler)
+        LoginUserHandler loginUserHandler,
+        ApiFailureService failureService)
     {
         _registerUserHandler = registerUserHandler;
         _loginUserHandler = loginUserHandler;
+        _failureService = failureService;
     }
 
     [HttpPost("register")]
@@ -38,17 +43,17 @@ public sealed class AuthController : ControllerBase
                 $"/api/users/{result.Response!.User.Id}",
                 result.Response),
 
-            RegisterUserResultType.EmailAlreadyExists => Conflict(new
-            {
-                message = result.Error
-            }),
+            RegisterUserResultType.EmailAlreadyExists =>
+                _failureService.CreateResult(
+                    HttpContext,
+                    ApiFailureDescriptor.EmailAlreadyExists),
 
-            RegisterUserResultType.ValidationFailed => BadRequest(new
-            {
-                message = result.Error
-            }),
+            RegisterUserResultType.ValidationFailed => CreateValidationResult(
+                result.ValidationKey,
+                result.Error),
 
-            _ => BadRequest()
+            _ => throw new InvalidOperationException(
+                "The registration result was not mapped.")
         };
     }
 
@@ -68,17 +73,30 @@ public sealed class AuthController : ControllerBase
         {
             LoginUserResultType.Success => Ok(result.Response),
 
-            LoginUserResultType.InvalidCredentials => Unauthorized(new
-            {
-                message = result.Error
-            }),
+            LoginUserResultType.InvalidCredentials =>
+                _failureService.CreateResult(
+                    HttpContext,
+                    ApiFailureDescriptor.AuthenticationInvalidCredentials),
 
-            LoginUserResultType.ValidationFailed => BadRequest(new
-            {
-                message = result.Error
-            }),
+            LoginUserResultType.ValidationFailed => CreateValidationResult(
+                result.ValidationKey,
+                result.Error),
 
-            _ => BadRequest()
+            _ => throw new InvalidOperationException(
+                "The login result was not mapped.")
         };
+    }
+
+    private IActionResult CreateValidationResult(
+        string? validationKey,
+        string? error)
+    {
+        return _failureService.CreateValidationResult(
+            HttpContext,
+            validationKey ?? throw new InvalidOperationException(
+                "A validation result must provide a validation key."),
+            error ?? throw new InvalidOperationException(
+                "A validation result must provide an error."),
+            ErrorCodes.ValidationFailed);
     }
 }

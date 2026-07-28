@@ -6,6 +6,20 @@ namespace RealEstate.Tests.Unit.Application;
 public sealed class ServiceResultTests
 {
     [Fact]
+    public void ValidationError_WithKeyAndCode_PreservesTypedMetadata()
+    {
+        ServiceResult<string> result = ServiceResult<string>.ValidationError(
+            "A file is required.",
+            "file",
+            ErrorCodes.ValidationFileRequired);
+
+        result.Status.Should().Be(ServiceResultStatus.ValidationError);
+        result.Error.Should().Be("A file is required.");
+        result.ValidationKey.Should().Be("file");
+        result.ErrorCode.Should().Be(ErrorCodes.ValidationFileRequired);
+    }
+
+    [Fact]
     public void ExistingFactories_RemainCompatibleAndUncoded()
     {
         ServiceResult<string> success = ServiceResult<string>.Success("value");

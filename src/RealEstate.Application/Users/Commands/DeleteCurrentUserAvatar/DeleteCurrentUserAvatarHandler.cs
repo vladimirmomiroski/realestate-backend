@@ -31,7 +31,8 @@ public sealed class DeleteCurrentUserAvatarHandler
         if (!_currentUserService.IsAuthenticated || _currentUserService.UserId is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         var user = await _userRepository.GetByIdForUpdateAsync(
@@ -41,13 +42,15 @@ public sealed class DeleteCurrentUserAvatarHandler
         if (user is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (user.Status == UserStatus.Disabled)
         {
             return ServiceResult<UserProfileResponse>.Forbidden(
-                "Disabled users cannot delete avatar.");
+                "Disabled users cannot delete avatar.",
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
         string? oldStoredFileName = user.AvatarStoredFileName;
