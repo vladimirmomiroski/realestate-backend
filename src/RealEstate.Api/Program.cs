@@ -57,6 +57,8 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddSingleton<ApiFailureService>();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.Replace(
     ServiceDescriptor.Singleton<IClientErrorFactory, ApiClientErrorFactory>());
 builder.Services.Configure<ApiBehaviorOptions>(options =>
@@ -134,6 +136,8 @@ var app = builder.Build();
 
 // Pipeline
 app.UseMiddleware<RequestIdentifierMiddleware>();
+app.UseMiddleware<ApiRequestCompletionLoggingMiddleware>();
+app.UseExceptionHandler();
 
 app.UseStatusCodePages(async statusCodeContext =>
 {
