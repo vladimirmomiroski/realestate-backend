@@ -8,6 +8,8 @@ using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Application.Common;
+using RealEstate.Tests.Integration.Api;
 
 namespace RealEstate.Tests.Integration.Users;
 
@@ -119,7 +121,11 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/profile",
             request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AuthorizationAccountDisabled,
+            "/api/users/me/profile");
     }
 
     [Fact]
@@ -140,7 +146,12 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/profile",
             request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            ErrorCodes.ValidationFailed,
+            "/api/users/me/profile",
+            validationKey: "firstName");
     }
 
     [Fact]
@@ -161,7 +172,12 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/profile",
             request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            ErrorCodes.ValidationFailed,
+            "/api/users/me/profile",
+            validationKey: "lastName");
     }
 
     [Fact]

@@ -7,6 +7,7 @@ using RealEstate.Application.Users.Queries.GetCurrentUser;
 using RealEstate.Application.Common.Files;
 using RealEstate.Application.Users.Commands.UploadCurrentUserAvatar;
 using RealEstate.Application.Users.Commands.DeleteCurrentUserAvatar;
+using RealEstate.Api.Errors;
 
 namespace RealEstate.Api.Controllers;
 
@@ -18,24 +19,27 @@ public sealed class UsersController : ControllerBase
     private readonly UpdateCurrentUserProfileHandler _updateCurrentUserProfileHandler;
     private readonly UploadCurrentUserAvatarHandler _uploadCurrentUserAvatarHandler;
     private readonly DeleteCurrentUserAvatarHandler _deleteCurrentUserAvatarHandler;
+    private readonly ApiFailureService _failureService;
 
     public UsersController(
         GetCurrentUserHandler getCurrentUserHandler,
         UpdateCurrentUserProfileHandler updateCurrentUserProfileHandler,      
         UploadCurrentUserAvatarHandler uploadCurrentUserAvatarHandler,     
-        DeleteCurrentUserAvatarHandler deleteCurrentUserAvatarHandler)
+        DeleteCurrentUserAvatarHandler deleteCurrentUserAvatarHandler,
+        ApiFailureService failureService)
     {
         _getCurrentUserHandler = getCurrentUserHandler;
         _updateCurrentUserProfileHandler = updateCurrentUserProfileHandler;
         _uploadCurrentUserAvatarHandler = uploadCurrentUserAvatarHandler;
         _deleteCurrentUserAvatarHandler = deleteCurrentUserAvatarHandler;
+        _failureService = failureService;
     }
 
     [Authorize]
     [HttpGet("me")]
     [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<UserProfileResponse>> GetMe(
+    public async Task<IActionResult> GetMe(
         CancellationToken cancellationToken)
     {
         var result = await _getCurrentUserHandler.HandleAsync(
@@ -44,10 +48,7 @@ public sealed class UsersController : ControllerBase
 
         if (result.Status == ServiceResultStatus.Unauthorized)
         {
-            return Unauthorized(new
-            {
-                message = result.Error
-            });
+            return CreateFailureResult(result);
         }
 
         return Ok(result.Value);
@@ -59,7 +60,7 @@ public sealed class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<UserProfileResponse>> UpdateProfile(
+    public async Task<IActionResult> UpdateProfile(
         [FromBody] UpdateUserProfileRequest request,
         CancellationToken cancellationToken)
     {
@@ -74,19 +75,11 @@ public sealed class UsersController : ControllerBase
         {
             ServiceResultStatus.Success => Ok(result.Value),
 
-            ServiceResultStatus.ValidationError => BadRequest(new
-            {
-                message = result.Error
-            }),
-
-            ServiceResultStatus.Unauthorized => Unauthorized(new
-            {
-                message = result.Error
-            }),
-
-            ServiceResultStatus.Forbidden => Forbid(),
-
-            _ => BadRequest()
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The profile update result was not mapped.")
         };
     }
 
@@ -97,7 +90,7 @@ public sealed class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<UserProfileResponse>> UploadAvatar(
+    public async Task<IActionResult> UploadAvatar(
     IFormFile? file,
     CancellationToken cancellationToken)
     {
@@ -119,19 +112,11 @@ public sealed class UsersController : ControllerBase
         {
             ServiceResultStatus.Success => Ok(result.Value),
 
-            ServiceResultStatus.ValidationError => BadRequest(new
-            {
-                message = result.Error
-            }),
-
-            ServiceResultStatus.Unauthorized => Unauthorized(new
-            {
-                message = result.Error
-            }),
-
-            ServiceResultStatus.Forbidden => Forbid(),
-
-            _ => BadRequest()
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The avatar upload result was not mapped.")
         };
     }
 
@@ -151,14 +136,37 @@ public sealed class UsersController : ControllerBase
         {
             ServiceResultStatus.Success => NoContent(),
 
-            ServiceResultStatus.Unauthorized => Unauthorized(new
-            {
-                message = result.Error
-            }),
-
-            ServiceResultStatus.Forbidden => Forbid(),
-
-            _ => BadRequest()
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The avatar delete result was not mapped.")
         };
+    }
+
+    private IActionResult CreateFailureResult<T>(ServiceResult<T> result)
+    {
+        if (result.Status == ServiceResultStatus.ValidationError)
+        {
+            return _failureService.CreateValidationResult(
+                HttpContext,
+                result.ValidationKey ?? throw new InvalidOperationException(
+                    "A validation result must provide a validation key."),
+                result.Error ?? throw new InvalidOperationException(
+                    "A validation result must provide an error."),
+                result.ErrorCode ?? throw new InvalidOperationException(
+                    "A validation result must provide an error code."));
+        }
+
+        string errorCode = result.ErrorCode ?? throw new InvalidOperationException(
+            "A failure result must provide an error code.");
+
+        if (errorCode == ErrorCodes.AuthenticationInvalidPrincipal)
+        {
+            Response.Headers["WWW-Authenticate"] = "Bearer";
+        }
+
+        return _failureService.CreateResult(
+            HttpContext,
+            ApiFailureDescriptor.ForCode(errorCode));
     }
 }

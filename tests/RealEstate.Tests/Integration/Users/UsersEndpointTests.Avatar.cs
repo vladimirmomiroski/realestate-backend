@@ -9,6 +9,10 @@ using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Application.Common;
+using RealEstate.Tests.Integration.Api;
+using Microsoft.Extensions.Options;
+using RealEstate.Infrastructure.Storage;
 
 namespace RealEstate.Tests.Integration.Users;
 
@@ -113,7 +117,11 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/avatar",
             content);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AuthorizationAccountDisabled,
+            "/api/users/me/avatar");
     }
 
     [Fact]
@@ -126,12 +134,15 @@ public sealed partial class UsersEndpointTests
         _client.AuthorizeAs(user.AccessToken);
 
         using var content = new MultipartFormDataContent();
+        content.Add(new StringContent("avatar requested"), "metadata");
 
         HttpResponseMessage response = await _client.PutAsync(
             "/api/users/me/avatar",
             content);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertAvatarValidationAsync(
+            response,
+            ErrorCodes.ValidationFileRequired);
     }
 
     [Fact]
@@ -152,7 +163,9 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/avatar",
             content);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertAvatarValidationAsync(
+            response,
+            ErrorCodes.ValidationFileEmpty);
     }
 
     [Fact]
@@ -172,7 +185,9 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/avatar",
             content);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertAvatarValidationAsync(
+            response,
+            ErrorCodes.ValidationFileTypeNotSupported);
     }
 
     [Fact]
@@ -192,7 +207,9 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/avatar",
             content);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertAvatarValidationAsync(
+            response,
+            ErrorCodes.ValidationFileTypeNotSupported);
     }
 
     [Fact]
@@ -215,7 +232,9 @@ public sealed partial class UsersEndpointTests
             "/api/users/me/avatar",
             content);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertAvatarValidationAsync(
+            response,
+            ErrorCodes.ValidationFileTooLarge);
     }
 
     [Fact]
@@ -240,6 +259,10 @@ public sealed partial class UsersEndpointTests
         User firstDbUser = await GetUserFromDatabaseAsync(user.UserId);
 
         string firstStoredFileName = firstDbUser.AvatarStoredFileName!;
+        string firstFilePath = GetAvatarFilePath(
+            user.UserId,
+            firstStoredFileName);
+        File.Exists(firstFilePath).Should().BeTrue();
 
         using MultipartFormDataContent secondContent = CreateAvatarContent(
             "second.webp",
@@ -257,6 +280,10 @@ public sealed partial class UsersEndpointTests
         secondDbUser.AvatarStoredFileName.Should().NotBe(firstStoredFileName);
         secondDbUser.AvatarContentType.Should().Be("image/webp");
         secondDbUser.AvatarUrl.Should().Contain($"/uploads/users/{user.UserId}/avatar/");
+        File.Exists(firstFilePath).Should().BeFalse();
+        File.Exists(GetAvatarFilePath(
+            user.UserId,
+            secondDbUser.AvatarStoredFileName!)).Should().BeTrue();
     }
 
     [Fact]
@@ -291,6 +318,12 @@ public sealed partial class UsersEndpointTests
 
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
+        User uploadedUser = await GetUserFromDatabaseAsync(user.UserId);
+        string uploadedFilePath = GetAvatarFilePath(
+            user.UserId,
+            uploadedUser.AvatarStoredFileName!);
+        File.Exists(uploadedFilePath).Should().BeTrue();
+
         HttpResponseMessage deleteResponse = await _client.DeleteAsync(
             "/api/users/me/avatar");
 
@@ -302,6 +335,7 @@ public sealed partial class UsersEndpointTests
         dbUser.AvatarStoredFileName.Should().BeNull();
         dbUser.AvatarContentType.Should().BeNull();
         dbUser.AvatarSizeBytes.Should().BeNull();
+        File.Exists(uploadedFilePath).Should().BeFalse();
     }
 
     [Fact]
@@ -350,7 +384,11 @@ public sealed partial class UsersEndpointTests
         HttpResponseMessage response = await _client.DeleteAsync(
             "/api/users/me/avatar");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AuthorizationAccountDisabled,
+            "/api/users/me/avatar");
     }
 
     [Fact]
@@ -392,6 +430,18 @@ public sealed partial class UsersEndpointTests
         return content;
     }
 
+    private static async Task AssertAvatarValidationAsync(
+        HttpResponseMessage response,
+        string errorCode)
+    {
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.BadRequest,
+            errorCode,
+            "/api/users/me/avatar",
+            validationKey: "file");
+    }
+
     private async Task<User> GetUserFromDatabaseAsync(Guid userId)
     {
         using IServiceScope scope = _factory.Services.CreateScope();
@@ -401,5 +451,19 @@ public sealed partial class UsersEndpointTests
         return await dbContext.Users
             .AsNoTracking()
             .SingleAsync(user => user.Id == userId);
+    }
+
+    private string GetAvatarFilePath(Guid userId, string storedFileName)
+    {
+        LocalFileStorageOptions options = _factory.Services
+            .GetRequiredService<IOptions<LocalFileStorageOptions>>()
+            .Value;
+
+        return Path.Combine(
+            options.RootPath,
+            "users",
+            userId.ToString(),
+            "avatar",
+            storedFileName);
     }
 }

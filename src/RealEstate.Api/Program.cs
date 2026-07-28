@@ -114,6 +114,7 @@ builder.Services
     })
     .AddJwtBearer(options =>
     {
+        options.IncludeErrorDetails = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -124,6 +125,36 @@ builder.Services
             ValidAudience = jwtSection["Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(jwtSecret))
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.Headers["WWW-Authenticate"] = "Bearer";
+
+                ApiFailureService failureService = context.HttpContext
+                    .RequestServices
+                    .GetRequiredService<ApiFailureService>();
+
+                await failureService.TryWriteAsync(
+                    context.HttpContext,
+                    failureService.Create(
+                        context.HttpContext,
+                        ApiFailureDescriptor.AuthenticationRequired));
+            },
+            OnForbidden = async context =>
+            {
+                ApiFailureService failureService = context.HttpContext
+                    .RequestServices
+                    .GetRequiredService<ApiFailureService>();
+
+                await failureService.TryWriteAsync(
+                    context.HttpContext,
+                    failureService.Create(
+                        context.HttpContext,
+                        ApiFailureDescriptor.AuthorizationForbidden));
+            }
         };
     });
 

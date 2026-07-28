@@ -49,14 +49,8 @@ public sealed class UploadCurrentUserAvatarHandler
         if (!_currentUserService.IsAuthenticated || _currentUserService.UserId is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
-        }
-
-        string? validationError = ValidateFile(command.File);
-
-        if (validationError is not null)
-        {
-            return ServiceResult<UserProfileResponse>.ValidationError(validationError);
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         var user = await _userRepository.GetByIdForUpdateAsync(
@@ -66,13 +60,23 @@ public sealed class UploadCurrentUserAvatarHandler
         if (user is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (user.Status == UserStatus.Disabled)
         {
             return ServiceResult<UserProfileResponse>.Forbidden(
-                "Disabled users cannot update avatar.");
+                "Disabled users cannot update avatar.",
+                ErrorCodes.AuthorizationAccountDisabled);
+        }
+
+        ServiceResult<UserProfileResponse>? validationResult = ValidateFile(
+            command.File);
+
+        if (validationResult is not null)
+        {
+            return validationResult;
         }
 
         string? oldStoredFileName = user.AvatarStoredFileName;
@@ -114,36 +118,60 @@ public sealed class UploadCurrentUserAvatarHandler
             user.ToProfileResponse());
     }
 
-    private static string? ValidateFile(UploadedFile? file)
+    private static ServiceResult<UserProfileResponse>? ValidateFile(
+        UploadedFile? file)
     {
         if (file is null)
         {
-            return "Avatar file is required.";
+            return FileValidationError(
+                "Avatar file is required.",
+                ErrorCodes.ValidationFileRequired);
         }
 
         if (file.Length <= 0)
         {
-            return "Avatar file is empty.";
+            return FileValidationError(
+                "Avatar file is empty.",
+                ErrorCodes.ValidationFileEmpty);
         }
 
         if (file.Length > MaxFileSizeBytes)
         {
-            return "Avatar file cannot be larger than 5 MB.";
+            return FileValidationError(
+                "Avatar file cannot be larger than 5 MB.",
+                ErrorCodes.ValidationFileTooLarge);
         }
 
         var extension = Path.GetExtension(file.FileName);
 
         if (string.IsNullOrWhiteSpace(extension) || !AllowedExtensions.Contains(extension))
         {
-            return "Only JPG, JPEG, PNG, and WEBP images are allowed.";
+            return UnsupportedFileType();
         }
 
         if (string.IsNullOrWhiteSpace(file.ContentType) ||
             !AllowedContentTypes.Contains(file.ContentType))
         {
-            return "Only JPG, JPEG, PNG, and WEBP images are allowed.";
+            return UnsupportedFileType();
         }
 
         return null;
+    }
+
+    private static ServiceResult<UserProfileResponse> UnsupportedFileType()
+    {
+        return FileValidationError(
+            "Only JPG, JPEG, PNG, and WEBP images are allowed.",
+            ErrorCodes.ValidationFileTypeNotSupported);
+    }
+
+    private static ServiceResult<UserProfileResponse> FileValidationError(
+        string error,
+        string errorCode)
+    {
+        return ServiceResult<UserProfileResponse>.ValidationError(
+            error,
+            "file",
+            errorCode);
     }
 }

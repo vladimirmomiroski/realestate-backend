@@ -16,6 +16,7 @@ public sealed record ServiceResult<T>(
     string? Error = null)
 {
     public string? ErrorCode { get; private init; }
+    public string? ValidationKey { get; private init; }
 
     public static ServiceResult<T> Success(T value)
     {
@@ -32,6 +33,25 @@ public sealed record ServiceResult<T>(
         string errorCode)
     {
         return Failure(ServiceResultStatus.ValidationError, error, errorCode);
+    }
+
+    public static ServiceResult<T> ValidationError(
+        string error,
+        string validationKey,
+        string errorCode)
+    {
+        if (string.IsNullOrWhiteSpace(validationKey))
+        {
+            throw new ArgumentException(
+                "A validation key is required.",
+                nameof(validationKey));
+        }
+
+        return Failure(ServiceResultStatus.ValidationError, error, errorCode)
+            with
+            {
+                ValidationKey = validationKey
+            };
     }
 
     public static ServiceResult<T> NotFound(string error)

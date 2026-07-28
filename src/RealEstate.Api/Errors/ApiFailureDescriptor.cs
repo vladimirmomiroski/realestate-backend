@@ -20,11 +20,29 @@ internal sealed record ApiFailureDescriptor(
         "Authentication required",
         "Authentication is required to access this resource.");
 
+    public static readonly ApiFailureDescriptor AuthenticationInvalidCredentials = new(
+        StatusCodes.Status401Unauthorized,
+        ErrorCodes.AuthenticationInvalidCredentials,
+        "Invalid credentials",
+        "The email or password is invalid.");
+
+    public static readonly ApiFailureDescriptor AuthenticationInvalidPrincipal = new(
+        StatusCodes.Status401Unauthorized,
+        ErrorCodes.AuthenticationInvalidPrincipal,
+        "Invalid authenticated principal",
+        "The authenticated user could not be resolved.");
+
     public static readonly ApiFailureDescriptor AuthorizationForbidden = new(
         StatusCodes.Status403Forbidden,
         ErrorCodes.AuthorizationForbidden,
         "Forbidden",
         "You do not have permission to perform this action.");
+
+    public static readonly ApiFailureDescriptor AuthorizationAccountDisabled = new(
+        StatusCodes.Status403Forbidden,
+        ErrorCodes.AuthorizationAccountDisabled,
+        "Account disabled",
+        "This account cannot perform this action.");
 
     public static readonly ApiFailureDescriptor ResourceNotFound = new(
         StatusCodes.Status404NotFound,
@@ -43,6 +61,12 @@ internal sealed record ApiFailureDescriptor(
         ErrorCodes.ConflictResourceState,
         "Conflict",
         "The request conflicts with the current resource state.");
+
+    public static readonly ApiFailureDescriptor EmailAlreadyExists = new(
+        StatusCodes.Status409Conflict,
+        ErrorCodes.ConflictEmailAlreadyExists,
+        "Email already exists",
+        "An account with this email already exists.");
 
     public static readonly ApiFailureDescriptor MediaTypeNotSupported = new(
         StatusCodes.Status415UnsupportedMediaType,
@@ -71,6 +95,31 @@ internal sealed record ApiFailureDescriptor(
                 nameof(statusCode),
                 statusCode,
                 "The status code has no canonical API failure descriptor.")
+        };
+    }
+
+    public static ApiFailureDescriptor ForCode(string errorCode)
+    {
+        return errorCode switch
+        {
+            ErrorCodes.AuthenticationRequired => AuthenticationRequired,
+            ErrorCodes.AuthenticationInvalidCredentials =>
+                AuthenticationInvalidCredentials,
+            ErrorCodes.AuthenticationInvalidPrincipal =>
+                AuthenticationInvalidPrincipal,
+            ErrorCodes.AuthorizationForbidden => AuthorizationForbidden,
+            ErrorCodes.AuthorizationAccountDisabled =>
+                AuthorizationAccountDisabled,
+            ErrorCodes.ResourceNotFound => ResourceNotFound,
+            ErrorCodes.RequestMethodNotAllowed => MethodNotAllowed,
+            ErrorCodes.RequestMediaTypeNotSupported => MediaTypeNotSupported,
+            ErrorCodes.ConflictEmailAlreadyExists => EmailAlreadyExists,
+            ErrorCodes.ConflictResourceState => ResourceStateConflict,
+            ErrorCodes.ServerUnexpected => Unexpected,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(errorCode),
+                errorCode,
+                "The error code has no canonical API failure descriptor.")
         };
     }
 }

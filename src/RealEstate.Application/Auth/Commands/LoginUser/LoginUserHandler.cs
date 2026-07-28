@@ -25,11 +25,13 @@ public sealed class LoginUserHandler
         LoginRequest request,
         CancellationToken cancellationToken)
     {
-        string? validationError = Validate(request);
+        ValidationFailure? validationFailure = Validate(request);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
-            return LoginUserResult.ValidationFailed(validationError);
+            return LoginUserResult.ValidationFailed(
+                validationFailure.Error,
+                validationFailure.Key);
         }
 
         string normalizedEmail = request.Email.Trim().ToUpperInvariant();
@@ -68,23 +70,25 @@ public sealed class LoginUserHandler
         return LoginUserResult.Success(response);
     }
 
-    private static string? Validate(LoginRequest request)
+    private static ValidationFailure? Validate(LoginRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
         {
-            return "Email is required.";
+            return new ValidationFailure("email", "Email is required.");
         }
 
         if (!new EmailAddressAttribute().IsValid(request.Email))
         {
-            return "Email is invalid.";
+            return new ValidationFailure("email", "Email is invalid.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Password))
         {
-            return "Password is required.";
+            return new ValidationFailure("password", "Password is required.");
         }
 
         return null;
     }
+
+    private sealed record ValidationFailure(string Key, string Error);
 }

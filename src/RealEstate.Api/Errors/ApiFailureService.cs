@@ -6,7 +6,7 @@ using RealEstate.Application.Common;
 
 namespace RealEstate.Api.Errors;
 
-internal sealed class ApiFailureService
+public sealed class ApiFailureService
 {
     public const string ContentType = "application/problem+json";
 
@@ -17,7 +17,7 @@ internal sealed class ApiFailureService
         _serializerOptions = jsonOptions.Value.JsonSerializerOptions;
     }
 
-    public ApiProblemDetailsResponse Create(
+    internal ApiProblemDetailsResponse Create(
         HttpContext httpContext,
         ApiFailureDescriptor descriptor)
     {
@@ -35,7 +35,7 @@ internal sealed class ApiFailureService
         };
     }
 
-    public ApiValidationProblemDetailsResponse CreateValidation(
+    internal ApiValidationProblemDetailsResponse CreateValidation(
         HttpContext httpContext,
         ModelStateDictionary modelState)
     {
@@ -47,7 +47,7 @@ internal sealed class ApiFailureService
             ErrorCodes.ValidationFailed);
     }
 
-    public ApiValidationProblemDetailsResponse CreateValidation(
+    internal ApiValidationProblemDetailsResponse CreateValidation(
         HttpContext httpContext,
         IDictionary<string, string[]> errors,
         string errorCode)
@@ -69,6 +69,27 @@ internal sealed class ApiFailureService
     public IActionResult CreateResult(ProblemDetails problemDetails)
     {
         return new ApiFailureResult(this, problemDetails);
+    }
+
+    internal IActionResult CreateResult(
+        HttpContext httpContext,
+        ApiFailureDescriptor descriptor)
+    {
+        return CreateResult(Create(httpContext, descriptor));
+    }
+
+    public IActionResult CreateValidationResult(
+        HttpContext httpContext,
+        string validationKey,
+        string error,
+        string errorCode)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            [validationKey] = new[] { error }
+        };
+
+        return CreateResult(CreateValidation(httpContext, errors, errorCode));
     }
 
     public async Task<bool> TryWriteAsync(

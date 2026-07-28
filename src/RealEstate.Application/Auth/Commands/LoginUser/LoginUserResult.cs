@@ -14,11 +14,22 @@ public sealed record LoginUserResult(
     LoginResponse? Response,
     string? Error)
 {
+    public string? ValidationKey { get; private init; }
+
     public static LoginUserResult Success(LoginResponse response)
         => new(LoginUserResultType.Success, response, null);
 
-    public static LoginUserResult ValidationFailed(string error)
+    public static LoginUserResult ValidationFailed(
+        string error)
         => new(LoginUserResultType.ValidationFailed, null, error);
+
+    public static LoginUserResult ValidationFailed(
+        string error,
+        string validationKey)
+        => new(LoginUserResultType.ValidationFailed, null, error)
+        {
+            ValidationKey = validationKey
+        };
 
     public static LoginUserResult InvalidCredentials()
         => new(LoginUserResultType.InvalidCredentials, null, "Invalid email or password.");
