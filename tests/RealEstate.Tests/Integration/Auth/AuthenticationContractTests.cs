@@ -3,11 +3,14 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Application.Auth.Commands.LoginUser;
 using RealEstate.Application.Auth.Commands.RegisterUser;
 using RealEstate.Application.Auth.Dtos;
 using RealEstate.Application.Common;
 using RealEstate.Domain.Enums;
+using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Api;
 
 namespace RealEstate.Tests.Integration.Auth;
@@ -192,6 +195,13 @@ public sealed class AuthenticationContractTests
             request);
 
         first.StatusCode.Should().Be(HttpStatusCode.Created);
+        string successBody = await first.Content.ReadAsStringAsync();
+        using JsonDocument successDocument = JsonDocument.Parse(successBody);
+        successDocument.RootElement.TryGetProperty(
+                "accessToken",
+                out _)
+            .Should().BeFalse();
+
         AuthResponse? success = await first.Content.ReadFromJsonAsync<AuthResponse>();
         success.Should().NotBeNull();
         first.Headers.Location.Should().Be($"/api/users/{success!.User.Id}");
@@ -201,5 +211,18 @@ public sealed class AuthenticationContractTests
             HttpStatusCode.Conflict,
             ErrorCodes.ConflictEmailAlreadyExists,
             "/api/auth/register");
+
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+
+        RealEstateDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        int persistedCount = await dbContext.Users
+            .AsNoTracking()
+            .CountAsync(user =>
+                user.NormalizedEmail == email.ToUpperInvariant());
+
+        persistedCount.Should().Be(1);
     }
 }
