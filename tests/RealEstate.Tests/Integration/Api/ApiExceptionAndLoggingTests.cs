@@ -268,26 +268,71 @@ public sealed class ApiExceptionAndLoggingTests
             await response.Content.ReadAsStreamAsync();
         byte[] expectedBytes = Encoding.UTF8.GetBytes("started-response");
         var buffer = new byte[expectedBytes.Length];
-        await responseStream.ReadExactlyAsync(buffer);
+        IOException streamAbort;
 
-        buffer.Should().Equal(expectedBytes);
+        try
+        {
+            await responseStream.ReadExactlyAsync(buffer);
 
-        var remainder = new byte[1];
-        Func<Task> readRemainder = async () =>
-            await responseStream.ReadExactlyAsync(remainder);
-        IOException exception = (await readRemainder.Should()
-                .ThrowAsync<IOException>())
-            .Which;
-        exception.InnerException.Should()
+            string body = Encoding.UTF8.GetString(buffer);
+            body.Should().Be("started-response");
+            body.Should().NotContain("application/problem+json");
+            body.Should().NotContain("server.unexpected");
+
+            var remainder = new byte[1];
+            Func<Task> readRemainder = async () =>
+                await responseStream.ReadExactlyAsync(remainder);
+            streamAbort = (await readRemainder.Should()
+                    .ThrowAsync<IOException>())
+                .Which;
+        }
+        catch (IOException exception)
+        {
+            streamAbort = exception;
+        }
+
+        streamAbort.InnerException.Should()
             .BeOfType<InjectedResponseStartedException>();
+        streamAbort.StackTrace.Should().Contain(
+            "Microsoft.AspNetCore.TestHost.ResponseBodyReaderStream");
 
         GetHandledExceptions().Should().BeEmpty();
         GetCompletions().Should().BeEmpty();
-        _logs.Entries.Should().Contain(entry =>
-            entry.Category ==
-                "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware" &&
-            entry.EventId.Id == 2 &&
-            entry.Level == LogLevel.Warning);
+
+        CapturedLogEntry responseStartedWarning = _logs.Entries
+            .Where(entry =>
+                entry.Category ==
+                    "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware" &&
+                entry.EventId.Id == 2)
+            .Should().ContainSingle().Subject;
+
+        string requestId = GetRequestId(response);
+        responseStartedWarning.Level.Should().Be(LogLevel.Warning);
+        responseStartedWarning.Message.Should().Be(
+            "The response has already started, the error handler will not be executed.");
+        responseStartedWarning.Exception.Should().BeNull();
+        responseStartedWarning.ScopeProperties["RequestId"].Should()
+            .Be(requestId);
+        responseStartedWarning.ScopeProperties["RequestPath"].Should()
+            .Be("/api/chapter-12b-test/response-started");
+
+        CapturedLogEntry frameworkUnhandledError = _logs.Entries
+            .Where(entry =>
+                entry.Category ==
+                    "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware" &&
+                entry.EventId.Id == 1)
+            .Should().ContainSingle().Subject;
+
+        frameworkUnhandledError.Level.Should().Be(LogLevel.Error);
+        frameworkUnhandledError.Exception.Should()
+            .BeOfType<InjectedResponseStartedException>();
+        frameworkUnhandledError.ScopeProperties["RequestId"].Should()
+            .Be(requestId);
+        frameworkUnhandledError.ScopeProperties["RequestPath"].Should()
+            .Be("/api/chapter-12b-test/response-started");
+        _logs.Entries.Should().NotContain(entry =>
+            entry.Category == ExceptionCategory &&
+            entry.Level == LogLevel.Error);
     }
 
     public void Dispose()
