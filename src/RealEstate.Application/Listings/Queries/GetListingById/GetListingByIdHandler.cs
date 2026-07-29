@@ -24,7 +24,9 @@ public sealed class GetListingByIdHandler
 
         if (listing is null || listing.Status != ListingStatus.Active)
         {
-            return ServiceResult<ListingResponse>.NotFound("Listing was not found.");
+            return ServiceResult<ListingResponse>.NotFound(
+                "Listing was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         var response = listing.ToResponse(languageCode);

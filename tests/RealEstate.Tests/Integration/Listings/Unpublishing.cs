@@ -113,7 +113,7 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task UnpublishListing_ShouldReturnBadRequest_WhenPersonalListingIsArchived()
+    public async Task UnpublishListing_ShouldReturnConflict_WhenPersonalListingIsArchived()
     {
         // Arrange
         (Guid listingId, AuthenticatedTestUser owner) =
@@ -131,7 +131,7 @@ public sealed partial class ListingsEndpointTests
                 await _httpClient.PutAsync($"/api/listings/{listingId}/unpublish", null);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         }
         finally
         {

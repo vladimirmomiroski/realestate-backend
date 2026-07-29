@@ -32,15 +32,31 @@ public sealed class ArchiveListingHandler
         ArchiveListingCommand command,
         CancellationToken cancellationToken)
     {
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+        Guid? currentUserId = _currentUserService.UserId;
+
+        if (!currentUserId.HasValue)
+        {
+            return ServiceResult<ListingResponse>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
+
+        Guid userId = currentUserId.Value;
 
         var user = await _userRepository.GetByIdReadOnlyAsync(userId, cancellationToken);
 
-        if (user is null || user.Status == UserStatus.Disabled)
+        if (user is null)
+        {
+            return ServiceResult<ListingResponse>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
+
+        if (user.Status == UserStatus.Disabled)
         {
             return ServiceResult<ListingResponse>.Forbidden(
-                "User is not allowed to archive listings.");
+                "User is not allowed to archive listings.",
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
         var listing = await _listingRepository.GetByIdForUpdateAsync(
@@ -49,7 +65,9 @@ public sealed class ArchiveListingHandler
 
         if (listing is null)
         {
-            return ServiceResult<ListingResponse>.NotFound("Listing was not found.");
+            return ServiceResult<ListingResponse>.NotFound(
+                "Listing was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         if (listing.AgencyId.HasValue)
@@ -69,7 +87,8 @@ public sealed class ArchiveListingHandler
         else if (listing.CreatedByUserId != userId)
         {
             return ServiceResult<ListingResponse>.Forbidden(
-                "User is not allowed to archive this listing.");
+                "User is not allowed to archive this listing.",
+                ErrorCodes.AuthorizationForbidden);
         }
 
         try
@@ -78,7 +97,9 @@ public sealed class ArchiveListingHandler
         }
         catch (InvalidOperationException exception)
         {
-            return ServiceResult<ListingResponse>.ValidationError(exception.Message);
+            return ServiceResult<ListingResponse>.Conflict(
+                exception.Message,
+                ErrorCodes.ConflictResourceState);
         }
 
         await _listingRepository.SaveChangesAsync(cancellationToken);

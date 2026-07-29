@@ -32,15 +32,38 @@ public sealed class PublishListingHandler
         PublishListingCommand command,
         CancellationToken cancellationToken)
     {
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+        Guid? currentUserId = _currentUserService.UserId;
+
+        if (!currentUserId.HasValue)
+        {
+            return ServiceResult<ListingResponse>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
+
+        Guid userId = currentUserId.Value;
 
         var user = await _userRepository.GetByIdReadOnlyAsync(userId, cancellationToken);
 
-        if (user is null || user.Status != UserStatus.Active)
+        if (user is null)
+        {
+            return ServiceResult<ListingResponse>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
+
+        if (user.Status == UserStatus.Disabled)
         {
             return ServiceResult<ListingResponse>.Forbidden(
-                "User is not allowed to publish listings.");
+                "User is not allowed to publish listings.",
+                ErrorCodes.AuthorizationAccountDisabled);
+        }
+
+        if (user.Status != UserStatus.Active)
+        {
+            return ServiceResult<ListingResponse>.Forbidden(
+                "User is not allowed to publish listings.",
+                ErrorCodes.AuthorizationForbidden);
         }
 
         var listing = await _listingRepository.GetByIdForUpdateAsync(
@@ -49,7 +72,9 @@ public sealed class PublishListingHandler
 
         if (listing is null)
         {
-            return ServiceResult<ListingResponse>.NotFound("Listing was not found.");
+            return ServiceResult<ListingResponse>.NotFound(
+                "Listing was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         if (listing.AgencyId.HasValue)
@@ -68,7 +93,8 @@ public sealed class PublishListingHandler
         else if (listing.CreatedByUserId != userId)
         {
             return ServiceResult<ListingResponse>.Forbidden(
-                "User is not allowed to publish this listing.");
+                "User is not allowed to publish this listing.",
+                ErrorCodes.AuthorizationForbidden);
         }
 
         try
@@ -77,7 +103,9 @@ public sealed class PublishListingHandler
         }
         catch (InvalidOperationException exception)
         {
-            return ServiceResult<ListingResponse>.ValidationError(exception.Message);
+            return ServiceResult<ListingResponse>.Conflict(
+                exception.Message,
+                ErrorCodes.ConflictResourceState);
         }
 
         await _listingRepository.SaveChangesAsync(cancellationToken);
