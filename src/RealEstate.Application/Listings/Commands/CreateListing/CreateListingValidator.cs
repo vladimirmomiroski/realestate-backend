@@ -4,6 +4,7 @@ namespace RealEstate.Application.Listings.Commands.CreateListing;
 
 public sealed class CreateListingValidator
 {
+    public sealed record ValidationFailure(string Key, string Error);
 
     public const string InvalidCurrencyError =
     "Currency must contain exactly three ASCII letters.";
@@ -19,19 +20,24 @@ public sealed class CreateListingValidator
 
     public string? Validate(CreateListingRequest request)
     {
+        return ValidateWithKey(request)?.Error;
+    }
+
+    public ValidationFailure? ValidateWithKey(CreateListingRequest request)
+    {
         if (request.Price <= 0)
         {
-            return "Price must be greater than zero.";
+            return Failure("price", "Price must be greater than zero.");
         }
 
         if (request.AreaSquareMeters <= 0)
         {
-            return "Area must be greater than zero.";
+            return Failure("areaSquareMeters", "Area must be greater than zero.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Currency))
         {
-            return "Currency is required.";
+            return Failure("currency", "Currency is required.");
         }
 
         string trimmedCurrency =
@@ -39,7 +45,7 @@ public sealed class CreateListingValidator
 
         if (!IsValidCurrency(trimmedCurrency))
         {
-            return InvalidCurrencyError;
+            return Failure("currency", InvalidCurrencyError);
         }
 
         bool hasLatitude =
@@ -50,32 +56,42 @@ public sealed class CreateListingValidator
 
         if (hasLatitude != hasLongitude)
         {
-            return CoordinatePairError;
+            return Failure("request", CoordinatePairError);
         }
 
         if (request.Latitude is < -90m or > 90m)
         {
-            return LatitudeOutOfRangeError;
+            return Failure("latitude", LatitudeOutOfRangeError);
         }
 
         if (request.Longitude is < -180m or > 180m)
         {
-            return LongitudeOutOfRangeError;
+            return Failure("longitude", LongitudeOutOfRangeError);
         }
 
         if (request.Translations is null || request.Translations.Count == 0)
         {
-            return "At least one translation is required.";
+            return Failure("translations", "At least one translation is required.");
         }
 
-        if (request.Translations.Any(translation => string.IsNullOrWhiteSpace(translation.LanguageCode)))
+        int missingLanguageIndex = request.Translations.FindIndex(
+            translation => string.IsNullOrWhiteSpace(translation.LanguageCode));
+
+        if (missingLanguageIndex >= 0)
         {
-            return "Translation language code is required.";
+            return Failure(
+                $"translations[{missingLanguageIndex}].languageCode",
+                "Translation language code is required.");
         }
 
-        if (request.Translations.Any(translation => string.IsNullOrWhiteSpace(translation.Title)))
+        int missingTitleIndex = request.Translations.FindIndex(
+            translation => string.IsNullOrWhiteSpace(translation.Title));
+
+        if (missingTitleIndex >= 0)
         {
-            return "Translation title is required.";
+            return Failure(
+                $"translations[{missingTitleIndex}].title",
+                "Translation title is required.");
         }
 
         var hasDuplicateLanguages = request.Translations
@@ -84,58 +100,72 @@ public sealed class CreateListingValidator
 
         if (hasDuplicateLanguages)
         {
-            return "Duplicate translation languages are not allowed.";
+            return Failure(
+                "translations",
+                "Duplicate translation languages are not allowed.");
         }
 
         if (request.BalconyCount is < 0)
         {
-            return "Balcony count cannot be negative.";
+            return Failure("balconyCount", "Balcony count cannot be negative.");
         }
 
         if (request.ParkingSpaces is < 0)
         {
-            return "Parking spaces cannot be negative.";
+            return Failure("parkingSpaces", "Parking spaces cannot be negative.");
         }
 
         if (request.YearRenovated is < 1800 or > 2100)
         {
-            return "Year renovated is not valid.";
+            return Failure("yearRenovated", "Year renovated is not valid.");
         }
 
         if (request.YearRenovated.HasValue &&
             request.YearBuilt.HasValue &&
             request.YearRenovated.Value < request.YearBuilt.Value)
         {
-            return "Year renovated cannot be earlier than year built.";
+            return Failure(
+                "request",
+                "Year renovated cannot be earlier than year built.");
         }
 
         if (request.PropertyType == PropertyType.Apartment)
         {
             if (request.ApartmentDetails is null)
             {
-                return "Apartment details are required for apartment listings.";
+                return Failure(
+                    "apartmentDetails",
+                    "Apartment details are required for apartment listings.");
             }
 
             if (request.HouseDetails is not null)
             {
-                return "House details are not allowed for apartment listings.";
+                return Failure(
+                    "request",
+                    "House details are not allowed for apartment listings.");
             }
 
             if (request.ApartmentDetails.Floor is < 0)
             {
-                return "Floor cannot be negative.";
+                return Failure(
+                    "apartmentDetails.floor",
+                    "Floor cannot be negative.");
             }
 
             if (request.ApartmentDetails.TotalFloors is < 0)
             {
-                return "Total floors cannot be negative.";
+                return Failure(
+                    "apartmentDetails.totalFloors",
+                    "Total floors cannot be negative.");
             }
 
             if (request.ApartmentDetails.Floor.HasValue &&
                 request.ApartmentDetails.TotalFloors.HasValue &&
                 request.ApartmentDetails.Floor.Value > request.ApartmentDetails.TotalFloors.Value)
             {
-                return "Floor cannot be greater than total floors.";
+                return Failure(
+                    "request",
+                    "Floor cannot be greater than total floors.");
             }
         }
 
@@ -143,32 +173,45 @@ public sealed class CreateListingValidator
         {
             if (request.HouseDetails is null)
             {
-                return "House details are required for house listings.";
+                return Failure(
+                    "houseDetails",
+                    "House details are required for house listings.");
             }
 
             if (request.ApartmentDetails is not null)
             {
-                return "Apartment details are not allowed for house listings.";
+                return Failure(
+                    "request",
+                    "Apartment details are not allowed for house listings.");
             }
 
             if (request.HouseDetails.NumberOfFloors is < 0)
             {
-                return "Number of floors cannot be negative.";
+                return Failure(
+                    "houseDetails.numberOfFloors",
+                    "Number of floors cannot be negative.");
             }
 
             if (request.HouseDetails.YardAreaSquareMeters is < 0)
             {
-                return "Yard area cannot be negative.";
+                return Failure(
+                    "houseDetails.yardAreaSquareMeters",
+                    "Yard area cannot be negative.");
             }
         }
 
         if (request.AgencyId == Guid.Empty)
         {
-            return "Agency id cannot be empty.";
+            return Failure("agencyId", "Agency id cannot be empty.");
         }
 
 
         return null;
+    }
+
+    private static ValidationFailure Failure(string key, string error)
+    {
+        return new ValidationFailure(key, error);
     }
 
     private static bool IsValidCurrency(string currency)

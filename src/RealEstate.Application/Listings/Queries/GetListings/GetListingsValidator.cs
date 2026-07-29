@@ -2,6 +2,7 @@
 
 public sealed class GetListingsValidator
 {
+    public sealed record ValidationFailure(string Key, string Error);
     public const string InvalidSortError =
         "Sort must be one of: newest, priceAsc, priceDesc.";
 
@@ -22,34 +23,43 @@ public sealed class GetListingsValidator
 
     public string? Validate(GetListingsQuery query)
     {
+        return ValidateWithKey(query)?.Error;
+    }
+
+    public ValidationFailure? ValidateWithKey(GetListingsQuery query)
+    {
         if (!ListingSortOptionParser.TryParse(
                 query.Sort,
                 out ListingSortOption sortOption))
         {
-            return InvalidSortError;
+            return Failure("sort", InvalidSortError);
         }
 
         if (query.Currency is not null &&
             !IsValidCurrency(query.Currency))
         {
-            return "Currency must contain exactly three ASCII letters.";
+            return Failure(
+                "currency",
+                "Currency must contain exactly three ASCII letters.");
         }
 
         if (query.MinPrice is <= 0)
         {
-            return "Minimum price must be greater than zero.";
+            return Failure("minPrice", "Minimum price must be greater than zero.");
         }
 
         if (query.MaxPrice is <= 0)
         {
-            return "Maximum price must be greater than zero.";
+            return Failure("maxPrice", "Maximum price must be greater than zero.");
         }
 
         if (query.MinPrice.HasValue &&
             query.MaxPrice.HasValue &&
             query.MinPrice.Value > query.MaxPrice.Value)
         {
-            return "Minimum price cannot be greater than maximum price.";
+            return Failure(
+                "request",
+                "Minimum price cannot be greater than maximum price.");
         }
 
         bool usesPriceSort =
@@ -63,17 +73,23 @@ public sealed class GetListingsValidator
         if ((usesPriceSort || usesPriceFilter) &&
             query.Currency is null)
         {
-            return "Currency is required when filtering or sorting by price.";
+            return Failure(
+                "request",
+                "Currency is required when filtering or sorting by price.");
         }
 
         if (query.MinAreaSquareMeters is <= 0)
         {
-            return "Minimum area must be greater than zero.";
+            return Failure(
+                "minAreaSquareMeters",
+                "Minimum area must be greater than zero.");
         }
 
         if (query.MaxAreaSquareMeters is <= 0)
         {
-            return "Maximum area must be greater than zero.";
+            return Failure(
+                "maxAreaSquareMeters",
+                "Maximum area must be greater than zero.");
         }
 
         if (query.MinAreaSquareMeters.HasValue &&
@@ -81,34 +97,42 @@ public sealed class GetListingsValidator
             query.MinAreaSquareMeters.Value >
             query.MaxAreaSquareMeters.Value)
         {
-            return "Minimum area cannot be greater than maximum area.";
+            return Failure(
+                "request",
+                "Minimum area cannot be greater than maximum area.");
         }
 
         if (query.MinRooms is < 0)
         {
-            return "Minimum rooms cannot be negative.";
+            return Failure("minRooms", "Minimum rooms cannot be negative.");
         }
 
         if (query.MaxRooms is < 0)
         {
-            return "Maximum rooms cannot be negative.";
+            return Failure("maxRooms", "Maximum rooms cannot be negative.");
         }
 
         if (query.MinRooms.HasValue &&
             query.MaxRooms.HasValue &&
             query.MinRooms.Value > query.MaxRooms.Value)
         {
-            return "Minimum rooms cannot be greater than maximum rooms.";
+            return Failure(
+                "request",
+                "Minimum rooms cannot be greater than maximum rooms.");
         }
 
         if (query.MinYardAreaSquareMeters is < 0)
         {
-            return "Minimum yard area cannot be negative.";
+            return Failure(
+                "minYardAreaSquareMeters",
+                "Minimum yard area cannot be negative.");
         }
 
         if (query.MaxYardAreaSquareMeters is < 0)
         {
-            return "Maximum yard area cannot be negative.";
+            return Failure(
+                "maxYardAreaSquareMeters",
+                "Maximum yard area cannot be negative.");
         }
 
         if (query.MinYardAreaSquareMeters.HasValue &&
@@ -116,35 +140,42 @@ public sealed class GetListingsValidator
             query.MinYardAreaSquareMeters.Value >
             query.MaxYardAreaSquareMeters.Value)
         {
-            return "Minimum yard area cannot be greater than maximum yard area.";
+            return Failure(
+                "request",
+                "Minimum yard area cannot be greater than maximum yard area.");
         }
 
         if (query.City is { Length: > 100 })
         {
-            return CityTooLongError;
+            return Failure("city", CityTooLongError);
         }
 
         if (query.Municipality is { Length: > 100 })
         {
-            return MunicipalityTooLongError;
+            return Failure("municipality", MunicipalityTooLongError);
         }
 
         if (query.Neighborhood is { Length: > 100 })
         {
-            return NeighborhoodTooLongError;
+            return Failure("neighborhood", NeighborhoodTooLongError);
         }
 
         if (query.SearchText is { Length: < 2 })
         {
-            return SearchTextTooShortError;
+            return Failure("q", SearchTextTooShortError);
         }
 
         if (query.SearchText is { Length: > 100 })
         {
-            return SearchTextTooLongError;
+            return Failure("q", SearchTextTooLongError);
         }
 
         return null;
+    }
+
+    private static ValidationFailure Failure(string key, string error)
+    {
+        return new ValidationFailure(key, error);
     }
 
     private static bool IsValidCurrency(string currency)

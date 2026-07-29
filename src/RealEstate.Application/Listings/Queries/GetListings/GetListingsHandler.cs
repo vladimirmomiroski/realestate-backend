@@ -54,12 +54,16 @@ public sealed class GetListingsHandler
         query.Municipality = NormalizeOptionalLocation(query.Municipality);
         query.Neighborhood = NormalizeOptionalLocation(query.Neighborhood);
 
-        string? validationError = _validator.Validate(query);
+        GetListingsValidator.ValidationFailure? validationError =
+            _validator.ValidateWithKey(query);
 
         if (validationError is not null)
         {
             return ServiceResult<PagedResponse<ListingResponse>>
-                .ValidationError(validationError);
+                .ValidationError(
+                    validationError.Error,
+                    validationError.Key,
+                    ErrorCodes.ValidationFailed);
         }
 
         if (!ListingSortOptionParser.TryParse(
@@ -67,7 +71,10 @@ public sealed class GetListingsHandler
                 out ListingSortOption sortOption))
         {
             return ServiceResult<PagedResponse<ListingResponse>>
-                .ValidationError(GetListingsValidator.InvalidSortError);
+                .ValidationError(
+                    GetListingsValidator.InvalidSortError,
+                    "sort",
+                    ErrorCodes.ValidationFailed);
         }
 
         query.SortOption = sortOption;

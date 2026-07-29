@@ -28,13 +28,16 @@ public sealed class GetComparableListingsHandler
                 .NormalizeRequestedLanguageCode(
                     query.LanguageCode);
 
-        string? validationError =
-            _validator.Validate(query);
+        GetComparableListingsValidator.ValidationFailure? validationError =
+            _validator.ValidateWithKey(query);
 
         if (validationError is not null)
         {
             return ServiceResult<IReadOnlyList<ListingResponse>>
-                .ValidationError(validationError);
+                .ValidationError(
+                    validationError.Error,
+                    validationError.Key,
+                    ErrorCodes.ValidationFailed);
         }
 
         ComparableListingsReadResult readResult =
@@ -48,7 +51,9 @@ public sealed class GetComparableListingsHandler
         if (!readResult.SourceFound)
         {
             return ServiceResult<IReadOnlyList<ListingResponse>>
-                .NotFound("Listing was not found.");
+                .NotFound(
+                    "Listing was not found.",
+                    ErrorCodes.ResourceNotFound);
         }
 
         IReadOnlyList<ListingResponse> responses =

@@ -41,7 +41,8 @@ public sealed class CreateListingHandler
         if (!currentUserId.HasValue)
         {
             return ServiceResult<ListingResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         Guid userId = currentUserId.Value;
@@ -53,20 +54,26 @@ public sealed class CreateListingHandler
         if (user is null)
         {
             return ServiceResult<ListingResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (user.Status == UserStatus.Disabled)
         {
             return ServiceResult<ListingResponse>.Forbidden(
-                "Disabled users cannot create listings.");
+                "Disabled users cannot create listings.",
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
-        var validationError = _validator.Validate(request);
+        CreateListingValidator.ValidationFailure? validationError =
+            _validator.ValidateWithKey(request);
 
         if (validationError is not null)
         {
-            return ServiceResult<ListingResponse>.ValidationError(validationError);
+            return ServiceResult<ListingResponse>.ValidationError(
+                validationError.Error,
+                validationError.Key,
+                ErrorCodes.ValidationFailed);
         }
 
         var listing = new Listing
