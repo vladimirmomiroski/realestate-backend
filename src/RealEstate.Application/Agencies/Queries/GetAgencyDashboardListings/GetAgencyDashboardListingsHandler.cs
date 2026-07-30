@@ -33,15 +33,28 @@ public sealed class GetAgencyDashboardListingsHandler
         GetAgencyDashboardListingsQuery query,
         CancellationToken cancellationToken)
     {
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+        if (!_currentUserService.IsAuthenticated ||
+            _currentUserService.UserId is not Guid userId)
+        {
+            return ServiceResult<PagedResult<ListingResponse>>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
 
         var user = await _userRepository.GetByIdReadOnlyAsync(userId, cancellationToken);
 
-        if (user is null || user.Status == UserStatus.Disabled)
+        if (user is null)
+        {
+            return ServiceResult<PagedResult<ListingResponse>>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
+
+        if (user.Status == UserStatus.Disabled)
         {
             return ServiceResult<PagedResult<ListingResponse>>.Forbidden(
-                "User is not allowed to view agency listings.");
+                "User is not allowed to view agency listings.",
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
         var agencyAccessResult =

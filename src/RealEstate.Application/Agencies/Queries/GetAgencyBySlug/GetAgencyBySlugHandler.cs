@@ -27,7 +27,9 @@ public sealed class GetAgencyBySlugHandler
 
         if (agency is null)
         {
-            return ServiceResult<AgencyResponse>.NotFound("Agency was not found.");
+            return ServiceResult<AgencyResponse>.NotFound(
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         return ServiceResult<AgencyResponse>.Success(agency.ToResponse());

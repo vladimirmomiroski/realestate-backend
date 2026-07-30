@@ -33,7 +33,8 @@ public sealed class AgencyAdminAccessChecker
         {
             return AgencyAdminAccessResult<TResponse>.Failed(
                 ServiceResult<TResponse>.Unauthorized(
-                    "Current user could not be resolved."));
+                    "Current user could not be resolved.",
+                    ErrorCodes.AuthenticationInvalidPrincipal));
         }
 
         User? currentUser = await _userRepository.GetByIdReadOnlyAsync(
@@ -44,13 +45,16 @@ public sealed class AgencyAdminAccessChecker
         {
             return AgencyAdminAccessResult<TResponse>.Failed(
                 ServiceResult<TResponse>.Unauthorized(
-                    "Current user could not be resolved."));
+                    "Current user could not be resolved.",
+                    ErrorCodes.AuthenticationInvalidPrincipal));
         }
 
         if (currentUser.Status == UserStatus.Disabled)
         {
             return AgencyAdminAccessResult<TResponse>.Failed(
-                ServiceResult<TResponse>.Forbidden(forbiddenMessage));
+                ServiceResult<TResponse>.Forbidden(
+                    forbiddenMessage,
+                    ErrorCodes.AuthorizationAccountDisabled));
         }
 
         bool agencyExists = await _agencyRepository.ExistsAsync(
@@ -61,7 +65,8 @@ public sealed class AgencyAdminAccessChecker
         {
             return AgencyAdminAccessResult<TResponse>.Failed(
                 ServiceResult<TResponse>.NotFound(
-                    "Agency was not found."));
+                    "Agency was not found.",
+                    ErrorCodes.ResourceNotFound));
         }
 
         var memberAccess = await _agencyRepository.GetMemberAccessReadOnlyAsync(
@@ -74,7 +79,9 @@ public sealed class AgencyAdminAccessChecker
             memberAccess.Role != AgencyMemberRole.Owner)
         {
             return AgencyAdminAccessResult<TResponse>.Failed(
-                ServiceResult<TResponse>.Forbidden(forbiddenMessage));
+                ServiceResult<TResponse>.Forbidden(
+                    forbiddenMessage,
+                    ErrorCodes.AuthorizationForbidden));
         }
 
         return AgencyAdminAccessResult<TResponse>.Succeeded(currentUserId);
