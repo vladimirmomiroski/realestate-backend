@@ -86,7 +86,7 @@ public sealed class ServiceResultTests
     }
 
     [Fact]
-    public void ErrorCodeCatalogue_IsClosedAndCompleteForChapter12()
+    public void ErrorCodeCatalogue_IsClosedAndComplete()
     {
         ErrorCodes.All.Should().BeEquivalentTo(
             new[]

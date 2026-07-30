@@ -34,8 +34,8 @@ public sealed class ApiExceptionAndLoggingTests
 
     private readonly CapturingLoggerProvider _logs = new();
     private readonly ThrowingFileStorageService _storage = new();
-    private readonly Chapter12BTestProbe _probe = new();
-    private readonly Chapter12BWebApplicationFactory _factory;
+    private readonly ExceptionBoundaryTestProbe _probe = new();
+    private readonly ExceptionBoundaryWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public ApiExceptionAndLoggingTests(
@@ -43,7 +43,7 @@ public sealed class ApiExceptionAndLoggingTests
     {
         string connectionString = GetConnectionString(baseFactory);
 
-        _factory = new Chapter12BWebApplicationFactory(
+        _factory = new ExceptionBoundaryWebApplicationFactory(
             connectionString,
             _logs,
             _storage,
@@ -427,11 +427,11 @@ public sealed class ApiExceptionAndLoggingTests
                 "The initialized test connection string is unavailable.");
     }
 
-    private sealed class Chapter12BWebApplicationFactory(
+    private sealed class ExceptionBoundaryWebApplicationFactory(
         string connectionString,
         CapturingLoggerProvider logs,
         ThrowingFileStorageService storage,
-        Chapter12BTestProbe probe)
+        ExceptionBoundaryTestProbe probe)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -464,7 +464,7 @@ public sealed class ApiExceptionAndLoggingTests
                 services.AddSingleton(probe);
 
                 services.AddControllers().AddApplicationPart(
-                    typeof(Chapter12BTestController).Assembly);
+                    typeof(ExceptionBoundaryTestController).Assembly);
             });
         }
     }
@@ -472,7 +472,7 @@ public sealed class ApiExceptionAndLoggingTests
 
 [ApiController]
 [Route("api/chapter-12b-test")]
-public sealed class Chapter12BTestController : ControllerBase
+public sealed class ExceptionBoundaryTestController : ControllerBase
 {
     [HttpGet("application-failure/{id:guid}")]
     public IActionResult ThrowApplicationFailure(Guid id)
@@ -483,7 +483,7 @@ public sealed class Chapter12BTestController : ControllerBase
 
     [HttpGet("cancellation")]
     public async Task WaitForCancellation(
-        Chapter12BTestProbe probe,
+        ExceptionBoundaryTestProbe probe,
         CancellationToken cancellationToken)
     {
         probe.CancellationStarted.TrySetResult();
@@ -511,7 +511,7 @@ public sealed class Chapter12BTestController : ControllerBase
     }
 }
 
-public sealed class Chapter12BTestProbe
+public sealed class ExceptionBoundaryTestProbe
 {
     public TaskCompletionSource CancellationStarted { get; } = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
