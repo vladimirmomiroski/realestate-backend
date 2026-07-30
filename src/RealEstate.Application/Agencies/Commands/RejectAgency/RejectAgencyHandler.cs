@@ -43,7 +43,8 @@ public sealed class RejectAgencyHandler
         if (agency is null)
         {
             return ServiceResult<AgencyResponse>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         try
@@ -52,8 +53,9 @@ public sealed class RejectAgencyHandler
         }
         catch (InvalidOperationException exception)
         {
-            return ServiceResult<AgencyResponse>.ValidationError(
-                exception.Message);
+            return ServiceResult<AgencyResponse>.Conflict(
+                exception.Message,
+                ErrorCodes.ConflictResourceState);
         }
 
         await _agencyRepository.SaveChangesAsync(cancellationToken);

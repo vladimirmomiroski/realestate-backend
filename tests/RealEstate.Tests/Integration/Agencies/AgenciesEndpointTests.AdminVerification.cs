@@ -4,9 +4,11 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RealEstate.Application.Common;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Tests.Integration.Api;
 using RealEstate.Tests.Integration.Auth;
 
 namespace RealEstate.Tests.Integration.Agencies;
@@ -22,17 +24,79 @@ public sealed partial class AgenciesEndpointTests
     {
         // Arrange
         _httpClient.ClearAuthorization();
+        Guid agencyId = Guid.NewGuid();
 
         // Act
         HttpResponseMessage response =
             await PutAdminAgencyActionAsync(
                 accessToken: null,
-                Guid.NewGuid(),
+                agencyId,
                 action);
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Unauthorized);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationRequired,
+            GetAdminAgencyPath(agencyId, action),
+            bearerChallenge: true);
+    }
+
+    [Theory]
+    [InlineData("approve")]
+    [InlineData("reject")]
+    [InlineData("disable")]
+    public async Task AdminAgencyAction_ShouldReturnInvalidPrincipal_WhenSubjectIsNotGuid(
+        string action)
+    {
+        // Arrange
+        string accessToken = AuthTestHelpers.CreateSignedToken(
+            _factory,
+            "not-a-guid",
+            DateTime.UtcNow.AddMinutes(5));
+        Guid agencyId = Guid.NewGuid();
+
+        // Act
+        HttpResponseMessage response =
+            await PutAdminAgencyActionAsync(
+                accessToken,
+                agencyId,
+                action);
+
+        // Assert
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            GetAdminAgencyPath(agencyId, action),
+            bearerChallenge: true);
+    }
+
+    [Fact]
+    public async Task ApproveAgency_ShouldReturnInvalidPrincipal_WhenUserWasDeleted()
+    {
+        // Arrange
+        AuthenticatedTestUser admin =
+            await CreateUserWithPlatformAccessAsync(
+                UserRole.Admin,
+                UserStatus.Active);
+        await AuthTestHelpers.DeleteUserAsync(_factory, admin.UserId);
+        Guid agencyId = Guid.NewGuid();
+
+        // Act
+        HttpResponseMessage response =
+            await PutAdminAgencyActionAsync(
+                admin.AccessToken,
+                agencyId,
+                "approve");
+
+        // Assert
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            GetAdminAgencyPath(agencyId, "approve"),
+            bearerChallenge: true);
     }
 
     [Theory]
@@ -60,8 +124,11 @@ public sealed partial class AgenciesEndpointTests
                 action);
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AuthorizationForbidden,
+            GetAdminAgencyPath(agencyId, action));
     }
 
     [Theory]
@@ -89,8 +156,11 @@ public sealed partial class AgenciesEndpointTests
                 action);
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AuthorizationForbidden,
+            GetAdminAgencyPath(agencyId, action));
     }
 
     [Theory]
@@ -118,8 +188,11 @@ public sealed partial class AgenciesEndpointTests
                 action);
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Forbidden,
+            ErrorCodes.AuthorizationAccountDisabled,
+            GetAdminAgencyPath(agencyId, action));
     }
 
     [Theory]
@@ -135,16 +208,24 @@ public sealed partial class AgenciesEndpointTests
                 UserRole.Admin,
                 UserStatus.Active);
 
+        Guid agencyId = Guid.NewGuid();
+
         // Act
         HttpResponseMessage response =
             await PutAdminAgencyActionAsync(
                 admin.AccessToken,
-                Guid.NewGuid(),
+                agencyId,
                 action);
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.NotFound);
+        JsonElement body = await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.NotFound,
+            ErrorCodes.ResourceNotFound,
+            GetAdminAgencyPath(agencyId, action));
+
+        body.GetProperty("detail").GetString().Should()
+            .Be("The requested resource was not found.");
     }
 
     [Theory]
@@ -175,11 +256,12 @@ public sealed partial class AgenciesEndpointTests
         await AssertSuccessfulAgencyStatusChangeAsync(
             response,
             agencyId,
+            initialStatus,
             AgencyStatus.Active);
     }
 
     [Fact]
-    public async Task ApproveAgency_ShouldReturnBadRequest_WhenAgencyIsDisabled()
+    public async Task ApproveAgency_ShouldReturnConflict_WhenAgencyIsDisabled()
     {
         // Arrange
         AuthenticatedTestUser admin =
@@ -199,8 +281,14 @@ public sealed partial class AgenciesEndpointTests
                 "approve");
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.BadRequest);
+        JsonElement body = await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Conflict,
+            ErrorCodes.ConflictResourceState,
+            GetAdminAgencyPath(agencyId, "approve"));
+
+        body.GetProperty("detail").GetString().Should()
+            .Be("The request conflicts with the current resource state.");
 
         await AssertPersistedAgencyStatusAsync(
             agencyId,
@@ -234,13 +322,14 @@ public sealed partial class AgenciesEndpointTests
         await AssertSuccessfulAgencyStatusChangeAsync(
             response,
             agencyId,
+            initialStatus,
             AgencyStatus.Rejected);
     }
 
     [Theory]
     [InlineData(AgencyStatus.Active)]
     [InlineData(AgencyStatus.Disabled)]
-    public async Task RejectAgency_ShouldReturnBadRequest_WhenTransitionIsNotAllowed(
+    public async Task RejectAgency_ShouldReturnConflict_WhenTransitionIsNotAllowed(
         AgencyStatus initialStatus)
     {
         // Arrange
@@ -261,8 +350,14 @@ public sealed partial class AgenciesEndpointTests
                 "reject");
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.BadRequest);
+        JsonElement body = await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Conflict,
+            ErrorCodes.ConflictResourceState,
+            GetAdminAgencyPath(agencyId, "reject"));
+
+        body.GetProperty("detail").GetString().Should()
+            .Be("The request conflicts with the current resource state.");
 
         await AssertPersistedAgencyStatusAsync(
             agencyId,
@@ -298,6 +393,7 @@ public sealed partial class AgenciesEndpointTests
         await AssertSuccessfulAgencyStatusChangeAsync(
             response,
             agencyId,
+            initialStatus,
             AgencyStatus.Disabled);
     }
 
@@ -405,6 +501,7 @@ public sealed partial class AgenciesEndpointTests
     private async Task AssertSuccessfulAgencyStatusChangeAsync(
         HttpResponseMessage response,
         Guid agencyId,
+        AgencyStatus initialStatus,
         AgencyStatus expectedStatus)
     {
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -412,6 +509,27 @@ public sealed partial class AgenciesEndpointTests
         JsonElement json =
             await response.Content
                 .ReadFromJsonAsync<JsonElement>();
+
+        json.EnumerateObject()
+            .Select(property => property.Name)
+            .Should()
+            .BeEquivalentTo(
+                "id",
+                "name",
+                "slug",
+                "description",
+                "logoUrl",
+                "phoneNumber",
+                "email",
+                "websiteUrl",
+                "addressLine",
+                "city",
+                "municipality",
+                "status",
+                "createdAtUtc",
+                "modifiedAtUtc");
+
+        Agency agency = await GetPersistedAgencyAsync(agencyId);
 
         json.GetProperty("id")
             .GetGuid()
@@ -423,14 +541,59 @@ public sealed partial class AgenciesEndpointTests
             .Should()
             .Be(expectedStatus.ToString());
 
-        await AssertPersistedAgencyStatusAsync(
-            agencyId,
-            expectedStatus);
+        json.GetProperty("name").GetString().Should().Be(agency.Name);
+        json.GetProperty("slug").GetString().Should().Be(agency.Slug);
+        json.GetProperty("description").GetString().Should()
+            .Be(agency.Description);
+        json.GetProperty("logoUrl").ValueKind.Should().Be(JsonValueKind.Null);
+        json.GetProperty("phoneNumber").GetString().Should()
+            .Be(agency.PhoneNumber);
+        json.GetProperty("email").GetString().Should().Be(agency.Email);
+        json.GetProperty("websiteUrl").GetString().Should()
+            .Be(agency.WebsiteUrl);
+        json.GetProperty("addressLine").GetString().Should()
+            .Be(agency.AddressLine);
+        json.GetProperty("city").GetString().Should().Be(agency.City);
+        json.GetProperty("municipality").GetString().Should()
+            .Be(agency.Municipality);
+        json.GetProperty("createdAtUtc").GetDateTime().Should()
+            .Be(agency.CreatedAtUtc);
+
+        JsonElement modifiedAtUtc = json.GetProperty("modifiedAtUtc");
+        if (agency.ModifiedAtUtc is DateTime expectedModifiedAtUtc)
+        {
+            modifiedAtUtc.GetDateTime().Should().BeCloseTo(
+                expectedModifiedAtUtc,
+                TimeSpan.FromMicroseconds(1));
+        }
+        else
+        {
+            modifiedAtUtc.ValueKind.Should().Be(JsonValueKind.Null);
+        }
+
+        agency.Status.Should().Be(expectedStatus);
+        agency.CreatedAtUtc.Should().NotBe(default);
+
+        if (initialStatus == expectedStatus)
+        {
+            agency.ModifiedAtUtc.Should().BeNull();
+        }
+        else
+        {
+            agency.ModifiedAtUtc.Should().NotBeNull();
+        }
     }
 
     private async Task AssertPersistedAgencyStatusAsync(
         Guid agencyId,
         AgencyStatus expectedStatus)
+    {
+        Agency agency = await GetPersistedAgencyAsync(agencyId);
+
+        agency.Status.Should().Be(expectedStatus);
+    }
+
+    private async Task<Agency> GetPersistedAgencyAsync(Guid agencyId)
     {
         using IServiceScope scope =
             _factory.Services.CreateScope();
@@ -445,6 +608,13 @@ public sealed partial class AgenciesEndpointTests
                 .SingleAsync(currentAgency =>
                     currentAgency.Id == agencyId);
 
-        agency.Status.Should().Be(expectedStatus);
+        return agency;
+    }
+
+    private static string GetAdminAgencyPath(
+        Guid agencyId,
+        string action)
+    {
+        return $"/api/admin/agencies/{agencyId}/{action}";
     }
 }

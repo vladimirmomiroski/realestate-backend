@@ -27,7 +27,8 @@ public sealed class PlatformAdminAccessChecker
             _currentUserService.UserId is not Guid currentUserId)
         {
             return ServiceResult<TResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         User? currentUser =
@@ -38,14 +39,23 @@ public sealed class PlatformAdminAccessChecker
         if (currentUser is null)
         {
             return ServiceResult<TResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
+
+        if (currentUser.Status == UserStatus.Disabled)
+        {
+            return ServiceResult<TResponse>.Forbidden(
+                forbiddenMessage,
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
         if (currentUser.Role != UserRole.Admin ||
             currentUser.Status != UserStatus.Active)
         {
             return ServiceResult<TResponse>.Forbidden(
-                forbiddenMessage);
+                forbiddenMessage,
+                ErrorCodes.AuthorizationForbidden);
         }
 
         return null;
