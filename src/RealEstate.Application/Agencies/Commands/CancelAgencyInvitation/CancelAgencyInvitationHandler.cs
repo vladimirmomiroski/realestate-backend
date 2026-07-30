@@ -55,7 +55,8 @@ public sealed class CancelAgencyInvitationHandler
             return ServiceResult<
                 AgencyInvitationListItemResponse>
                 .NotFound(
-                    "Invitation was not found.");
+                    "Invitation was not found.",
+                    ErrorCodes.ResourceNotFound);
         }
 
         await using (terminalMutationScope)
@@ -68,7 +69,8 @@ public sealed class CancelAgencyInvitationHandler
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
                     .NotFound(
-                        "Invitation was not found.");
+                        "Invitation was not found.",
+                        ErrorCodes.ResourceNotFound);
             }
 
             if (invitation.Status ==
@@ -76,8 +78,9 @@ public sealed class CancelAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Accepted invitation cannot be cancelled.");
+                    .Conflict(
+                        "Accepted invitation cannot be cancelled.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             if (invitation.Status ==
@@ -85,8 +88,9 @@ public sealed class CancelAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Invitation has already been cancelled.");
+                    .Conflict(
+                        "Invitation has already been cancelled.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             if (invitation.Status ==
@@ -94,8 +98,9 @@ public sealed class CancelAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Expired invitation cannot be cancelled.");
+                    .Conflict(
+                        "Expired invitation cannot be cancelled.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             DateTime utcNow = DateTime.UtcNow;
@@ -113,8 +118,9 @@ public sealed class CancelAgencyInvitationHandler
 
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Expired invitation cannot be cancelled.");
+                    .Conflict(
+                        "Expired invitation cannot be cancelled.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             invitation.Cancel(utcNow);

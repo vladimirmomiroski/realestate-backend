@@ -44,13 +44,16 @@ public sealed class ChangeAgencyMemberRoleHandler
             return accessResult.Failure!;
         }
 
-        string? validationError =
-            _validator.Validate(request);
+        ChangeAgencyMemberRoleValidator.ValidationFailure?
+            validationFailure =
+                _validator.ValidateWithKey(request);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
             return ServiceResult<bool>.ValidationError(
-                validationError);
+                validationFailure.Error,
+                validationFailure.Key,
+                ErrorCodes.ValidationFailed);
         }
 
         IAgencyOwnerMutationScope? ownerMutationScope =
@@ -62,7 +65,8 @@ public sealed class ChangeAgencyMemberRoleHandler
         if (ownerMutationScope is null)
         {
             return ServiceResult<bool>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         await using (ownerMutationScope)
@@ -81,7 +85,8 @@ public sealed class ChangeAgencyMemberRoleHandler
                     AgencyMemberRole.Owner)
             {
                 return ServiceResult<bool>.Forbidden(
-                    forbiddenMessage);
+                    forbiddenMessage,
+                    ErrorCodes.AuthorizationForbidden);
             }
 
             AgencyMember? member =
@@ -94,14 +99,16 @@ public sealed class ChangeAgencyMemberRoleHandler
             if (member is null)
             {
                 return ServiceResult<bool>.NotFound(
-                    "Agency member was not found.");
+                    "Agency member was not found.",
+                    ErrorCodes.ResourceNotFound);
             }
 
             if (member.Status !=
                 AgencyMemberStatus.Active)
             {
-                return ServiceResult<bool>.ValidationError(
-                    "Only active agency members can have their role changed.");
+                return ServiceResult<bool>.Conflict(
+                    "Only active agency members can have their role changed.",
+                    ErrorCodes.ConflictResourceState);
             }
 
             AgencyMemberRole requestedRole =
@@ -128,8 +135,9 @@ public sealed class ChangeAgencyMemberRoleHandler
 
                 if (activeOwnerCount <= 1)
                 {
-                    return ServiceResult<bool>.ValidationError(
-                        "Cannot demote the last active agency owner.");
+                    return ServiceResult<bool>.Conflict(
+                        "Cannot demote the last active agency owner.",
+                        ErrorCodes.ConflictResourceState);
                 }
             }
 

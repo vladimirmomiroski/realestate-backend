@@ -48,7 +48,8 @@ public sealed class DisableAgencyMemberHandler
         if (ownerMutationScope is null)
         {
             return ServiceResult<bool>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         await using (ownerMutationScope)
@@ -67,7 +68,8 @@ public sealed class DisableAgencyMemberHandler
                     AgencyMemberRole.Owner)
             {
                 return ServiceResult<bool>.Forbidden(
-                    forbiddenMessage);
+                    forbiddenMessage,
+                    ErrorCodes.AuthorizationForbidden);
             }
 
             AgencyMember? member =
@@ -80,14 +82,16 @@ public sealed class DisableAgencyMemberHandler
             if (member is null)
             {
                 return ServiceResult<bool>.NotFound(
-                    "Agency member was not found.");
+                    "Agency member was not found.",
+                    ErrorCodes.ResourceNotFound);
             }
 
             if (member.UserId ==
                 accessResult.CurrentUserId)
             {
-                return ServiceResult<bool>.ValidationError(
-                    "Agency owners cannot disable themselves.");
+                return ServiceResult<bool>.Conflict(
+                    "Agency owners cannot disable themselves.",
+                    ErrorCodes.ConflictResourceState);
             }
 
             if (member.Status ==
@@ -112,8 +116,9 @@ public sealed class DisableAgencyMemberHandler
 
                 if (activeOwnerCount <= 1)
                 {
-                    return ServiceResult<bool>.ValidationError(
-                        "Cannot disable the last active agency owner.");
+                    return ServiceResult<bool>.Conflict(
+                        "Cannot disable the last active agency owner.",
+                        ErrorCodes.ConflictResourceState);
                 }
             }
 
