@@ -43,7 +43,8 @@ public sealed class DisableAgencyHandler
         if (agency is null)
         {
             return ServiceResult<AgencyResponse>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         agency.Disable();

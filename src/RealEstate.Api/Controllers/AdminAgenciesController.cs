@@ -5,6 +5,7 @@ using RealEstate.Application.Agencies.Commands.DisableAgency;
 using RealEstate.Application.Agencies.Commands.RejectAgency;
 using RealEstate.Application.Agencies.Dtos;
 using RealEstate.Application.Common;
+using RealEstate.Api.Errors;
 
 namespace RealEstate.Api.Controllers;
 
@@ -15,24 +16,27 @@ public sealed class AdminAgenciesController : ControllerBase
     private readonly ApproveAgencyHandler _approveAgencyHandler;
     private readonly RejectAgencyHandler _rejectAgencyHandler;
     private readonly DisableAgencyHandler _disableAgencyHandler;
+    private readonly ApiFailureService _failureService;
 
     public AdminAgenciesController(
         ApproveAgencyHandler approveAgencyHandler,
         RejectAgencyHandler rejectAgencyHandler,
-        DisableAgencyHandler disableAgencyHandler)
+        DisableAgencyHandler disableAgencyHandler,
+        ApiFailureService failureService)
     {
         _approveAgencyHandler = approveAgencyHandler;
         _rejectAgencyHandler = rejectAgencyHandler;
         _disableAgencyHandler = disableAgencyHandler;
+        _failureService = failureService;
     }
 
     [Authorize]
     [HttpPut("{agencyId:guid}/approve")]
     [ProducesResponseType(typeof(AgencyResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ApproveAgency(
         Guid agencyId,
         CancellationToken cancellationToken)
@@ -48,10 +52,10 @@ public sealed class AdminAgenciesController : ControllerBase
     [Authorize]
     [HttpPut("{agencyId:guid}/reject")]
     [ProducesResponseType(typeof(AgencyResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RejectAgency(
         Guid agencyId,
         CancellationToken cancellationToken)
@@ -67,7 +71,6 @@ public sealed class AdminAgenciesController : ControllerBase
     [Authorize]
     [HttpPut("{agencyId:guid}/disable")]
     [ProducesResponseType(typeof(AgencyResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -86,26 +89,34 @@ public sealed class AdminAgenciesController : ControllerBase
     private IActionResult MapResult(
         ServiceResult<AgencyResponse> result)
     {
-        if (result.Status == ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
+            ServiceResultStatus.Success when result.Value is not null =>
+                Ok(result.Value),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful admin agency result must provide a value."),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The admin agency transition result was not mapped.")
+        };
+    }
+
+    private IActionResult CreateFailureResult(
+        ServiceResult<AgencyResponse> result)
+    {
+        string errorCode = result.ErrorCode ?? throw new InvalidOperationException(
+            "A failure result must provide an error code.");
+
+        if (errorCode == ErrorCodes.AuthenticationInvalidPrincipal)
+        {
+            Response.Headers["WWW-Authenticate"] = "Bearer";
         }
 
-        if (result.Status == ServiceResultStatus.Unauthorized)
-        {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        return Ok(result.Value);
+        return _failureService.CreateResult(
+            HttpContext,
+            ApiFailureDescriptor.ForCode(errorCode));
     }
 }
