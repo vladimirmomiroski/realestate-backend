@@ -60,12 +60,14 @@ public sealed class UploadAgencyLogoHandler
             return accessResult.Failure!;
         }
 
-        string? validationError = ValidateFile(command.File);
+        FileValidationFailure? validationFailure = ValidateFile(command.File);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
             return ServiceResult<AgencyResponse>.ValidationError(
-                validationError);
+                validationFailure.Error,
+                "file",
+                validationFailure.ErrorCode);
         }
 
         Agency? agency = await _agencyRepository.GetByIdForUpdateAsync(
@@ -75,7 +77,8 @@ public sealed class UploadAgencyLogoHandler
         if (agency is null)
         {
             return ServiceResult<AgencyResponse>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         string? oldStoredFileName = agency.LogoStoredFileName;
@@ -119,21 +122,27 @@ public sealed class UploadAgencyLogoHandler
             agency.ToResponse());
     }
 
-    private static string? ValidateFile(UploadedFile? file)
+    private static FileValidationFailure? ValidateFile(UploadedFile? file)
     {
         if (file is null)
         {
-            return "Logo file is required.";
+            return new FileValidationFailure(
+                ErrorCodes.ValidationFileRequired,
+                "Logo file is required.");
         }
 
         if (file.Length <= 0)
         {
-            return "Logo file is empty.";
+            return new FileValidationFailure(
+                ErrorCodes.ValidationFileEmpty,
+                "Logo file is empty.");
         }
 
         if (file.Length > MaxFileSizeBytes)
         {
-            return "Logo file cannot be larger than 5 MB.";
+            return new FileValidationFailure(
+                ErrorCodes.ValidationFileTooLarge,
+                "Logo file cannot be larger than 5 MB.");
         }
 
         string extension = Path.GetExtension(file.FileName);
@@ -141,15 +150,26 @@ public sealed class UploadAgencyLogoHandler
         if (string.IsNullOrWhiteSpace(extension) ||
             !AllowedExtensions.Contains(extension))
         {
-            return "Only JPG, JPEG, PNG, and WEBP images are allowed.";
+            return UnsupportedFileType();
         }
 
         if (string.IsNullOrWhiteSpace(file.ContentType) ||
             !AllowedContentTypes.Contains(file.ContentType))
         {
-            return "Only JPG, JPEG, PNG, and WEBP images are allowed.";
+            return UnsupportedFileType();
         }
 
         return null;
     }
+
+    private static FileValidationFailure UnsupportedFileType()
+    {
+        return new FileValidationFailure(
+            ErrorCodes.ValidationFileTypeNotSupported,
+            "Only JPG, JPEG, PNG, and WEBP images are allowed.");
+    }
+
+    private sealed record FileValidationFailure(
+        string ErrorCode,
+        string Error);
 }

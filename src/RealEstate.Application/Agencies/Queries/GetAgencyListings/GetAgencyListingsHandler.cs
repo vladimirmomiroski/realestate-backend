@@ -38,13 +38,16 @@ public sealed class GetAgencyListingsHandler
             PageSize = NormalizePageSize(query.PageSize)
         };
 
-        string? validationError =
-            _getListingsValidator.Validate(listingsQuery);
+        GetListingsValidator.ValidationFailure? validationFailure =
+            _getListingsValidator.ValidateWithKey(listingsQuery);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
             return ServiceResult<PagedResult<ListingResponse>>
-                .ValidationError(validationError);
+                .ValidationError(
+                    validationFailure.Error,
+                    validationFailure.Key,
+                    ErrorCodes.ValidationFailed);
         }
 
         if (!ListingSortOptionParser.TryParse(
@@ -52,7 +55,10 @@ public sealed class GetAgencyListingsHandler
                 out ListingSortOption sortOption))
         {
             return ServiceResult<PagedResult<ListingResponse>>
-                .ValidationError(GetListingsValidator.InvalidSortError);
+                .ValidationError(
+                    GetListingsValidator.InvalidSortError,
+                    "sort",
+                    ErrorCodes.ValidationFailed);
         }
 
         listingsQuery.SortOption = sortOption;
@@ -64,7 +70,8 @@ public sealed class GetAgencyListingsHandler
         if (!agencyExists)
         {
             return ServiceResult<PagedResult<ListingResponse>>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         PagedResult<Listing> listings =

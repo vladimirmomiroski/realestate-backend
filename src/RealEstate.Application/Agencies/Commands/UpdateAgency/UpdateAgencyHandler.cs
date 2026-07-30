@@ -39,11 +39,15 @@ public sealed class UpdateAgencyHandler
             return accessResult.Failure!;
         }
 
-        string? validationError = _validator.Validate(request);
+        UpdateAgencyValidator.ValidationFailure? validationFailure =
+            _validator.ValidateWithKey(request);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
-            return ServiceResult<AgencyResponse>.ValidationError(validationError);
+            return ServiceResult<AgencyResponse>.ValidationError(
+                validationFailure.Error,
+                validationFailure.Key,
+                ErrorCodes.ValidationFailed);
         }
 
         Agency? agency = await _agencyRepository.GetByIdForUpdateAsync(
@@ -52,7 +56,9 @@ public sealed class UpdateAgencyHandler
 
         if (agency is null)
         {
-            return ServiceResult<AgencyResponse>.NotFound("Agency was not found.");
+            return ServiceResult<AgencyResponse>.NotFound(
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         agency.UpdateProfile(

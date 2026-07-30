@@ -41,7 +41,8 @@ public sealed class GetAgencyDashboardSummaryHandler
         {
             return ServiceResult<AgencyDashboardSummaryResponse>
                 .Unauthorized(
-                    "Current user could not be resolved.");
+                    "Current user could not be resolved.",
+                    ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         User? currentUser =
@@ -53,14 +54,16 @@ public sealed class GetAgencyDashboardSummaryHandler
         {
             return ServiceResult<AgencyDashboardSummaryResponse>
                 .Unauthorized(
-                    "Current user could not be resolved.");
+                    "Current user could not be resolved.",
+                    ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (currentUser.Status == UserStatus.Disabled)
         {
             return ServiceResult<AgencyDashboardSummaryResponse>
                 .Forbidden(
-                    "User is not allowed to view the agency dashboard.");
+                    "User is not allowed to view the agency dashboard.",
+                    ErrorCodes.AuthorizationAccountDisabled);
         }
 
         ServiceResult<AgencyDashboardSummaryResponse>? accessFailure =
@@ -88,7 +91,8 @@ public sealed class GetAgencyDashboardSummaryHandler
         {
             return ServiceResult<AgencyDashboardSummaryResponse>
                 .NotFound(
-                    "Agency was not found.");
+                    "Agency was not found.",
+                    ErrorCodes.ResourceNotFound);
         }
 
         var response = new AgencyDashboardSummaryResponse

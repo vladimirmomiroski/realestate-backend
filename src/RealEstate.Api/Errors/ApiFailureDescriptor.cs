@@ -80,6 +80,12 @@ internal sealed record ApiFailureDescriptor(
         "Email already exists",
         "An account with this email already exists.");
 
+    public static readonly ApiFailureDescriptor AgencySlugAlreadyExists = new(
+        StatusCodes.Status409Conflict,
+        ErrorCodes.ConflictAgencySlugAlreadyExists,
+        "Agency slug already exists",
+        "An agency with this slug already exists.");
+
     public static readonly ApiFailureDescriptor MediaTypeNotSupported = new(
         StatusCodes.Status415UnsupportedMediaType,
         ErrorCodes.RequestMediaTypeNotSupported,
@@ -126,6 +132,8 @@ internal sealed record ApiFailureDescriptor(
             ErrorCodes.RequestMethodNotAllowed => MethodNotAllowed,
             ErrorCodes.RequestMediaTypeNotSupported => MediaTypeNotSupported,
             ErrorCodes.ConflictEmailAlreadyExists => EmailAlreadyExists,
+            ErrorCodes.ConflictAgencySlugAlreadyExists =>
+                AgencySlugAlreadyExists,
             ErrorCodes.ConflictResourceState => ResourceStateConflict,
             ErrorCodes.ConflictResourceCapacity => ResourceCapacityConflict,
             ErrorCodes.ConflictResourceSetChanged => ResourceSetChangedConflict,

@@ -4,6 +4,8 @@ using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using RealEstate.Application.Common;
+using RealEstate.Tests.Integration.Api;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -39,11 +41,11 @@ public sealed partial class AgenciesEndpointTests
                 $"/api/agencies/{Guid.NewGuid()}",
                 request);
 
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-
-            string error = await response.Content.ReadAsStringAsync();
-
-            error.Should().Contain("Agency was not found.");
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.NotFound,
+                ErrorCodes.ResourceNotFound,
+                response.RequestMessage!.RequestUri!.AbsolutePath);
         }
         finally
         {
