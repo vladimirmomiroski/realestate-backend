@@ -259,7 +259,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task DisableAgencyMember_ShouldReturnBadRequest_WhenOwnerTargetsSelf()
+    public async Task DisableAgencyMember_ShouldReturnConflict_WhenOwnerTargetsSelf()
     {
         // Arrange
         AuthenticatedTestUser owner =
@@ -281,7 +281,9 @@ public sealed partial class AgenciesEndpointTests
                 content: null);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                $"/api/agencies/{agencyId}/members/{ownerMemberId}/disable");
         }
         finally
         {

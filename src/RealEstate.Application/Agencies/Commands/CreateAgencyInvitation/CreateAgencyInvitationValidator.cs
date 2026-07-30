@@ -6,36 +6,59 @@ namespace RealEstate.Application.Agencies.Commands.CreateAgencyInvitation;
 
 public sealed class CreateAgencyInvitationValidator
 {
+    public sealed record ValidationFailure(string Key, string Error);
+
     public string? Validate(CreateAgencyInvitationRequest? request)
+    {
+        return ValidateWithKey(request)?.Error;
+    }
+
+    public ValidationFailure? ValidateWithKey(
+        CreateAgencyInvitationRequest? request)
     {
         if (request is null)
         {
-            return "Request is required.";
+            return Failure("request", "Request is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Email))
         {
-            return "Invitation email is required.";
+            return Failure(
+                "email",
+                "Invitation email is required.");
         }
 
         string email = request.Email.Trim();
 
         if (email.Length > 254)
         {
-            return "Invitation email cannot be longer than 254 characters.";
+            return Failure(
+                "email",
+                "Invitation email cannot be longer than 254 characters.");
         }
 
         if (!MailAddress.TryCreate(email, out MailAddress? mailAddress) ||
             mailAddress.Address != email)
         {
-            return "Invitation email is invalid.";
+            return Failure(
+                "email",
+                "Invitation email is invalid.");
         }
 
         if (request.Role is not AgencyMemberRole.Owner and not AgencyMemberRole.Agent)
         {
-            return "Invitation role must be Owner or Agent.";
+            return Failure(
+                "role",
+                "Invitation role must be Owner or Agent.");
         }
 
         return null;
+    }
+
+    private static ValidationFailure Failure(
+        string key,
+        string error)
+    {
+        return new ValidationFailure(key, error);
     }
 }

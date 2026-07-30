@@ -177,7 +177,13 @@ public sealed partial class AgenciesEndpointTests
 
             JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-            json.GetProperty("id").GetGuid().Should().NotBeEmpty();
+            Guid invitationId = json.GetProperty("id").GetGuid();
+
+            invitationId.Should().NotBeEmpty();
+            response.Headers.Location.Should().NotBeNull();
+            response.Headers.Location!.IsAbsoluteUri.Should().BeFalse();
+            response.Headers.Location.OriginalString.Should().Be(
+                $"/api/agencies/{agencyId}/invitations/{invitationId}");
             json.GetProperty("agencyId").GetGuid().Should().Be(agencyId);
             json.GetProperty("email").GetString().Should().Be(invitedEmail);
             json.GetProperty("role").GetString().Should().Be(nameof(AgencyMemberRole.Agent));
@@ -242,7 +248,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task CreateAgencyInvitation_ShouldReturnBadRequest_WhenPendingInvitationAlreadyExists()
+    public async Task CreateAgencyInvitation_ShouldReturnConflict_WhenPendingInvitationAlreadyExists()
     {
         // Arrange
         AuthenticatedTestUser owner =
@@ -279,14 +285,9 @@ public sealed partial class AgenciesEndpointTests
                     request);
 
             // Assert
-            response.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
-
-            string responseBody =
-                await response.Content.ReadAsStringAsync();
-
-            responseBody.Should().Contain(
-                "A pending invitation already exists for this email.");
+            await AssertResourceStateConflictAsync(
+                response,
+                $"/api/agencies/{agencyId}/invitations");
         }
         finally
         {
@@ -450,7 +451,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task CreateAgencyInvitation_ShouldReturnBadRequest_WhenInvitedUserIsAlreadyMember()
+    public async Task CreateAgencyInvitation_ShouldReturnConflict_WhenInvitedUserIsAlreadyMember()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -474,7 +475,9 @@ public sealed partial class AgenciesEndpointTests
                 request);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                $"/api/agencies/{agencyId}/invitations");
         }
         finally
         {

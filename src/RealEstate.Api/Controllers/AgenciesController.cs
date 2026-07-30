@@ -171,29 +171,25 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IReadOnlyList<AgencyMemberResponse>>> GetAgencyMembers(
+    public async Task<IActionResult> GetAgencyMembers(
     Guid id,
     CancellationToken cancellationToken)
     {
         ServiceResult<IReadOnlyList<AgencyMemberResponse>> result =
             await _getAgencyMembersHandler.HandleAsync(id, cancellationToken);
 
-        if (result.Status == ServiceResultStatus.Unauthorized)
+        return result.Status switch
         {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Ok(result.Value);
+            ServiceResultStatus.Success when result.Value is not null =>
+                Ok(result.Value),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful agency-members result must provide a value."),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The agency-members result was not mapped.")
+        };
     }
 
     [HttpGet("{id:guid}/listings")]
@@ -348,7 +344,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AgencyInvitationCreatedResponse>> CreateAgencyInvitation(
+    public async Task<IActionResult> CreateAgencyInvitation(
     Guid id,
     [FromBody] CreateAgencyInvitationRequest request,
     CancellationToken cancellationToken)
@@ -359,29 +355,22 @@ public sealed class AgenciesController : ControllerBase
                 request,
                 cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Unauthorized)
-        {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Created(
-            $"/api/agencies/{id}/invitations/{result.Value!.Id}",
-            result.Value);
+            ServiceResultStatus.Success when result.Value is not null =>
+                Created(
+                    $"/api/agencies/{id}/invitations/{result.Value.Id}",
+                    result.Value),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful create-invitation result must provide a value."),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The create-invitation result was not mapped.")
+        };
     }
 
     [Authorize]
@@ -391,7 +380,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IReadOnlyList<AgencyInvitationListItemResponse>>> GetAgencyInvitations(
+    public async Task<IActionResult> GetAgencyInvitations(
     Guid id,
     [FromQuery] AgencyInvitationStatus? status,
     CancellationToken cancellationToken)
@@ -407,22 +396,18 @@ public sealed class AgenciesController : ControllerBase
                 query,
                 cancellationToken);
 
-        if (result.Status == ServiceResultStatus.Unauthorized)
+        return result.Status switch
         {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Ok(result.Value);
+            ServiceResultStatus.Success when result.Value is not null =>
+                Ok(result.Value),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful invitation-list result must provide a value."),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The invitation-list result was not mapped.")
+        };
     }
 
     [Authorize]
@@ -432,7 +417,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AgencyInvitationListItemResponse>> AcceptAgencyInvitation(
+    public async Task<IActionResult> AcceptAgencyInvitation(
         [FromBody] AcceptAgencyInvitationRequest request,
         CancellationToken cancellationToken)
     {
@@ -441,27 +426,20 @@ public sealed class AgenciesController : ControllerBase
                 request,
                 cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Unauthorized)
-        {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Ok(result.Value);
+            ServiceResultStatus.Success when result.Value is not null =>
+                Ok(result.Value),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful accept-invitation result must provide a value."),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The accept-invitation result was not mapped.")
+        };
     }
 
     [Authorize]
@@ -471,7 +449,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AgencyInvitationListItemResponse>> CancelAgencyInvitation(
+    public async Task<IActionResult> CancelAgencyInvitation(
         Guid agencyId,
         Guid invitationId,
         CancellationToken cancellationToken)
@@ -482,27 +460,19 @@ public sealed class AgenciesController : ControllerBase
                 invitationId,
                 cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Unauthorized)
-        {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Ok(result.Value);
+            ServiceResultStatus.Success when result.Value is not null =>
+                Ok(result.Value),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful cancel-invitation result must provide a value."),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The cancel-invitation result was not mapped.")
+        };
     }
 
     [Authorize]
@@ -523,27 +493,18 @@ public sealed class AgenciesController : ControllerBase
                 memberId,
                 cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Unauthorized)
-        {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return NoContent();
+            ServiceResultStatus.Success when result.Value is true => NoContent(),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful disable-member result must be true."),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The disable-member result was not mapped.")
+        };
     }
 
     [Authorize]
@@ -566,27 +527,19 @@ public sealed class AgenciesController : ControllerBase
                 request,
                 cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Unauthorized)
-        {
-            return Unauthorized(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return NoContent();
+            ServiceResultStatus.Success when result.Value is true => NoContent(),
+            ServiceResultStatus.Success => throw new InvalidOperationException(
+                "A successful change-member-role result must be true."),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The change-member-role result was not mapped.")
+        };
     }
 
     [Authorize]

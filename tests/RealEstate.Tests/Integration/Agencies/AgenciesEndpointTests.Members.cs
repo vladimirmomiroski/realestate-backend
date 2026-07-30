@@ -30,14 +30,13 @@ public sealed partial class AgenciesEndpointTests
 
         try
         {
+            Guid agencyId = Guid.NewGuid();
             HttpResponseMessage response = await _httpClient.GetAsync(
-                $"/api/agencies/{Guid.NewGuid()}/members");
+                $"/api/agencies/{agencyId}/members");
 
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-
-            string error = await response.Content.ReadAsStringAsync();
-
-            error.Should().Contain("Agency was not found.");
+            await AssertResourceNotFoundAsync(
+                response,
+                $"/api/agencies/{agencyId}/members");
         }
         finally
         {

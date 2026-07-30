@@ -44,7 +44,8 @@ public sealed class AcceptAgencyInvitationHandler
             return ServiceResult<
                 AgencyInvitationListItemResponse>
                 .Unauthorized(
-                    "Current user could not be resolved.");
+                    "Current user could not be resolved.",
+                    ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         User? currentUser =
@@ -57,7 +58,8 @@ public sealed class AcceptAgencyInvitationHandler
             return ServiceResult<
                 AgencyInvitationListItemResponse>
                 .Unauthorized(
-                    "Current user could not be resolved.");
+                    "Current user could not be resolved.",
+                    ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (currentUser.Status == UserStatus.Disabled)
@@ -65,17 +67,22 @@ public sealed class AcceptAgencyInvitationHandler
             return ServiceResult<
                 AgencyInvitationListItemResponse>
                 .Forbidden(
-                    "Disabled users cannot accept invitations.");
+                    "Disabled users cannot accept invitations.",
+                    ErrorCodes.AuthorizationAccountDisabled);
         }
 
-        string? validationError =
-            _validator.Validate(request);
+        AcceptAgencyInvitationValidator.ValidationFailure?
+            validationFailure =
+                _validator.ValidateWithKey(request);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
             return ServiceResult<
                 AgencyInvitationListItemResponse>
-                .ValidationError(validationError);
+                .ValidationError(
+                    validationFailure.Error,
+                    validationFailure.Key,
+                    ErrorCodes.ValidationFailed);
         }
 
         string token = request.Token.Trim();
@@ -92,7 +99,8 @@ public sealed class AcceptAgencyInvitationHandler
             return ServiceResult<
                 AgencyInvitationListItemResponse>
                 .NotFound(
-                    "Invitation was not found.");
+                    "Invitation was not found.",
+                    ErrorCodes.ResourceNotFound);
         }
 
         await using (terminalMutationScope)
@@ -105,8 +113,9 @@ public sealed class AcceptAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Invitation has already been accepted.");
+                    .Conflict(
+                        "Invitation has already been accepted.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             if (invitation.Status ==
@@ -114,8 +123,9 @@ public sealed class AcceptAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Cancelled invitation cannot be accepted.");
+                    .Conflict(
+                        "Cancelled invitation cannot be accepted.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             if (invitation.Status ==
@@ -123,8 +133,9 @@ public sealed class AcceptAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Expired invitation cannot be accepted.");
+                    .Conflict(
+                        "Expired invitation cannot be accepted.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             DateTime utcNow = DateTime.UtcNow;
@@ -142,17 +153,19 @@ public sealed class AcceptAgencyInvitationHandler
 
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "Expired invitation cannot be accepted.");
+                    .Conflict(
+                        "Expired invitation cannot be accepted.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             if (currentUser.NormalizedEmail !=
                 invitation.NormalizedEmail)
             {
                 return ServiceResult<
-                    AgencyInvitationListItemResponse>
-                    .Forbidden(
-                        "Invitation email does not match the current user.");
+                AgencyInvitationListItemResponse>
+                .Forbidden(
+                    "Invitation email does not match the current user.",
+                    ErrorCodes.AuthorizationForbidden);
             }
 
             Agency? agency =
@@ -164,9 +177,10 @@ public sealed class AcceptAgencyInvitationHandler
             if (agency is null)
             {
                 return ServiceResult<
-                    AgencyInvitationListItemResponse>
-                    .NotFound(
-                        "Agency was not found.");
+                AgencyInvitationListItemResponse>
+                .NotFound(
+                    "Agency was not found.",
+                    ErrorCodes.ResourceNotFound);
             }
 
             if (agency.Members.Any(member =>
@@ -174,8 +188,9 @@ public sealed class AcceptAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "User is already a member of this agency.");
+                    .Conflict(
+                        "User is already a member of this agency.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             AgencyMember member =
@@ -196,14 +211,22 @@ public sealed class AcceptAgencyInvitationHandler
                         .PersistAcceptanceAsync(
                             cancellationToken);
 
-            if (persistenceResult ==
-                AgencyInvitationAcceptancePersistenceResult
-                    .MembershipAlreadyExists)
+            switch (persistenceResult)
             {
-                return ServiceResult<
-                    AgencyInvitationListItemResponse>
-                    .ValidationError(
-                        "User is already a member of this agency.");
+                case AgencyInvitationAcceptancePersistenceResult.Succeeded:
+                    break;
+
+                case AgencyInvitationAcceptancePersistenceResult
+                    .MembershipAlreadyExists:
+                    return ServiceResult<
+                        AgencyInvitationListItemResponse>
+                        .Conflict(
+                            "User is already a member of this agency.",
+                            ErrorCodes.ConflictResourceState);
+
+                default:
+                    throw new InvalidOperationException(
+                        "The invitation acceptance persistence result was not mapped.");
             }
 
             await terminalMutationScope.CommitAsync(

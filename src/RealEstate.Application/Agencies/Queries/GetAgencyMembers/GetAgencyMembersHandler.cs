@@ -34,7 +34,8 @@ public sealed class GetAgencyMembersHandler
             _currentUserService.UserId is not Guid userId)
         {
             return ServiceResult<IReadOnlyList<AgencyMemberResponse>>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         User? currentUser = await _userRepository.GetByIdReadOnlyAsync(
@@ -44,13 +45,15 @@ public sealed class GetAgencyMembersHandler
         if (currentUser is null)
         {
             return ServiceResult<IReadOnlyList<AgencyMemberResponse>>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (currentUser.Status == UserStatus.Disabled)
         {
             return ServiceResult<IReadOnlyList<AgencyMemberResponse>>.Forbidden(
-                "Disabled users cannot view agency members.");
+                "Disabled users cannot view agency members.",
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
         bool agencyExists = await _agencyRepository.ExistsAsync(
@@ -60,7 +63,8 @@ public sealed class GetAgencyMembersHandler
         if (!agencyExists)
         {
             return ServiceResult<IReadOnlyList<AgencyMemberResponse>>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         bool isActiveMember = await _agencyRepository.IsActiveMemberAsync(
@@ -71,7 +75,8 @@ public sealed class GetAgencyMembersHandler
         if (!isActiveMember)
         {
             return ServiceResult<IReadOnlyList<AgencyMemberResponse>>.Forbidden(
-                "User is not an active member of this agency.");
+                "User is not an active member of this agency.",
+                ErrorCodes.AuthorizationForbidden);
         }
 
         IReadOnlyList<AgencyMemberReadModel> members =
