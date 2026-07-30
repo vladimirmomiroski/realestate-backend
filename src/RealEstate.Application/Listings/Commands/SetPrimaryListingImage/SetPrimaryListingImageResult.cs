@@ -20,11 +20,21 @@ public sealed class SetPrimaryListingImageResult
 
     public static SetPrimaryListingImageResult Success(ListingImageResponse image)
     {
+        ArgumentNullException.ThrowIfNull(image);
+
         return new SetPrimaryListingImageResult(image, SetPrimaryListingImageError.None);
     }
 
     public static SetPrimaryListingImageResult Failure(SetPrimaryListingImageError error)
     {
+        if (error == SetPrimaryListingImageError.None || !Enum.IsDefined(error))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(error),
+                error,
+                "A failure result requires a defined non-success error.");
+        }
+
         return new SetPrimaryListingImageResult(null, error);
     }
 }

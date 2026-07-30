@@ -15,11 +15,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RealEstate.Application.Common.Files;
 using RealEstate.Application.Common.Storage;
+using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Domain.Entities;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Storage;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Tests.Integration.Api;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -231,7 +233,7 @@ public sealed partial class ListingImagesEndpointTests
 
             responses.Count(response =>
                     response.StatusCode ==
-                    HttpStatusCode.BadRequest)
+                    HttpStatusCode.Conflict)
                 .Should().Be(1);
 
             HttpResponseMessage successfulResponse =
@@ -242,15 +244,13 @@ public sealed partial class ListingImagesEndpointTests
             HttpResponseMessage losingResponse =
                 responses.Single(response =>
                     response.StatusCode ==
-                    HttpStatusCode.BadRequest);
+                    HttpStatusCode.Conflict);
 
-            string losingResponseBody =
-                await losingResponse.Content
-                    .ReadAsStringAsync(
-                        cancellationToken);
-
-            losingResponseBody.Should().Contain(
-                "Listing cannot have more than 20 images.");
+            await ApiFailureAssertions.AssertProblemAsync(
+                losingResponse,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictResourceCapacity,
+                $"/api/listings/{listingId}/images");
 
             ListingImageResponse? successfulImage =
                 await successfulResponse.Content
@@ -2381,6 +2381,359 @@ public sealed partial class ListingImagesEndpointTests
             uploadContent?.Dispose();
             reorderClient?.Dispose();
             uploadClient?.Dispose();
+
+            if (gateTransaction is not null)
+            {
+                try
+                {
+                    await gateTransaction.DisposeAsync();
+                }
+                catch when (!testCompletedSuccessfully)
+                {
+                    // Preserve the original test failure.
+                }
+            }
+
+            observerScope?.Dispose();
+            gateScope?.Dispose();
+            localFactory.Dispose();
+            DeleteConcurrencyStorageRoot(
+                storageRoot,
+                testCompletedSuccessfully);
+        }
+    }
+
+    [Fact]
+    public async Task ListingImageMutationConcurrency_UploadBeforeReorder_ReturnsCanonicalSetChangedConflict()
+    {
+        string storageRoot = CreateConcurrencyStorageRoot();
+        var coordinator = new ListingImageStorageCoordinator();
+        var localFactory = new ListingImageConcurrencyWebApplicationFactory(
+            GetRequiredTestConnectionString(),
+            storageRoot,
+            coordinator);
+        using var timeoutSource = new CancellationTokenSource(
+            ListingImageConcurrencyTimeout);
+        CancellationToken cancellationToken = timeoutSource.Token;
+        HttpClient? uploadClient = null;
+        HttpClient? reorderClient = null;
+        MultipartFormDataContent? uploadContent = null;
+        Task<HttpResponseMessage>? uploadRequestTask = null;
+        Task<HttpResponseMessage>? reorderRequestTask = null;
+        HttpResponseMessage? uploadResponse = null;
+        HttpResponseMessage? reorderResponse = null;
+        IServiceScope? gateScope = null;
+        IServiceScope? observerScope = null;
+        IDbContextTransaction? gateTransaction = null;
+        bool gateReleased = false;
+        bool testCompletedSuccessfully = false;
+
+        try
+        {
+            using HttpClient setupClient = localFactory.CreateClient();
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(setupClient);
+            List<ListingImage> seedImages = await SeedListingImagesAsync(
+                localFactory,
+                storageRoot,
+                listingId,
+                count: 3,
+                cancellationToken);
+            Guid[] staleCompleteSet = seedImages
+                .Select(image => image.Id)
+                .Reverse()
+                .ToArray();
+
+            gateScope = localFactory.Services.CreateScope();
+            observerScope = localFactory.Services.CreateScope();
+            RealEstateDbContext gateDbContext =
+                gateScope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+            RealEstateDbContext observerDbContext =
+                observerScope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+            gateTransaction = await gateDbContext.Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken);
+            await LockListingAsync(gateDbContext, listingId, cancellationToken);
+            int gateBackendPid = await GetListingGateBackendPidAsync(
+                gateDbContext,
+                cancellationToken);
+
+            uploadClient = localFactory.CreateClient();
+            reorderClient = localFactory.CreateClient();
+            uploadClient.AuthorizeAs(owner.AccessToken);
+            reorderClient.AuthorizeAs(owner.AccessToken);
+
+            uploadContent = CreateConcurrencyUploadContent(
+                "upload-before-stale-reorder.jpg");
+            uploadRequestTask = uploadClient.PostAsync(
+                $"/api/listings/{listingId}/images",
+                uploadContent,
+                cancellationToken);
+            await coordinator.WaitForOneSaveAsync(cancellationToken);
+            int uploadBackendPid = await WaitForBlockedListingBackendAsync(
+                observerDbContext,
+                gateBackendPid,
+                excludedBackendPid: null,
+                cancellationToken);
+
+            reorderRequestTask = reorderClient.PutAsJsonAsync(
+                $"/api/listings/{listingId}/images/order",
+                new { imageIds = staleCompleteSet },
+                cancellationToken);
+            int reorderBackendPid = await WaitForBlockedListingBackendAsync(
+                observerDbContext,
+                gateBackendPid,
+                excludedBackendPid: uploadBackendPid,
+                cancellationToken);
+            reorderBackendPid.Should().NotBe(uploadBackendPid);
+
+            await gateTransaction.RollbackAsync(CancellationToken.None);
+            gateReleased = true;
+
+            uploadResponse = await uploadRequestTask.WaitAsync(cancellationToken);
+            reorderResponse = await reorderRequestTask.WaitAsync(cancellationToken);
+            uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+            await ApiFailureAssertions.AssertProblemAsync(
+                reorderResponse,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictResourceSetChanged,
+                $"/api/listings/{listingId}/images/order");
+
+            ListingImageResponse? uploaded =
+                await uploadResponse.Content.ReadFromJsonAsync<ListingImageResponse>(
+                    cancellationToken);
+            uploaded.Should().NotBeNull();
+            uploaded!.SortOrder.Should().Be(3);
+            uploaded.IsPrimary.Should().BeFalse();
+
+            List<ListingImage> finalImages =
+                await ReadCommittedListingImagesAsync(
+                    localFactory,
+                    listingId,
+                    cancellationToken);
+            finalImages.Should().HaveCount(4);
+            finalImages.Select(image => image.SortOrder)
+                .Should().Equal(0, 1, 2, 3);
+            finalImages.Count(image => image.IsPrimary).Should().Be(1);
+            finalImages.Single(image => image.Id == uploaded.Id)
+                .SortOrder.Should().Be(3);
+            coordinator.GetSaveRecords().Should().ContainSingle();
+            coordinator.GetDeleteRecords().Should().BeEmpty();
+            AssertNoTemporaryFiles(storageRoot);
+            testCompletedSuccessfully = true;
+        }
+        finally
+        {
+            if ((uploadRequestTask is not null && !uploadRequestTask.IsCompleted) ||
+                (reorderRequestTask is not null && !reorderRequestTask.IsCompleted))
+            {
+                timeoutSource.Cancel();
+                uploadClient?.CancelPendingRequests();
+                reorderClient?.CancelPendingRequests();
+            }
+
+            if (!gateReleased && gateTransaction is not null)
+            {
+                try
+                {
+                    await gateTransaction.RollbackAsync(CancellationToken.None);
+                }
+                catch
+                {
+                    // Preserve the original test failure.
+                }
+            }
+
+            if (uploadResponse is null)
+            {
+                await DrainAndDisposeUploadTaskAsync(uploadRequestTask);
+            }
+            else
+            {
+                uploadResponse.Dispose();
+            }
+
+            if (reorderResponse is null)
+            {
+                await DrainAndDisposeUploadTaskAsync(reorderRequestTask);
+            }
+            else
+            {
+                reorderResponse.Dispose();
+            }
+
+            uploadContent?.Dispose();
+            uploadClient?.Dispose();
+            reorderClient?.Dispose();
+
+            if (gateTransaction is not null)
+            {
+                try
+                {
+                    await gateTransaction.DisposeAsync();
+                }
+                catch when (!testCompletedSuccessfully)
+                {
+                    // Preserve the original test failure.
+                }
+            }
+
+            observerScope?.Dispose();
+            gateScope?.Dispose();
+            localFactory.Dispose();
+            DeleteConcurrencyStorageRoot(
+                storageRoot,
+                testCompletedSuccessfully);
+        }
+    }
+
+    [Fact]
+    public async Task ListingImageMutationConcurrency_DeleteBeforeSetPrimary_ReturnsCanonicalNotFound()
+    {
+        string storageRoot = CreateConcurrencyStorageRoot();
+        var coordinator = new ListingImageStorageCoordinator();
+        var localFactory = new ListingImageConcurrencyWebApplicationFactory(
+            GetRequiredTestConnectionString(),
+            storageRoot,
+            coordinator);
+        using var timeoutSource = new CancellationTokenSource(
+            ListingImageConcurrencyTimeout);
+        CancellationToken cancellationToken = timeoutSource.Token;
+        HttpClient? deleteClient = null;
+        HttpClient? primaryClient = null;
+        Task<HttpResponseMessage>? deleteRequestTask = null;
+        Task<HttpResponseMessage>? primaryRequestTask = null;
+        HttpResponseMessage? deleteResponse = null;
+        HttpResponseMessage? primaryResponse = null;
+        IServiceScope? gateScope = null;
+        IServiceScope? observerScope = null;
+        IDbContextTransaction? gateTransaction = null;
+        bool gateReleased = false;
+        bool testCompletedSuccessfully = false;
+
+        try
+        {
+            using HttpClient setupClient = localFactory.CreateClient();
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(setupClient);
+            List<ListingImage> seedImages = await SeedListingImagesAsync(
+                localFactory,
+                storageRoot,
+                listingId,
+                count: 3,
+                cancellationToken);
+            ListingImage originalPrimary = seedImages[0];
+            ListingImage target = seedImages[1];
+            ListingImage remaining = seedImages[2];
+
+            gateScope = localFactory.Services.CreateScope();
+            observerScope = localFactory.Services.CreateScope();
+            RealEstateDbContext gateDbContext =
+                gateScope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+            RealEstateDbContext observerDbContext =
+                observerScope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+            gateTransaction = await gateDbContext.Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken);
+            await LockListingAsync(gateDbContext, listingId, cancellationToken);
+            int gateBackendPid = await GetListingGateBackendPidAsync(
+                gateDbContext,
+                cancellationToken);
+
+            deleteClient = localFactory.CreateClient();
+            primaryClient = localFactory.CreateClient();
+            deleteClient.AuthorizeAs(owner.AccessToken);
+            primaryClient.AuthorizeAs(owner.AccessToken);
+
+            deleteRequestTask = deleteClient.DeleteAsync(
+                $"/api/listings/{listingId}/images/{target.Id}",
+                cancellationToken);
+            int deleteBackendPid = await WaitForBlockedListingBackendAsync(
+                observerDbContext,
+                gateBackendPid,
+                excludedBackendPid: null,
+                cancellationToken);
+
+            primaryRequestTask = primaryClient.PutAsync(
+                $"/api/listings/{listingId}/images/{target.Id}/primary",
+                null,
+                cancellationToken);
+            int primaryBackendPid = await WaitForBlockedListingBackendAsync(
+                observerDbContext,
+                gateBackendPid,
+                excludedBackendPid: deleteBackendPid,
+                cancellationToken);
+            primaryBackendPid.Should().NotBe(deleteBackendPid);
+
+            await gateTransaction.RollbackAsync(CancellationToken.None);
+            gateReleased = true;
+
+            deleteResponse = await deleteRequestTask.WaitAsync(cancellationToken);
+            primaryResponse = await primaryRequestTask.WaitAsync(cancellationToken);
+            deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+            await ApiFailureAssertions.AssertProblemAsync(
+                primaryResponse,
+                HttpStatusCode.NotFound,
+                ErrorCodes.ResourceNotFound,
+                $"/api/listings/{listingId}/images/{target.Id}/primary");
+
+            await coordinator.WaitForOneDeleteAsync(cancellationToken);
+            List<ListingImage> finalImages =
+                await ReadCommittedListingImagesAsync(
+                    localFactory,
+                    listingId,
+                    cancellationToken);
+            finalImages.Select(image => image.Id)
+                .Should().Equal(originalPrimary.Id, remaining.Id);
+            finalImages.Select(image => image.SortOrder).Should().Equal(0, 2);
+            finalImages.Single(image => image.Id == originalPrimary.Id)
+                .IsPrimary.Should().BeTrue();
+            coordinator.GetDeleteRecords().Should().ContainSingle();
+            AssertNoTemporaryFiles(storageRoot);
+            testCompletedSuccessfully = true;
+        }
+        finally
+        {
+            if ((deleteRequestTask is not null && !deleteRequestTask.IsCompleted) ||
+                (primaryRequestTask is not null && !primaryRequestTask.IsCompleted))
+            {
+                timeoutSource.Cancel();
+                deleteClient?.CancelPendingRequests();
+                primaryClient?.CancelPendingRequests();
+            }
+
+            if (!gateReleased && gateTransaction is not null)
+            {
+                try
+                {
+                    await gateTransaction.RollbackAsync(CancellationToken.None);
+                }
+                catch
+                {
+                    // Preserve the original test failure.
+                }
+            }
+
+            if (deleteResponse is null)
+            {
+                await DrainAndDisposeUploadTaskAsync(deleteRequestTask);
+            }
+            else
+            {
+                deleteResponse.Dispose();
+            }
+
+            if (primaryResponse is null)
+            {
+                await DrainAndDisposeUploadTaskAsync(primaryRequestTask);
+            }
+            else
+            {
+                primaryResponse.Dispose();
+            }
+
+            deleteClient?.Dispose();
+            primaryClient?.Dispose();
 
             if (gateTransaction is not null)
             {

@@ -18,6 +18,14 @@ public sealed class DeleteListingImageResult
 
     public static DeleteListingImageResult Failure(DeleteListingImageError error)
     {
+        if (error == DeleteListingImageError.None || !Enum.IsDefined(error))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(error),
+                error,
+                "A failure result requires a defined non-success error.");
+        }
+
         return new DeleteListingImageResult(error);
     }
 }

@@ -125,7 +125,11 @@ namespace RealEstate.Tests.Integration.Listings;
             HttpResponseMessage response = await _httpClient.DeleteAsync(
                 $"/api/listings/{listingId}/images/{imageId}");
 
-            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationForbidden,
+                $"/api/listings/{listingId}/images/{imageId}");
         }
         finally
         {
@@ -152,7 +156,11 @@ namespace RealEstate.Tests.Integration.Listings;
                 $"/api/listings/{listingId}/images/{imageId}/primary",
                 new StringContent(string.Empty));
 
-            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationForbidden,
+                $"/api/listings/{listingId}/images/{imageId}/primary");
         }
         finally
         {
@@ -184,7 +192,11 @@ namespace RealEstate.Tests.Integration.Listings;
                 $"/api/listings/{listingId}/images/order",
                 request);
 
-            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationForbidden,
+                $"/api/listings/{listingId}/images/order");
         }
         finally
         {
@@ -293,8 +305,11 @@ namespace RealEstate.Tests.Integration.Listings;
                     content);
 
             // Assert
-            response.StatusCode.Should()
-                .Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationAccountDisabled,
+                $"/api/listings/{listingId}/images");
         }
         finally
         {
@@ -363,8 +378,11 @@ namespace RealEstate.Tests.Integration.Listings;
                     $"/images/{imageId}");
 
             // Assert
-            response.StatusCode.Should()
-                .Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationAccountDisabled,
+                $"/api/listings/{listingId}/images/{imageId}");
         }
         finally
         {
@@ -428,8 +446,11 @@ namespace RealEstate.Tests.Integration.Listings;
                     new StringContent(string.Empty));
 
             // Assert
-            response.StatusCode.Should()
-                .Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationAccountDisabled,
+                $"/api/listings/{listingId}/images/{secondImageId}/primary");
         }
         finally
         {
@@ -504,8 +525,11 @@ namespace RealEstate.Tests.Integration.Listings;
                     request);
 
             // Assert
-            response.StatusCode.Should()
-                .Be(HttpStatusCode.Forbidden);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationAccountDisabled,
+                $"/api/listings/{listingId}/images/order");
         }
         finally
         {
@@ -529,7 +553,7 @@ namespace RealEstate.Tests.Integration.Listings;
     }
 
     [Fact]
-    public async Task UploadImage_WhenActorIsMissing_ReturnsForbiddenWithoutMutation()
+    public async Task UploadImage_WhenActorIsMissing_ReturnsInvalidPrincipalWithoutMutation()
     {
         // Arrange
         (
@@ -562,8 +586,12 @@ namespace RealEstate.Tests.Integration.Listings;
                 content);
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            $"/api/listings/{listingId}/images",
+            bearerChallenge: true);
 
         using IServiceScope assertionScope =
             _factory.Services.CreateScope();
@@ -587,7 +615,7 @@ namespace RealEstate.Tests.Integration.Listings;
     }
 
     [Fact]
-    public async Task DeleteImage_WhenActorIsMissing_ReturnsForbiddenWithoutMutation()
+    public async Task DeleteImage_WhenActorIsMissing_ReturnsInvalidPrincipalWithoutMutation()
     {
         // Arrange
         (
@@ -627,8 +655,12 @@ namespace RealEstate.Tests.Integration.Listings;
                 $"/images/{imageId}");
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            $"/api/listings/{listingId}/images/{imageId}",
+            bearerChallenge: true);
 
         ListingImageState stateAfter =
             await ReadListingImageStateAsync(
@@ -640,7 +672,7 @@ namespace RealEstate.Tests.Integration.Listings;
     }
 
     [Fact]
-    public async Task SetPrimaryImage_WhenActorIsMissing_ReturnsForbiddenWithoutMutation()
+    public async Task SetPrimaryImage_WhenActorIsMissing_ReturnsInvalidPrincipalWithoutMutation()
     {
         // Arrange
         (
@@ -687,8 +719,12 @@ namespace RealEstate.Tests.Integration.Listings;
                 new StringContent(string.Empty));
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            $"/api/listings/{listingId}/images/{secondImageId}/primary",
+            bearerChallenge: true);
 
         Dictionary<Guid, bool> primaryFlagsAfter =
             await ReadPrimaryFlagsAsync(
@@ -703,7 +739,7 @@ namespace RealEstate.Tests.Integration.Listings;
     }
 
     [Fact]
-    public async Task ReorderImages_WhenActorIsMissing_ReturnsForbiddenWithoutMutation()
+    public async Task ReorderImages_WhenActorIsMissing_ReturnsInvalidPrincipalWithoutMutation()
     {
         // Arrange
         (
@@ -750,8 +786,12 @@ namespace RealEstate.Tests.Integration.Listings;
                 request);
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            $"/api/listings/{listingId}/images/order",
+            bearerChallenge: true);
 
         Dictionary<Guid, int> sortOrdersAfter =
             await ReadSortOrdersAsync(
@@ -1105,7 +1145,7 @@ namespace RealEstate.Tests.Integration.Listings;
     }
 
     [Fact]
-    public async Task ReorderImages_WithMismatchedImageSet_ReturnsBadRequestForEligibleCreator()
+    public async Task ReorderImages_WithMismatchedImageSet_ReturnsConflictForEligibleCreator()
     {
         // Arrange
         (
@@ -1137,8 +1177,11 @@ namespace RealEstate.Tests.Integration.Listings;
                     request);
 
             // Assert
-            response.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictResourceSetChanged,
+                $"/api/listings/{listingId}/images/order");
         }
         finally
         {
@@ -1216,7 +1259,7 @@ namespace RealEstate.Tests.Integration.Listings;
     }
 
     [Fact]
-    public async Task DeleteImage_WhenActorAndImageAreMissing_ReturnsForbidden()
+    public async Task DeleteImage_WhenActorAndImageAreMissing_ReturnsInvalidPrincipal()
     {
         // Arrange
         (
@@ -1232,20 +1275,26 @@ namespace RealEstate.Tests.Integration.Listings;
             factory.CreateClient();
 
         client.AuthorizeAs(owner.AccessToken);
+
+        Guid missingImageId = Guid.NewGuid();
 
         // Act
         HttpResponseMessage response =
             await client.DeleteAsync(
                 $"/api/listings/{listingId}" +
-                $"/images/{Guid.NewGuid()}");
+                $"/images/{missingImageId}");
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            $"/api/listings/{listingId}/images/{missingImageId}",
+            bearerChallenge: true);
     }
 
     [Fact]
-    public async Task SetPrimaryImage_WhenActorAndImageAreMissing_ReturnsForbidden()
+    public async Task SetPrimaryImage_WhenActorAndImageAreMissing_ReturnsInvalidPrincipal()
     {
         // Arrange
         (
@@ -1261,17 +1310,22 @@ namespace RealEstate.Tests.Integration.Listings;
             factory.CreateClient();
 
         client.AuthorizeAs(owner.AccessToken);
+        Guid missingImageId = Guid.NewGuid();
 
         // Act
         HttpResponseMessage response =
             await client.PutAsync(
                 $"/api/listings/{listingId}" +
-                $"/images/{Guid.NewGuid()}/primary",
+                $"/images/{missingImageId}/primary",
                 new StringContent(string.Empty));
 
         // Assert
-        response.StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationInvalidPrincipal,
+            $"/api/listings/{listingId}/images/{missingImageId}/primary",
+            bearerChallenge: true);
     }
 
     private async Task SetUserStatusAsync(
