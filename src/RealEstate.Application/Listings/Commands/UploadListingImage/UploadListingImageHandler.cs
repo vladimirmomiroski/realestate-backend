@@ -68,18 +68,34 @@ public sealed class UploadListingImageHandler
                 UploadListingImageError.ListingNotFound);
         }
 
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException(
-                "Authenticated user id is not available.");
+        Guid? currentUserId = _currentUserService.UserId;
+
+        if (!currentUserId.HasValue)
+        {
+            return UploadListingImageResult.Failure(
+                UploadListingImageError.InvalidPrincipal);
+        }
+
+        Guid userId = currentUserId.Value;
 
         User? actor =
             await _userRepository.GetByIdReadOnlyAsync(
                 userId,
                 cancellationToken);
 
-        if (actor is null ||
-            actor.Status == UserStatus.Disabled ||
-            uploadProbe.CreatedByUserId != userId)
+        if (actor is null)
+        {
+            return UploadListingImageResult.Failure(
+                UploadListingImageError.InvalidPrincipal);
+        }
+
+        if (actor.Status == UserStatus.Disabled)
+        {
+            return UploadListingImageResult.Failure(
+                UploadListingImageError.AccountDisabled);
+        }
+
+        if (uploadProbe.CreatedByUserId != userId)
         {
             return UploadListingImageResult.Failure(
                 UploadListingImageError.NotListingOwner);
@@ -129,9 +145,17 @@ public sealed class UploadListingImageHandler
                             userId,
                             cancellationToken);
 
-                    if (protectedActor is null ||
-                        protectedActor.Status == UserStatus.Disabled ||
-                        protectedListing.CreatedByUserId != userId)
+                    if (protectedActor is null)
+                    {
+                        protectedError =
+                            UploadListingImageError.InvalidPrincipal;
+                    }
+                    else if (protectedActor.Status == UserStatus.Disabled)
+                    {
+                        protectedError =
+                            UploadListingImageError.AccountDisabled;
+                    }
+                    else if (protectedListing.CreatedByUserId != userId)
                     {
                         protectedError =
                             UploadListingImageError.NotListingOwner;

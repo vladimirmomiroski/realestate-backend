@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -21,6 +22,7 @@ using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
 using RealEstate.Infrastructure.Storage;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Tests.Integration.Api;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -227,6 +229,182 @@ public sealed class ListingImageMutationPersistenceTests
     }
 
     [Fact]
+    public async Task UploadListingImage_WhenPersistenceFails_ReturnsCanonical500AndCompensatesNewFile()
+    {
+        string storageRoot = CreatePersistenceStorageRoot();
+        var failurePlan = new ListingImageSaveFailurePlan(
+            throwOnSaveCall: 1,
+            new ListingImageSecondSaveException(
+                "Injected upload persistence failure with provider-secret."));
+        var storageRecorder = new ListingImageDeleteRecorder();
+        var localFactory = new ListingImageMutationWebApplicationFactory(
+            GetRequiredTestConnectionString(),
+            storageRoot,
+            failurePlan,
+            storageRecorder);
+
+        try
+        {
+            using HttpClient client = localFactory.CreateClient();
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(client);
+            client.AuthorizeAs(owner.AccessToken);
+
+            using var content = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent([0xFF, 0xD8, 0xFF, 0xE0]);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+            content.Add(fileContent, "file", "secret-original-name.jpg");
+
+            using HttpResponseMessage response = await client.PostAsync(
+                $"/api/listings/{listingId}/images",
+                content);
+
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.InternalServerError,
+                ErrorCodes.ServerUnexpected,
+                $"/api/listings/{listingId}/images");
+
+            string responseBody = await response.Content.ReadAsStringAsync();
+            responseBody.Should().NotContain("provider-secret");
+            responseBody.Should().NotContain("secret-original-name.jpg");
+
+            await using AsyncServiceScope scope =
+                localFactory.Services.CreateAsyncScope();
+            RealEstateDbContext dbContext =
+                scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+            (await dbContext.Set<ListingImage>()
+                .CountAsync(image => image.ListingId == listingId))
+                .Should().Be(0);
+            storageRecorder.GetDeleteCalls().Should().ContainSingle();
+            Directory.Exists(GetPersistenceListingDirectory(storageRoot, listingId))
+                .Should().BeTrue();
+            Directory.GetFiles(
+                    GetPersistenceListingDirectory(storageRoot, listingId))
+                .Should().BeEmpty();
+        }
+        finally
+        {
+            localFactory.Dispose();
+            DeletePersistenceStorageRoot(storageRoot, testCompletedSuccessfully: true);
+        }
+    }
+
+    [Fact]
+    public async Task ReorderListingImages_WhenPersistenceFails_ReturnsCanonical500AndRollsBackOrder()
+    {
+        string storageRoot = CreatePersistenceStorageRoot();
+        var failurePlan = new ListingImageSaveFailurePlan(
+            throwOnSaveCall: 1,
+            new ListingImageSecondSaveException(
+                "Injected reorder persistence failure."));
+        var storageRecorder = new ListingImageDeleteRecorder();
+        var localFactory = new ListingImageMutationWebApplicationFactory(
+            GetRequiredTestConnectionString(),
+            storageRoot,
+            failurePlan,
+            storageRecorder);
+
+        try
+        {
+            using HttpClient client = localFactory.CreateClient();
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(client);
+            List<ListingImage> images = await SeedPersistenceImagesAsync(
+                localFactory,
+                storageRoot,
+                listingId);
+            client.AuthorizeAs(owner.AccessToken);
+
+            using HttpResponseMessage response = await client.PutAsJsonAsync(
+                $"/api/listings/{listingId}/images/order",
+                new { imageIds = images.Select(image => image.Id).Reverse() });
+
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.InternalServerError,
+                ErrorCodes.ServerUnexpected,
+                $"/api/listings/{listingId}/images/order");
+
+            List<ListingImage> savedImages = await ReadPersistenceImagesAsync(
+                localFactory,
+                listingId);
+            savedImages.Select(image => image.Id)
+                .Should().Equal(images.Select(image => image.Id));
+            savedImages.Select(image => image.SortOrder).Should().Equal(0, 1);
+            savedImages.Single(image => image.SortOrder == 0)
+                .IsPrimary.Should().BeTrue();
+            storageRecorder.GetDeleteCalls().Should().BeEmpty();
+        }
+        finally
+        {
+            localFactory.Dispose();
+            DeletePersistenceStorageRoot(storageRoot, testCompletedSuccessfully: true);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteListingImage_WhenPostCommitStorageDeleteFails_ReturnsCanonical500AndKeepsDurableDatabaseDeletion()
+    {
+        string storageRoot = CreatePersistenceStorageRoot();
+        var failurePlan = new ListingImageSaveFailurePlan(
+            throwOnSaveCall: int.MaxValue,
+            new ListingImageSecondSaveException("Not expected."));
+        var storageRecorder = new ListingImageDeleteRecorder();
+        var deleteFailure = new ListingImageDeleteFailureException(
+            "Injected post-commit path-and-filename-secret.");
+        var localFactory = new ListingImageMutationWebApplicationFactory(
+            GetRequiredTestConnectionString(),
+            storageRoot,
+            failurePlan,
+            storageRecorder,
+            deleteFailure);
+
+        try
+        {
+            using HttpClient client = localFactory.CreateClient();
+            (Guid listingId, AuthenticatedTestUser owner) =
+                await ListingTestHelpers.CreateListingWithOwnerAsync(client);
+            List<ListingImage> images = await SeedPersistenceImagesAsync(
+                localFactory,
+                storageRoot,
+                listingId);
+            ListingImage deletedPrimary = images[0];
+            ListingImage survivor = images[1];
+            string deletedFilePath = Path.Combine(
+                GetPersistenceListingDirectory(storageRoot, listingId),
+                deletedPrimary.StoredFileName);
+            client.AuthorizeAs(owner.AccessToken);
+
+            using HttpResponseMessage response = await client.DeleteAsync(
+                $"/api/listings/{listingId}/images/{deletedPrimary.Id}");
+
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.InternalServerError,
+                ErrorCodes.ServerUnexpected,
+                $"/api/listings/{listingId}/images/{deletedPrimary.Id}");
+            (await response.Content.ReadAsStringAsync())
+                .Should().NotContain("path-and-filename-secret");
+
+            List<ListingImage> savedImages = await ReadPersistenceImagesAsync(
+                localFactory,
+                listingId);
+            savedImages.Should().ContainSingle();
+            savedImages.Single().Id.Should().Be(survivor.Id);
+            savedImages.Single().SortOrder.Should().Be(1);
+            savedImages.Single().IsPrimary.Should().BeTrue();
+            File.Exists(deletedFilePath).Should().BeTrue();
+            storageRecorder.GetDeleteCalls().Should().ContainSingle();
+        }
+        finally
+        {
+            localFactory.Dispose();
+            DeletePersistenceStorageRoot(storageRoot, testCompletedSuccessfully: true);
+        }
+    }
+
+    [Fact]
     public async Task ListingImagePrimaryConstraint_TwoPrimariesForOneListing_RejectsNamedUniqueIndex()
     {
         (Guid listingId, _) =
@@ -427,7 +605,8 @@ public sealed class ListingImageMutationPersistenceTests
         string connectionString,
         string storageRoot,
         ListingImageSaveFailurePlan failurePlan,
-        ListingImageDeleteRecorder storageRecorder)
+        ListingImageDeleteRecorder storageRecorder,
+        Exception? deleteFailure = null)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(
@@ -480,7 +659,8 @@ public sealed class ListingImageMutationPersistenceTests
                         new RecordingDeleteFileStorage(
                             provider.GetRequiredService<
                                 LocalFileStorageService>(),
-                            storageRecorder));
+                            storageRecorder,
+                            deleteFailure));
             });
         }
     }
@@ -623,7 +803,8 @@ public sealed class ListingImageMutationPersistenceTests
 
     private sealed class RecordingDeleteFileStorage(
         LocalFileStorageService inner,
-        ListingImageDeleteRecorder recorder)
+        ListingImageDeleteRecorder recorder,
+        Exception? deleteFailure)
         : IFileStorageService
     {
         public Task<StoredFileResult> SaveListingImageAsync(
@@ -645,6 +826,11 @@ public sealed class ListingImageMutationPersistenceTests
                     listingId,
                     storedFileName,
                     cancellationToken));
+
+            if (deleteFailure is not null)
+            {
+                throw deleteFailure;
+            }
 
             await inner.DeleteListingImageAsync(
                 listingId,
@@ -717,6 +903,10 @@ public sealed class ListingImageMutationPersistenceTests
         CancellationToken CancellationToken);
 
     private sealed class ListingImageSecondSaveException(
+        string message)
+        : Exception(message);
+
+    private sealed class ListingImageDeleteFailureException(
         string message)
         : Exception(message);
 }

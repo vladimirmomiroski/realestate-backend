@@ -371,6 +371,11 @@ public sealed class ListingsController : ControllerBase
         string errorCode = result.ErrorCode ?? throw new InvalidOperationException(
             "A failure result must provide an error code.");
 
+        return CreateFailureResult(errorCode);
+    }
+
+    private IActionResult CreateFailureResult(string errorCode)
+    {
         if (errorCode == ErrorCodes.AuthenticationInvalidPrincipal)
         {
             Response.Headers["WWW-Authenticate"] = "Bearer";
@@ -408,21 +413,50 @@ public sealed class ListingsController : ControllerBase
             new UploadListingImageCommand(id, uploadedFile),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return Created($"/api/listings/{id}/images/{result.Image!.Id}", result.Image);
-        }
-
         return result.Error switch
         {
-            UploadListingImageError.ListingNotFound => NotFound(),
-            UploadListingImageError.NotListingOwner => Forbid(),
-            UploadListingImageError.FileMissing => BadRequest("Image file is required."),
-            UploadListingImageError.FileEmpty => BadRequest("Image file is empty."),
-            UploadListingImageError.FileTooLarge => BadRequest("Image file cannot be larger than 5 MB."),
-            UploadListingImageError.InvalidFileType => BadRequest("Only JPG, JPEG, PNG, and WEBP images are allowed."),
-            UploadListingImageError.ImageLimitReached => BadRequest("Listing cannot have more than 20 images."),
-            _ => BadRequest("Image upload failed.")
+            UploadListingImageError.None when result.Image is not null =>
+                Created(
+                    $"/api/listings/{id}/images/{result.Image.Id}",
+                    result.Image),
+            UploadListingImageError.None => throw new InvalidOperationException(
+                "A successful image upload result requires an image."),
+            UploadListingImageError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            UploadListingImageError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            UploadListingImageError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            UploadListingImageError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            UploadListingImageError.FileMissing =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Image file is required.",
+                    ErrorCodes.ValidationFileRequired),
+            UploadListingImageError.FileEmpty =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Image file is empty.",
+                    ErrorCodes.ValidationFileEmpty),
+            UploadListingImageError.FileTooLarge =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Image file cannot be larger than 5 MB.",
+                    ErrorCodes.ValidationFileTooLarge),
+            UploadListingImageError.InvalidFileType =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Only JPG, JPEG, PNG, and WEBP images are allowed.",
+                    ErrorCodes.ValidationFileTypeNotSupported),
+            UploadListingImageError.ImageLimitReached =>
+                CreateFailureResult(ErrorCodes.ConflictResourceCapacity),
+            _ => throw new InvalidOperationException(
+                $"The image upload result '{result.Error}' was not mapped.")
         };
     }
 
@@ -441,17 +475,21 @@ public sealed class ListingsController : ControllerBase
             new DeleteListingImageCommand(listingId, imageId),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return NoContent();
-        }
-
         return result.Error switch
         {
-            DeleteListingImageError.ListingNotFound => NotFound("Listing was not found."),
-            DeleteListingImageError.NotListingOwner => Forbid(),
-            DeleteListingImageError.ImageNotFound => NotFound("Image was not found."),
-            _ => BadRequest("Image delete failed.")
+            DeleteListingImageError.None => NoContent(),
+            DeleteListingImageError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            DeleteListingImageError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            DeleteListingImageError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            DeleteListingImageError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            DeleteListingImageError.ImageNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            _ => throw new InvalidOperationException(
+                $"The image delete result '{result.Error}' was not mapped.")
         };
     }
 
@@ -470,17 +508,24 @@ public sealed class ListingsController : ControllerBase
             new SetPrimaryListingImageCommand(listingId, imageId),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return Ok(result.Image);
-        }
-
         return result.Error switch
         {
-            SetPrimaryListingImageError.ListingNotFound => NotFound("Listing was not found."),
-            SetPrimaryListingImageError.NotListingOwner => Forbid(),
-            SetPrimaryListingImageError.ImageNotFound => NotFound("Image was not found."),
-            _ => BadRequest("Set primary image failed.")
+            SetPrimaryListingImageError.None when result.Image is not null =>
+                Ok(result.Image),
+            SetPrimaryListingImageError.None => throw new InvalidOperationException(
+                "A successful set-primary result requires an image."),
+            SetPrimaryListingImageError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            SetPrimaryListingImageError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            SetPrimaryListingImageError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            SetPrimaryListingImageError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            SetPrimaryListingImageError.ImageNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            _ => throw new InvalidOperationException(
+                $"The set-primary result '{result.Error}' was not mapped.")
         };
     }
 
@@ -500,18 +545,36 @@ public sealed class ListingsController : ControllerBase
             new ReorderListingImagesCommand(listingId, request.ImageIds),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return Ok(result.Images);
-        }
-
         return result.Error switch
         {
-            ReorderListingImagesError.ListingNotFound => NotFound("Listing was not found."),
-            ReorderListingImagesError.NotListingOwner => Forbid(),
-            ReorderListingImagesError.ImageIdsMissing => BadRequest("Image ids are required."),
-            ReorderListingImagesError.ImageSetMismatch => BadRequest("Image ids must match the listing images."),
-            _ => BadRequest("Image reorder failed.")
+            ReorderListingImagesError.None when result.Images.Count > 0 =>
+                Ok(result.Images),
+            ReorderListingImagesError.None => throw new InvalidOperationException(
+                "A successful image reorder result requires images."),
+            ReorderListingImagesError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            ReorderListingImagesError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            ReorderListingImagesError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            ReorderListingImagesError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            ReorderListingImagesError.ImageIdsMissing =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "imageIds",
+                    "Image ids are required.",
+                    ErrorCodes.ValidationFailed),
+            ReorderListingImagesError.DuplicateImageIds =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "imageIds",
+                    "Image ids must not contain duplicates.",
+                    ErrorCodes.ValidationFailed),
+            ReorderListingImagesError.ImageSetMismatch =>
+                CreateFailureResult(ErrorCodes.ConflictResourceSetChanged),
+            _ => throw new InvalidOperationException(
+                $"The image reorder result '{result.Error}' was not mapped.")
         };
     }
 }

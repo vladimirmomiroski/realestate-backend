@@ -62,6 +62,18 @@ internal sealed record ApiFailureDescriptor(
         "Conflict",
         "The request conflicts with the current resource state.");
 
+    public static readonly ApiFailureDescriptor ResourceCapacityConflict = new(
+        StatusCodes.Status409Conflict,
+        ErrorCodes.ConflictResourceCapacity,
+        "Conflict",
+        "The resource has reached its allowed capacity.");
+
+    public static readonly ApiFailureDescriptor ResourceSetChangedConflict = new(
+        StatusCodes.Status409Conflict,
+        ErrorCodes.ConflictResourceSetChanged,
+        "Conflict",
+        "The submitted resource set no longer matches the current resource.");
+
     public static readonly ApiFailureDescriptor EmailAlreadyExists = new(
         StatusCodes.Status409Conflict,
         ErrorCodes.ConflictEmailAlreadyExists,
@@ -115,6 +127,8 @@ internal sealed record ApiFailureDescriptor(
             ErrorCodes.RequestMediaTypeNotSupported => MediaTypeNotSupported,
             ErrorCodes.ConflictEmailAlreadyExists => EmailAlreadyExists,
             ErrorCodes.ConflictResourceState => ResourceStateConflict,
+            ErrorCodes.ConflictResourceCapacity => ResourceCapacityConflict,
+            ErrorCodes.ConflictResourceSetChanged => ResourceSetChangedConflict,
             ErrorCodes.ServerUnexpected => Unexpected,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(errorCode),

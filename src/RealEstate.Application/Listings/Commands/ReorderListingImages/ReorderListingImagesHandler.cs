@@ -32,6 +32,12 @@ public sealed class ReorderListingImagesHandler
             return ReorderListingImagesResult.Failure(ReorderListingImagesError.ImageIdsMissing);
         }
 
+        if (command.ImageIds.Count != command.ImageIds.Distinct().Count())
+        {
+            return ReorderListingImagesResult.Failure(
+                ReorderListingImagesError.DuplicateImageIds);
+        }
+
         IListingImageWriteScope? writeScope =
             await _listingRepository.BeginListingImageWriteAsync(
             command.ListingId,
@@ -48,18 +54,34 @@ public sealed class ReorderListingImagesHandler
         {
             var listing = writeScope.Listing;
 
-            Guid userId = _currentUserService.UserId
-                ?? throw new InvalidOperationException(
-                    "Authenticated user id is not available.");
+            Guid? currentUserId = _currentUserService.UserId;
+
+            if (!currentUserId.HasValue)
+            {
+                return ReorderListingImagesResult.Failure(
+                    ReorderListingImagesError.InvalidPrincipal);
+            }
+
+            Guid userId = currentUserId.Value;
 
             var actor =
                 await _userRepository.GetByIdReadOnlyAsync(
                     userId,
                     cancellationToken);
 
-            if (actor is null ||
-                actor.Status == UserStatus.Disabled ||
-                listing.CreatedByUserId != userId)
+            if (actor is null)
+            {
+                return ReorderListingImagesResult.Failure(
+                    ReorderListingImagesError.InvalidPrincipal);
+            }
+
+            if (actor.Status == UserStatus.Disabled)
+            {
+                return ReorderListingImagesResult.Failure(
+                    ReorderListingImagesError.AccountDisabled);
+            }
+
+            if (listing.CreatedByUserId != userId)
             {
                 return ReorderListingImagesResult.Failure(
                     ReorderListingImagesError.NotListingOwner);

@@ -4,6 +4,8 @@ public enum SetPrimaryListingImageError
 {
     None,
     ListingNotFound,
+    InvalidPrincipal,
+    AccountDisabled,
     NotListingOwner,
     ImageNotFound
 }
