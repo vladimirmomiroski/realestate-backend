@@ -84,11 +84,11 @@ public sealed class ApiExceptionAndLoggingTests
     [Fact]
     public async Task UnmatchedApiRequest_UsesFixedRouteAndDoesNotLogSecrets()
     {
-        const string QuerySecret = "query-secret-12b-7f93";
-        const string HeaderSecret = "header-secret-12b-a481";
+        const string QuerySecret = "query-secret-7f93";
+        const string HeaderSecret = "header-secret-a481";
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
-            $"/api/chapter-12b-not-found?token={QuerySecret}");
+            $"/api/unmatched-request-test?token={QuerySecret}");
         request.Headers.Add("X-Test-Secret", HeaderSecret);
         _logs.Clear();
 
@@ -108,11 +108,11 @@ public sealed class ApiExceptionAndLoggingTests
     public async Task UnexpectedApplicationFailure_ReturnsCanonical500AndOwnsLogs()
     {
         Guid resourceId = Guid.NewGuid();
-        const string QuerySecret = "query-secret-12b-c315";
-        const string HeaderSecret = "header-secret-12b-e207";
+        const string QuerySecret = "query-secret-c315";
+        const string HeaderSecret = "header-secret-e207";
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
-            $"/api/chapter-12b-test/application-failure/{resourceId}" +
+            $"/api/exception-boundary-test/application-failure/{resourceId}" +
             $"?invitationCode={QuerySecret}");
         request.Headers.Add("X-Test-Secret", HeaderSecret);
         _logs.Clear();
@@ -136,7 +136,7 @@ public sealed class ApiExceptionAndLoggingTests
         body.GetProperty("detail").GetString().Should()
             .Be("An unexpected error occurred.");
         body.GetProperty("instance").GetString().Should()
-            .Be($"/api/chapter-12b-test/application-failure/{resourceId}");
+            .Be($"/api/exception-boundary-test/application-failure/{resourceId}");
         body.GetProperty("code").GetString().Should()
             .Be("server.unexpected");
         body.GetProperty("traceId").GetString().Should().Be(requestId);
@@ -144,7 +144,7 @@ public sealed class ApiExceptionAndLoggingTests
         CapturedLogEntry completion = GetSingleCompletion();
         CapturedLogEntry error = GetSingleHandledException();
         const string RouteTemplate =
-            "api/chapter-12b-test/application-failure/{id:guid}";
+            "api/exception-boundary-test/application-failure/{id:guid}";
 
         completion.Properties["Route"].Should().Be(RouteTemplate);
         completion.Properties["StatusCode"].Should().Be(500);
@@ -230,7 +230,7 @@ public sealed class ApiExceptionAndLoggingTests
         _logs.Clear();
 
         Task<HttpResponseMessage> request = _client.GetAsync(
-            "/api/chapter-12b-test/cancellation",
+            "/api/exception-boundary-test/cancellation",
             cancellation.Token);
 
         await _probe.CancellationStarted.Task.WaitAsync(
@@ -244,7 +244,7 @@ public sealed class ApiExceptionAndLoggingTests
 
         CapturedLogEntry completion = GetSingleCompletion();
         completion.Properties["Route"].Should()
-            .Be("api/chapter-12b-test/cancellation");
+            .Be("api/exception-boundary-test/cancellation");
         completion.Properties["StatusCode"].Should().Be(499);
         GetHandledExceptions().Should().BeEmpty();
     }
@@ -256,7 +256,7 @@ public sealed class ApiExceptionAndLoggingTests
 
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
-            "/api/chapter-12b-test/response-started");
+            "/api/exception-boundary-test/response-started");
         using HttpResponseMessage response = await _client.SendAsync(
             request,
             HttpCompletionOption.ResponseHeadersRead);
@@ -314,7 +314,7 @@ public sealed class ApiExceptionAndLoggingTests
         responseStartedWarning.ScopeProperties["RequestId"].Should()
             .Be(requestId);
         responseStartedWarning.ScopeProperties["RequestPath"].Should()
-            .Be("/api/chapter-12b-test/response-started");
+            .Be("/api/exception-boundary-test/response-started");
 
         CapturedLogEntry frameworkUnhandledError = _logs.Entries
             .Where(entry =>
@@ -329,7 +329,7 @@ public sealed class ApiExceptionAndLoggingTests
         frameworkUnhandledError.ScopeProperties["RequestId"].Should()
             .Be(requestId);
         frameworkUnhandledError.ScopeProperties["RequestPath"].Should()
-            .Be("/api/chapter-12b-test/response-started");
+            .Be("/api/exception-boundary-test/response-started");
         _logs.Entries.Should().NotContain(entry =>
             entry.Category == ExceptionCategory &&
             entry.Level == LogLevel.Error);
@@ -471,7 +471,7 @@ public sealed class ApiExceptionAndLoggingTests
 }
 
 [ApiController]
-[Route("api/chapter-12b-test")]
+[Route("api/exception-boundary-test")]
 public sealed class ExceptionBoundaryTestController : ControllerBase
 {
     [HttpGet("application-failure/{id:guid}")]
