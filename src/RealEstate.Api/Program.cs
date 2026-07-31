@@ -16,6 +16,8 @@ using RealEstate.Application.Common.Health;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
+string[] allowedCorsOrigins = GetAllowedCorsOrigins(
+    builder.Configuration);
 
 var webRootPath = builder.Environment.WebRootPath;
 
@@ -39,14 +41,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
+        if (allowedCorsOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedCorsOrigins);
+        }
+
         policy
-            .WithOrigins(
-                "http://localhost:3000",
-                "https://localhost:3000",
-                "http://localhost:5173",
-                "https://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .WithExposedHeaders(
+                RequestIdentifierMiddleware.HeaderName);
     });
 });
 
@@ -229,9 +233,9 @@ app.MapGet(
 .AllowAnonymous()
 .WithName("GetDatabaseHealth");
 
-app.UseStaticFiles();
-
 app.UseCors(FrontendCorsPolicy);
+
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -239,6 +243,55 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string[] GetAllowedCorsOrigins(
+    IConfiguration configuration)
+{
+    return configuration
+        .GetSection("Cors:AllowedOrigins")
+        .GetChildren()
+        .Select(section => section.Value?.Trim())
+        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+        .Select(origin => origin!)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Select(ValidateCorsOrigin)
+        .ToArray();
+}
+
+static string ValidateCorsOrigin(
+    string origin)
+{
+    const string InvalidCorsOriginMessage =
+        "CORS allowed origins configuration contains an invalid origin.";
+
+    bool isValidUri = Uri.TryCreate(
+        origin,
+        UriKind.Absolute,
+        out Uri? uri);
+
+    bool isHttpScheme = isValidUri &&
+        (uri!.Scheme.Equals(
+             Uri.UriSchemeHttp,
+             StringComparison.OrdinalIgnoreCase) ||
+         uri.Scheme.Equals(
+             Uri.UriSchemeHttps,
+             StringComparison.OrdinalIgnoreCase));
+
+    if (!isValidUri ||
+        !isHttpScheme ||
+        origin.Contains("*", StringComparison.Ordinal) ||
+        !string.IsNullOrEmpty(uri!.UserInfo) ||
+        !string.Equals(uri.AbsolutePath, "/", StringComparison.Ordinal) ||
+        origin.EndsWith("/", StringComparison.Ordinal) ||
+        !string.IsNullOrEmpty(uri.Query) ||
+        !string.IsNullOrEmpty(uri.Fragment))
+    {
+        throw new InvalidOperationException(
+            InvalidCorsOriginMessage);
+    }
+
+    return origin;
+}
 
 static async Task<IResult> HandleDatabaseReadinessAsync(
     HttpContext httpContext,
