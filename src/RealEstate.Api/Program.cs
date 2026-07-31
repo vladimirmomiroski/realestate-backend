@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RealEstate.Api.Authentication;
 using RealEstate.Api.Errors;
+using RealEstate.Api.OpenApi;
 using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Common.Health;
 
@@ -101,13 +102,8 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Paste only the JWT token. Do not include Bearer."
     });
 
-    options.AddSecurityRequirement(openApiDocument => new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecuritySchemeReference("Bearer", openApiDocument),
-            new List<string>()
-        }
-    });
+    options.OperationFilter<ApiOpenApiOperationFilter>();
+    options.SchemaFilter<ApiOpenApiSchemaFilter>();
 });
 
 builder.Services
