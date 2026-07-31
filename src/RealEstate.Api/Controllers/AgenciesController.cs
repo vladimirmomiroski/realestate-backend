@@ -77,6 +77,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateAgency(
         [FromBody] CreateAgencyRequest request,
         CancellationToken cancellationToken)
@@ -344,6 +345,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateAgencyInvitation(
     Guid id,
     [FromBody] CreateAgencyInvitationRequest request,
@@ -417,6 +419,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> AcceptAgencyInvitation(
         [FromBody] AcceptAgencyInvitationRequest request,
         CancellationToken cancellationToken)
@@ -449,6 +452,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CancelAgencyInvitation(
         Guid agencyId,
         Guid invitationId,
@@ -482,6 +486,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DisableAgencyMember(
     Guid agencyId,
     Guid memberId,
@@ -514,6 +519,7 @@ public sealed class AgenciesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ChangeAgencyMemberRole(
     Guid agencyId,
     Guid memberId,
