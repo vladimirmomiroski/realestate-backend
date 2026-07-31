@@ -364,6 +364,7 @@ public sealed class ListingRepository : IListingRepository
 
         List<Listing> listings = await ApplyListingIncludes(query)
             .OrderByDescending(listing => listing.CreatedAtUtc)
+            .ThenByDescending(listing => listing.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -397,6 +398,7 @@ public sealed class ListingRepository : IListingRepository
 
         List<Listing> listings = await ApplyListingIncludes(query)
             .OrderByDescending(listing => listing.CreatedAtUtc)
+            .ThenByDescending(listing => listing.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

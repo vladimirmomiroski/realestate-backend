@@ -24,7 +24,7 @@ public sealed class GetMyListingsHandler
         _currentUserService = currentUserService;
     }
 
-    public async Task<ServiceResult<PagedResult<ListingResponse>>> HandleAsync(
+    public async Task<ServiceResult<PagedResponse<ListingResponse>>> HandleAsync(
         GetMyListingsQuery query,
         CancellationToken cancellationToken)
     {
@@ -32,7 +32,7 @@ public sealed class GetMyListingsHandler
 
         if (!userId.HasValue)
         {
-            return ServiceResult<PagedResult<ListingResponse>>.Unauthorized(
+            return ServiceResult<PagedResponse<ListingResponse>>.Unauthorized(
                 "Current user could not be resolved.",
                 ErrorCodes.AuthenticationInvalidPrincipal);
         }
@@ -41,7 +41,7 @@ public sealed class GetMyListingsHandler
                 userId.Value,
                 cancellationToken) is null)
         {
-            return ServiceResult<PagedResult<ListingResponse>>.Unauthorized(
+            return ServiceResult<PagedResponse<ListingResponse>>.Unauthorized(
                 "Current user could not be resolved.",
                 ErrorCodes.AuthenticationInvalidPrincipal);
         }
@@ -57,15 +57,11 @@ public sealed class GetMyListingsHandler
                 query.PageSize,
                 cancellationToken);
 
-        List<ListingResponse> responses = listings.Items
-            .Select(listing => listing.ToResponse(languageCode))
-            .ToList();
+        PagedResponse<ListingResponse> response =
+            PagedResponse<ListingResponse>.From(
+                listings,
+                listing => listing.ToResponse(languageCode));
 
-        return ServiceResult<PagedResult<ListingResponse>>.Success(
-            new PagedResult<ListingResponse>(
-                responses,
-                listings.Page,
-                listings.PageSize,
-                listings.TotalCount));
+        return ServiceResult<PagedResponse<ListingResponse>>.Success(response);
     }
 }
