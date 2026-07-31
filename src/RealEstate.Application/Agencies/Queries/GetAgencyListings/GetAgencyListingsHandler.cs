@@ -24,7 +24,7 @@ public sealed class GetAgencyListingsHandler
         _getListingsValidator = getListingsValidator;
     }
 
-    public async Task<ServiceResult<PagedResult<ListingResponse>>> HandleAsync(
+    public async Task<ServiceResult<PagedResponse<ListingResponse>>> HandleAsync(
         GetAgencyListingsQuery query,
         CancellationToken cancellationToken)
     {
@@ -43,7 +43,7 @@ public sealed class GetAgencyListingsHandler
 
         if (validationFailure is not null)
         {
-            return ServiceResult<PagedResult<ListingResponse>>
+            return ServiceResult<PagedResponse<ListingResponse>>
                 .ValidationError(
                     validationFailure.Error,
                     validationFailure.Key,
@@ -54,7 +54,7 @@ public sealed class GetAgencyListingsHandler
                 listingsQuery.Sort,
                 out ListingSortOption sortOption))
         {
-            return ServiceResult<PagedResult<ListingResponse>>
+            return ServiceResult<PagedResponse<ListingResponse>>
                 .ValidationError(
                     GetListingsValidator.InvalidSortError,
                     "sort",
@@ -69,7 +69,7 @@ public sealed class GetAgencyListingsHandler
 
         if (!agencyExists)
         {
-            return ServiceResult<PagedResult<ListingResponse>>.NotFound(
+            return ServiceResult<PagedResponse<ListingResponse>>.NotFound(
                 "Agency was not found.",
                 ErrorCodes.ResourceNotFound);
         }
@@ -79,18 +79,13 @@ public sealed class GetAgencyListingsHandler
                 listingsQuery,
                 cancellationToken);
 
-        IReadOnlyList<ListingResponse> responseItems = listings.Items
-            .Select(listing =>
-                listing.ToResponse(listingsQuery.LanguageCode))
-            .ToList();
+        PagedResponse<ListingResponse> response =
+            PagedResponse<ListingResponse>.From(
+                listings,
+                listing =>
+                    listing.ToResponse(listingsQuery.LanguageCode));
 
-        var response = new PagedResult<ListingResponse>(
-            responseItems,
-            listings.Page,
-            listings.PageSize,
-            listings.TotalCount);
-
-        return ServiceResult<PagedResult<ListingResponse>>
+        return ServiceResult<PagedResponse<ListingResponse>>
             .Success(response);
     }
 

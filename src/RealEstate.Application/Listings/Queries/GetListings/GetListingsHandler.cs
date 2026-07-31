@@ -84,17 +84,10 @@ public sealed class GetListingsHandler
                 query,
                 cancellationToken);
 
-        IReadOnlyList<ListingResponse> listingResponses =
-            pagedListings.Items
-                .Select(listing =>
-                    listing.ToResponse(query.LanguageCode))
-                .ToList();
-
-        var response = new PagedResponse<ListingResponse>(
-            listingResponses,
-            query.Page,
-            query.PageSize,
-            pagedListings.TotalCount);
+        PagedResponse<ListingResponse> response =
+            PagedResponse<ListingResponse>.From(
+                pagedListings,
+                listing => listing.ToResponse(query.LanguageCode));
 
         return ServiceResult<PagedResponse<ListingResponse>>
             .Success(response);

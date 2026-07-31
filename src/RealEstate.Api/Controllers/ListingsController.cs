@@ -194,7 +194,7 @@ public sealed class ListingsController : ControllerBase
 
     [Authorize]
     [HttpGet("my")]
-    [ProducesResponseType(typeof(PagedResult<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResponse<ListingResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetMyListings(
     [FromQuery] string? lang,
@@ -207,7 +207,7 @@ public sealed class ListingsController : ControllerBase
             page,
             pageSize);
 
-        ServiceResult<PagedResult<ListingResponse>> result =
+        ServiceResult<PagedResponse<ListingResponse>> result =
             await _getMyListingsHandler.HandleAsync(query, cancellationToken);
 
         return result.Status switch

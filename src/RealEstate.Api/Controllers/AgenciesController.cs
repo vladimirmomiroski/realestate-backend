@@ -194,7 +194,7 @@ public sealed class AgenciesController : ControllerBase
 
     [HttpGet("{id:guid}/listings")]
     [ProducesResponseType(
-        typeof(PagedResult<ListingResponse>),
+        typeof(PagedResponse<ListingResponse>),
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -217,7 +217,7 @@ public sealed class AgenciesController : ControllerBase
             PageSize = pageSize
         };
 
-        ServiceResult<PagedResult<ListingResponse>> result =
+        ServiceResult<PagedResponse<ListingResponse>> result =
             await _getAgencyListingsHandler.HandleAsync(
                 query,
                 cancellationToken);
@@ -237,7 +237,7 @@ public sealed class AgenciesController : ControllerBase
 
     [Authorize]
     [HttpGet("{id:guid}/dashboard/listings")]
-    [ProducesResponseType(typeof(PagedResult<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResponse<ListingResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -258,7 +258,7 @@ public sealed class AgenciesController : ControllerBase
             PageSize = pageSize
         };
 
-        ServiceResult<PagedResult<ListingResponse>> result =
+        ServiceResult<PagedResponse<ListingResponse>> result =
             await _getAgencyDashboardListingsHandler.HandleAsync(query, cancellationToken);
 
         return result.Status switch
