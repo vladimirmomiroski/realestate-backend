@@ -70,6 +70,7 @@ public interface IAgencyInvitationRepository
         GetByAgencyIdReadOnlyAsync(
             Guid agencyId,
             AgencyInvitationStatus? status,
+            DateTime utcNow,
             CancellationToken cancellationToken);
 
     Task SaveChangesAsync(

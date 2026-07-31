@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
@@ -516,17 +517,19 @@ public sealed partial class AgenciesEndpointTests
 
         DateTime utcNow = DateTime.UtcNow;
 
-        await CreateDashboardSummaryInvitationAsync(
-            agencyId,
-            owner.UserId,
-            AgencyInvitationStatus.Pending,
-            utcNow.AddDays(7));
+        Guid futurePendingId =
+            await CreateDashboardSummaryInvitationAsync(
+                agencyId,
+                owner.UserId,
+                AgencyInvitationStatus.Pending,
+                utcNow.AddDays(7));
 
-        await CreateDashboardSummaryInvitationAsync(
-            agencyId,
-            owner.UserId,
-            AgencyInvitationStatus.Pending,
-            utcNow.AddDays(-1));
+        Guid stalePendingId =
+            await CreateDashboardSummaryInvitationAsync(
+                agencyId,
+                owner.UserId,
+                AgencyInvitationStatus.Pending,
+                utcNow.AddDays(-1));
 
         await CreateDashboardSummaryInvitationAsync(
             agencyId,
@@ -552,6 +555,32 @@ public sealed partial class AgenciesEndpointTests
             AgencyInvitationStatus.Pending,
             utcNow.AddDays(7));
 
+        Guid[] observedInvitationIds =
+        [
+            futurePendingId,
+            stalePendingId
+        ];
+
+        List<AgencyInvitation> originalInvitations;
+
+        using (IServiceScope originalScope =
+               _factory.Services.CreateScope())
+        {
+            var originalDbContext =
+                originalScope.ServiceProvider
+                    .GetRequiredService<RealEstateDbContext>();
+
+            originalInvitations =
+                await originalDbContext.AgencyInvitations
+                    .AsNoTracking()
+                    .Where(invitation =>
+                        observedInvitationIds.Contains(
+                            invitation.Id))
+                    .ToListAsync();
+        }
+
+        originalInvitations.Should().HaveCount(2);
+
         // Act
         HttpResponseMessage response =
             await GetAgencyDashboardSummaryAsync(
@@ -570,6 +599,44 @@ public sealed partial class AgenciesEndpointTests
             .GetInt32()
             .Should()
             .Be(1);
+
+        using IServiceScope assertionScope =
+            _factory.Services.CreateScope();
+
+        var assertionDbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        List<AgencyInvitation> storedInvitations =
+            await assertionDbContext.AgencyInvitations
+                .AsNoTracking()
+                .Where(invitation =>
+                    observedInvitationIds.Contains(
+                        invitation.Id))
+                .ToListAsync();
+
+        storedInvitations.Should().HaveCount(2);
+
+        foreach (AgencyInvitation original in
+                 originalInvitations)
+        {
+            AgencyInvitation stored =
+                storedInvitations.Single(invitation =>
+                    invitation.Id == original.Id);
+
+            stored.Status.Should()
+                .Be(AgencyInvitationStatus.Pending);
+            stored.ExpiresAtUtc.Should()
+                .Be(original.ExpiresAtUtc);
+            stored.CreatedAtUtc.Should()
+                .Be(original.CreatedAtUtc);
+            stored.ModifiedAtUtc.Should()
+                .Be(original.ModifiedAtUtc);
+            stored.AcceptedAtUtc.Should()
+                .Be(original.AcceptedAtUtc);
+            stored.CancelledAtUtc.Should()
+                .Be(original.CancelledAtUtc);
+        }
     }
 
     private async Task<HttpResponseMessage>
@@ -595,7 +662,7 @@ public sealed partial class AgenciesEndpointTests
         }
     }
 
-    private async Task CreateDashboardSummaryInvitationAsync(
+    private async Task<Guid> CreateDashboardSummaryInvitationAsync(
     Guid agencyId,
     Guid invitedByUserId,
     AgencyInvitationStatus status,
@@ -654,5 +721,7 @@ public sealed partial class AgenciesEndpointTests
         dbContext.AgencyInvitations.Add(invitation);
 
         await dbContext.SaveChangesAsync();
+
+        return invitation.Id;
     }
 }

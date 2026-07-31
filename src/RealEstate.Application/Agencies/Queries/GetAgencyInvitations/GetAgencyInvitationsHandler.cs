@@ -35,14 +35,18 @@ public sealed class GetAgencyInvitationsHandler
             return accessResult.Failure!;
         }
 
+        DateTime utcNow = DateTime.UtcNow;
+
         IReadOnlyList<AgencyInvitation> invitations =
             await _agencyInvitationRepository.GetByAgencyIdReadOnlyAsync(
                 query.AgencyId,
                 query.Status,
+                utcNow,
                 cancellationToken);
 
         IReadOnlyList<AgencyInvitationListItemResponse> response = invitations
-            .Select(invitation => invitation.ToListItemResponse())
+            .Select(invitation =>
+                invitation.ToListItemResponse(utcNow))
             .ToList();
 
         return ServiceResult<IReadOnlyList<AgencyInvitationListItemResponse>>.Success(response);

@@ -6,6 +6,7 @@ using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
 using RealEstate.Application.Agencies.Repositories;
+using RealEstate.Application.Agencies.Mappings;
 
 namespace RealEstate.Tests.Integration.Agencies;
 
@@ -429,6 +430,274 @@ public sealed class AgencyInvitationPersistenceTests : IClassFixture<CustomWebAp
 
         attemptedReplacementExists.Should()
             .BeFalse();
+    }
+
+    [Fact]
+    public async Task GetByAgencyIdReadOnlyAsync_ShouldApplyEffectiveStatusAtFixedBoundaryWithoutWriting()
+    {
+        // Arrange
+        AuthenticatedTestUser inviter =
+            await AuthTestHelpers.RegisterAndLoginAsync(
+                _httpClient);
+
+        DateTime utcNow = new(
+            2030,
+            1,
+            15,
+            12,
+            0,
+            0,
+            DateTimeKind.Utc);
+
+        const long PostgreSqlTimestampTick = 10;
+
+        Guid agencyId;
+        AgencyInvitation pastPending;
+        AgencyInvitation equalPending;
+        AgencyInvitation futurePending;
+        AgencyInvitation storedExpired;
+        AgencyInvitation storedAccepted;
+        AgencyInvitation storedCancelled;
+
+        using (IServiceScope seedScope =
+               _factory.Services.CreateScope())
+        {
+            var seedDbContext =
+                seedScope.ServiceProvider
+                    .GetRequiredService<RealEstateDbContext>();
+
+            var agency = AgencyTestHelpers.CreateAgency();
+
+            seedDbContext.Agencies.Add(agency);
+
+            await seedDbContext.SaveChangesAsync();
+
+            agencyId = agency.Id;
+
+            AgencyInvitation CreateFixedInvitation(
+                string label,
+                DateTime expiresAtUtc)
+            {
+                string email =
+                    $"{label}-{Guid.NewGuid():N}@test.com";
+
+                return new AgencyInvitation(
+                    agencyId: agencyId,
+                    email: email,
+                    normalizedEmail: email.ToUpperInvariant(),
+                    token: Guid.NewGuid().ToString("N"),
+                    code: Random.Shared
+                        .Next(0, 1_000_000)
+                        .ToString("D6"),
+                    role: AgencyMemberRole.Agent,
+                    invitedByUserId: inviter.UserId,
+                    expiresAtUtc: expiresAtUtc);
+            }
+
+            pastPending = CreateFixedInvitation(
+                "past-pending",
+                utcNow.AddTicks(-PostgreSqlTimestampTick));
+
+            equalPending = CreateFixedInvitation(
+                "equal-pending",
+                utcNow);
+
+            futurePending = CreateFixedInvitation(
+                "future-pending",
+                utcNow.AddTicks(PostgreSqlTimestampTick));
+
+            storedExpired = CreateFixedInvitation(
+                "stored-expired",
+                utcNow.AddDays(-1));
+
+            storedExpired.MarkExpired(utcNow);
+
+            storedAccepted = CreateFixedInvitation(
+                "stored-accepted",
+                utcNow.AddDays(1));
+
+            storedAccepted.Accept(
+                inviter.UserId,
+                utcNow);
+
+            storedCancelled = CreateFixedInvitation(
+                "stored-cancelled",
+                utcNow.AddDays(1));
+
+            storedCancelled.Cancel(utcNow);
+
+            seedDbContext.AgencyInvitations.AddRange(
+                pastPending,
+                equalPending,
+                futurePending,
+                storedExpired,
+                storedAccepted,
+                storedCancelled);
+
+            await seedDbContext.SaveChangesAsync();
+        }
+
+        Guid[] seededInvitationIds =
+        [
+            pastPending.Id,
+            equalPending.Id,
+            futurePending.Id,
+            storedExpired.Id,
+            storedAccepted.Id,
+            storedCancelled.Id
+        ];
+
+        List<AgencyInvitation> originalInvitations;
+
+        using (IServiceScope originalScope =
+               _factory.Services.CreateScope())
+        {
+            var originalDbContext =
+                originalScope.ServiceProvider
+                    .GetRequiredService<RealEstateDbContext>();
+
+            originalInvitations =
+                await originalDbContext.AgencyInvitations
+                    .AsNoTracking()
+                    .Where(invitation =>
+                        seededInvitationIds.Contains(
+                            invitation.Id))
+                    .ToListAsync();
+        }
+
+        originalInvitations.Should().HaveCount(6);
+
+        using (IServiceScope readScope =
+               _factory.Services.CreateScope())
+        {
+            var repository =
+                readScope.ServiceProvider
+                    .GetRequiredService<
+                        IAgencyInvitationRepository>();
+
+            IReadOnlyList<AgencyInvitation> unfiltered =
+                await repository.GetByAgencyIdReadOnlyAsync(
+                    agencyId,
+                    status: null,
+                    utcNow,
+                    CancellationToken.None);
+
+            IReadOnlyList<AgencyInvitation> pending =
+                await repository.GetByAgencyIdReadOnlyAsync(
+                    agencyId,
+                    AgencyInvitationStatus.Pending,
+                    utcNow,
+                    CancellationToken.None);
+
+            IReadOnlyList<AgencyInvitation> expired =
+                await repository.GetByAgencyIdReadOnlyAsync(
+                    agencyId,
+                    AgencyInvitationStatus.Expired,
+                    utcNow,
+                    CancellationToken.None);
+
+            IReadOnlyList<AgencyInvitation> accepted =
+                await repository.GetByAgencyIdReadOnlyAsync(
+                    agencyId,
+                    AgencyInvitationStatus.Accepted,
+                    utcNow,
+                    CancellationToken.None);
+
+            IReadOnlyList<AgencyInvitation> cancelled =
+                await repository.GetByAgencyIdReadOnlyAsync(
+                    agencyId,
+                    AgencyInvitationStatus.Cancelled,
+                    utcNow,
+                    CancellationToken.None);
+
+            // Assert
+            unfiltered.Select(invitation => invitation.Id)
+                .Should().BeEquivalentTo(
+                    originalInvitations.Select(
+                        invitation => invitation.Id));
+
+            var effectiveStatuses = unfiltered
+                .ToDictionary(
+                    invitation => invitation.Id,
+                    invitation => invitation
+                        .ToListItemResponse(utcNow)
+                        .Status);
+
+            effectiveStatuses[pastPending.Id].Should()
+                .Be(AgencyInvitationStatus.Expired);
+
+            effectiveStatuses[equalPending.Id].Should()
+                .Be(AgencyInvitationStatus.Expired);
+
+            effectiveStatuses[futurePending.Id].Should()
+                .Be(AgencyInvitationStatus.Pending);
+
+            effectiveStatuses[storedExpired.Id].Should()
+                .Be(AgencyInvitationStatus.Expired);
+
+            effectiveStatuses[storedAccepted.Id].Should()
+                .Be(AgencyInvitationStatus.Accepted);
+
+            effectiveStatuses[storedCancelled.Id].Should()
+                .Be(AgencyInvitationStatus.Cancelled);
+
+            pending.Select(invitation => invitation.Id)
+                .Should().Equal(futurePending.Id);
+
+            expired.Select(invitation => invitation.Id)
+                .Should().BeEquivalentTo(new[]
+                {
+                    pastPending.Id,
+                    equalPending.Id,
+                    storedExpired.Id
+                });
+
+            accepted.Select(invitation => invitation.Id)
+                .Should().Equal(storedAccepted.Id);
+
+            cancelled.Select(invitation => invitation.Id)
+                .Should().Equal(storedCancelled.Id);
+        }
+
+        using IServiceScope assertionScope =
+            _factory.Services.CreateScope();
+
+        var assertionDbContext =
+            assertionScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+
+        Guid[] invitationIds = originalInvitations
+            .Select(invitation => invitation.Id)
+            .ToArray();
+
+        List<AgencyInvitation> storedInvitations =
+            await assertionDbContext.AgencyInvitations
+                .AsNoTracking()
+                .Where(invitation =>
+                    invitationIds.Contains(invitation.Id))
+                .ToListAsync();
+
+        storedInvitations.Should().HaveCount(6);
+
+        foreach (AgencyInvitation original in
+                 originalInvitations)
+        {
+            AgencyInvitation stored =
+                storedInvitations.Single(invitation =>
+                    invitation.Id == original.Id);
+
+            stored.Status.Should().Be(original.Status);
+            stored.ExpiresAtUtc.Should()
+                .Be(original.ExpiresAtUtc);
+            stored.CreatedAtUtc.Should()
+                .Be(original.CreatedAtUtc);
+            stored.ModifiedAtUtc.Should()
+                .Be(original.ModifiedAtUtc);
+            stored.AcceptedAtUtc.Should()
+                .Be(original.AcceptedAtUtc);
+            stored.CancelledAtUtc.Should()
+                .Be(original.CancelledAtUtc);
+        }
     }
 
     private static AgencyInvitation CreateInvitation(
