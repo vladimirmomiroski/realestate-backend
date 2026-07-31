@@ -161,6 +161,7 @@ public sealed class AgencyInvitationRepository
         GetByAgencyIdReadOnlyAsync(
             Guid agencyId,
             AgencyInvitationStatus? status,
+            DateTime utcNow,
             CancellationToken cancellationToken)
     {
         IQueryable<AgencyInvitation> query =
@@ -169,7 +170,25 @@ public sealed class AgencyInvitationRepository
                 .Where(invitation =>
                     invitation.AgencyId == agencyId);
 
-        if (status.HasValue)
+        if (status == AgencyInvitationStatus.Pending)
+        {
+            query = query.Where(invitation =>
+                invitation.Status ==
+                    AgencyInvitationStatus.Pending &&
+                invitation.ExpiresAtUtc > utcNow);
+        }
+        else if (status == AgencyInvitationStatus.Expired)
+        {
+            query = query.Where(invitation =>
+                invitation.Status ==
+                    AgencyInvitationStatus.Expired ||
+                (
+                    invitation.Status ==
+                        AgencyInvitationStatus.Pending &&
+                    invitation.ExpiresAtUtc <= utcNow
+                ));
+        }
+        else if (status.HasValue)
         {
             query = query.Where(invitation =>
                 invitation.Status == status.Value);
