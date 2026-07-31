@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RealEstate.Infrastructure;
-using RealEstate.Infrastructure.Persistence;
 using RealEstate.Application;
 using RealEstate.Infrastructure.Storage;
 using System.Text;
@@ -13,6 +12,7 @@ using Microsoft.OpenApi;
 using RealEstate.Api.Authentication;
 using RealEstate.Api.Errors;
 using RealEstate.Application.Common.Authentication;
+using RealEstate.Application.Common.Health;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
@@ -214,18 +214,19 @@ app.MapGet("/api/health", () => new
     status = "ok",
     app = "RealEstate.Api"
 })
+.AllowAnonymous()
 .WithName("GetHealth");
 
-app.MapGet("/api/health/database", async (RealEstateDbContext dbContext) =>
-{
-    var canConnect = await dbContext.Database.CanConnectAsync();
+app.MapGet(
+    "/api/health/readiness",
+    HandleDatabaseReadinessAsync)
+.AllowAnonymous()
+.WithName("GetDatabaseReadiness");
 
-    return Results.Ok(new
-    {
-        status = canConnect ? "ok" : "unavailable",
-        database = "PostgreSQL"
-    });
-})
+app.MapGet(
+    "/api/health/database",
+    HandleDatabaseReadinessAsync)
+.AllowAnonymous()
 .WithName("GetDatabaseHealth");
 
 app.UseStaticFiles();
@@ -238,3 +239,95 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static async Task<IResult> HandleDatabaseReadinessAsync(
+    HttpContext httpContext,
+    IDatabaseReadinessProbe readinessProbe,
+    ILoggerFactory loggerFactory)
+{
+    const int ReadinessTimeoutSeconds = 3;
+    const string ReadinessLogCategory =
+        "RealEstate.Api.Health.DatabaseReadiness";
+
+    ILogger logger = loggerFactory.CreateLogger(
+        ReadinessLogCategory);
+
+    using var timeoutCancellationSource =
+        new CancellationTokenSource(
+            TimeSpan.FromSeconds(
+                ReadinessTimeoutSeconds));
+
+    using var linkedCancellationSource =
+        CancellationTokenSource.CreateLinkedTokenSource(
+            httpContext.RequestAborted,
+            timeoutCancellationSource.Token);
+
+    try
+    {
+        bool canConnect = await readinessProbe
+            .CanConnectAsync(
+                linkedCancellationSource.Token)
+            .WaitAsync(
+                linkedCancellationSource.Token);
+
+        if (canConnect)
+        {
+            return CreateDatabaseReadinessResult(
+                isAvailable: true);
+        }
+
+        DatabaseReadinessLog.Unavailable(
+            logger,
+            "False");
+    }
+    catch (OperationCanceledException)
+        when (httpContext.RequestAborted.IsCancellationRequested)
+    {
+        throw;
+    }
+    catch (OperationCanceledException)
+        when (timeoutCancellationSource.IsCancellationRequested)
+    {
+        DatabaseReadinessLog.Unavailable(
+            logger,
+            "Timeout");
+    }
+    catch (Exception)
+    {
+        DatabaseReadinessLog.Unavailable(
+            logger,
+            "Exception");
+    }
+
+    return CreateDatabaseReadinessResult(
+        isAvailable: false);
+}
+
+static IResult CreateDatabaseReadinessResult(
+    bool isAvailable)
+{
+    return Results.Json(
+        new
+        {
+            status = isAvailable
+                ? "ok"
+                : "unavailable",
+            database = "PostgreSQL"
+        },
+        statusCode: isAvailable
+            ? StatusCodes.Status200OK
+            : StatusCodes.Status503ServiceUnavailable);
+}
+
+internal static partial class DatabaseReadinessLog
+{
+    [LoggerMessage(
+        EventId = 12003,
+        Level = LogLevel.Warning,
+        Message =
+            "Database readiness probe completed as unavailable " +
+            "with reason {Reason}.")]
+    public static partial void Unavailable(
+        ILogger logger,
+        string reason);
+}
