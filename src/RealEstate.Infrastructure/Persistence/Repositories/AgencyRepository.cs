@@ -6,11 +6,15 @@ using RealEstate.Domain.Enums;
 using System.Data;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 namespace RealEstate.Infrastructure.Persistence.Repositories;
 
 public sealed class AgencyRepository : IAgencyRepository
 {
+    private const string SlugUniqueIndexName =
+        "IX_Agencies_Slug";
+
     private readonly RealEstateDbContext _dbContext;
 
     public AgencyRepository(RealEstateDbContext dbContext)
@@ -18,13 +22,36 @@ public sealed class AgencyRepository : IAgencyRepository
         _dbContext = dbContext;
     }
 
-    public async Task CreateAsync(
+    public async Task<AgencyCreationPersistenceResult> CreateAsync(
         Agency agency,
         CancellationToken cancellationToken)
     {
         _dbContext.Agencies.Add(agency);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return AgencyCreationPersistenceResult.Succeeded;
+        }
+        catch (DbUpdateException exception)
+            when (IsSlugUniqueViolation(exception))
+        {
+            _dbContext.ChangeTracker.Clear();
+
+            return AgencyCreationPersistenceResult.SlugAlreadyExists;
+        }
+    }
+
+    private static bool IsSlugUniqueViolation(
+        DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException postgresException &&
+            postgresException.SqlState == PostgresErrorCodes.UniqueViolation &&
+            string.Equals(
+                postgresException.ConstraintName,
+                SlugUniqueIndexName,
+                StringComparison.Ordinal);
     }
 
     public async Task<Agency?> GetByIdReadOnlyAsync(
