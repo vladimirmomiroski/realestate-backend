@@ -150,6 +150,7 @@ public sealed class ApiFailureContractTests
 
     [Theory]
     [InlineData("/api/health")]
+    [InlineData("/api/health/readiness")]
     [InlineData("/api/health/database")]
     public async Task UnsupportedHealthMethod_ReturnsCanonicalProblemAndPreservesAllow(
         string path)

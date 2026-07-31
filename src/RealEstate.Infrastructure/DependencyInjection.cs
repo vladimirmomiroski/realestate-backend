@@ -2,10 +2,12 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Application.Agencies.Repositories;
+using RealEstate.Application.Common.Health;
 using RealEstate.Application.Common.Security;
 using RealEstate.Application.Common.Storage;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Application.Users.Repositories;
+using RealEstate.Infrastructure.Health;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
 using RealEstate.Infrastructure.Security;
@@ -25,6 +27,10 @@ public static class DependencyInjection
 
         services.AddDbContext<RealEstateDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddScoped<
+            IDatabaseReadinessProbe,
+            DatabaseReadinessProbe>();
 
         services.AddScoped<IListingRepository, ListingRepository>();
 
