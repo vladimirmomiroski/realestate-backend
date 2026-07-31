@@ -359,7 +359,9 @@ public sealed class AgencyLogoFailureContractTests
         IAgencyRepository inner,
         AgencyLogoFailureProbe probe) : IAgencyRepository
     {
-        public Task CreateAsync(Agency agency, CancellationToken cancellationToken) =>
+        public Task<AgencyCreationPersistenceResult> CreateAsync(
+            Agency agency,
+            CancellationToken cancellationToken) =>
             inner.CreateAsync(agency, cancellationToken);
 
         public Task<Agency?> GetByIdReadOnlyAsync(
