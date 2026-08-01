@@ -87,13 +87,35 @@ Current backend phase:
 Chapter 9 and its 9L documentation cleanup are complete.
 Chapter 10 — Search and Discovery Phase 2 is complete.
 Chapter 11 — Data Integrity and Targeted Hardening is complete.
-Frontend work has not started yet.
+Chapter 12 — API Consistency, Observability, and Frontend Readiness is complete.
+No Chapter 12 implementation task remains.
+The next product phase is frontend foundation and implementation.
 ```
 
 Current test state:
 
 ```text
-704/704 tests passing
+1001 passed
+0 failed
+0 skipped
+query-review build: 0 warnings, 0 errors
+solution build: 0 warnings, 0 errors
+15 migrations
+pending model: clean
+```
+
+Current frontend integration baseline:
+
+```text
+Canonical API failures use documented ProblemDetails schemas with stable codes and request correlation.
+X-Request-ID is returned on API, health, and served-media responses.
+HTTP pagination uses the unified PagedResponse<T> contract.
+Invitation lists apply effective expiry without writing on read.
+GET /api/health is dependency-free liveness.
+GET /api/health/readiness and GET /api/health/database are PostgreSQL readiness routes.
+CORS binds Cors:AllowedOrigins and fails closed when no origins are configured.
+Uploaded-media URLs remain API-relative /uploads/... paths, and the tracked wwwroot placeholder supports clean checkout.
+OpenAPI is structurally tested; Bearer requirements are operation-derived and Swagger middleware remains Development-only.
 ```
 
 ## 4. Tech stack
@@ -362,7 +384,7 @@ Current status behavior:
 PendingVerification users can create drafts and agencies.
 PendingVerification users cannot publish listings.
 Disabled users are blocked from profile/avatar mutations, listing creation and status transitions, and protected agency/dashboard actions.
-Listing image mutations currently enforce authenticated creator ownership but do not separately reload/check User.Status.
+Listing-image mutations reload the current user and enforce the established status policy in addition to ownership or agency permission checks.
 Disabled users may still read their own profile.
 ```
 
@@ -459,7 +481,7 @@ listing owner
 User.Status == Active
 Draft -> Active
 Active -> Active idempotent
-Archived -> 400
+Archived -> 409 Conflict
 ```
 
 Agency publish:
@@ -564,6 +586,8 @@ yard-area range
 The effective translation is selected deterministically by requested language, then `mk`, then PostgreSQL `C` language ordering and translation UUID. Structured location and `q` predicates use that one effective row; `%`, `_`, and `\` are escaped as literal characters.
 
 Comparable listings use an Active source and Active candidates, same listing/property type and currency, positive price/area, effective-language/city eligibility, and the locked six-key deterministic order. Coordinates are validated as an all-or-nothing pair and by latitude/longitude range.
+
+All four paged listing HTTP surfaces return the unified `PagedResponse<ListingResponse>` contract with `items`, `page`, `pageSize`, `totalCount`, `totalPages`, `hasNextPage`, and `hasPreviousPage`. `PagedResult<T>` is internal repository data only. Offset pagination is retained; private listing paths use deterministic `CreatedAtUtc DESC, Id DESC` ordering.
 
 Final query-shape work completed:
 
@@ -761,6 +785,10 @@ Accept and cancel serialize terminal transitions on the invitation row.
 Membership creation and Pending -> Accepted commit atomically.
 An elapsed Pending invitation can be expired and replaced atomically.
 Concurrent creates retain at most one live stored Pending invitation.
+List reads capture one UTC value and present stored Pending invitations with ExpiresAtUtc <= utcNow as Expired.
+The Pending list filter returns only stored Pending invitations with ExpiresAtUtc > utcNow.
+The Expired list filter returns stored Expired invitations plus elapsed/equal stored Pending invitations.
+Effective list presentation is no-tracking and write-free; accept, cancel, and replacement actions retain their established persisted transitions.
 ```
 
 List responses do not expose token or code.
@@ -882,13 +910,13 @@ Approve
 PendingVerification -> Active
 Rejected            -> Active
 Active              -> Active idempotent
-Disabled            -> 400
+Disabled            -> 409 Conflict
 
 Reject
 PendingVerification -> Rejected
 Rejected            -> Rejected idempotent
-Active              -> 400
-Disabled            -> 400
+Active              -> 409 Conflict
+Disabled            -> 409 Conflict
 
 Disable
 PendingVerification -> Disabled
@@ -968,12 +996,26 @@ existing AgencyId indexes are sufficient for now
 
 ## 18. Current endpoint overview
 
+### Cross-cutting HTTP contract
+
+```text
+Non-health API failures use concrete canonical ProblemDetails schemas.
+Validation failures add field/root errors; all canonical failures expose code and traceId.
+Documented responses expose X-Request-ID, and 401 responses document WWW-Authenticate.
+Bearer security metadata is derived per operation from AllowAnonymous/Authorize metadata.
+Swagger middleware and UI remain Development-only.
+The generated OpenAPI document is structurally tested for security, errors, pagination, string enums, multipart uploads, relative media paths, and health.
+```
+
 ### Health
 
 ```http
 GET /api/health
+GET /api/health/readiness
 GET /api/health/database
 ```
+
+`GET /api/health` is anonymous dependency-free process liveness. The readiness and database-alias routes are anonymous PostgreSQL probes with identical `200` ready and sanitized `503` unavailable semantics.
 
 ### Auth
 
@@ -1071,7 +1113,7 @@ pg_trgm extension
 IX_ListingTranslations_Q_Trigram four-column GIN index
 ```
 
-Chapter 11 added no schema or migration. The repository remains at 15 committed migrations, and final zero-to-latest PostgreSQL verification, repeat update, catalog inspection, and pending-model verification all passed.
+Chapters 11 and 12 added no schema or migration. The repository remains at 15 committed migrations. The authoritative zero-to-latest PostgreSQL verification, repeat update, and catalog inspection passed, and the Chapter 12 closeout independently confirmed no pending model changes.
 
 Enums are stored as strings in PostgreSQL through EF Core conversions.
 
@@ -1099,6 +1141,8 @@ Current local storage areas:
 ```
 
 `wwwroot/uploads` is ignored by Git.
+
+The tracked `src/RealEstate.Api/wwwroot/.gitkeep` guarantees the static-media root exists in a clean checkout. `LocalFileStorageService` creates `uploads` and deeper directories only when saving; public URLs remain API-relative `/uploads/...` paths.
 
 All three local save areas use one residue-free write primitive: copy to a unique same-directory temporary file, dispose the completed stream, then publish with a non-overwriting move. Failed and cancelled copies remove the operation-owned temporary file.
 
@@ -1147,6 +1191,13 @@ deterministic owner, invitation, and listing-image PostgreSQL lock races
 invitation and image transaction rollback at injected persistence boundaries
 local-file failure/cancellation residue cleanup
 listing-image database/filesystem compensation boundaries
+canonical ProblemDetails failures, stable error codes, and X-Request-ID correlation
+single-owner unexpected-exception and request-completion logging
+operation-derived OpenAPI security, canonical schemas, pagination, multipart, media, and health metadata
+unified PagedResponse<T> pagination across all four listing-page endpoints
+effective invitation-expiry presentation and no-write read behavior
+liveness and PostgreSQL readiness, including timeout and client-abort behavior
+fail-closed configurable CORS and isolated clean-checkout upload-to-static delivery
 ```
 
 ## 21. Development workflow
@@ -1213,26 +1264,37 @@ Do not expand Manager permissions without explicit product rules.
 ### Invitation expiration consistency
 
 ```text
-CH11-STATE-02 remains accepted.
-Dashboard summary counts only actionable Pending invitations.
-Invitation-list behavior is primarily status-based.
-A pending row may remain Pending until an action marks it Expired.
-Review consistency only if it becomes a real product issue.
+CH11-STATE-02 is resolved for reads.
+Elapsed/equal stored Pending invitations are presented and filtered as effectively Expired.
+Reads remain no-write; accept, cancel, and replacement actions still own persisted expiry transitions.
+Dashboard summary continues to count only actionable Pending invitations.
 ```
 
 ### Error contracts
 
 ```text
-Controllers currently map ServiceResult statuses manually.
-Error response shapes are not yet fully standardized.
-Address in Chapter 12.
+Chapter 12 established one canonical ProblemDetails contract for API failures.
+Known application conflicts map to 409 with stable machine codes.
+Unexpected failures have one exception owner and one structured Error log.
+Request completion has one structured Information log with X-Request-ID correlation.
 ```
 
 ### Pagination and query contracts
 
 ```text
-Pagination conventions exist but are not yet globally standardized.
-Review in Chapter 12.
+PagedResponse<T> is the only HTTP pagination carrier.
+PagedResult<T> remains an internal repository read carrier.
+All four listing pagination operations share the seven-member response contract.
+Cursor pagination remains deferred until scale or product evidence justifies a breaking sort-specific design.
+```
+
+### Production JWT configuration
+
+```text
+C12-CONFIG-01 remains unresolved.
+The base appsettings.json local JWT placeholder can flow to non-Development hosts.
+Production secret relocation and startup validation belong to Chapter 13 or explicit deployment hardening.
+Chapter 12 frontend readiness does not certify production secret configuration.
 ```
 
 ### Search/query growth
@@ -1255,8 +1317,8 @@ Cloud/object storage is deferred until deployment needs justify it.
 ### Current completed milestone and next work
 
 ```text
-Completed: Chapter 11 — Data Integrity and Targeted Hardening
-Next: Chapter 12 — API Consistency, Observability, and Frontend Readiness
+Completed: Chapter 12 — API Consistency, Observability, and Frontend Readiness
+Next product phase: Frontend foundation and implementation
 ```
 
 Chapter 10 completion includes:
@@ -1279,7 +1341,18 @@ residue-free local writes and listing-image upload compensation
 704/704 passing tests
 ```
 
-### Backend chapters before frontend
+Chapter 12 completion includes:
+
+```text
+canonical API failures, normalized conflicts, request IDs, and structured completion/error logging
+unified HTTP pagination and effective invitation-expiry presentation
+dependency-free liveness and PostgreSQL readiness
+configurable fail-closed CORS and clean-checkout static media
+operation-accurate, structurally tested OpenAPI and safe developer request samples
+1001/1001 passing tests, clean builds, 15 migrations, and no pending model changes
+```
+
+### Completed backend chapters before frontend
 
 ```text
 Chapter 11 — Data Integrity and Targeted Hardening
@@ -1287,7 +1360,7 @@ Chapter 11 — Data Integrity and Targeted Hardening
 Chapter 12 — API Consistency, Observability, and Frontend Readiness
 ```
 
-Then begin frontend development.
+Frontend foundation and implementation is now the next product phase.
 
 ### Later planned backend chapters
 
@@ -1340,17 +1413,18 @@ fresh migration, repeat-update, pending-model, and catalog verification
 
 ### Chapter 12 — API Consistency, Observability, and Frontend Readiness
 
-Likely focus:
+Completed capabilities:
 
 ```text
-ProblemDetails / consistent errors
-global exception handling
-structured logging
-correlation/request IDs
-pagination consistency
-OpenAPI cleanup
-CORS/configuration review
-frontend-safe contracts
+canonical ProblemDetails, stable error codes, and deliberate 409 conflicts
+single-owner exception handling and structured request-completion logging
+X-Request-ID response/body/log correlation
+unified PagedResponse<T> pagination and deterministic private pages
+effective invitation-expiry presentation without write-on-read
+dependency-free liveness and PostgreSQL readiness
+Cors:AllowedOrigins fail-closed configuration and clean-checkout static media
+operation-derived Bearer metadata and structurally tested OpenAPI
+safe, current developer HTTP samples
 ```
 
 ### Chapter 13 — Authentication and Account Security Phase 2
@@ -1408,8 +1482,7 @@ Use read-only review for important features.
 Current next task:
 
 ```text
-Begin Chapter 12 — API Consistency, Observability, and Frontend Readiness.
-Begin frontend development after Chapter 12.
+Begin frontend foundation and implementation against the completed Chapter 12 contract.
 ```
 
 After frontend development begins, backend defects discovered through real integration may be handled on focused bugfix branches with regression tests. They must not silently expand a completed chapter or an unrelated current chapter.

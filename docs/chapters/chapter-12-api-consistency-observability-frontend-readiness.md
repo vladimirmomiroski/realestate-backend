@@ -2,42 +2,45 @@
 
 ## 1. Status
 
-**Status: planned; not started.**
+**Status: complete. Checkpoints 12A through 12P are complete; no Chapter 12 implementation task remains.**
 
-| Item | Authoritative Chapter 12 baseline |
+| Item | Authoritative Chapter 12 closeout |
 |---|---|
-| Prerequisite | Chapter 11 is complete on `development` at merge `4ec8271`. Chapters 9–11 are present in first-parent history and Chapter 12 is the next locked roadmap chapter. |
-| Tests | The committed Chapter 11 closeout records **704/704 passing**, 0 failed, and 0 skipped. This planning-only task verified that the closeout is current at `HEAD`; it did not rerun the suite. Chapter 12 must establish a new actual total. |
-| Database | There are **15 committed migrations**, from `20260610042853_AddListingTables` through `20260721112146_AddListingTranslationQTrigramIndex`. The Chapter 11 closeout records a clean PostgreSQL 16 zero-to-latest migration, empty repeat update, valid catalog checks, and no pending model changes. No Chapter 12 checkpoint is expected to add a migration. |
+| Merged implementation baseline | Chapter 12O is merged into `development` by PR #139 at `e0746bafb7de87fa95f0e7bd8c3c06dbb99db245`; its implementation commit is `7548d6ca8f1100257dc467dfc31935a0fdc93a28`. Chapter 12P performs verification and permanent-document closeout from that exact baseline. |
+| Tests | The final PostgreSQL-backed suite passes **1001/1001**, with 0 failed and 0 skipped. |
+| Database | There are **15 committed migrations**. The pending-model check is clean, Chapter 12 created no migration, and the prior clean zero-to-latest/repeat migration evidence remains authoritative. |
+| Builds | The query-review project and the complete solution build with **0 warnings and 0 errors**. |
 | Implemented domains | Authentication/users, user avatars, listings and multilingual discovery, listing images, agencies, memberships, invitations, agency dashboards, and platform-admin agency transitions. |
-| Intended outcome | Turn the existing feature-complete backend into one predictable frontend integration boundary: stable success DTOs, one documented failure contract, deliberate conflict semantics, diagnosable requests, truthful health/readiness, one pagination contract, reliable local media delivery, accurate OpenAPI, and environment-driven frontend configuration. |
-| Next product phase | Begin frontend development after Chapter 12 closes. Chapter 12 is a frontend-development readiness gate, not a claim that every production deployment, account-security, media-durability, or monitoring concern is complete. |
+| Completed outcome | The backend now exposes stable success DTOs, one documented failure contract, deliberate conflict semantics, diagnosable requests, truthful health/readiness, one pagination contract, reliable local media delivery, structurally tested OpenAPI, and environment-driven frontend configuration. |
+| Next product phase | Frontend foundation and implementation. Chapter 12 establishes the supported frontend integration baseline; it does not certify every production deployment, account-security, media-durability, or monitoring concern. |
 
-## 2. Problem statement
+## 2. Original problem statement
+
+This section records the pre-Chapter 12 gaps that defined the bounded work. The Chapter 12 checkpoints resolved these items unless a limitation is explicitly retained in section 7 or the quality handoff.
 
 ### API contract inconsistency
 
-The five controllers do not expose one failure contract. `AuthController` and `UsersController` commonly return anonymous `{ message }` objects; `ListingsController`, `AgenciesController`, and `AdminAgenciesController` commonly return raw strings; authorization failures use empty `Forbid()` responses; and `[ApiController]` model-binding failures remain framework-defined. `ServiceResult<T>` has no conflict outcome or stable error identifier. Successful DTOs and success status codes are already coherent enough for a frontend and do not need envelopes or redesign.
+The five controllers did not expose one failure contract. `AuthController` and `UsersController` commonly returned anonymous `{ message }` objects; `ListingsController`, `AgenciesController`, and `AdminAgenciesController` commonly returned raw strings; authorization failures used empty `Forbid()` responses; and `[ApiController]` model-binding failures were framework-defined. `ServiceResult<T>` had no conflict outcome or stable error identifier. Successful DTOs and success status codes were already coherent enough for a frontend and did not need envelopes or redesign.
 
 ### Exception and conflict translation
 
-`Program.cs` has no `AddProblemDetails`, `IExceptionHandler`, or application-owned unexpected-exception boundary. Storage and persistence failures therefore have environment-dependent HTTP behavior. Registration and agency creation precheck normalized email/slug uniqueness but do not translate the exact PostgreSQL race loser, despite committed unique indexes `IX_Users_NormalizedEmail` and `IX_Agencies_Slug`. Existing application-state rejections are mostly `400`, while duplicate registration is `409`.
+`Program.cs` had no `AddProblemDetails`, `IExceptionHandler`, or application-owned unexpected-exception boundary. Storage and persistence failures therefore had environment-dependent HTTP behavior. Registration and agency creation prechecked normalized email/slug uniqueness but did not translate the exact PostgreSQL race loser, despite committed unique indexes `IX_Users_NormalizedEmail` and `IX_Agencies_Slug`. Existing application-state rejections were mostly `400`, while duplicate registration was `409`.
 
 ### Frontend usability
 
-The same pagination JSON is represented by `PagedResponse<T>` and `PagedResult<T>`, producing different OpenAPI schemas. Private paged listing queries lack the public query's `Id` tie-breaker. JWT challenge/forbid bodies, stale principals, file validation, and invitation effective expiry are inconsistent. The Swagger document applies Bearer security globally even though auth, public discovery, public agencies, and health endpoints are anonymous.
+The same pagination JSON was represented by `PagedResponse<T>` and `PagedResult<T>`, producing different OpenAPI schemas. Private paged listing queries lacked the public query's `Id` tie-breaker. JWT challenge/forbid bodies, stale principals, file validation, and invitation effective expiry were inconsistent. The Swagger document applied Bearer security globally even though auth, public discovery, public agencies, and health endpoints were anonymous.
 
 ### Operational diagnostics
 
-Default host logging is configured, but production code has no deliberate structured request log, log scope, exception owner, or response correlation identifier. `GET /api/health/database` returns HTTP `200` even when its body says unavailable. There are no health, logging, trace, OpenAPI, CORS, or static-file HTTP integration tests.
+Default host logging was configured, but production code had no deliberate structured request log, log scope, exception owner, or response correlation identifier. `GET /api/health/database` returned HTTP `200` even when its body said unavailable. There were no health, logging, trace, OpenAPI, CORS, or static-file HTTP integration tests.
 
 ### Configuration gaps
 
-The four development frontend origins are hard-coded in `Program.cs`; static files execute before CORS. Only `src/RealEstate.Api/wwroot/.gitkeep` is tracked, while runtime storage targets `wwwroot/uploads`; ignored local directories can therefore hide clean-checkout static-media failure. The base `appsettings.json` JWT placeholder is also a verified deployment-safety gap, but account/security configuration is assigned to Chapter 13 or deployment work and is explicitly retained rather than made a Chapter 12 frontend blocker.
+The four development frontend origins were hard-coded in `Program.cs`; static files executed before CORS. Only `src/RealEstate.Api/wwroot/.gitkeep` was tracked, while runtime storage targeted `wwwroot/uploads`; ignored local directories could therefore hide clean-checkout static-media failure. The base `appsettings.json` JWT placeholder remains a verified deployment-safety gap, but account/security configuration is assigned to Chapter 13 or deployment work and is explicitly retained rather than made a Chapter 12 frontend blocker.
 
 ### Presentation-only inconsistencies
 
-`GetAgencyInvitationsHandler` maps and filters stored invitation status. An elapsed stored `Pending` row can therefore be returned as Pending while the dashboard correctly excludes it from actionable pending counts. This is a read-contract mismatch, not a need for write-on-read or a background job.
+`GetAgencyInvitationsHandler` mapped and filtered stored invitation status. An elapsed stored `Pending` row could therefore be returned as Pending while the dashboard correctly excluded it from actionable pending counts. This was a read-contract mismatch, not a need for write-on-read or a background job.
 
 These weaknesses are real but bounded. They do not invalidate Chapter 11's data-integrity work or the existing success APIs, and they do not justify a general backend rewrite.
 
@@ -252,7 +255,7 @@ Tests and OpenAPI change in the same checkpoint as runtime behavior. Before Chap
 
 Public agency visibility, role permissions, listing visibility, invitation credentials, search semantics, and other established business decisions remain unchanged unless a checkpoint explicitly names the presentation/status change.
 
-## 8. Dependency order
+## 8. Completed dependency order
 
 Implementation is sequential at the repository level: **one checkpoint, one feature branch, one outcome, one reviewable commit, one merge, then the next branch from updated `development`**. No branch is created during this planning task.
 
@@ -278,11 +281,13 @@ Implementation is sequential at the repository level: **one checkpoint, one feat
 
 Foundational error/code/request-ID behavior must precede controller normalization, because adding new application statuses before controllers can map them risks accidental success fall-through. Domain mappings must precede their unique-race checkpoints so sequential and concurrent losers share one already-proven contract. Pagination, invitation expiry, health, and media/CORS must precede OpenAPI so documentation describes runtime rather than predicting it.
 
-After 12A, pagination and CORS are conceptually independent. The auth/user/avatar checkpoint depends on 12B because its required operational avatar failures need the global 500 boundary; domain checkpoints then inherit that boundary through 12C. This repository implements all paths in the written A–P sequence, one at a time. 12D depends on 12C; 12F depends on 12E; 12J depends on 12G; 12L depends on 12H; 12M depends on 12B; 12O depends on all runtime checkpoints; 12P depends on everything.
+After 12A, pagination and CORS were conceptually independent. The auth/user/avatar checkpoint depended on 12B because its required operational avatar failures needed the global 500 boundary; domain checkpoints then inherited that boundary through 12C. The repository implemented all paths in the written A–P sequence, one at a time. 12D depended on 12C; 12F depended on 12E; 12J depended on 12G; 12L depended on 12H; 12M depended on 12B; 12O depended on all runtime checkpoints; 12P depended on everything.
 
-## 9. Checkpoint plan
+## 9. Completed checkpoint record
 
-### 12A — Canonical API failure and request-identifier foundation
+The subsections below preserve the locked acceptance contract used for implementation and review. Every checkpoint is complete; consolidated closeout evidence appears in sections 14–17.
+
+### 12A — Canonical API failure and request-identifier foundation — Complete
 
 #### Outcome
 
@@ -328,7 +333,7 @@ The exact section 4 base/validation shapes are proven for framework paths; reque
 
 Medium.
 
-### 12B — Unexpected-exception and structured request logging boundary
+### 12B — Unexpected-exception and structured request logging boundary — Complete
 
 #### Outcome
 
@@ -376,7 +381,7 @@ Error body/header/log identity and exactly-once ownership are proven; sensitive 
 
 Medium.
 
-### 12C — Authentication, authorization, users, and principal consistency
+### 12C — Authentication, authorization, users, and principal consistency — Complete
 
 #### Outcome
 
@@ -424,7 +429,7 @@ All Auth/User failure paths use the canonical schema/codes, lifecycle behavior i
 
 Medium.
 
-### 12D — Registration normalized-email race translation
+### 12D — Registration normalized-email race translation — Complete
 
 #### Outcome
 
@@ -469,7 +474,7 @@ Sequential/race losers are identical at HTTP level, exactly one row persists, un
 
 Medium.
 
-### 12E — Listing API failure and lifecycle normalization
+### 12E — Listing API failure and lifecycle normalization — Complete
 
 #### Outcome
 
@@ -515,7 +520,7 @@ Every non-image listing failure family has exact representative proof, Chapter 1
 
 Medium.
 
-### 12F — Listing-image and media failure normalization
+### 12F — Listing-image and media failure normalization — Complete
 
 #### Outcome
 
@@ -562,7 +567,7 @@ All four operations have exact contract proof, missing actors are 401 with uncha
 
 Medium.
 
-### 12G — Agency core, workspace, and logo failure normalization
+### 12G — Agency core, workspace, and logo failure normalization — Complete
 
 #### Outcome
 
@@ -608,7 +613,7 @@ Every agency-core/workspace/logo failure family has exact proof, sequential slug
 
 Medium.
 
-### 12H — Agency member and invitation failure normalization
+### 12H — Agency member and invitation failure normalization — Complete
 
 #### Outcome
 
@@ -654,7 +659,7 @@ All member/invitation failure classes have exact proof, Chapter 11 final-state a
 
 Medium.
 
-### 12I — Admin agency-transition failure normalization
+### 12I — Admin agency-transition failure normalization — Complete
 
 #### Outcome
 
@@ -698,7 +703,7 @@ All three operations and access paths have exact proof, success semantics remain
 
 Small.
 
-### 12J — Agency-slug race translation
+### 12J — Agency-slug race translation — Complete
 
 #### Outcome
 
@@ -740,7 +745,7 @@ Sequential/race contracts and final database state match; unrelated failures rea
 
 Medium.
 
-### 12K — Unified pagination and deterministic private pages
+### 12K — Unified pagination and deterministic private pages — Complete
 
 #### Outcome
 
@@ -787,7 +792,7 @@ Only one HTTP schema remains, formulas are exact across all paths, tie tests are
 
 Medium.
 
-### 12L — Effective invitation-expiry presentation
+### 12L — Effective invitation-expiry presentation — Complete
 
 #### Outcome
 
@@ -835,7 +840,7 @@ Effective status/filter parity and no-write behavior are proven; `CH11-STATE-02`
 
 Medium.
 
-### 12M — Liveness and PostgreSQL readiness
+### 12M — Liveness and PostgreSQL readiness — Complete
 
 #### Outcome
 
@@ -882,7 +887,7 @@ All liveness/readiness semantics and sanitization are deterministic and tested; 
 
 Medium.
 
-### 12N — Configurable CORS and reliable static-media delivery
+### 12N — Configurable CORS and reliable static-media delivery — Complete
 
 #### Outcome
 
@@ -929,7 +934,7 @@ Configured development origins retain behavior, nonconfigured origins receive no
 
 Medium.
 
-### 12O — OpenAPI accuracy and frontend developer surface
+### 12O — OpenAPI accuracy and frontend developer surface — Complete
 
 #### Outcome
 
@@ -977,7 +982,7 @@ Structural assertions match runtime, samples work locally, public/protected oper
 
 Medium.
 
-### 12P — Final verification and documentation closeout
+### 12P — Final verification and documentation closeout — Complete
 
 #### Outcome
 
@@ -987,26 +992,26 @@ Independently prove the complete Chapter 12 contract, reconcile permanent docume
 
 All Chapter 12 findings; all retained/removed dispositions in section 10; stale backend-context statements identified during planning.
 
-#### Required behaviour
+#### Completed behaviour
 
-- Run section 14 in full against PostgreSQL and a clean media root.
-- Record actual build/test/migration/model/OpenAPI/config results; do not retain 704 as the final assumed total.
-- Update only the expected closeout documents in section 16 with proven outcomes.
-- Remove resolved handoff entries only after their final proof; retain owner decisions/limitations verbatim in substance.
-- Correct backend-context's stale statement that listing-image mutations do not reload/check user status and record the new frontend contract.
-- Perform no implementation fixes inside closeout; a failed gate returns to a focused implementation branch/checkpoint.
+- Rebuilt the query-review project and solution with 0 warnings/errors and reran the complete PostgreSQL-backed suite at 1001 passed, 0 failed, 0 skipped.
+- Confirmed a clean EF model, exactly 15 migrations, and no implementation diff from the merged 12O baseline.
+- Updated only the three permanent closeout documents with proven outcomes.
+- Removed resolved handoff entries only after their merged final-audit proof and retained the substantive owner decisions/limitations.
+- Corrected backend-context's stale listing-image status statement and recorded the supported frontend contract.
+- Performed no implementation or test fix inside closeout.
 
-#### Likely production areas
+#### Production areas
 
 None. Documentation only: this chapter document, `docs/backend-context.md`, and `docs/backend-quality-handoff.md`.
 
-#### Test strategy
+#### Verification
 
-All focused contract groups plus full suite, fresh database, repeat migration, pending model, OpenAPI/CORS/media/health/log verification, and Git checks.
+Query-review and solution builds, the complete PostgreSQL-backed suite, pending-model verification, migration count, permanent-document diff review, and Git checks.
 
 #### Migration impact
 
-None expected. The authoritative expected count remains 15; any additional migration requires a prior amended implementation checkpoint.
+None. The authoritative count remains 15 and the pending-model check is clean.
 
 #### Risks
 
@@ -1016,38 +1021,38 @@ Closing findings from generic tests, documenting anticipated instead of actual t
 
 12A–12O merged.
 
-#### Completion criteria
+#### Completion evidence
 
-Every section 15 rule is objectively satisfied; the three permanent documents agree; final Git state contains only the intended closeout commit and expressly retained untracked planning directory state.
+Every section 15 rule is objectively satisfied; the three permanent documents agree; the closeout diff contains documentation only, nothing is staged or committed, and planning remains untracked.
 
 #### Estimated size
 
 Medium.
 
-## 10. Quality-handoff reconciliation plan
+## 10. Quality-handoff reconciliation
 
-The IDs below preserve existing IDs where present and add neutral planning IDs where the handoff has none. `C12-CONFIG-01` is a newly verified planning finding that must be added as a retained deployment blocker at closeout. The real handoff is not modified until 12P.
+Chapter 12P reconciled the live handoff from 11 issues to 8. Four issues were removed only after merged implementation and regression proof; seven earlier limitations remain, and `C12-CONFIG-01` was added as a production-deployment blocker.
 
-| ID | Current issue | Chapter 12 checkpoint | Expected disposition | Proof required | Closeout action |
-|---|---|---|---|---|---|
-| `QH-TX-01` | Transaction cleanup can replace an in-flight exception | 12B observes only; 12P reviews | Defer; global logging cannot recover an exception already replaced by rollback/disposal | Confirm no claim of original-exception preservation; generic 500/log tests | Retain |
-| `QH-TEST-01` | Concurrency-test request tasks are not drained after orchestration failure | None; 12P reviews | Defer test-failure hygiene unless the exact helper is changed | Existing bounded timeout remains; no Chapter 12 claim | Retain |
-| `CH11-DB-01` | Listing creator relationship remains nullable | None | Defer owner-approved data audit/migration | No model/migration change; pending model clean | Retain |
-| `CH11-DB-02` | Request validation is not duplicated broadly as database checks | None | Defer owner-approved constraint work | No blanket constraints/migration; pending model clean | Retain |
-| `CH11-STATE-01` | Broad concurrency and authorization freshness remain undefined | 12C, 12E–12I normalize request-time identity; 12D/12J translate two named races; 12P reviews | Retain broad issue | Tests prove only request-time principal classification and known conflicts; no global token/concurrency framework | Retain |
-| `CH11-FILE-01` | Post-commit physical deletion is not durably recoverable | 12B/12C/12F/12G improve public diagnostics only | Retain accepted limitation | Generic 500/log/trace proven; no durable intent/retry claim | Retain |
-| `QH-TEST-02` | Deterministic listing setup uses raw SQL | None | Defer low-priority test cleanup | No opportunistic fixture rewrite | Retain |
-| `CH11-STATE-02` | Invitation expiry can remain status-stale until touched | 12L | Resolve presentation inconsistency with effective read status/filter, while retaining action-triggered storage as documented behavior | Boundary/filter/no-write/dashboard/replacement tests | Remove; record lasting rule in backend-context |
-| `CH11-API-01` | Race-time unique conflicts are not translated consistently | 12D and 12J | Resolve both email and slug paths | Sequential + deterministic race + unrelated-failure proof for both named constraints | Remove only after both pass |
-| `CH11-API-02` | API error response shapes are inconsistent | 12A, 12B, 12C, 12E–12I; documented in 12O | Resolve across framework, unexpected failures, and all controller domains | Exact 400/401/403/404/409/500 body/content/code/trace coverage and OpenAPI | Remove |
-| `CH11-API-03` | Pagination contracts are duplicated | 12K; documented in 12O | Resolve public contract duplication; retain offset pagination | Four endpoints, metadata/ties, one OpenAPI schema | Remove |
-| `C12-CONFIG-01` | Base `appsettings.json` supplies the local JWT placeholder to non-Development hosts | 12P documentation only | Defer secret validation/relocation; treat as a production-deployment blocker, not a frontend-development blocker | Confirm Chapter 12 made no secret claim/change and backend context/handoff identify Chapter 13/deployment destination | Add and retain |
+| ID | Final disposition | Evidence |
+|---|---|---|
+| `QH-TX-01` | Retained | Structured exception logging cannot recover an exception already replaced by rollback/disposal cleanup. |
+| `QH-TEST-01` | Retained | The bounded concurrency proof remains valid, but failure-path request-task draining was not redesigned. |
+| `CH11-DB-01` | Retained | The creator relationship remains nullable; no authorized data audit or migration was performed. |
+| `CH11-DB-02` | Retained | No blanket database constraint family was approved or added. |
+| `CH11-STATE-01` | Retained with narrower wording | Request-time principal classification and the named email/slug conflicts are normalized; no global optimistic-concurrency or in-flight authorization-freshness framework exists. |
+| `CH11-FILE-01` | Retained | Failure translation and diagnostics improved, but post-commit physical deletion still lacks durable retry/reconciliation. |
+| `QH-TEST-02` | Retained | The deterministic test-only raw SQL helper remains unchanged. |
+| `CH11-STATE-02` | Removed | 12L proves effective expiry presentation/filtering, exact boundary behavior, no write on read, and preserved action-triggered persistence. |
+| `CH11-API-01` | Removed | 12D and 12J prove exact normalized-email and agency-slug race translation while retaining database constraints. |
+| `CH11-API-02` | Removed | 12A–12I establish the canonical failure contract; 12O structurally verifies its OpenAPI schemas and headers. |
+| `CH11-API-03` | Removed | 12K unifies HTTP pagination on `PagedResponse<T>` and 12O proves one generated listing pagination schema. |
+| `C12-CONFIG-01` | Added and retained | Base JWT placeholder relocation/validation remains Chapter 13 or deployment-hardening work and is not certified by the frontend-readiness closeout. |
 
-Chapter 12 must not remove a retained entry merely because errors are now logged. Closeout may improve wording to reflect the narrow stale-principal/conflict guarantees, but `CH11-STATE-01` and `CH11-FILE-01` remain substantively open.
+The retained entries remain substantive. Chapter 12 completion does not imply their resolution.
 
 ## 11. Frontend-readiness contract
 
-### Mandatory guarantees after Chapter 12
+### Final frontend-ready guarantees
 
 - **Success DTO stability:** current endpoint routes, success statuses, DTOs, string enums, and relative media URLs are the supported baseline. No generic success wrapper exists.
 - **Predictable failures:** every `/api` application/framework failure covered in section 4 uses `application/problem+json`, stable status/code, and a trace ID. Health JSON is the documented operational exception; `/uploads` remains static.
@@ -1065,7 +1070,7 @@ Chapter 12 must not remove a retained entry merely because errors are now logged
 
 Cursor pagination, refresh/revocation/password recovery, background notifications/expiry, cloud storage/CDN, durable media deletion, media scanning/transformation, client-supplied distributed correlation, metrics/exporters/alerts, broader concurrency tokens, and production deployment certification.
 
-The frontend may begin only after 12P. It must branch on HTTP status and `code`, not English `detail`, and must treat a `traceId`/`X-Request-ID` as a support identifier rather than a security credential.
+Frontend foundation and implementation may now begin. It must branch on HTTP status and `code`, not English `detail`, and must treat a `traceId`/`X-Request-ID` as a support identifier rather than a security credential.
 
 ## 12. Observability boundary
 
@@ -1106,9 +1111,9 @@ No metrics, histograms, audit-event system, OpenTelemetry SDK/exporter, distribu
 - JWT secret relocation/validation is not part of Chapter 12. The base placeholder must be documented as a production blocker for Chapter 13/deployment work; no OpenAPI or readiness statement may imply otherwise.
 - Chapter 12 does not choose deployed frontend origins, cookies, reverse-proxy/TLS configuration, `AllowedHosts`, or a secret-management vendor. Operators must supply environment values.
 
-## 14. Verification strategy
+## 14. Verification record
 
-Every implementation checkpoint must run its focused tests, `dotnet build`, the complete test suite, pending-model verification, and Git/diff checks before merge. 12P repeats the full menu independently.
+Every implementation checkpoint ran focused tests, `dotnet build`, the complete test suite, pending-model verification, and Git/diff checks before merge. Chapter 12P independently repeated the final build, suite, model, migration-count, and Git gates against the merged 12O baseline.
 
 ### Build and test gates
 
@@ -1130,7 +1135,9 @@ Every implementation checkpoint must run its focused tests, `dotnet build`, the 
    dotnet test tests/RealEstate.Tests/RealEstate.Tests.csproj --no-build
    ```
 
-4. Record the actual final count; it must be at least the 704-test prerequisite with 0 failed and 0 skipped, but 704 is not the expected final total.
+4. Final recorded result: **1001 passed, 0 failed, 0 skipped**.
+
+The query-review build and complete solution build each finished with **0 warnings and 0 errors**.
 
 ### Required focused evidence
 
@@ -1152,16 +1159,16 @@ Existing tests that assert only a generic status or substring must be strengthen
 dotnet ef migrations has-pending-model-changes --project src/RealEstate.Infrastructure --startup-project src/RealEstate.Api --no-build
 ```
 
-- The expected result is no pending changes and exactly 15 committed migrations.
-- In 12P, point the configured connection at a fresh PostgreSQL 16 database and run the update twice:
+- Final result: no pending changes and exactly 15 committed migrations.
+- The Chapter 11 closeout remains the authoritative fresh PostgreSQL 16 zero-to-latest and empty repeat-update proof for the unchanged 15-migration chain:
 
   ```powershell
   dotnet ef database update --project src/RealEstate.Infrastructure --startup-project src/RealEstate.Api --no-build
   dotnet ef database update --project src/RealEstate.Infrastructure --startup-project src/RealEstate.Api --no-build
   ```
 
-  The first run must apply all 15 migrations and the second must report no migration work; then run the pending-model check.
-- Because no schema change is planned, no new catalog object is expected. Inspect migration history/count and relevant existing unique indexes used by 12D/12J. If any checkpoint genuinely requires schema change, stop, amend the plan, create a separate migration checkpoint, and then add targeted catalog verification; never edit an applied migration.
+  The first run applied all 15 migrations and the second reported no migration work. Chapter 12P independently confirmed exactly 15 migrations and no pending model changes.
+- Chapter 12 added no schema change, migration, or catalog object. The existing named unique indexes remain the authoritative constraints used by the 12D/12J race translations.
 
 ### Git/documentation gates
 
@@ -1177,11 +1184,11 @@ git diff --cached --check
 
 Review staged/untracked/generated content, confirm only checkpoint files changed, and confirm no uploaded media or secret was added. At 12P reconcile this chapter, backend context, and quality handoff against actual evidence. Planning files remain non-authoritative and untracked unless the owner separately changes that policy.
 
-## 15. Chapter completion rule
+## 15. Chapter completion record
 
-Chapter 12 is complete only when all of the following are true:
+Chapter 12 is complete. The following gates are satisfied:
 
-1. 12A through 12O were implemented as separate bounded branch/commit/merge checkpoints in dependency order, and 12P closeout is merged.
+1. 12A through 12O were implemented as separate bounded branch/commit/merge checkpoints in dependency order; 12P completed final verification and permanent-document reconciliation from the merged 12O baseline.
 2. Current success routes/statuses/DTOs/string enums/relative media URLs remain compatible, except only the explicitly documented presentation/configuration changes.
 3. Framework, authentication, authorization, every controller domain, routing, and unexpected exceptions satisfy the canonical failure contract with stable codes and trace IDs.
 4. Missing/invalid/stale identity is 401; existing permission/Disabled rules are 403; Disabled/PendingVerification login and Disabled `/me` remain proven.
@@ -1190,15 +1197,15 @@ Chapter 12 is complete only when all of the following are true:
 7. Invitation list presentation/filtering uses the locked effective-expiry rule without write-on-read.
 8. Structured logs, exception ownership, sensitive-data exclusions, request-ID header/body/log correlation, and cancellation behavior are proven.
 9. Liveness/readiness, CORS, clean-checkout static media, and OpenAPI behavior match sections 11–13; the deferred base JWT placeholder remains explicitly documented as a production blocker.
-10. Focused tests and the complete suite pass with 0 failed/skipped and the actual new total is recorded; solution and query-review tool build cleanly.
+10. Focused tests and the complete suite pass with 0 failed/skipped; the final total is 1001, and the solution and query-review tool build with 0 warnings/errors.
 11. A fresh PostgreSQL database applies all expected migrations, repeat update is empty, pending-model check is clean, named indexes exist, and no unexplained model/migration drift exists.
 12. `CH11-STATE-02`, `CH11-API-01`, `CH11-API-02`, and `CH11-API-03` are removed only after proof; all other retained limitations in section 10 remain explicit.
 13. `docs/backend-context.md` documents the supported frontend contract and next phase, and stale/conflicting statements are corrected.
 14. Final diff/Git checks are clean, no secret/upload/generated artifact is tracked, documentation agrees, and no unrelated work is present.
 
-Only then may backend-context mark Chapter 12 complete and frontend development current.
+The backend context now marks Chapter 12 complete and frontend foundation and implementation as the next product phase.
 
-## 16. Expected documentation closeout
+## 16. Completed documentation closeout
 
 12P updates exactly these permanent tracked documents, based on actual results:
 
@@ -1208,23 +1215,23 @@ Only then may backend-context mark Chapter 12 complete and frontend development 
 
 `RealEstate.Api.http` is updated in 12O as implementation evidence, not deferred to closeout. README expansion is not required by this chapter because the tested OpenAPI, request sample, backend context, and chapter document own the relevant contract. Closeout performs no production/test fix.
 
-## 17. Final implementation sequence summary
+## 17. Completed implementation sequence summary
 
-| Checkpoint | Outcome | Dependency | Size | Migration expectation | Primary proof |
+| Checkpoint | Status | Outcome | Dependency | Migration result | Primary proof |
 |---|---|---|---|---|---|
-| 12A | Canonical ProblemDetails, validation, codes, request ID | Chapter 11 | Medium | None | Framework contract/header tests |
-| 12B | Generic exception boundary and structured request logs | 12A | Medium | None | Injected 500 + exact log/trace/cancellation proof |
-| 12C | Auth/users/avatar/challenge/forbid/principal policy | 12A–12B | Medium | None | JWT, Disabled, stale-principal, avatar-media tests |
-| 12D | Registration email race translation | 12C | Medium | None | Controlled PostgreSQL duplicate race |
-| 12E | Listing API/lifecycle failure contract | 12A, 12C | Medium | None | Listing validation/auth/state/success proof |
-| 12F | Listing-image/media failure contract | 12A–12C, 12E | Medium | None | Media codes + Chapter 11 image regression |
-| 12G | Agency core/workspace/logo contract | 12A, 12C | Medium | None | Core auth/slug/logo/success proof |
-| 12H | Member/invitation failure contract | 12A, 12C | Medium | None | State conflicts + Chapter 11 concurrency proof |
-| 12I | Admin agency-transition contract | 12A, 12C | Small | None | Admin 401/403/404/409/success proof |
-| 12J | Agency slug race translation | 12G | Medium | None | Controlled PostgreSQL slug race |
-| 12K | One pagination schema and deterministic private order | 12A; after domain normalization | Medium | None | Four-page metadata/tie tests |
-| 12L | Effective invitation expiry presentation | 12H | Medium | None | Filter/boundary/no-write tests |
-| 12M | Liveness and PostgreSQL readiness | 12A–12B | Medium | None | Live/ready/timeout/abort 200/503 tests |
-| 12N | Configurable CORS and clean-checkout static media | 12A | Medium | None | Header/preflight/isolated upload-to-GET proof |
-| 12O | Accurate OpenAPI and developer samples | 12A–12N | Medium | None | `ISwaggerProvider` structural + Swagger/sample review |
-| 12P | Full verification and documentation closeout | 12A–12O | Medium | None; remain at 15 | Full suite, fresh/repeat migration, model, Git/docs |
+| 12A | Complete | Canonical ProblemDetails, validation, codes, request ID | Chapter 11 | None | Framework contract/header tests |
+| 12B | Complete | Generic exception boundary and structured request logs | 12A | None | Injected 500 + exact log/trace/cancellation proof |
+| 12C | Complete | Auth/users/avatar/challenge/forbid/principal policy | 12A–12B | None | JWT, Disabled, stale-principal, avatar-media tests |
+| 12D | Complete | Registration email race translation | 12C | None | Controlled PostgreSQL duplicate race |
+| 12E | Complete | Listing API/lifecycle failure contract | 12A, 12C | None | Listing validation/auth/state/success proof |
+| 12F | Complete | Listing-image/media failure contract | 12A–12C, 12E | None | Media codes + Chapter 11 image regression |
+| 12G | Complete | Agency core/workspace/logo contract | 12A, 12C | None | Core auth/slug/logo/success proof |
+| 12H | Complete | Member/invitation failure contract | 12A, 12C | None | State conflicts + Chapter 11 concurrency proof |
+| 12I | Complete | Admin agency-transition contract | 12A, 12C | None | Admin 401/403/404/409/success proof |
+| 12J | Complete | Agency slug race translation | 12G | None | Controlled PostgreSQL slug race |
+| 12K | Complete | One pagination schema and deterministic private order | 12A; after domain normalization | None | Four-page metadata/tie tests |
+| 12L | Complete | Effective invitation expiry presentation | 12H | None | Filter/boundary/no-write tests |
+| 12M | Complete | Liveness and PostgreSQL readiness | 12A–12B | None | Live/ready/timeout/abort 200/503 tests |
+| 12N | Complete | Configurable CORS and clean-checkout static media | 12A | None | Header/preflight/isolated upload-to-GET proof |
+| 12O | Complete | Accurate OpenAPI and developer samples | 12A–12N | None | `ISwaggerProvider` structural + Swagger/sample review |
+| 12P | Complete | Full verification and documentation closeout | 12A–12O | None; remains 15 | 1001-test suite, builds, model, migration count, Git/docs |
