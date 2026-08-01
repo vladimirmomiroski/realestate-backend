@@ -16,6 +16,7 @@ using RealEstate.Application.Listings.Commands.PublishListing;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
 using RealEstate.Application.Listings.Commands.ArchiveListing;
 using RealEstate.Application.Listings.Queries.GetComparableListings;
+using RealEstate.Api.Errors;
 
 namespace RealEstate.Api.Controllers;
 
@@ -38,6 +39,7 @@ public sealed class ListingsController : ControllerBase
     private readonly UnpublishListingHandler _unpublishListingHandler;
     private readonly ArchiveListingHandler _archiveListingHandler;
     private readonly GetComparableListingsHandler _getComparableListingsHandler;
+    private readonly ApiFailureService _failureService;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
@@ -51,7 +53,8 @@ public sealed class ListingsController : ControllerBase
         GetMyListingsHandler getMyListingsHandler,  
         PublishListingHandler publishListingHandler,
         UnpublishListingHandler unpublishListingHandler,
-        ArchiveListingHandler archiveListingHandler
+        ArchiveListingHandler archiveListingHandler,
+        ApiFailureService failureService
         )
     {
         _createListingHandler = createListingHandler;
@@ -66,6 +69,7 @@ public sealed class ListingsController : ControllerBase
         _publishListingHandler = publishListingHandler;
         _unpublishListingHandler = unpublishListingHandler;
         _archiveListingHandler = archiveListingHandler;
+        _failureService = failureService;
         
     }
 
@@ -76,36 +80,34 @@ public sealed class ListingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ListingResponse>> CreateListing(
+    public async Task<IActionResult> CreateListing(
     [FromBody] CreateListingRequest request,
     CancellationToken cancellationToken)
     {
         var result = await _createListingHandler.HandleAsync(request, cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
+        switch (result.Status)
         {
-            return BadRequest(result.Error);
-        }
+            case ServiceResultStatus.Success:
+                ListingResponse response = result.Value
+                    ?? throw new InvalidOperationException(
+                        "A successful create-listing result must provide a value.");
 
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
+                return CreatedAtRoute(
+                    GetListingByIdRouteName,
+                    new { id = response.Id, lang = response.LanguageCode ?? "mk" },
+                    response);
 
-        if (result.Status == ServiceResultStatus.Unauthorized)
-        {
-            return Unauthorized(result.Error);
-        }
+            case ServiceResultStatus.ValidationError:
+            case ServiceResultStatus.NotFound:
+            case ServiceResultStatus.Unauthorized:
+            case ServiceResultStatus.Forbidden:
+                return CreateFailureResult(result);
 
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
+            default:
+                throw new InvalidOperationException(
+                    "The create-listing result was not mapped.");
         }
-
-        return CreatedAtRoute(
-            GetListingByIdRouteName,
-            new { id = result.Value!.Id, lang = result.Value.LanguageCode ?? "mk" },
-            result.Value);
     }
 
     [HttpGet]
@@ -113,7 +115,7 @@ public sealed class ListingsController : ControllerBase
     typeof(PagedResponse<ListingResponse>),
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<PagedResponse<ListingResponse>>> GetListings(
+    public async Task<IActionResult> GetListings(
         [FromQuery] string lang = "mk",
         [FromQuery] string? q = null,
         [FromQuery] ListingType? listingType = null,
@@ -179,19 +181,22 @@ public sealed class ListingsController : ControllerBase
                 query,
                 cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
-        }
-
-        return Ok(result.Value);
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful listing-search result must provide a value.")),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The listing-search result was not mapped.")
+        };
     }
 
     [Authorize]
     [HttpGet("my")]
-    [ProducesResponseType(typeof(PagedResult<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResponse<ListingResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<PagedResult<ListingResponse>>> GetMyListings(
+    public async Task<IActionResult> GetMyListings(
     [FromQuery] string? lang,
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 20,
@@ -202,28 +207,39 @@ public sealed class ListingsController : ControllerBase
             page,
             pageSize);
 
-        PagedResult<ListingResponse> result =
+        ServiceResult<PagedResponse<ListingResponse>> result =
             await _getMyListingsHandler.HandleAsync(query, cancellationToken);
 
-        return Ok(result);
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful my-listings result must provide a value.")),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The my-listings result was not mapped.")
+        };
     }
 
     [HttpGet("{id:guid}", Name = GetListingByIdRouteName)]
     [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ListingResponse>> GetListingById(
+    public async Task<IActionResult> GetListingById(
         Guid id,
         [FromQuery] string lang = "mk",
         CancellationToken cancellationToken = default)
     {
         var result = await _getListingByIdHandler.HandleAsync(id, lang, cancellationToken);
 
-        if (result.Status == ServiceResultStatus.NotFound)
+        return result.Status switch
         {
-            return NotFound(result.Error);
-        }
-
-        return Ok(result.Value);
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful listing-details result must provide a value.")),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The listing-details result was not mapped.")
+        };
     }
 
     [HttpGet("{id:guid}/comparables")]
@@ -232,7 +248,7 @@ public sealed class ListingsController : ControllerBase
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IReadOnlyList<ListingResponse>>>
+    public async Task<IActionResult>
     GetComparableListings(
         Guid id,
         [FromQuery] string lang = "mk",
@@ -251,19 +267,16 @@ public sealed class ListingsController : ControllerBase
                 query,
                 cancellationToken);
 
-        if (result.Status ==
-            ServiceResultStatus.ValidationError)
+        return result.Status switch
         {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status ==
-            ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        return Ok(result.Value);
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful comparable-listings result must provide a value.")),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The comparable-listings result was not mapped.")
+        };
     }
 
     [Authorize]
@@ -273,7 +286,8 @@ public sealed class ListingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ListingResponse>> PublishListing(
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PublishListing(
     Guid id,
     [FromQuery] string? lang,
     CancellationToken cancellationToken)
@@ -282,22 +296,7 @@ public sealed class ListingsController : ControllerBase
             new PublishListingCommand(id, lang),
             cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
-        {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Ok(result.Value);
+        return MapLifecycleResult(result, "publish-listing");
     }
 
     [Authorize]
@@ -307,7 +306,8 @@ public sealed class ListingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ListingResponse>> UnpublishListing(
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UnpublishListing(
     Guid id,
     [FromQuery] string? lang,
     CancellationToken cancellationToken)
@@ -316,22 +316,7 @@ public sealed class ListingsController : ControllerBase
             new UnpublishListingCommand(id, lang),
             cancellationToken);
 
-        if (result.Status == ServiceResultStatus.ValidationError)
-        {
-            return BadRequest(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.NotFound)
-        {
-            return NotFound(result.Error);
-        }
-
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Ok(result.Value);
+        return MapLifecycleResult(result, "unpublish-listing");
     }
 
     [Authorize]
@@ -341,7 +326,8 @@ public sealed class ListingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ListingResponse>> ArchiveListing(
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ArchiveListing(
     Guid id,
     [FromQuery] string? lang,
     CancellationToken cancellationToken)
@@ -350,22 +336,57 @@ public sealed class ListingsController : ControllerBase
             new ArchiveListingCommand(id, lang),
             cancellationToken);
 
+        return MapLifecycleResult(result, "archive-listing");
+    }
+
+    private IActionResult MapLifecycleResult(
+        ServiceResult<ListingResponse> result,
+        string operation)
+    {
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    $"A successful {operation} result must provide a value.")),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                $"The {operation} result was not mapped.")
+        };
+    }
+
+    private IActionResult CreateFailureResult<T>(ServiceResult<T> result)
+    {
         if (result.Status == ServiceResultStatus.ValidationError)
         {
-            return BadRequest(result.Error);
+            return _failureService.CreateValidationResult(
+                HttpContext,
+                result.ValidationKey ?? throw new InvalidOperationException(
+                    "A validation result must provide a validation key."),
+                result.Error ?? throw new InvalidOperationException(
+                    "A validation result must provide an error."),
+                result.ErrorCode ?? throw new InvalidOperationException(
+                    "A validation result must provide an error code."));
         }
 
-        if (result.Status == ServiceResultStatus.NotFound)
+        string errorCode = result.ErrorCode ?? throw new InvalidOperationException(
+            "A failure result must provide an error code.");
+
+        return CreateFailureResult(errorCode);
+    }
+
+    private IActionResult CreateFailureResult(string errorCode)
+    {
+        if (errorCode == ErrorCodes.AuthenticationInvalidPrincipal)
         {
-            return NotFound(result.Error);
+            Response.Headers["WWW-Authenticate"] = "Bearer";
         }
 
-        if (result.Status == ServiceResultStatus.Forbidden)
-        {
-            return Forbid();
-        }
-
-        return Ok(result.Value);
+        return _failureService.CreateResult(
+            HttpContext,
+            ApiFailureDescriptor.ForCode(errorCode));
     }
 
     [Authorize]
@@ -376,6 +397,7 @@ public sealed class ListingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UploadImage(
     Guid id,
     IFormFile? file,
@@ -395,21 +417,50 @@ public sealed class ListingsController : ControllerBase
             new UploadListingImageCommand(id, uploadedFile),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return Created($"/api/listings/{id}/images/{result.Image!.Id}", result.Image);
-        }
-
         return result.Error switch
         {
-            UploadListingImageError.ListingNotFound => NotFound(),
-            UploadListingImageError.NotListingOwner => Forbid(),
-            UploadListingImageError.FileMissing => BadRequest("Image file is required."),
-            UploadListingImageError.FileEmpty => BadRequest("Image file is empty."),
-            UploadListingImageError.FileTooLarge => BadRequest("Image file cannot be larger than 5 MB."),
-            UploadListingImageError.InvalidFileType => BadRequest("Only JPG, JPEG, PNG, and WEBP images are allowed."),
-            UploadListingImageError.ImageLimitReached => BadRequest("Listing cannot have more than 20 images."),
-            _ => BadRequest("Image upload failed.")
+            UploadListingImageError.None when result.Image is not null =>
+                Created(
+                    $"/api/listings/{id}/images/{result.Image.Id}",
+                    result.Image),
+            UploadListingImageError.None => throw new InvalidOperationException(
+                "A successful image upload result requires an image."),
+            UploadListingImageError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            UploadListingImageError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            UploadListingImageError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            UploadListingImageError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            UploadListingImageError.FileMissing =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Image file is required.",
+                    ErrorCodes.ValidationFileRequired),
+            UploadListingImageError.FileEmpty =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Image file is empty.",
+                    ErrorCodes.ValidationFileEmpty),
+            UploadListingImageError.FileTooLarge =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Image file cannot be larger than 5 MB.",
+                    ErrorCodes.ValidationFileTooLarge),
+            UploadListingImageError.InvalidFileType =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "file",
+                    "Only JPG, JPEG, PNG, and WEBP images are allowed.",
+                    ErrorCodes.ValidationFileTypeNotSupported),
+            UploadListingImageError.ImageLimitReached =>
+                CreateFailureResult(ErrorCodes.ConflictResourceCapacity),
+            _ => throw new InvalidOperationException(
+                $"The image upload result '{result.Error}' was not mapped.")
         };
     }
 
@@ -428,17 +479,21 @@ public sealed class ListingsController : ControllerBase
             new DeleteListingImageCommand(listingId, imageId),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return NoContent();
-        }
-
         return result.Error switch
         {
-            DeleteListingImageError.ListingNotFound => NotFound("Listing was not found."),
-            DeleteListingImageError.NotListingOwner => Forbid(),
-            DeleteListingImageError.ImageNotFound => NotFound("Image was not found."),
-            _ => BadRequest("Image delete failed.")
+            DeleteListingImageError.None => NoContent(),
+            DeleteListingImageError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            DeleteListingImageError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            DeleteListingImageError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            DeleteListingImageError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            DeleteListingImageError.ImageNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            _ => throw new InvalidOperationException(
+                $"The image delete result '{result.Error}' was not mapped.")
         };
     }
 
@@ -457,17 +512,24 @@ public sealed class ListingsController : ControllerBase
             new SetPrimaryListingImageCommand(listingId, imageId),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return Ok(result.Image);
-        }
-
         return result.Error switch
         {
-            SetPrimaryListingImageError.ListingNotFound => NotFound("Listing was not found."),
-            SetPrimaryListingImageError.NotListingOwner => Forbid(),
-            SetPrimaryListingImageError.ImageNotFound => NotFound("Image was not found."),
-            _ => BadRequest("Set primary image failed.")
+            SetPrimaryListingImageError.None when result.Image is not null =>
+                Ok(result.Image),
+            SetPrimaryListingImageError.None => throw new InvalidOperationException(
+                "A successful set-primary result requires an image."),
+            SetPrimaryListingImageError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            SetPrimaryListingImageError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            SetPrimaryListingImageError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            SetPrimaryListingImageError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            SetPrimaryListingImageError.ImageNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            _ => throw new InvalidOperationException(
+                $"The set-primary result '{result.Error}' was not mapped.")
         };
     }
 
@@ -478,6 +540,7 @@ public sealed class ListingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ReorderImages(
     Guid listingId,
     [FromBody] ReorderListingImagesRequest request,
@@ -487,18 +550,36 @@ public sealed class ListingsController : ControllerBase
             new ReorderListingImagesCommand(listingId, request.ImageIds),
             cancellationToken);
 
-        if (result.Succeeded)
-        {
-            return Ok(result.Images);
-        }
-
         return result.Error switch
         {
-            ReorderListingImagesError.ListingNotFound => NotFound("Listing was not found."),
-            ReorderListingImagesError.NotListingOwner => Forbid(),
-            ReorderListingImagesError.ImageIdsMissing => BadRequest("Image ids are required."),
-            ReorderListingImagesError.ImageSetMismatch => BadRequest("Image ids must match the listing images."),
-            _ => BadRequest("Image reorder failed.")
+            ReorderListingImagesError.None when result.Images.Count > 0 =>
+                Ok(result.Images),
+            ReorderListingImagesError.None => throw new InvalidOperationException(
+                "A successful image reorder result requires images."),
+            ReorderListingImagesError.ListingNotFound =>
+                CreateFailureResult(ErrorCodes.ResourceNotFound),
+            ReorderListingImagesError.InvalidPrincipal =>
+                CreateFailureResult(ErrorCodes.AuthenticationInvalidPrincipal),
+            ReorderListingImagesError.AccountDisabled =>
+                CreateFailureResult(ErrorCodes.AuthorizationAccountDisabled),
+            ReorderListingImagesError.NotListingOwner =>
+                CreateFailureResult(ErrorCodes.AuthorizationForbidden),
+            ReorderListingImagesError.ImageIdsMissing =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "imageIds",
+                    "Image ids are required.",
+                    ErrorCodes.ValidationFailed),
+            ReorderListingImagesError.DuplicateImageIds =>
+                _failureService.CreateValidationResult(
+                    HttpContext,
+                    "imageIds",
+                    "Image ids must not contain duplicates.",
+                    ErrorCodes.ValidationFailed),
+            ReorderListingImagesError.ImageSetMismatch =>
+                CreateFailureResult(ErrorCodes.ConflictResourceSetChanged),
+            _ => throw new InvalidOperationException(
+                $"The image reorder result '{result.Error}' was not mapped.")
         };
     }
 }

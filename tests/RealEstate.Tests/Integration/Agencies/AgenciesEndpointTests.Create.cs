@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Application.Common;
+using RealEstate.Tests.Integration.Api;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -33,6 +35,11 @@ public sealed partial class AgenciesEndpointTests
             JsonElement json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
             json.GetProperty("id").GetGuid().Should().NotBeEmpty();
+            Guid createdAgencyId = json.GetProperty("id").GetGuid();
+            response.Headers.Location.Should().NotBeNull();
+            response.Headers.Location!.IsAbsoluteUri.Should().BeFalse();
+            response.Headers.Location.OriginalString.Should()
+                .Be($"/api/agencies/{createdAgencyId}");
             json.GetProperty("name").GetString().Should().Be("Dom Real Estate");
             json.GetProperty("slug").GetString().Should().StartWith("dom-real-estate-");
             json.GetProperty("status").GetString().Should().Be("PendingVerification");
@@ -104,7 +111,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task CreateAgency_WithDuplicateSlug_ReturnsBadRequest()
+    public async Task CreateAgency_WithDuplicateSlug_ReturnsCanonicalConflict()
     {
         AuthenticatedTestUser user =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -129,11 +136,11 @@ public sealed partial class AgenciesEndpointTests
                 "/api/agencies",
                 secondRequest);
 
-            secondResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-            string error = await secondResponse.Content.ReadAsStringAsync();
-
-            error.Should().Contain("Agency slug already exists.");
+            await ApiFailureAssertions.AssertProblemAsync(
+                secondResponse,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictAgencySlugAlreadyExists,
+                "/api/agencies");
         }
         finally
         {

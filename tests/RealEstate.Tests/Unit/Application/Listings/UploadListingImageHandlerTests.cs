@@ -1704,6 +1704,15 @@ public sealed class UploadListingImageHandlerTests
                 nameof(AddAsync));
         }
 
+        public Task<UserRegistrationPersistenceResult>
+            PersistRegistrationAsync(
+                User user,
+                CancellationToken cancellationToken)
+        {
+            throw UnexpectedCall(
+                nameof(PersistRegistrationAsync));
+        }
+
         public Task SaveChangesAsync(
             CancellationToken cancellationToken)
         {

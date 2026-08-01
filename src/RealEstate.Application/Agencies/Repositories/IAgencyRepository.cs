@@ -4,6 +4,12 @@ using RealEstate.Domain.Enums;
 
 namespace RealEstate.Application.Agencies.Repositories;
 
+public enum AgencyCreationPersistenceResult
+{
+    Succeeded,
+    SlugAlreadyExists
+}
+
 public interface IAgencyOwnerMutationScope : IAsyncDisposable
 {
     Task CommitAsync(CancellationToken cancellationToken);
@@ -11,7 +17,7 @@ public interface IAgencyOwnerMutationScope : IAsyncDisposable
 
 public interface IAgencyRepository
 {
-    Task CreateAsync(
+    Task<AgencyCreationPersistenceResult> CreateAsync(
         Agency agency,
         CancellationToken cancellationToken);
 

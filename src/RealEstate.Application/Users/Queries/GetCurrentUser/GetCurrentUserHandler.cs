@@ -26,7 +26,8 @@ public sealed class GetCurrentUserHandler
         if (!_currentUserService.IsAuthenticated || _currentUserService.UserId is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         var user = await _userRepository.GetByIdReadOnlyAsync(
@@ -36,7 +37,8 @@ public sealed class GetCurrentUserHandler
         if (user is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         return ServiceResult<UserProfileResponse>.Success(

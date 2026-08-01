@@ -328,7 +328,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task CancelAgencyInvitation_ShouldReturnBadRequest_WhenInvitationIsAccepted()
+    public async Task CancelAgencyInvitation_ShouldReturnConflict_WhenInvitationIsAccepted()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -351,7 +351,9 @@ public sealed partial class AgenciesEndpointTests
                 null);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                $"/api/agencies/{agencyId}/invitations/{seed.InvitationId}/cancel");
         }
         finally
         {
@@ -360,7 +362,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task CancelAgencyInvitation_ShouldReturnBadRequest_WhenInvitationIsCancelled()
+    public async Task CancelAgencyInvitation_ShouldReturnConflict_WhenInvitationIsCancelled()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -383,7 +385,9 @@ public sealed partial class AgenciesEndpointTests
                 null);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                $"/api/agencies/{agencyId}/invitations/{seed.InvitationId}/cancel");
         }
         finally
         {
@@ -392,7 +396,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task CancelAgencyInvitation_ShouldReturnBadRequest_WhenInvitationIsExpired()
+    public async Task CancelAgencyInvitation_ShouldReturnConflict_WhenInvitationIsExpired()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -415,7 +419,9 @@ public sealed partial class AgenciesEndpointTests
                 null);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                $"/api/agencies/{agencyId}/invitations/{seed.InvitationId}/cancel");
         }
         finally
         {
@@ -447,7 +453,9 @@ public sealed partial class AgenciesEndpointTests
                 null);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                $"/api/agencies/{agencyId}/invitations/{seed.InvitationId}/cancel");
         }
         finally
         {

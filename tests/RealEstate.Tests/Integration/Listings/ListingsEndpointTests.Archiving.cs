@@ -146,7 +146,7 @@ public sealed partial class ListingsEndpointTests
     [InlineData(ListingStatus.Reserved)]
     [InlineData(ListingStatus.Sold)]
     [InlineData(ListingStatus.Rented)]
-    public async Task ArchiveListing_ShouldReturnBadRequest_WhenPersonalListingStatusCannotBeArchived(
+    public async Task ArchiveListing_ShouldReturnConflict_WhenPersonalListingStatusCannotBeArchived(
         ListingStatus listingStatus)
     {
         // Arrange
@@ -165,7 +165,7 @@ public sealed partial class ListingsEndpointTests
                 await _httpClient.PutAsync($"/api/listings/{listingId}/archive", null);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         }
         finally
         {

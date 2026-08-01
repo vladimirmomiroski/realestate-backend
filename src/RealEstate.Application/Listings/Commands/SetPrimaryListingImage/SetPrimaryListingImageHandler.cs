@@ -43,18 +43,34 @@ public sealed class SetPrimaryListingImageHandler
         {
             var listing = writeScope.Listing;
 
-            Guid userId = _currentUserService.UserId
-                ?? throw new InvalidOperationException(
-                    "Authenticated user id is not available.");
+            Guid? currentUserId = _currentUserService.UserId;
+
+            if (!currentUserId.HasValue)
+            {
+                return SetPrimaryListingImageResult.Failure(
+                    SetPrimaryListingImageError.InvalidPrincipal);
+            }
+
+            Guid userId = currentUserId.Value;
 
             var actor =
                 await _userRepository.GetByIdReadOnlyAsync(
                     userId,
                     cancellationToken);
 
-            if (actor is null ||
-                actor.Status == UserStatus.Disabled ||
-                listing.CreatedByUserId != userId)
+            if (actor is null)
+            {
+                return SetPrimaryListingImageResult.Failure(
+                    SetPrimaryListingImageError.InvalidPrincipal);
+            }
+
+            if (actor.Status == UserStatus.Disabled)
+            {
+                return SetPrimaryListingImageResult.Failure(
+                    SetPrimaryListingImageError.AccountDisabled);
+            }
+
+            if (listing.CreatedByUserId != userId)
             {
                 return SetPrimaryListingImageResult.Failure(
                     SetPrimaryListingImageError.NotListingOwner);

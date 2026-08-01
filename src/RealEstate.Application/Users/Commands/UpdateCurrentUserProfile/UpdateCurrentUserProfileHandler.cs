@@ -31,14 +31,8 @@ public sealed class UpdateCurrentUserProfileHandler
         if (!_currentUserService.IsAuthenticated || _currentUserService.UserId is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
-        }
-
-        ServiceResult<UserProfileResponse>? validationResult = Validate(command);
-
-        if (validationResult is not null)
-        {
-            return validationResult;
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         var user = await _userRepository.GetByIdForUpdateAsync(
@@ -48,13 +42,22 @@ public sealed class UpdateCurrentUserProfileHandler
         if (user is null)
         {
             return ServiceResult<UserProfileResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (user.Status == UserStatus.Disabled)
         {
             return ServiceResult<UserProfileResponse>.Forbidden(
-                "Disabled users cannot update profile.");
+                "Disabled users cannot update profile.",
+                ErrorCodes.AuthorizationAccountDisabled);
+        }
+
+        ServiceResult<UserProfileResponse>? validationResult = Validate(command);
+
+        if (validationResult is not null)
+        {
+            return validationResult;
         }
 
         user.UpdateProfile(
@@ -74,32 +77,42 @@ public sealed class UpdateCurrentUserProfileHandler
         if (string.IsNullOrWhiteSpace(command.FirstName))
         {
             return ServiceResult<UserProfileResponse>.ValidationError(
-                "First name is required.");
+                "First name is required.",
+                "firstName",
+                ErrorCodes.ValidationFailed);
         }
 
         if (command.FirstName.Trim().Length > FirstNameMaxLength)
         {
             return ServiceResult<UserProfileResponse>.ValidationError(
-                "First name cannot be longer than 100 characters.");
+                "First name cannot be longer than 100 characters.",
+                "firstName",
+                ErrorCodes.ValidationFailed);
         }
 
         if (string.IsNullOrWhiteSpace(command.LastName))
         {
             return ServiceResult<UserProfileResponse>.ValidationError(
-                "Last name is required.");
+                "Last name is required.",
+                "lastName",
+                ErrorCodes.ValidationFailed);
         }
 
         if (command.LastName.Trim().Length > LastNameMaxLength)
         {
             return ServiceResult<UserProfileResponse>.ValidationError(
-                "Last name cannot be longer than 100 characters.");
+                "Last name cannot be longer than 100 characters.",
+                "lastName",
+                ErrorCodes.ValidationFailed);
         }
 
         if (command.PhoneNumber is not null &&
             command.PhoneNumber.Trim().Length > PhoneNumberMaxLength)
         {
             return ServiceResult<UserProfileResponse>.ValidationError(
-                "Phone number cannot be longer than 50 characters.");
+                "Phone number cannot be longer than 50 characters.",
+                "phoneNumber",
+                ErrorCodes.ValidationFailed);
         }
 
         return null;

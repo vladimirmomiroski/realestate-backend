@@ -20,11 +20,21 @@ public sealed class UploadListingImageResult
 
     public static UploadListingImageResult Success(ListingImageResponse image)
     {
+        ArgumentNullException.ThrowIfNull(image);
+
         return new UploadListingImageResult(image, UploadListingImageError.None);
     }
 
     public static UploadListingImageResult Failure(UploadListingImageError error)
     {
+        if (error == UploadListingImageError.None || !Enum.IsDefined(error))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(error),
+                error,
+                "A failure result requires a defined non-success error.");
+        }
+
         return new UploadListingImageResult(null, error);
     }
 }

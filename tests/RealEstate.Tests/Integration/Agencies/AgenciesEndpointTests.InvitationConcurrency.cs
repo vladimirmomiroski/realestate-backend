@@ -62,15 +62,9 @@ public sealed partial class AgenciesEndpointTests
             firstResponse.StatusCode.Should()
                 .Be(HttpStatusCode.OK);
 
-            secondResponse.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
-
-            string secondBody =
-                await secondResponse.Content
-                    .ReadAsStringAsync();
-
-            secondBody.Should().Contain(
-                "Invitation has already been accepted.");
+            await AssertResourceStateConflictAsync(
+                secondResponse,
+                "/api/agencies/invitations/accept");
         }
 
         InvitationCommittedState state =
@@ -142,15 +136,10 @@ public sealed partial class AgenciesEndpointTests
             acceptResponse.StatusCode.Should()
                 .Be(HttpStatusCode.OK);
 
-            cancelResponse.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
-
-            string cancelBody =
-                await cancelResponse.Content
-                    .ReadAsStringAsync();
-
-            cancelBody.Should().Contain(
-                "Accepted invitation cannot be cancelled.");
+            await AssertResourceStateConflictAsync(
+                cancelResponse,
+                $"/api/agencies/{seed.AgencyId}" +
+                $"/invitations/{seed.InvitationId}/cancel");
         }
 
         InvitationCommittedState state =
@@ -219,25 +208,14 @@ public sealed partial class AgenciesEndpointTests
         using (cancelResponse)
         {
             // Assert
-            acceptResponse.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                acceptResponse,
+                "/api/agencies/invitations/accept");
 
-            cancelResponse.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
-
-            string acceptBody =
-                await acceptResponse.Content
-                    .ReadAsStringAsync();
-
-            string cancelBody =
-                await cancelResponse.Content
-                    .ReadAsStringAsync();
-
-            acceptBody.Should().Contain(
-                "Expired invitation cannot be accepted.");
-
-            cancelBody.Should().Contain(
-                "Expired invitation cannot be cancelled.");
+            await AssertResourceStateConflictAsync(
+                cancelResponse,
+                $"/api/agencies/{seed.AgencyId}" +
+                $"/invitations/{seed.InvitationId}/cancel");
         }
 
         InvitationCommittedState state =
@@ -284,15 +262,9 @@ public sealed partial class AgenciesEndpointTests
         using (response)
         {
             // Assert
-            response.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
-
-            string responseBody =
-                await response.Content
-                    .ReadAsStringAsync();
-
-            responseBody.Should().Contain(
-                "User is already a member of this agency.");
+            await AssertResourceStateConflictAsync(
+                response,
+                "/api/agencies/invitations/accept");
         }
 
         InvitationCommittedState state =
@@ -366,15 +338,9 @@ public sealed partial class AgenciesEndpointTests
             acceptResponse.StatusCode.Should()
                 .Be(HttpStatusCode.OK);
 
-            createResponse.StatusCode.Should()
-                .Be(HttpStatusCode.BadRequest);
-
-            string createBody =
-                await createResponse.Content
-                    .ReadAsStringAsync();
-
-            createBody.Should().Contain(
-                "User is already a member of this agency.");
+            await AssertResourceStateConflictAsync(
+                createResponse,
+                $"/api/agencies/{seed.AgencyId}/invitations");
         }
 
         InvitationCommittedState state =
@@ -487,7 +453,7 @@ public sealed partial class AgenciesEndpointTests
                 new[]
                 {
                 HttpStatusCode.Created,
-                HttpStatusCode.BadRequest
+                HttpStatusCode.Conflict
                 });
 
             HttpResponseMessage winnerResponse =
@@ -498,7 +464,7 @@ public sealed partial class AgenciesEndpointTests
 
             HttpResponseMessage loserResponse =
                 firstResponse.StatusCode ==
-                HttpStatusCode.BadRequest
+                HttpStatusCode.Conflict
                     ? firstResponse
                     : secondResponse;
 
@@ -509,12 +475,9 @@ public sealed partial class AgenciesEndpointTests
             winnerInvitationId =
                 winnerJson.GetProperty("id").GetGuid();
 
-            string loserBody =
-                await loserResponse.Content
-                    .ReadAsStringAsync();
-
-            loserBody.Should().Contain(
-                "A pending invitation already exists for this email.");
+            await AssertResourceStateConflictAsync(
+                loserResponse,
+                $"/api/agencies/{agencyId}/invitations");
         }
 
         using IServiceScope assertionScope =

@@ -36,7 +36,8 @@ public sealed class CreateAgencyHandler
             _currentUserService.UserId is not Guid userId)
         {
             return ServiceResult<AgencyResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         User? currentUser = await _userRepository.GetByIdReadOnlyAsync(
@@ -46,20 +47,26 @@ public sealed class CreateAgencyHandler
         if (currentUser is null)
         {
             return ServiceResult<AgencyResponse>.Unauthorized(
-                "Current user could not be resolved.");
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (currentUser.Status == UserStatus.Disabled)
         {
             return ServiceResult<AgencyResponse>.Forbidden(
-                "Disabled users cannot create agencies.");
+                "Disabled users cannot create agencies.",
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
-        string? validationError = _validator.Validate(request);
+        CreateAgencyValidator.ValidationFailure? validationFailure =
+            _validator.ValidateWithKey(request);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
-            return ServiceResult<AgencyResponse>.ValidationError(validationError);
+            return ServiceResult<AgencyResponse>.ValidationError(
+                validationFailure.Error,
+                validationFailure.Key,
+                ErrorCodes.ValidationFailed);
         }
 
         string slug = NormalizeSlug(request.Slug);
@@ -70,8 +77,9 @@ public sealed class CreateAgencyHandler
 
         if (slugExists)
         {
-            return ServiceResult<AgencyResponse>.ValidationError(
-                "Agency slug already exists.");
+            return ServiceResult<AgencyResponse>.Conflict(
+                "Agency slug already exists.",
+                ErrorCodes.ConflictAgencySlugAlreadyExists);
         }
 
         var agency = new Agency(
@@ -87,9 +95,25 @@ public sealed class CreateAgencyHandler
 
         agency.AddMember(userId, AgencyMemberRole.Owner);
 
-        await _agencyRepository.CreateAsync(agency, cancellationToken);
+        AgencyCreationPersistenceResult persistenceResult =
+            await _agencyRepository.CreateAsync(
+                agency,
+                cancellationToken);
 
-        return ServiceResult<AgencyResponse>.Success(agency.ToResponse());
+        return persistenceResult switch
+        {
+            AgencyCreationPersistenceResult.Succeeded =>
+                ServiceResult<AgencyResponse>.Success(
+                    agency.ToResponse()),
+
+            AgencyCreationPersistenceResult.SlugAlreadyExists =>
+                ServiceResult<AgencyResponse>.Conflict(
+                    "Agency slug already exists.",
+                    ErrorCodes.ConflictAgencySlugAlreadyExists),
+
+            _ => throw new InvalidOperationException(
+                $"Unsupported agency creation persistence result: {persistenceResult}.")
+        };
     }
 
     private static string NormalizeSlug(string slug)

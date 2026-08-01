@@ -20,11 +20,28 @@ public sealed class ReorderListingImagesResult
 
     public static ReorderListingImagesResult Success(List<ListingImageResponse> images)
     {
+        ArgumentNullException.ThrowIfNull(images);
+
+        if (images.Count == 0)
+        {
+            throw new ArgumentException(
+                "A successful reorder result requires at least one image.",
+                nameof(images));
+        }
+
         return new ReorderListingImagesResult(images, ReorderListingImagesError.None);
     }
 
     public static ReorderListingImagesResult Failure(ReorderListingImagesError error)
     {
+        if (error == ReorderListingImagesError.None || !Enum.IsDefined(error))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(error),
+                error,
+                "A failure result requires a defined non-success error.");
+        }
+
         return new ReorderListingImagesResult(new List<ListingImageResponse>(), error);
     }
 }

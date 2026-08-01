@@ -24,7 +24,7 @@ public sealed class GetAgencyListingsHandler
         _getListingsValidator = getListingsValidator;
     }
 
-    public async Task<ServiceResult<PagedResult<ListingResponse>>> HandleAsync(
+    public async Task<ServiceResult<PagedResponse<ListingResponse>>> HandleAsync(
         GetAgencyListingsQuery query,
         CancellationToken cancellationToken)
     {
@@ -38,21 +38,27 @@ public sealed class GetAgencyListingsHandler
             PageSize = NormalizePageSize(query.PageSize)
         };
 
-        string? validationError =
-            _getListingsValidator.Validate(listingsQuery);
+        GetListingsValidator.ValidationFailure? validationFailure =
+            _getListingsValidator.ValidateWithKey(listingsQuery);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
-            return ServiceResult<PagedResult<ListingResponse>>
-                .ValidationError(validationError);
+            return ServiceResult<PagedResponse<ListingResponse>>
+                .ValidationError(
+                    validationFailure.Error,
+                    validationFailure.Key,
+                    ErrorCodes.ValidationFailed);
         }
 
         if (!ListingSortOptionParser.TryParse(
                 listingsQuery.Sort,
                 out ListingSortOption sortOption))
         {
-            return ServiceResult<PagedResult<ListingResponse>>
-                .ValidationError(GetListingsValidator.InvalidSortError);
+            return ServiceResult<PagedResponse<ListingResponse>>
+                .ValidationError(
+                    GetListingsValidator.InvalidSortError,
+                    "sort",
+                    ErrorCodes.ValidationFailed);
         }
 
         listingsQuery.SortOption = sortOption;
@@ -63,8 +69,9 @@ public sealed class GetAgencyListingsHandler
 
         if (!agencyExists)
         {
-            return ServiceResult<PagedResult<ListingResponse>>.NotFound(
-                "Agency was not found.");
+            return ServiceResult<PagedResponse<ListingResponse>>.NotFound(
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         PagedResult<Listing> listings =
@@ -72,18 +79,13 @@ public sealed class GetAgencyListingsHandler
                 listingsQuery,
                 cancellationToken);
 
-        IReadOnlyList<ListingResponse> responseItems = listings.Items
-            .Select(listing =>
-                listing.ToResponse(listingsQuery.LanguageCode))
-            .ToList();
+        PagedResponse<ListingResponse> response =
+            PagedResponse<ListingResponse>.From(
+                listings,
+                listing =>
+                    listing.ToResponse(listingsQuery.LanguageCode));
 
-        var response = new PagedResult<ListingResponse>(
-            responseItems,
-            listings.Page,
-            listings.PageSize,
-            listings.TotalCount);
-
-        return ServiceResult<PagedResult<ListingResponse>>
+        return ServiceResult<PagedResponse<ListingResponse>>
             .Success(response);
     }
 

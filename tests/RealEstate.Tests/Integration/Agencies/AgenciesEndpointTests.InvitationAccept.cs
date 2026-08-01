@@ -308,7 +308,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task AcceptAgencyInvitation_ShouldReturnBadRequest_WhenInvitationIsAlreadyAccepted()
+    public async Task AcceptAgencyInvitation_ShouldReturnConflict_WhenInvitationIsAlreadyAccepted()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -333,7 +333,9 @@ public sealed partial class AgenciesEndpointTests
                 new { token = seed.Token });
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                "/api/agencies/invitations/accept");
         }
         finally
         {
@@ -342,7 +344,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task AcceptAgencyInvitation_ShouldReturnBadRequest_WhenInvitationIsCancelled()
+    public async Task AcceptAgencyInvitation_ShouldReturnConflict_WhenInvitationIsCancelled()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -366,7 +368,9 @@ public sealed partial class AgenciesEndpointTests
                 new { token = seed.Token });
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                "/api/agencies/invitations/accept");
         }
         finally
         {
@@ -375,7 +379,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task AcceptAgencyInvitation_ShouldReturnBadRequest_WhenInvitationIsExpired()
+    public async Task AcceptAgencyInvitation_ShouldReturnConflict_WhenInvitationIsExpired()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -399,7 +403,9 @@ public sealed partial class AgenciesEndpointTests
                 new { token = seed.Token });
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                "/api/agencies/invitations/accept");
         }
         finally
         {
@@ -432,7 +438,9 @@ public sealed partial class AgenciesEndpointTests
                 new { token = seed.Token });
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                "/api/agencies/invitations/accept");
         }
         finally
         {
@@ -450,7 +458,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task AcceptAgencyInvitation_ShouldReturnBadRequest_WhenUserIsAlreadyMember()
+    public async Task AcceptAgencyInvitation_ShouldReturnConflict_WhenUserIsAlreadyMember()
     {
         // Arrange
         AuthenticatedTestUser owner = await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -477,7 +485,9 @@ public sealed partial class AgenciesEndpointTests
                 new { token = seed.Token });
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            await AssertResourceStateConflictAsync(
+                response,
+                "/api/agencies/invitations/accept");
         }
         finally
         {

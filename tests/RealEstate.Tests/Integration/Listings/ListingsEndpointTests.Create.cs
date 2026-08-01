@@ -29,7 +29,11 @@ public sealed partial class ListingsEndpointTests
 
             var json = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-            json.GetProperty("id").GetGuid().Should().NotBeEmpty();
+            Guid listingId = json.GetProperty("id").GetGuid();
+            listingId.Should().NotBeEmpty();
+            response.Headers.Location.Should().NotBeNull();
+            response.Headers.Location!.PathAndQuery.Should()
+                .Be($"/api/listings/{listingId}?lang=en");
             json.GetProperty("status").GetString().Should().Be(nameof(ListingStatus.Draft));
             json.GetProperty("languageCode").GetString().Should().Be("en");
             json.GetProperty("title").GetString().Should().Be("Integration test apartment");

@@ -63,14 +63,18 @@ public sealed class CreateAgencyInvitationHandler
         Guid currentUserId =
             accessResult.CurrentUserId;
 
-        string? validationError =
-            _validator.Validate(request);
+        CreateAgencyInvitationValidator.ValidationFailure?
+            validationFailure =
+                _validator.ValidateWithKey(request);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
             return ServiceResult<
                 AgencyInvitationCreatedResponse>
-                .ValidationError(validationError);
+                .ValidationError(
+                    validationFailure.Error,
+                    validationFailure.Key,
+                    ErrorCodes.ValidationFailed);
         }
 
         string email = request.Email.Trim();
@@ -118,16 +122,18 @@ public sealed class CreateAgencyInvitationHandler
             {
                 return ServiceResult<
                     AgencyInvitationCreatedResponse>
-                    .ValidationError(
-                        "A pending invitation already exists for this email.");
+                    .Conflict(
+                        "A pending invitation already exists for this email.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             if (invitedUserIsAlreadyMember)
             {
                 return ServiceResult<
                     AgencyInvitationCreatedResponse>
-                    .ValidationError(
-                        "User is already a member of this agency.");
+                    .Conflict(
+                        "User is already a member of this agency.",
+                        ErrorCodes.ConflictResourceState);
             }
 
             if (pendingInvitation is not null)
@@ -158,14 +164,22 @@ public sealed class CreateAgencyInvitationHandler
                             invitation,
                             cancellationToken);
 
-            if (persistenceResult ==
-                AgencyInvitationCreationPersistenceResult
-                    .PendingInvitationAlreadyExists)
+            switch (persistenceResult)
             {
-                return ServiceResult<
-                    AgencyInvitationCreatedResponse>
-                    .ValidationError(
-                        "A pending invitation already exists for this email.");
+                case AgencyInvitationCreationPersistenceResult.Succeeded:
+                    break;
+
+                case AgencyInvitationCreationPersistenceResult
+                    .PendingInvitationAlreadyExists:
+                    return ServiceResult<
+                        AgencyInvitationCreatedResponse>
+                        .Conflict(
+                            "A pending invitation already exists for this email.",
+                            ErrorCodes.ConflictResourceState);
+
+                default:
+                    throw new InvalidOperationException(
+                        "The invitation persistence result was not mapped.");
             }
 
             await creationScope.CommitAsync(

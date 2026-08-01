@@ -23,11 +23,13 @@ public sealed class RegisterUserHandler
         RegisterRequest request,
         CancellationToken cancellationToken)
     {
-        string? validationError = Validate(request);
+        ValidationFailure? validationFailure = Validate(request);
 
-        if (validationError is not null)
+        if (validationFailure is not null)
         {
-            return RegisterUserResult.ValidationFailed(validationError);
+            return RegisterUserResult.ValidationFailed(
+                validationFailure.Error,
+                validationFailure.Key);
         }
 
         string email = request.Email.Trim();
@@ -51,8 +53,23 @@ public sealed class RegisterUserHandler
             request.LastName,
             request.PhoneNumber);
 
-        await _userRepository.AddAsync(user, cancellationToken);
-        await _userRepository.SaveChangesAsync(cancellationToken);
+        UserRegistrationPersistenceResult persistenceResult =
+            await _userRepository.PersistRegistrationAsync(
+                user,
+                cancellationToken);
+
+        if (persistenceResult ==
+            UserRegistrationPersistenceResult.NormalizedEmailAlreadyExists)
+        {
+            return RegisterUserResult.EmailAlreadyExists();
+        }
+
+        if (persistenceResult !=
+            UserRegistrationPersistenceResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "The registration persistence result was not mapped.");
+        }
 
         var response = new AuthResponse(
             new AuthUserResponse(
@@ -67,38 +84,46 @@ public sealed class RegisterUserHandler
         return RegisterUserResult.Success(response);
     }
 
-    private static string? Validate(RegisterRequest request)
+    private static ValidationFailure? Validate(RegisterRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
         {
-            return "Email is required.";
+            return new ValidationFailure("email", "Email is required.");
         }
 
         if (!new EmailAddressAttribute().IsValid(request.Email))
         {
-            return "Email is invalid.";
+            return new ValidationFailure("email", "Email is invalid.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Password))
         {
-            return "Password is required.";
+            return new ValidationFailure("password", "Password is required.");
         }
 
         if (request.Password.Length < 8)
         {
-            return "Password must be at least 8 characters long.";
+            return new ValidationFailure(
+                "password",
+                "Password must be at least 8 characters long.");
         }
 
         if (string.IsNullOrWhiteSpace(request.FirstName))
         {
-            return "First name is required.";
+            return new ValidationFailure(
+                "firstName",
+                "First name is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.LastName))
         {
-            return "Last name is required.";
+            return new ValidationFailure(
+                "lastName",
+                "Last name is required.");
         }
 
         return null;
     }
+
+    private sealed record ValidationFailure(string Key, string Error);
 }

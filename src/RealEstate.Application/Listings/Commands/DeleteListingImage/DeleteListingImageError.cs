@@ -4,6 +4,8 @@ public enum DeleteListingImageError
 {
     None,
     ListingNotFound,
+    InvalidPrincipal,
+    AccountDisabled,
     NotListingOwner,
     ImageNotFound
 }

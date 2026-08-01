@@ -4,6 +4,8 @@ public enum UploadListingImageError
 {
     None,
     ListingNotFound,
+    InvalidPrincipal,
+    AccountDisabled,
     NotListingOwner,
     FileMissing,
     FileEmpty,

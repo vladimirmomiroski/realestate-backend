@@ -56,12 +56,16 @@ public sealed class AgencyListingAccessChecker
 
         if (agency is null)
         {
-            return ServiceResult<TResponse>.NotFound("Agency was not found.");
+            return ServiceResult<TResponse>.NotFound(
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         if (requireActiveAgency && agency.Status != AgencyStatus.Active)
         {
-            return ServiceResult<TResponse>.Forbidden(inactiveAgencyError!);
+            return ServiceResult<TResponse>.Forbidden(
+                inactiveAgencyError!,
+                ErrorCodes.AuthorizationForbidden);
         }
 
         var memberAccess = await _agencyRepository.GetMemberAccessReadOnlyAsync(
@@ -73,13 +77,16 @@ public sealed class AgencyListingAccessChecker
             memberAccess.Status != AgencyMemberStatus.Active)
         {
             return ServiceResult<TResponse>.Forbidden(
-                "User is not an active member of this agency.");
+                "User is not an active member of this agency.",
+                ErrorCodes.AuthorizationForbidden);
         }
 
         if (memberAccess.Role != AgencyMemberRole.Owner &&
             memberAccess.Role != AgencyMemberRole.Agent)
         {
-            return ServiceResult<TResponse>.Forbidden(forbiddenRoleError);
+            return ServiceResult<TResponse>.Forbidden(
+                forbiddenRoleError,
+                ErrorCodes.AuthorizationForbidden);
         }
 
         return null;

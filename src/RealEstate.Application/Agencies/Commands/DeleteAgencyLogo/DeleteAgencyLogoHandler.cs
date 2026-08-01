@@ -45,7 +45,8 @@ public sealed class DeleteAgencyLogoHandler
         if (agency is null)
         {
             return ServiceResult<bool>.NotFound(
-                "Agency was not found.");
+                "Agency was not found.",
+                ErrorCodes.ResourceNotFound);
         }
 
         bool hasLogoMetadata =

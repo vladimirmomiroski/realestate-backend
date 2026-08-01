@@ -29,23 +29,36 @@ public sealed class GetAgencyDashboardListingsHandler
         _currentUserService = currentUserService;
     }
 
-    public async Task<ServiceResult<PagedResult<ListingResponse>>> HandleAsync(
+    public async Task<ServiceResult<PagedResponse<ListingResponse>>> HandleAsync(
         GetAgencyDashboardListingsQuery query,
         CancellationToken cancellationToken)
     {
-        Guid userId = _currentUserService.UserId
-            ?? throw new InvalidOperationException("Authenticated user id is not available.");
+        if (!_currentUserService.IsAuthenticated ||
+            _currentUserService.UserId is not Guid userId)
+        {
+            return ServiceResult<PagedResponse<ListingResponse>>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
 
         var user = await _userRepository.GetByIdReadOnlyAsync(userId, cancellationToken);
 
-        if (user is null || user.Status == UserStatus.Disabled)
+        if (user is null)
         {
-            return ServiceResult<PagedResult<ListingResponse>>.Forbidden(
-                "User is not allowed to view agency listings.");
+            return ServiceResult<PagedResponse<ListingResponse>>.Unauthorized(
+                "Current user could not be resolved.",
+                ErrorCodes.AuthenticationInvalidPrincipal);
+        }
+
+        if (user.Status == UserStatus.Disabled)
+        {
+            return ServiceResult<PagedResponse<ListingResponse>>.Forbidden(
+                "User is not allowed to view agency listings.",
+                ErrorCodes.AuthorizationAccountDisabled);
         }
 
         var agencyAccessResult =
-            await _agencyListingAccessChecker.EnsureCanManageAgencyListingsAsync<PagedResult<ListingResponse>>(
+            await _agencyListingAccessChecker.EnsureCanManageAgencyListingsAsync<PagedResponse<ListingResponse>>(
                 query.AgencyId,
                 userId,
                 "User is not allowed to view agency listings.",
@@ -66,17 +79,12 @@ public sealed class GetAgencyDashboardListingsHandler
                 query.PageSize,
                 cancellationToken);
 
-        var responseItems = listings.Items
-            .Select(listing => listing.ToResponse(languageCode))
-            .ToList();
+        PagedResponse<ListingResponse> response =
+            PagedResponse<ListingResponse>.From(
+                listings,
+                listing => listing.ToResponse(languageCode));
 
-        var response = new PagedResult<ListingResponse>(
-            responseItems,
-            listings.Page,
-            listings.PageSize,
-            listings.TotalCount);
-
-        return ServiceResult<PagedResult<ListingResponse>>.Success(response);
+        return ServiceResult<PagedResponse<ListingResponse>>.Success(response);
     }
 
     private static string NormalizeLanguageCode(string? languageCode)

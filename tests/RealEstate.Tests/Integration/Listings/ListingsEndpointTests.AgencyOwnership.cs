@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Application.Common;
 using RealEstate.Tests.Integration.Agencies;
+using RealEstate.Tests.Integration.Api;
 using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
@@ -158,11 +160,11 @@ public sealed partial class ListingsEndpointTests
                 request);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-
-            string error = await response.Content.ReadAsStringAsync();
-
-            error.Should().Contain("Agency was not found.");
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.NotFound,
+                ErrorCodes.ResourceNotFound,
+                "/api/listings");
         }
         finally
         {

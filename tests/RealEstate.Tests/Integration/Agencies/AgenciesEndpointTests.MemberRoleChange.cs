@@ -301,7 +301,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task ChangeAgencyMemberRole_ShouldReturnBadRequest_WhenTargetIsPending()
+    public async Task ChangeAgencyMemberRole_ShouldReturnConflict_WhenTargetIsPending()
     {
         // Arrange
         AuthenticatedTestUser owner =
@@ -333,7 +333,9 @@ public sealed partial class AgenciesEndpointTests
             request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertResourceStateConflictAsync(
+            response,
+            $"/api/agencies/{agencyId}/members/{pendingMemberId}/role");
 
         AgencyMemberRole savedRole = await GetAgencyMemberRoleAsync(
             agencyId,
@@ -343,7 +345,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task ChangeAgencyMemberRole_ShouldReturnBadRequest_WhenTargetIsDisabled()
+    public async Task ChangeAgencyMemberRole_ShouldReturnConflict_WhenTargetIsDisabled()
     {
         // Arrange
         AuthenticatedTestUser owner =
@@ -375,7 +377,9 @@ public sealed partial class AgenciesEndpointTests
             request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertResourceStateConflictAsync(
+            response,
+            $"/api/agencies/{agencyId}/members/{disabledMemberId}/role");
 
         AgencyMemberRole savedRole = await GetAgencyMemberRoleAsync(
             agencyId,
@@ -427,7 +431,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    public async Task ChangeAgencyMemberRole_ShouldReturnBadRequest_WhenSoleOwnerDemotesSelf()
+    public async Task ChangeAgencyMemberRole_ShouldReturnConflict_WhenSoleOwnerDemotesSelf()
     {
         // Arrange
         AuthenticatedTestUser owner =
@@ -452,7 +456,9 @@ public sealed partial class AgenciesEndpointTests
             request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertResourceStateConflictAsync(
+            response,
+            $"/api/agencies/{agencyId}/members/{ownerMemberId}/role");
 
         AgencyMemberRole savedRole = await GetAgencyMemberRoleAsync(
             agencyId,

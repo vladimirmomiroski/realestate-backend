@@ -346,7 +346,11 @@ public sealed partial class AgenciesEndpointTests
 
             secondResponse.StatusCode
                 .Should()
-                .Be(HttpStatusCode.BadRequest);
+                .Be(HttpStatusCode.Conflict);
+
+            await AssertResourceStateConflictAsync(
+                secondResponse,
+                $"/api/agencies/{agencyId}/members/{secondOwnerMemberId}/role");
         }
 
         await AssertCommittedAgencyMemberStateAsync(
