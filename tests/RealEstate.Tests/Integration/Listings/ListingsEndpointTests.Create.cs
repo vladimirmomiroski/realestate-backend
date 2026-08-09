@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Application.Listings.Commands.CreateListing;
 using RealEstate.Domain.Enums;
 using System.Net;
 using System.Net.Http.Json;
@@ -12,6 +13,78 @@ namespace RealEstate.Tests.Integration.Listings;
 
 public sealed partial class ListingsEndpointTests
 {
+    [Fact]
+    public async Task CreateListing_NormalizesTranslationFieldsBeforePersistence()
+    {
+        AuthenticatedTestUser user =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(user.AccessToken);
+
+        try
+        {
+            const string boundaryWhitespace =
+                "\t\r\n\u00A0\u2003\u3000";
+
+            var request = new CreateListingRequest
+            {
+                ListingType = ListingType.Sale,
+                PropertyType = PropertyType.Apartment,
+                Price = 120_000m,
+                Currency = "EUR",
+                AreaSquareMeters = 60m,
+                ApartmentDetails = new CreateListingApartmentDetailsRequest(),
+                Translations =
+                [
+                    new CreateListingTranslationRequest
+                    {
+                        LanguageCode =
+                            $"{boundaryWhitespace}EN-US{boundaryWhitespace}",
+                        Title =
+                            $"{boundaryWhitespace}Canonical title{boundaryWhitespace}",
+                        Description = boundaryWhitespace,
+                        AddressLine =
+                            $"{boundaryWhitespace}Address 1{boundaryWhitespace}",
+                        City = boundaryWhitespace,
+                        Municipality =
+                            $"{boundaryWhitespace}Centar{boundaryWhitespace}",
+                        Neighborhood = boundaryWhitespace
+                    }
+                ]
+            };
+
+            HttpResponseMessage response =
+                await _httpClient.PostAsJsonAsync("/api/listings", request);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+            Guid listingId = json.GetProperty("id").GetGuid();
+
+            await using AsyncServiceScope scope =
+                _factory.Services.CreateAsyncScope();
+            RealEstateDbContext dbContext =
+                scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+            var listing = await dbContext.Listings
+                .Include(item => item.Translations)
+                .SingleAsync(item => item.Id == listingId);
+            var translation = listing.Translations.Should().ContainSingle().Subject;
+
+            listing.Status.Should().Be(ListingStatus.Draft);
+            translation.LanguageCode.Should().Be("en-us");
+            translation.Title.Should().Be("Canonical title");
+            translation.Description.Should().BeNull();
+            translation.AddressLine.Should().Be("Address 1");
+            translation.City.Should().BeNull();
+            translation.Municipality.Should().Be("Centar");
+            translation.Neighborhood.Should().BeNull();
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
     [Fact]
     public async Task CreateListing_WithValidRequest_ReturnsCreated()
     {

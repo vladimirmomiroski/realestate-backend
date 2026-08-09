@@ -124,18 +124,18 @@ public sealed partial class ListingsEndpointTests
                     0,
                     DateTimeKind.Utc),
                 CreateTranslation(
-                    "\U00010000",
+                    "sq",
                     "Supplementary Title",
                     city: "Excluded City"),
                 CreateTranslation(
-                    "\uE000",
+                    "de",
                     "Private Use Title",
                     city: selectedCity));
 
         HttpResponseMessage response =
             await _httpClient.GetAsync(
                 "/api/listings" +
-                "?lang=de" +
+                "?lang=fr" +
                 $"&currency={currency}" +
                 $"&city={Uri.EscapeDataString(selectedCity)}");
 
@@ -151,7 +151,7 @@ public sealed partial class ListingsEndpointTests
 
         item.GetProperty("id").GetGuid().Should().Be(listingId);
         item.GetProperty("languageCode").GetString()
-            .Should().Be("\uE000");
+            .Should().Be("de");
         item.GetProperty("title").GetString()
             .Should().Be("Private Use Title");
         item.GetProperty("city").GetString()
@@ -175,17 +175,17 @@ public sealed partial class ListingsEndpointTests
                     0,
                     DateTimeKind.Utc),
                 CreateTranslation(
-                    "\U00010000",
+                    "sq",
                     "Supplementary Title",
                     city: "Supplementary City"),
                 CreateTranslation(
-                    "\uE000",
+                    "de",
                     "Private Use Title",
                     city: "Private Use City"));
 
         HttpResponseMessage response =
             await _httpClient.GetAsync(
-                $"/api/listings/{listingId}?lang=de");
+                $"/api/listings/{listingId}?lang=fr");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -193,7 +193,7 @@ public sealed partial class ListingsEndpointTests
             await response.Content.ReadFromJsonAsync<JsonElement>();
 
         json.GetProperty("languageCode").GetString()
-            .Should().Be("\uE000");
+            .Should().Be("de");
         json.GetProperty("title").GetString()
             .Should().Be("Private Use Title");
         json.GetProperty("city").GetString()
@@ -922,11 +922,11 @@ public sealed partial class ListingsEndpointTests
                     0,
                     DateTimeKind.Utc),
                 CreateTranslation(
-                    "\U00010000",
+                    "sq",
                     "First Supplementary Title",
                     city: "First Excluded City"),
                 CreateTranslation(
-                    "\uE000",
+                    "de",
                     "First Selected Title",
                     city: selectedCity));
 
@@ -942,18 +942,18 @@ public sealed partial class ListingsEndpointTests
                     0,
                     DateTimeKind.Utc),
                 CreateTranslation(
-                    "\uE000",
+                    "de",
                     "Second Selected Title",
                     city: selectedCity),
                 CreateTranslation(
-                    "\U00010000",
+                    "sq",
                     "Second Supplementary Title",
                     city: "Second Excluded City"));
 
         HttpResponseMessage response =
             await _httpClient.GetAsync(
                 "/api/listings" +
-                "?lang=de" +
+                "?lang=fr" +
                 $"&currency={currency}" +
                 $"&city={Uri.EscapeDataString(selectedCity)}" +
                 "&page=1" +
@@ -978,7 +978,7 @@ public sealed partial class ListingsEndpointTests
                 [firstListingId, secondListingId]);
 
         items.Should().OnlyContain(item =>
-            item.GetProperty("languageCode").GetString() == "\uE000");
+            item.GetProperty("languageCode").GetString() == "de");
 
         items.Select(item =>
                 item.GetProperty("city").GetString())

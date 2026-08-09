@@ -358,7 +358,7 @@ public sealed partial class ListingsEndpointTests
                     "Македонски наслов",
                     city: "Друг Град"),
                 CreateTranslation(
-                    "EN",
+                    "en",
                     $"Prefix {phrase} Suffix",
                     city: "Selected City"));
 
@@ -380,7 +380,7 @@ public sealed partial class ListingsEndpointTests
             .Should().Be(listingId);
 
         item.GetProperty("languageCode").GetString()
-            .Should().Be("EN");
+            .Should().Be("en");
 
         item.GetProperty("title").GetString()
             .Should().Be($"Prefix {phrase} Suffix");

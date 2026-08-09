@@ -1,4 +1,5 @@
 ﻿using RealEstate.Domain.Enums;
+using RealEstate.Domain.Listings;
 
 namespace RealEstate.Application.Listings.Commands.CreateListing;
 
@@ -18,6 +19,15 @@ public sealed class CreateListingValidator
     public const string LongitudeOutOfRangeError =
         "Longitude must be between -180 and 180.";
 
+    public const string InvalidListingTypeError =
+        "Listing type must be a currently supported value.";
+
+    public const string InvalidPropertyTypeError =
+        "Property type must be a currently supported value.";
+
+    public const string InvalidLanguageCodeError =
+        "Translation language code has an invalid format.";
+
     public string? Validate(CreateListingRequest request)
     {
         return ValidateWithKey(request)?.Error;
@@ -25,6 +35,16 @@ public sealed class CreateListingValidator
 
     public ValidationFailure? ValidateWithKey(CreateListingRequest request)
     {
+        if (!Enum.IsDefined(request.ListingType))
+        {
+            return Failure("listingType", InvalidListingTypeError);
+        }
+
+        if (!Enum.IsDefined(request.PropertyType))
+        {
+            return Failure("propertyType", InvalidPropertyTypeError);
+        }
+
         if (request.Price <= 0)
         {
             return Failure("price", "Price must be greater than zero.");
@@ -74,35 +94,12 @@ public sealed class CreateListingValidator
             return Failure("translations", "At least one translation is required.");
         }
 
-        int missingLanguageIndex = request.Translations.FindIndex(
-            translation => string.IsNullOrWhiteSpace(translation.LanguageCode));
+        ValidationFailure? translationFailure =
+            ValidateTranslations(request.Translations);
 
-        if (missingLanguageIndex >= 0)
+        if (translationFailure is not null)
         {
-            return Failure(
-                $"translations[{missingLanguageIndex}].languageCode",
-                "Translation language code is required.");
-        }
-
-        int missingTitleIndex = request.Translations.FindIndex(
-            translation => string.IsNullOrWhiteSpace(translation.Title));
-
-        if (missingTitleIndex >= 0)
-        {
-            return Failure(
-                $"translations[{missingTitleIndex}].title",
-                "Translation title is required.");
-        }
-
-        var hasDuplicateLanguages = request.Translations
-            .GroupBy(translation => NormalizeLanguageCode(translation.LanguageCode))
-            .Any(group => group.Count() > 1);
-
-        if (hasDuplicateLanguages)
-        {
-            return Failure(
-                "translations",
-                "Duplicate translation languages are not allowed.");
+            return translationFailure;
         }
 
         if (request.BalconyCount is < 0)
@@ -205,7 +202,6 @@ public sealed class CreateListingValidator
             return Failure("agencyId", "Agency id cannot be empty.");
         }
 
-
         return null;
     }
 
@@ -222,8 +218,131 @@ public sealed class CreateListingValidator
                    character is >= 'a' and <= 'z');
     }
 
-    private static string NormalizeLanguageCode(string languageCode)
+    private static ValidationFailure? ValidateTranslations(
+        IReadOnlyList<CreateListingTranslationRequest> translations)
     {
-        return languageCode.Trim().ToLowerInvariant();
+        var normalizedLanguages = new HashSet<string>(StringComparer.Ordinal);
+
+        for (int index = 0; index < translations.Count; index++)
+        {
+            CreateListingTranslationRequest translation = translations[index];
+            string languageKey = $"translations[{index}].languageCode";
+
+            if (translation.LanguageCode is null)
+            {
+                return Failure(
+                    languageKey,
+                    "Translation language code is required.");
+            }
+
+            string normalizedLanguage =
+                ListingTranslationRules.NormalizeLanguageCode(
+                    translation.LanguageCode);
+
+            if (normalizedLanguage.Length == 0)
+            {
+                return Failure(
+                    languageKey,
+                    "Translation language code is required.");
+            }
+
+            if (normalizedLanguage.Length >
+                ListingTranslationRules.LanguageCodeMaxLength)
+            {
+                return Failure(
+                    languageKey,
+                    $"Translation language code cannot exceed {ListingTranslationRules.LanguageCodeMaxLength} characters.");
+            }
+
+            if (!ListingTranslationRules.IsCanonicalLanguageCode(
+                    normalizedLanguage))
+            {
+                return Failure(languageKey, InvalidLanguageCodeError);
+            }
+
+            if (!normalizedLanguages.Add(normalizedLanguage))
+            {
+                return Failure(
+                    "translations",
+                    "Duplicate translation languages are not allowed.");
+            }
+
+            string titleKey = $"translations[{index}].title";
+
+            if (translation.Title is null)
+            {
+                return Failure(
+                    titleKey,
+                    "Translation title is required.");
+            }
+
+            string normalizedTitle =
+                ListingTranslationRules.NormalizeRequiredText(
+                    translation.Title);
+
+            if (normalizedTitle.Length == 0)
+            {
+                return Failure(
+                    titleKey,
+                    "Translation title is required.");
+            }
+
+            if (normalizedTitle.Length > ListingTranslationRules.TitleMaxLength)
+            {
+                return Failure(
+                    titleKey,
+                    $"Translation title cannot exceed {ListingTranslationRules.TitleMaxLength} characters.");
+            }
+
+            ValidationFailure? optionalTextFailure =
+                ValidateOptionalText(
+                    translation.Description,
+                    $"translations[{index}].description",
+                    "Translation description",
+                    ListingTranslationRules.DescriptionMaxLength)
+                ?? ValidateOptionalText(
+                    translation.AddressLine,
+                    $"translations[{index}].addressLine",
+                    "Translation address",
+                    ListingTranslationRules.AddressLineMaxLength)
+                ?? ValidateOptionalText(
+                    translation.City,
+                    $"translations[{index}].city",
+                    "Translation city",
+                    ListingTranslationRules.LocationMaxLength)
+                ?? ValidateOptionalText(
+                    translation.Municipality,
+                    $"translations[{index}].municipality",
+                    "Translation municipality",
+                    ListingTranslationRules.LocationMaxLength)
+                ?? ValidateOptionalText(
+                    translation.Neighborhood,
+                    $"translations[{index}].neighborhood",
+                    "Translation neighborhood",
+                    ListingTranslationRules.LocationMaxLength);
+
+            if (optionalTextFailure is not null)
+            {
+                return optionalTextFailure;
+            }
+        }
+
+        return null;
+    }
+
+    private static ValidationFailure? ValidateOptionalText(
+        string? value,
+        string key,
+        string fieldName,
+        int maxLength)
+    {
+        string? normalized =
+            ListingTranslationRules.NormalizeOptionalText(value);
+
+        return normalized?.Length > maxLength
+            ? Failure(
+                key,
+                $"{fieldName} cannot exceed {maxLength} characters.")
+            : null;
     }
 }

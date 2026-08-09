@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 using RealEstate.Application.Common;
+using RealEstate.Domain.Listings;
 using Swashbuckle.AspNetCore.Swagger;
 
 namespace RealEstate.Tests.Integration.Api;
@@ -254,6 +255,72 @@ public sealed class OpenApiDocumentTests
                 .Should()
                 .Be("string");
         }
+    }
+
+    [Fact]
+    public void OpenApiDocument_CreateTranslationRulesAndCurrentTaxonomy_AreAccurate()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement schemas = document.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas");
+        JsonElement properties = schemas
+            .GetProperty("CreateListingTranslationRequest")
+            .GetProperty("properties");
+
+        AssertNormalizedStringRule(
+            properties,
+            "languageCode",
+            ListingTranslationRules.LanguageCodeMaxLength);
+        properties.GetProperty("languageCode")
+            .GetProperty("pattern")
+            .GetString()
+            .Should()
+            .Be(ListingTranslationRules.LanguageCodePattern);
+        properties.GetProperty("languageCode")
+            .GetProperty("description")
+            .GetString()
+            .Should()
+            .ContainAll("Boundary-trimmed", "lowercased", "Canonical");
+
+        AssertNormalizedStringRule(
+            properties,
+            "title",
+            ListingTranslationRules.TitleMaxLength);
+        AssertNormalizedStringRule(
+            properties,
+            "description",
+            ListingTranslationRules.DescriptionMaxLength);
+        AssertNormalizedStringRule(
+            properties,
+            "addressLine",
+            ListingTranslationRules.AddressLineMaxLength);
+
+        foreach (string propertyName in new[]
+        {
+            "city",
+            "municipality",
+            "neighborhood"
+        })
+        {
+            AssertNormalizedStringRule(
+                properties,
+                propertyName,
+                ListingTranslationRules.LocationMaxLength);
+        }
+
+        schemas.GetProperty("ListingType")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .BeEquivalentTo("Sale", "Rent");
+        schemas.GetProperty("PropertyType")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .BeEquivalentTo("Apartment", "House");
     }
 
     [Fact]
@@ -576,5 +643,15 @@ public sealed class OpenApiDocumentTests
             .GetString()
             .Should()
             .Be(secondValue);
+    }
+
+    private static void AssertNormalizedStringRule(
+        JsonElement properties,
+        string propertyName,
+        int maximumLength)
+    {
+        JsonElement property = properties.GetProperty(propertyName);
+        property.GetProperty("maxLength").GetInt32().Should().Be(maximumLength);
+        property.GetProperty("description").GetString().Should().NotBeNullOrWhiteSpace();
     }
 }
