@@ -11,18 +11,18 @@ namespace RealEstate.Application.Listings.Commands.ArchiveListing;
 
 public sealed class ArchiveListingHandler
 {
-    private readonly IListingRepository _listingRepository;
+    private readonly IListingAuthoringRepository _listingAuthoringRepository;
     private readonly IUserRepository _userRepository;
     private readonly AgencyListingAccessChecker _agencyListingAccessChecker;
     private readonly ICurrentUserService _currentUserService;
 
     public ArchiveListingHandler(
-        IListingRepository listingRepository,
+        IListingAuthoringRepository listingAuthoringRepository,
         IUserRepository userRepository,
         AgencyListingAccessChecker agencyListingAccessChecker,
         ICurrentUserService currentUserService)
     {
-        _listingRepository = listingRepository;
+        _listingAuthoringRepository = listingAuthoringRepository;
         _userRepository = userRepository;
         _agencyListingAccessChecker = agencyListingAccessChecker;
         _currentUserService = currentUserService;
@@ -59,55 +59,63 @@ public sealed class ArchiveListingHandler
                 ErrorCodes.AuthorizationAccountDisabled);
         }
 
-        var listing = await _listingRepository.GetByIdForUpdateAsync(
+        IListingAuthoringWriteScope? writeScope =
+            await _listingAuthoringRepository.BeginWriteAsync(
             command.ListingId,
             cancellationToken);
 
-        if (listing is null)
+        if (writeScope is null)
         {
             return ServiceResult<ListingResponse>.NotFound(
                 "Listing was not found.",
                 ErrorCodes.ResourceNotFound);
         }
 
-        if (listing.AgencyId.HasValue)
+        await using (writeScope)
         {
-            var agencyAccessResult =
-                await _agencyListingAccessChecker.EnsureCanManageAgencyListingsAsync<ListingResponse>(
-                    listing.AgencyId.Value,
-                    userId,
-                    "User is not allowed to archive listings for this agency.",
-                    cancellationToken);
+            var listing = writeScope.Listing;
 
-            if (agencyAccessResult is not null)
+            if (listing.AgencyId.HasValue)
             {
-                return agencyAccessResult;
+                var agencyAccessResult =
+                    await _agencyListingAccessChecker.EnsureCanManageAgencyListingsAsync<ListingResponse>(
+                        listing.AgencyId.Value,
+                        userId,
+                        "User is not allowed to archive listings for this agency.",
+                        cancellationToken);
+
+                if (agencyAccessResult is not null)
+                {
+                    return agencyAccessResult;
+                }
             }
-        }
-        else if (listing.CreatedByUserId != userId)
-        {
-            return ServiceResult<ListingResponse>.Forbidden(
-                "User is not allowed to archive this listing.",
-                ErrorCodes.AuthorizationForbidden);
-        }
+            else if (listing.CreatedByUserId != userId)
+            {
+                return ServiceResult<ListingResponse>.Forbidden(
+                    "User is not allowed to archive this listing.",
+                    ErrorCodes.AuthorizationForbidden);
+            }
 
-        try
-        {
-            listing.Archive();
+            try
+            {
+                listing.Archive();
+            }
+            catch (InvalidOperationException exception)
+            {
+                return ServiceResult<ListingResponse>.Conflict(
+                    exception.Message,
+                    ErrorCodes.ConflictResourceState);
+            }
+
+            await writeScope.SaveChangesAsync(cancellationToken);
+
+            await writeScope.CommitAsync(cancellationToken);
+
+            var languageCode = NormalizeLanguageCode(command.LanguageCode);
+
+            return ServiceResult<ListingResponse>.Success(
+                listing.ToResponse(languageCode));
         }
-        catch (InvalidOperationException exception)
-        {
-            return ServiceResult<ListingResponse>.Conflict(
-                exception.Message,
-                ErrorCodes.ConflictResourceState);
-        }
-
-        await _listingRepository.SaveChangesAsync(cancellationToken);
-
-        var languageCode = NormalizeLanguageCode(command.LanguageCode);
-
-        return ServiceResult<ListingResponse>.Success(
-            listing.ToResponse(languageCode));
     }
 
     private static string NormalizeLanguageCode(string? languageCode)

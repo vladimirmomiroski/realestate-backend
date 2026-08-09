@@ -33,6 +33,9 @@ public static class DependencyInjection
             DatabaseReadinessProbe>();
 
         services.AddScoped<IListingRepository, ListingRepository>();
+        services.AddScoped<
+            IListingAuthoringRepository,
+            ListingAuthoringRepository>();
 
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
