@@ -3,8 +3,10 @@ using Microsoft.OpenApi;
 using RealEstate.Api.Errors;
 using RealEstate.Application.Agencies.Dtos;
 using RealEstate.Application.Common;
+using RealEstate.Application.Listings.Commands.CreateListing;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Users.Dtos;
+using RealEstate.Domain.Listings;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace RealEstate.Api.OpenApi;
@@ -38,6 +40,11 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
             context.Type.GenericTypeArguments[0] == typeof(ListingResponse))
         {
             ApplyPaginationSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(CreateListingTranslationRequest))
+        {
+            ApplyCreateListingTranslationSchema(mutableSchema);
         }
 
         ApplyRelativeMediaDescriptions(mutableSchema, context.Type);
@@ -141,6 +148,47 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         schema.Required.Add("items");
     }
 
+    private static void ApplyCreateListingTranslationSchema(
+        OpenApiSchema schema)
+    {
+        SetStringRule(
+            schema,
+            "languageCode",
+            ListingTranslationRules.LanguageCodeMaxLength,
+            "Boundary-trimmed and lowercased before validation. " +
+            $"Canonical value must match {ListingTranslationRules.LanguageCodePattern} and contain at most {ListingTranslationRules.LanguageCodeMaxLength} characters.",
+            ListingTranslationRules.LanguageCodePattern);
+        SetStringRule(
+            schema,
+            "title",
+            ListingTranslationRules.TitleMaxLength,
+            $"Required, boundary-trimmed, nonblank; maximum {ListingTranslationRules.TitleMaxLength} characters after normalization.");
+        SetStringRule(
+            schema,
+            "description",
+            ListingTranslationRules.DescriptionMaxLength,
+            $"Optional; boundary whitespace normalizes to null; maximum {ListingTranslationRules.DescriptionMaxLength} characters after normalization.");
+        SetStringRule(
+            schema,
+            "addressLine",
+            ListingTranslationRules.AddressLineMaxLength,
+            $"Optional; boundary whitespace normalizes to null; maximum {ListingTranslationRules.AddressLineMaxLength} characters after normalization.");
+
+        foreach (string propertyName in new[]
+        {
+            "city",
+            "municipality",
+            "neighborhood"
+        })
+        {
+            SetStringRule(
+                schema,
+                propertyName,
+                ListingTranslationRules.LocationMaxLength,
+                $"Optional; boundary whitespace normalizes to null; maximum {ListingTranslationRules.LocationMaxLength} characters after normalization.");
+        }
+    }
+
     private static void ApplyRelativeMediaDescriptions(
         OpenApiSchema schema,
         Type type)
@@ -174,5 +222,26 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         {
             property.Description = description;
         }
+    }
+
+    private static void SetStringRule(
+        OpenApiSchema schema,
+        string propertyName,
+        int normalizedMaxLength,
+        string description,
+        string? canonicalPattern = null)
+    {
+        if (schema.Properties is null ||
+            !schema.Properties.TryGetValue(
+                propertyName,
+                out IOpenApiSchema? propertyValue) ||
+            propertyValue is not OpenApiSchema property)
+        {
+            return;
+        }
+
+        property.MaxLength = normalizedMaxLength;
+        property.Description = description;
+        property.Pattern = canonicalPattern;
     }
 }

@@ -396,12 +396,8 @@ public sealed partial class ListingsEndpointTests
             differentCityId);
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public async Task GetComparables_WithActiveSourceAndBlankCity_ReturnsEmptyArray(
-    string? city)
+    [Fact]
+    public async Task GetComparables_WithActiveSourceAndMissingCity_ReturnsEmptyArray()
     {
         // Arrange
         string currency =
@@ -419,7 +415,7 @@ public sealed partial class ListingsEndpointTests
             sourceListingId,
             CreateComparableTranslation(
                 "en",
-                city));
+                null));
 
         await ListingTestHelpers.SetListingStatusAsync(
             _factory,
@@ -484,9 +480,7 @@ public sealed partial class ListingsEndpointTests
     [Theory]
     [InlineData(true, null)]
     [InlineData(false, null)]
-    [InlineData(false, "")]
-    [InlineData(false, "   ")]
-    public async Task GetComparables_ExcludesCandidateWithoutTranslationOrNonblankCity(
+    public async Task GetComparables_ExcludesCandidateWithoutTranslationOrCity(
     bool removeTranslations,
     string? invalidCity)
     {

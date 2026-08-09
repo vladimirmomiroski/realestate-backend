@@ -39,7 +39,7 @@ public sealed partial class ListingsEndpointTests
                 "Source Macedonian Decoy",
                 title: "Source Macedonian decoy"),
             CreateComparableTranslation(
-                "EN",
+                "en",
                 "Requested City",
                 municipality: "Requested Municipality",
                 neighborhood: "Requested Neighborhood",
@@ -53,7 +53,7 @@ public sealed partial class ListingsEndpointTests
                 "Candidate Macedonian Decoy",
                 title: "Candidate Macedonian decoy"),
             CreateComparableTranslation(
-                "EN",
+                "en",
                 "Requested City",
                 municipality: "Requested Municipality",
                 neighborhood: "Requested Neighborhood",
@@ -74,7 +74,7 @@ public sealed partial class ListingsEndpointTests
         // Assert
         AssertSelectedTranslation(
             item,
-            languageCode: "EN",
+            languageCode: "en",
             title: "Candidate requested translation",
             city: "Requested City",
             municipality: "Requested Municipality",
@@ -163,11 +163,9 @@ public sealed partial class ListingsEndpointTests
         string currency =
             CreateUniqueCurrency();
 
-        const string lowerCollatedLanguage =
-            "\uE000";
+        const string lowerCollatedLanguage = "de";
 
-        const string higherCollatedLanguage =
-            "\U00010000";
+        const string higherCollatedLanguage = "sq";
 
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(
@@ -235,88 +233,6 @@ public sealed partial class ListingsEndpointTests
             city: "C Ordered City",
             municipality: "C Ordered Municipality",
             neighborhood: "C Ordered Neighborhood");
-    }
-
-    [Fact]
-    public async Task GetComparables_WhenRequestedPriorityTies_UsesPostgreSqlCOrderingForEligibilityAndResponse()
-    {
-        // Arrange
-        string currency =
-            CreateUniqueCurrency();
-
-        AuthenticatedTestUser owner =
-            await AuthTestHelpers.RegisterAndLoginAsync(
-                _httpClient);
-
-        Guid sourceId =
-            await CreateActiveComparableAsync(
-                owner,
-                currency,
-                price: 100_000m,
-                areaSquareMeters: 100m);
-
-        Guid candidateId =
-            await CreateActiveComparableAsync(
-                owner,
-                currency,
-                price: 100_000m,
-                areaSquareMeters: 100m);
-
-        // Both "en" and "EN" match the requested language
-        // case-insensitively. PostgreSQL COLLATE "C" must
-        // choose "EN" before "en".
-        //
-        // Lowercase is deliberately inserted first so
-        // insertion order cannot make the test pass.
-
-        await ListingTestHelpers.ReplaceListingTranslationsAsync(
-            _factory,
-            sourceId,
-            CreateComparableTranslation(
-                "en",
-                "Source Lowercase Decoy",
-                title: "Source lowercase decoy"),
-            CreateComparableTranslation(
-                "EN",
-                "Case Ordered City",
-                municipality: "Case Ordered Municipality",
-                neighborhood: "Case Ordered Neighborhood",
-                title: "Source uppercase selected"));
-
-        await ListingTestHelpers.ReplaceListingTranslationsAsync(
-            _factory,
-            candidateId,
-            CreateComparableTranslation(
-                "en",
-                "Candidate Lowercase Decoy",
-                title: "Candidate lowercase decoy"),
-            CreateComparableTranslation(
-                "EN",
-                "Case Ordered City",
-                municipality: "Case Ordered Municipality",
-                neighborhood: "Case Ordered Neighborhood",
-                title: "Candidate uppercase selected"));
-
-        _httpClient.ClearAuthorization();
-
-        // Act
-        HttpResponseMessage response =
-            await _httpClient.GetAsync(
-                $"/api/listings/{sourceId}/comparables?lang=en");
-
-        JsonElement item =
-            await ReadSingleComparableAsync(
-                response,
-                candidateId);
-
-        // Assert
-        AssertSelectedTranslation(
-            item,
-            languageCode: "EN",
-            title: "Candidate uppercase selected",
-            city: "Case Ordered City",
-            municipality: "Case Ordered Municipality",
-            neighborhood: "Case Ordered Neighborhood");
     }
 
     [Theory]
