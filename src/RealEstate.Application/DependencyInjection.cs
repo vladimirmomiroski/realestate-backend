@@ -19,6 +19,7 @@ using RealEstate.Application.Listings.Commands.SetPrimaryListingImage;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
 using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Queries.GetListingById;
+using RealEstate.Application.Listings.Queries.GetListingManagement;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Users.Queries.GetCurrentUser;
@@ -53,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<GetComparableListingsValidator>();
         services.AddScoped<GetComparableListingsHandler>();
         services.AddScoped<GetListingByIdHandler>();
+        services.AddScoped<GetListingManagementHandler>();
         services.AddScoped<PublishListingHandler>();
         services.AddScoped<UnpublishListingHandler>();
         services.AddScoped<ArchiveListingHandler>();

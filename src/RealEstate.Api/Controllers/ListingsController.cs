@@ -8,6 +8,7 @@ using RealEstate.Application.Listings.Commands.SetPrimaryListingImage;
 using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Queries.GetListingById;
+using RealEstate.Application.Listings.Queries.GetListingManagement;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -26,10 +27,12 @@ public sealed class ListingsController : ControllerBase
 {
 
     private const string GetListingByIdRouteName = "GetListingById";
+    private const string GetListingManagementRouteName = "GetListingManagement";
 
     private readonly CreateListingHandler _createListingHandler;
     private readonly GetListingsHandler _getListingsHandler;
     private readonly GetListingByIdHandler _getListingByIdHandler;
+    private readonly GetListingManagementHandler _getListingManagementHandler;
     private readonly UploadListingImageHandler _uploadListingImageHandler;
     private readonly DeleteListingImageHandler _deleteListingImageHandler;
     private readonly SetPrimaryListingImageHandler _setPrimaryListingImageHandler;
@@ -45,6 +48,7 @@ public sealed class ListingsController : ControllerBase
         CreateListingHandler createListingHandler,
         GetListingsHandler getListingsHandler,
         GetListingByIdHandler getListingByIdHandler,
+        GetListingManagementHandler getListingManagementHandler,
         GetComparableListingsHandler getComparableListingsHandler,
         UploadListingImageHandler uploadListingImageHandler,
         DeleteListingImageHandler deleteListingImageHandler,
@@ -60,6 +64,7 @@ public sealed class ListingsController : ControllerBase
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
         _getListingByIdHandler = getListingByIdHandler;
+        _getListingManagementHandler = getListingManagementHandler;
         _getComparableListingsHandler = getComparableListingsHandler;
         _uploadListingImageHandler = uploadListingImageHandler;
         _deleteListingImageHandler = deleteListingImageHandler;
@@ -94,8 +99,8 @@ public sealed class ListingsController : ControllerBase
                         "A successful create-listing result must provide a value.");
 
                 return CreatedAtRoute(
-                    GetListingByIdRouteName,
-                    new { id = response.Id, lang = response.LanguageCode ?? "mk" },
+                    GetListingManagementRouteName,
+                    new { id = response.Id },
                     response);
 
             case ServiceResultStatus.ValidationError:
@@ -108,6 +113,34 @@ public sealed class ListingsController : ControllerBase
                 throw new InvalidOperationException(
                     "The create-listing result was not mapped.");
         }
+    }
+
+    [Authorize]
+    [HttpGet("{id:guid}/management", Name = GetListingManagementRouteName)]
+    [ProducesResponseType(typeof(ListingAuthoringResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetListingManagement(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        ServiceResult<ListingAuthoringResponse> result =
+            await _getListingManagementHandler.HandleAsync(
+                new GetListingManagementQuery(id),
+                cancellationToken);
+
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful listing-management result must provide a value.")),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The listing-management result was not mapped.")
+        };
     }
 
     [HttpGet]

@@ -15,6 +15,10 @@ public interface IListingAuthoringWriteScope : IAsyncDisposable
 
 public interface IListingAuthoringRepository
 {
+    Task<Listing?> GetByIdReadOnlyAsync(
+        Guid listingId,
+        CancellationToken cancellationToken);
+
     Task<IListingAuthoringWriteScope?> BeginWriteAsync(
         Guid listingId,
         CancellationToken cancellationToken);
