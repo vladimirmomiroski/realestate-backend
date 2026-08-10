@@ -339,6 +339,238 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
+    public void OpenApiDocument_UpdateListingContract_IsCompleteAndTruthful()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement root = document.RootElement;
+        JsonElement operation = GetOperation(
+            root,
+            "/api/listings/{id}",
+            "put");
+
+        AssertBearerRequired(root, "/api/listings/{id}", "put");
+
+        JsonElement idParameter = GetParameter(operation, "id");
+        idParameter.GetProperty("in").GetString().Should().Be("path");
+        idParameter.GetProperty("required").GetBoolean().Should().BeTrue();
+
+        JsonElement requestSchema = operation
+            .GetProperty("requestBody")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+        requestSchema.GetProperty("$ref").GetString().Should().Be(
+            "#/components/schemas/UpdateListingRequest");
+
+        JsonElement responseSchema = operation
+            .GetProperty("responses")
+            .GetProperty("200")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+        responseSchema.GetProperty("$ref").GetString().Should().Be(
+            "#/components/schemas/ListingAuthoringResponse");
+
+        AssertProblemResponse(
+            root,
+            "/api/listings/{id}",
+            "put",
+            "400",
+            "ApiValidationProblemDetailsResponse");
+
+        foreach (string status in new[] { "401", "403", "404", "409" })
+        {
+            AssertProblemResponse(
+                root,
+                "/api/listings/{id}",
+                "put",
+                status,
+                "ApiProblemDetailsResponse");
+        }
+
+        JsonElement schemas = root
+            .GetProperty("components")
+            .GetProperty("schemas");
+        JsonElement updateSchema = schemas.GetProperty("UpdateListingRequest");
+        updateSchema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .BeEquivalentTo(
+            [
+                "listingType",
+                "propertyType",
+                "price",
+                "currency",
+                "areaSquareMeters",
+                "translations"
+            ]);
+
+        string[] writableMembers =
+        [
+            "listingType",
+            "propertyType",
+            "price",
+            "currency",
+            "areaSquareMeters",
+            "rooms",
+            "bathrooms",
+            "balconyCount",
+            "parkingSpaces",
+            "hasBasement",
+            "isExchangePossible",
+            "heatingType",
+            "furnishingStatus",
+            "condition",
+            "yearRenovated",
+            "orientation",
+            "yearBuilt",
+            "latitude",
+            "longitude",
+            "apartmentDetails",
+            "houseDetails",
+            "translations"
+        ];
+        JsonElement updateProperties = updateSchema.GetProperty("properties");
+        updateProperties.EnumerateObject().Select(property => property.Name)
+            .Should().BeEquivalentTo(writableMembers);
+        updateSchema.GetProperty("description").GetString()
+            .Should().ContainAll("Full replacement", "omission", "clear");
+
+        foreach (string nullableMember in new[]
+        {
+            "rooms",
+            "bathrooms",
+            "balconyCount",
+            "parkingSpaces",
+            "hasBasement",
+            "isExchangePossible",
+            "yearRenovated",
+            "yearBuilt",
+            "latitude",
+            "longitude"
+        })
+        {
+            JsonElement property = updateProperties.GetProperty(nullableMember);
+            property.GetProperty("nullable").GetBoolean().Should().BeTrue();
+            property.GetProperty("description").GetString()
+                .Should().ContainAny("clear", "clears");
+        }
+
+        foreach (string optionalEnum in new[]
+        {
+            "heatingType",
+            "furnishingStatus",
+            "condition",
+            "orientation"
+        })
+        {
+            updateProperties.GetProperty(optionalEnum)
+                .GetProperty("description")
+                .GetString()
+                .Should()
+                .ContainAll("omission", "Unknown");
+        }
+
+        schemas.GetProperty("UpdateListingApartmentDetailsRequest")
+            .GetProperty("properties")
+            .GetProperty("apartmentType")
+            .GetProperty("description")
+            .GetString()
+            .Should()
+            .ContainAll("omission", "Unknown");
+        schemas.GetProperty("UpdateListingHouseDetailsRequest")
+            .GetProperty("properties")
+            .GetProperty("houseType")
+            .GetProperty("description")
+            .GetString()
+            .Should()
+            .ContainAll("omission", "Unknown");
+
+        AssertNullableReference(
+            updateProperties.GetProperty("apartmentDetails"),
+            "#/components/schemas/UpdateListingApartmentDetailsRequest",
+            "Apartment",
+            "House");
+        AssertNullableReference(
+            updateProperties.GetProperty("houseDetails"),
+            "#/components/schemas/UpdateListingHouseDetailsRequest",
+            "House",
+            "Apartment");
+        updateProperties.GetProperty("translations")
+            .GetProperty("description")
+            .GetString()
+            .Should().ContainAll("authoritative", "deleted", "preserve");
+
+        JsonElement translationSchema = schemas
+            .GetProperty("UpdateListingTranslationRequest");
+        translationSchema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .BeEquivalentTo("languageCode", "title");
+        translationSchema.GetProperty("properties")
+            .EnumerateObject()
+            .Select(property => property.Name)
+            .Should()
+            .BeEquivalentTo(
+                "languageCode",
+                "title",
+                "description",
+                "addressLine",
+                "city",
+                "municipality",
+                "neighborhood");
+        translationSchema.GetProperty("description").GetString()
+            .Should().Contain("does not submit translation IDs");
+
+        foreach (string serverOwned in new[]
+        {
+            "id",
+            "status",
+            "agencyId",
+            "createdByUserId",
+            "images",
+            "createdAtUtc",
+            "modifiedAtUtc"
+        })
+        {
+            updateProperties.TryGetProperty(serverOwned, out _).Should().BeFalse();
+        }
+    }
+
+    private static void AssertNullableReference(
+        JsonElement property,
+        string expectedReference,
+        string requiredPropertyType,
+        string forbiddenPropertyType)
+    {
+        property.TryGetProperty("allOf", out _).Should().BeFalse();
+        property.GetProperty("description").GetString()
+            .Should().ContainAll(
+                requiredPropertyType,
+                "Required",
+                forbiddenPropertyType,
+                "forbidden");
+
+        JsonElement[] alternatives = property.GetProperty("oneOf")
+            .EnumerateArray()
+            .ToArray();
+        alternatives.Should().HaveCount(2);
+        alternatives[0].GetProperty("$ref").GetString()
+            .Should().Be(expectedReference);
+
+        JsonElement nullAlternative = alternatives[1];
+        nullAlternative.GetProperty("type").GetString().Should().Be("object");
+        nullAlternative.GetProperty("nullable").GetBoolean().Should().BeTrue();
+        JsonElement[] allowedValues = nullAlternative.GetProperty("enum")
+            .EnumerateArray()
+            .ToArray();
+        allowedValues.Should().ContainSingle();
+        allowedValues[0].ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
     public void OpenApiDocument_CreateTranslationRulesAndCurrentTaxonomy_AreAccurate()
     {
         using JsonDocument document = GetDocument();

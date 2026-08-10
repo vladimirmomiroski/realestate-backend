@@ -59,7 +59,9 @@ public static class DependencyInjection
         services.AddScoped<PublishListingHandler>();
         services.AddScoped<UnpublishListingHandler>();
         services.AddScoped<ArchiveListingHandler>();
+        services.AddScoped<UpdateListingValidator>();
         services.AddScoped<ListingDraftReplacementEngine>();
+        services.AddScoped<UpdateListingHandler>();
 
         services.AddScoped<UploadListingImageHandler>();
         services.AddScoped<DeleteListingImageHandler>();
