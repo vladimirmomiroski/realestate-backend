@@ -300,12 +300,11 @@ public sealed class ListingMappingExtensionsTests
 
     private static Listing CreateBaseListing()
     {
-        return new Listing
+        var listing = new Listing
         {
             Id = Guid.NewGuid(),
             ListingType = ListingType.Sale,
             PropertyType = PropertyType.Apartment,
-            Status = ListingStatus.Active,
             Price = 120_000m,
             Currency = "EUR",
             AreaSquareMeters = 60m,
@@ -329,6 +328,10 @@ public sealed class ListingMappingExtensionsTests
             ],
             Images = []
         };
+
+        listing.Publish();
+
+        return listing;
     }
 
     private static ListingTranslation CreateTranslation(string languageCode, string title)

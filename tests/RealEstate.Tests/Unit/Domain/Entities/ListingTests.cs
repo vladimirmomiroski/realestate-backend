@@ -1,11 +1,28 @@
 ﻿using FluentAssertions;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Domain.Listings;
 
 namespace RealEstate.Tests.Unit.Domain.Entities;
 
 public sealed class ListingTests
 {
+    [Fact]
+    public void NewListing_DefaultsToDraft()
+    {
+        var listing = new Listing();
+
+        listing.Status.Should().Be(ListingStatus.Draft);
+    }
+
+    [Fact]
+    public void Status_HasNoPublicSetter()
+    {
+        typeof(Listing).GetProperty(nameof(Listing.Status))!
+            .SetMethod!
+            .IsPrivate.Should().BeTrue();
+    }
+
     [Fact]
     public void AssignCreator_ShouldSetCreatedByUserId_WhenUserIdIsValid()
     {
@@ -69,8 +86,9 @@ public sealed class ListingTests
     {
         var listing = CreateListing(ListingStatus.Draft);
 
-        listing.Publish();
+        ListingPublicationReadinessResult result = listing.Publish();
 
+        result.IsReady.Should().BeTrue();
         listing.Status.Should().Be(ListingStatus.Active);
     }
 
@@ -79,8 +97,9 @@ public sealed class ListingTests
     {
         var listing = CreateListing(ListingStatus.Active);
 
-        listing.Publish();
+        ListingPublicationReadinessResult result = listing.Publish();
 
+        result.IsReady.Should().BeTrue();
         listing.Status.Should().Be(ListingStatus.Active);
     }
 
@@ -177,15 +196,48 @@ public sealed class ListingTests
 
     private static Listing CreateListing(ListingStatus status)
     {
-        return new Listing
+        var listing = new Listing
         {
-            Status = status,
             ListingType = ListingType.Sale,
             PropertyType = PropertyType.Apartment,
             Price = 100_000,
             AreaSquareMeters = 50,
-            Currency = "EUR"
+            Currency = "EUR",
+            Translations =
+            [
+                new ListingTranslation
+                {
+                    Id = Guid.NewGuid(),
+                    LanguageCode = "en",
+                    Title = "Ready title",
+                    City = "Skopje",
+                    Description = "Ready description"
+                }
+            ]
         };
+
+        switch (status)
+        {
+            case ListingStatus.Draft:
+                break;
+            case ListingStatus.Active:
+                listing.Publish();
+                break;
+            case ListingStatus.Archived:
+                listing.Archive();
+                break;
+            case ListingStatus.Reserved:
+            case ListingStatus.Sold:
+            case ListingStatus.Rented:
+                ListingStatusTestMaterializer.MaterializeUnreachableStatus(
+                    listing,
+                    status);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(status), status, null);
+        }
+
+        return listing;
     }
 
     [Fact]

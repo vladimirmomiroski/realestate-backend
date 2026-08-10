@@ -82,7 +82,6 @@ public sealed class CreateListingHandler
             Id = Guid.NewGuid(),
             ListingType = request.ListingType,
             PropertyType = request.PropertyType,
-            Status = ListingStatus.Draft,
             Price = request.Price,
             Currency = request.Currency.Trim().ToUpperInvariant(),
             AreaSquareMeters = request.AreaSquareMeters,

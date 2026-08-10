@@ -88,7 +88,6 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
             Id = listingId,
             ListingType = ListingType.Sale,
             PropertyType = PropertyType.Apartment,
-            Status = ListingStatus.Active,
             Price = 120_000m,
             Currency = "EUR",
             AreaSquareMeters = 60m,
@@ -132,6 +131,7 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
         };
 
         listing.AssignCreator(userId);
+        listing.Publish();
 
         return listing;
     }
