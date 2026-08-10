@@ -280,6 +280,66 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
+    public void OpenApiDocument_PublishListing_ReadinessConflictIsDocumented()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement root = document.RootElement;
+        JsonElement operation = GetOperation(
+            root,
+            "/api/listings/{id}/publish",
+            "put");
+
+        AssertBearerRequired(root, "/api/listings/{id}/publish", "put");
+
+        JsonElement idParameter = GetParameter(operation, "id");
+        idParameter.GetProperty("in").GetString().Should().Be("path");
+        idParameter.GetProperty("required").GetBoolean().Should().BeTrue();
+
+        operation.GetProperty("responses")
+            .GetProperty("200")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema")
+            .GetProperty("$ref")
+            .GetString()
+            .Should()
+            .Be("#/components/schemas/ListingResponse");
+
+        foreach (string status in new[] { "400", "401", "403", "404", "409" })
+        {
+            AssertProblemResponse(
+                root,
+                "/api/listings/{id}/publish",
+                "put",
+                status,
+                status == "400"
+                    ? "ApiValidationProblemDetailsResponse"
+                    : "ApiProblemDetailsResponse");
+        }
+
+        operation.GetProperty("responses")
+            .GetProperty("409")
+            .GetProperty("description")
+            .GetString()
+            .Should()
+            .ContainAll(
+                ErrorCodes.ConflictResourceState,
+                ErrorCodes.ConflictListingNotReady,
+                "The listing is not ready for publication.");
+
+        root.GetProperty("components")
+            .GetProperty("schemas")
+            .GetProperty("ApiProblemDetailsResponse")
+            .GetProperty("properties")
+            .GetProperty("code")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .Contain(ErrorCodes.ConflictListingNotReady);
+    }
+
+    [Fact]
     public void OpenApiDocument_ListingManagementContract_IsCompleteAndTruthful()
     {
         using JsonDocument document = GetDocument();

@@ -107,6 +107,7 @@ public sealed class ServiceResultTests
                 "conflict.email_already_exists",
                 "conflict.agency_slug_already_exists",
                 "conflict.resource_state",
+                "conflict.listing_not_ready",
                 "conflict.resource_capacity",
                 "conflict.resource_set_changed",
                 "server.unexpected"

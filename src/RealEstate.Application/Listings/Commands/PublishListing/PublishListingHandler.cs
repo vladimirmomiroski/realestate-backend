@@ -6,6 +6,7 @@ using RealEstate.Application.Listings.Repositories;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Application.Agencies.Permissions;
 using RealEstate.Domain.Enums;
+using RealEstate.Domain.Listings;
 
 namespace RealEstate.Application.Listings.Commands.PublishListing;
 
@@ -102,15 +103,24 @@ public sealed class PublishListingHandler
                     ErrorCodes.AuthorizationForbidden);
             }
 
+            ListingPublicationReadinessResult readiness;
+
             try
             {
-                listing.Publish();
+                readiness = listing.Publish();
             }
             catch (InvalidOperationException exception)
             {
                 return ServiceResult<ListingResponse>.Conflict(
                     exception.Message,
                     ErrorCodes.ConflictResourceState);
+            }
+
+            if (!readiness.IsReady)
+            {
+                return ServiceResult<ListingResponse>.Conflict(
+                    "The listing is not ready for publication.",
+                    ErrorCodes.ConflictListingNotReady);
             }
 
             await writeScope.SaveChangesAsync(cancellationToken);

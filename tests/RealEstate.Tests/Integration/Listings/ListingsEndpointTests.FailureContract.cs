@@ -719,6 +719,9 @@ public sealed partial class ListingsEndpointTests
             ErrorCodes.ConflictResourceState => (
                 "Conflict",
                 "The request conflicts with the current resource state."),
+            ErrorCodes.ConflictListingNotReady => (
+                "Conflict",
+                "The listing is not ready for publication."),
             _ => throw new ArgumentOutOfRangeException(nameof(code), code, null)
         };
 
