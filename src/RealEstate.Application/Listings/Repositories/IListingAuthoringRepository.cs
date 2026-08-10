@@ -6,6 +6,12 @@ public interface IListingAuthoringWriteScope : IAsyncDisposable
 {
     Listing Listing { get; }
 
+    void AddTranslation(ListingTranslation translation);
+
+    void RemoveTranslation(ListingTranslation translation);
+
+    void MarkListingModified();
+
     Task SaveChangesAsync(
         CancellationToken cancellationToken);
 

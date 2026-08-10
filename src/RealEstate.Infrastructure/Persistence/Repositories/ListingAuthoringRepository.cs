@@ -179,6 +179,31 @@ public sealed class ListingAuthoringRepository
 
         public Listing Listing { get; }
 
+        public void AddTranslation(ListingTranslation translation)
+        {
+            ThrowIfDisposed();
+
+            Listing.Translations.Add(translation);
+            _dbContext.Entry(translation).State = EntityState.Added;
+        }
+
+        public void RemoveTranslation(ListingTranslation translation)
+        {
+            ThrowIfDisposed();
+
+            Listing.Translations.Remove(translation);
+            _dbContext.Entry(translation).State = EntityState.Deleted;
+        }
+
+        public void MarkListingModified()
+        {
+            ThrowIfDisposed();
+
+            _dbContext.Entry(Listing)
+                .Property(listing => listing.ModifiedAtUtc)
+                .IsModified = true;
+        }
+
         public async Task SaveChangesAsync(
             CancellationToken cancellationToken)
         {
