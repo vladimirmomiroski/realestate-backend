@@ -106,7 +106,7 @@ public sealed partial class ListingsEndpointTests
             listingId.Should().NotBeEmpty();
             response.Headers.Location.Should().NotBeNull();
             response.Headers.Location!.PathAndQuery.Should()
-                .Be($"/api/listings/{listingId}?lang=en");
+                .Be($"/api/listings/{listingId}/management");
             json.GetProperty("status").GetString().Should().Be(nameof(ListingStatus.Draft));
             json.GetProperty("languageCode").GetString().Should().Be("en");
             json.GetProperty("title").GetString().Should().Be("Integration test apartment");
@@ -135,6 +135,11 @@ public sealed partial class ListingsEndpointTests
             json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
             json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);
             json.GetProperty("images").GetArrayLength().Should().Be(0);
+
+            HttpResponseMessage managementResponse =
+                await _httpClient.GetAsync(response.Headers.Location);
+
+            managementResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         }
         finally
         {

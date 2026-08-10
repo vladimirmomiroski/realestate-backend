@@ -63,6 +63,10 @@ public sealed class OpenApiDocumentTests
         AssertBearerRequired(root, "/api/listings/my", "get");
         AssertBearerRequired(
             root,
+            "/api/listings/{id}/management",
+            "get");
+        AssertBearerRequired(
+            root,
             "/api/agencies/{id}/invitations",
             "get");
         AssertBearerRequired(
@@ -98,6 +102,24 @@ public sealed class OpenApiDocumentTests
         AssertProblemResponse(
             root,
             "/api/listings/{id}",
+            "get",
+            "404",
+            "ApiProblemDetailsResponse");
+        AssertProblemResponse(
+            root,
+            "/api/listings/{id}/management",
+            "get",
+            "401",
+            "ApiProblemDetailsResponse");
+        AssertProblemResponse(
+            root,
+            "/api/listings/{id}/management",
+            "get",
+            "403",
+            "ApiProblemDetailsResponse");
+        AssertProblemResponse(
+            root,
+            "/api/listings/{id}/management",
             "get",
             "404",
             "ApiProblemDetailsResponse");
@@ -255,6 +277,65 @@ public sealed class OpenApiDocumentTests
                 .Should()
                 .Be("string");
         }
+    }
+
+    [Fact]
+    public void OpenApiDocument_ListingManagementContract_IsCompleteAndTruthful()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement root = document.RootElement;
+        JsonElement successSchema = GetOperation(
+                root,
+                "/api/listings/{id}/management",
+                "get")
+            .GetProperty("responses")
+            .GetProperty("200")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+        successSchema.GetProperty("$ref").GetString().Should().Be(
+            "#/components/schemas/ListingAuthoringResponse");
+
+        JsonElement schemas = root
+            .GetProperty("components")
+            .GetProperty("schemas");
+        JsonElement authoringSchema = schemas
+            .GetProperty("ListingAuthoringResponse");
+        authoringSchema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .Contain(["currency", "translations", "images"]);
+
+        JsonElement translations = authoringSchema
+            .GetProperty("properties")
+            .GetProperty("translations");
+        translations.GetProperty("type").GetString().Should().Be("array");
+        translations.GetProperty("items")
+            .GetProperty("$ref")
+            .GetString()
+            .Should()
+            .Be("#/components/schemas/ListingAuthoringTranslationResponse");
+
+        JsonElement translationSchema = schemas
+            .GetProperty("ListingAuthoringTranslationResponse");
+        translationSchema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .Contain(["languageCode", "title"]);
+        JsonElement translationProperties =
+            translationSchema.GetProperty("properties");
+        translationProperties.GetProperty("city")
+            .GetProperty("nullable")
+            .GetBoolean()
+            .Should()
+            .BeTrue();
+        translationProperties.GetProperty("description")
+            .GetProperty("nullable")
+            .GetBoolean()
+            .Should()
+            .BeTrue();
     }
 
     [Fact]

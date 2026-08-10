@@ -18,6 +18,17 @@ public sealed class ListingAuthoringRepository
         _dbContext = dbContext;
     }
 
+    public Task<Listing?> GetByIdReadOnlyAsync(
+        Guid listingId,
+        CancellationToken cancellationToken)
+    {
+        return CompleteAggregateQuery(
+                _dbContext.Listings.AsNoTracking())
+            .SingleOrDefaultAsync(
+                listing => listing.Id == listingId,
+                cancellationToken);
+    }
+
     public async Task<IListingAuthoringWriteScope?> BeginWriteAsync(
         Guid listingId,
         CancellationToken cancellationToken)
@@ -45,12 +56,8 @@ public sealed class ListingAuthoringRepository
                 return null;
             }
 
-            Listing? listing = await _dbContext.Listings
-                .Include(currentListing => currentListing.Translations)
-                .Include(currentListing => currentListing.Images)
-                .Include(currentListing => currentListing.ApartmentDetails)
-                .Include(currentListing => currentListing.HouseDetails)
-                .AsSplitQuery()
+            Listing? listing = await CompleteAggregateQuery(
+                    _dbContext.Listings)
                 .SingleOrDefaultAsync(
                     currentListing => currentListing.Id == listingId,
                     cancellationToken);
@@ -82,6 +89,17 @@ public sealed class ListingAuthoringRepository
 
             throw;
         }
+    }
+
+    private static IQueryable<Listing> CompleteAggregateQuery(
+        IQueryable<Listing> listings)
+    {
+        return listings
+            .Include(listing => listing.Translations)
+            .Include(listing => listing.Images)
+            .Include(listing => listing.ApartmentDetails)
+            .Include(listing => listing.HouseDetails)
+            .AsSplitQuery();
     }
 
     private async Task<bool> LockListingAsync(
