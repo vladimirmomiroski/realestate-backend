@@ -16,6 +16,7 @@ using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Listings.Commands.PublishListing;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
 using RealEstate.Application.Listings.Commands.ArchiveListing;
+using RealEstate.Application.Listings.Commands.UpdateListing;
 using RealEstate.Application.Listings.Queries.GetComparableListings;
 using RealEstate.Api.Errors;
 
@@ -41,6 +42,7 @@ public sealed class ListingsController : ControllerBase
     private readonly PublishListingHandler _publishListingHandler;
     private readonly UnpublishListingHandler _unpublishListingHandler;
     private readonly ArchiveListingHandler _archiveListingHandler;
+    private readonly UpdateListingHandler _updateListingHandler;
     private readonly GetComparableListingsHandler _getComparableListingsHandler;
     private readonly ApiFailureService _failureService;
 
@@ -58,6 +60,7 @@ public sealed class ListingsController : ControllerBase
         PublishListingHandler publishListingHandler,
         UnpublishListingHandler unpublishListingHandler,
         ArchiveListingHandler archiveListingHandler,
+        UpdateListingHandler updateListingHandler,
         ApiFailureService failureService
         )
     {
@@ -74,8 +77,44 @@ public sealed class ListingsController : ControllerBase
         _publishListingHandler = publishListingHandler;
         _unpublishListingHandler = unpublishListingHandler;
         _archiveListingHandler = archiveListingHandler;
+        _updateListingHandler = updateListingHandler;
         _failureService = failureService;
         
+    }
+
+    [Authorize]
+    [HttpPut("{id:guid}")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ListingAuthoringResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateListing(
+        Guid id,
+        [FromBody] UpdateListingRequest request,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<ListingAuthoringResponse> result =
+            await _updateListingHandler.HandleAsync(
+                id,
+                request,
+                cancellationToken);
+
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful update-listing result must provide a value.")),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The update-listing result was not mapped.")
+        };
     }
 
     [Authorize]

@@ -4,6 +4,7 @@ using RealEstate.Api.Errors;
 using RealEstate.Application.Agencies.Dtos;
 using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Commands.CreateListing;
+using RealEstate.Application.Listings.Commands.UpdateListing;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Users.Dtos;
 using RealEstate.Domain.Listings;
@@ -45,6 +46,32 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         if (context.Type == typeof(CreateListingTranslationRequest))
         {
             ApplyCreateListingTranslationSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(UpdateListingRequest))
+        {
+            ApplyUpdateListingSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(UpdateListingTranslationRequest))
+        {
+            ApplyUpdateListingTranslationSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(UpdateListingApartmentDetailsRequest))
+        {
+            WrapReferenceWithDescription(
+                mutableSchema,
+                "apartmentType",
+                "Optional; omission resets the stored value to Unknown.");
+        }
+
+        if (context.Type == typeof(UpdateListingHouseDetailsRequest))
+        {
+            WrapReferenceWithDescription(
+                mutableSchema,
+                "houseType",
+                "Optional; omission resets the stored value to Unknown.");
         }
 
         ApplyRelativeMediaDescriptions(mutableSchema, context.Type);
@@ -189,6 +216,85 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         }
     }
 
+    private static void ApplyUpdateListingSchema(OpenApiSchema schema)
+    {
+        schema.Description =
+            "Full replacement of the current editable Draft listing content. " +
+            "For optional nullable members, omission and explicit null both clear the stored value.";
+
+        foreach (string propertyName in new[]
+        {
+            "rooms",
+            "bathrooms",
+            "balconyCount",
+            "parkingSpaces",
+            "hasBasement",
+            "isExchangePossible",
+            "yearRenovated",
+            "yearBuilt",
+            "latitude",
+            "longitude"
+        })
+        {
+            SetDescription(
+                schema,
+                propertyName,
+                "Optional and nullable; omission or explicit null clears the stored value.");
+        }
+
+        foreach (string propertyName in new[]
+        {
+            "heatingType",
+            "furnishingStatus",
+            "condition",
+            "orientation"
+        })
+        {
+            WrapReferenceWithDescription(
+                schema,
+                propertyName,
+                "Optional; omission resets the stored value to Unknown.");
+        }
+
+        WrapNullableReference(
+            schema,
+            "apartmentDetails",
+            "Required when propertyType is Apartment and forbidden when propertyType is House. Omission or null clears this subtype payload during a valid House replacement.");
+        WrapNullableReference(
+            schema,
+            "houseDetails",
+            "Required when propertyType is House and forbidden when propertyType is Apartment. Omission or null clears this subtype payload during a valid Apartment replacement.");
+        SetDescription(
+            schema,
+            "translations",
+            "Complete authoritative translation set. Omitted stored languages are deleted; retained canonical languages preserve their server-owned translation IDs.");
+    }
+
+    private static void ApplyUpdateListingTranslationSchema(
+        OpenApiSchema schema)
+    {
+        schema.Description =
+            "One member of the complete authoritative replacement translation set. " +
+            "The client does not submit translation IDs.";
+
+        ApplyCreateListingTranslationSchema(schema);
+
+        foreach (string propertyName in new[]
+        {
+            "description",
+            "addressLine",
+            "city",
+            "municipality",
+            "neighborhood"
+        })
+        {
+            SetDescription(
+                schema,
+                propertyName,
+                "Optional and nullable; omission, explicit null, or boundary-whitespace-only input clears the stored value.");
+        }
+    }
+
     private static void ApplyRelativeMediaDescriptions(
         OpenApiSchema schema,
         Type type)
@@ -222,6 +328,54 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         {
             property.Description = description;
         }
+    }
+
+    private static void WrapNullableReference(
+        OpenApiSchema schema,
+        string propertyName,
+        string description)
+    {
+        if (schema.Properties is null ||
+            !schema.Properties.TryGetValue(
+                propertyName,
+                out IOpenApiSchema? property))
+        {
+            return;
+        }
+
+        schema.Properties[propertyName] = new OpenApiSchema
+        {
+            Description = description,
+            OneOf =
+            [
+                property,
+                new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Object | JsonSchemaType.Null,
+                    Enum = [null!]
+                }
+            ]
+        };
+    }
+
+    private static void WrapReferenceWithDescription(
+        OpenApiSchema schema,
+        string propertyName,
+        string description)
+    {
+        if (schema.Properties is null ||
+            !schema.Properties.TryGetValue(
+                propertyName,
+                out IOpenApiSchema? property))
+        {
+            return;
+        }
+
+        schema.Properties[propertyName] = new OpenApiSchema
+        {
+            Description = description,
+            AllOf = [property]
+        };
     }
 
     private static void SetStringRule(
