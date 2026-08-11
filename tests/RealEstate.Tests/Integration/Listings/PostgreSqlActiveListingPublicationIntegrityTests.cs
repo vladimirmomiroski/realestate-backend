@@ -148,6 +148,72 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
     }
 
     [Fact]
+    public async Task ActivationMatrix_RequiresEveryTranslationAndRevalidatesActiveRows()
+    {
+        Guid multipleValidId = await InsertListingAsync(ListingStatus.Draft);
+        await InsertTranslationAsync(
+            multipleValidId,
+            "en",
+            "First valid title",
+            "Skopje",
+            "First valid description");
+        await InsertTranslationAsync(
+            multipleValidId,
+            "mk",
+            "Second valid title",
+            "Bitola",
+            "Second valid description");
+
+        await SetListingStatusAsync(multipleValidId, ListingStatus.Active);
+        await UpdateListingPriceToCurrentValueAsync(multipleValidId);
+
+        (await ReadListingStatusAsync(multipleValidId))
+            .Should().Be(ListingStatus.Active);
+
+        Guid mixedValidityId = await InsertListingAsync(ListingStatus.Draft);
+        await InsertTranslationAsync(
+            mixedValidityId,
+            "en",
+            "Valid translation",
+            "Skopje",
+            "Valid description");
+        await InsertTranslationAsync(
+            mixedValidityId,
+            "mk",
+            "Incomplete translation",
+            city: null,
+            description: "Still a Draft-valid row");
+
+        await AssertIntegrityRejectedAsync(
+            () => SetListingStatusAsync(
+                mixedValidityId,
+                ListingStatus.Active));
+        (await ReadListingStatusAsync(mixedValidityId))
+            .Should().Be(ListingStatus.Draft);
+
+        Guid allIncompleteId = await InsertListingAsync(ListingStatus.Draft);
+        await InsertTranslationAsync(
+            allIncompleteId,
+            "en",
+            "Missing City",
+            city: null,
+            description: "Present description");
+        await InsertTranslationAsync(
+            allIncompleteId,
+            "mk",
+            "Missing Description",
+            city: "Skopje",
+            description: null);
+
+        await AssertIntegrityRejectedAsync(
+            () => SetListingStatusAsync(
+                allIncompleteId,
+                ListingStatus.Active));
+        (await ReadListingStatusAsync(allIncompleteId))
+            .Should().Be(ListingStatus.Draft);
+    }
+
+    [Fact]
     public async Task DirectActiveInsert_WithoutAggregateTruth_IsRejected()
     {
         Guid listingId = Guid.NewGuid();
@@ -188,6 +254,99 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         ListingTranslation persisted = await ReadTranslationAsync(translationId);
         persisted.Title.Should().Be("Changed after unpublish");
         persisted.ListingId.Should().Be(listingId);
+    }
+
+    [Fact]
+    public async Task ActiveTranslationInsert_RejectsValidAndIncompleteRows()
+    {
+        Guid listingId = await InsertListingAsync(ListingStatus.Draft);
+        await InsertTranslationAsync(
+            listingId,
+            "en",
+            "Existing title",
+            "Skopje",
+            "Existing description");
+        await SetListingStatusAsync(listingId, ListingStatus.Active);
+
+        await AssertActiveFreezeRejectedAsync(
+            () => InsertTranslationAsync(
+                listingId,
+                "mk",
+                "Valid inserted title",
+                "Bitola",
+                "Valid inserted description"));
+        await AssertActiveFreezeRejectedAsync(
+            () => InsertTranslationAsync(
+                listingId,
+                "de",
+                "Incomplete inserted title",
+                city: null,
+                description: "Draft-valid description"));
+
+        (await CountTranslationsAsync(listingId)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ActiveTranslationUpdateAndDelete_FreezeEveryEditableColumnAndCardinality()
+    {
+        Guid multipleListingId = await InsertListingAsync(ListingStatus.Draft);
+        Guid firstTranslationId = await InsertTranslationAsync(
+            multipleListingId,
+            "en",
+            "First title",
+            "Skopje",
+            "First description");
+        await InsertTranslationAsync(
+            multipleListingId,
+            "mk",
+            "Second title",
+            "Bitola",
+            "Second description");
+        await SetListingStatusAsync(
+            multipleListingId,
+            ListingStatus.Active);
+
+        ListingTranslation original =
+            await ReadTranslationAsync(firstTranslationId);
+
+        foreach ((string column, string value) in new[]
+                 {
+                     ("Title", "Changed title"),
+                     ("City", "Ohrid"),
+                     ("Description", "Changed description"),
+                     ("LanguageCode", "de")
+                 })
+        {
+            await AssertActiveFreezeRejectedAsync(
+                () => UpdateTranslationColumnAsync(
+                    firstTranslationId,
+                    column,
+                    value));
+        }
+
+        await AssertActiveFreezeRejectedAsync(
+            () => DeleteTranslationAsync(firstTranslationId));
+
+        ListingTranslation afterRejectedMutations =
+            await ReadTranslationAsync(firstTranslationId);
+        afterRejectedMutations.Should().BeEquivalentTo(original);
+        (await CountTranslationsAsync(multipleListingId)).Should().Be(2);
+
+        Guid singleListingId = await InsertListingAsync(ListingStatus.Draft);
+        Guid lastTranslationId = await InsertTranslationAsync(
+            singleListingId,
+            "en",
+            "Last title",
+            "Skopje",
+            "Last description");
+        await SetListingStatusAsync(singleListingId, ListingStatus.Active);
+
+        await AssertActiveFreezeRejectedAsync(
+            () => DeleteTranslationAsync(lastTranslationId));
+
+        (await ReadTranslationAsync(lastTranslationId)).ListingId
+            .Should().Be(singleListingId);
+        (await CountTranslationsAsync(singleListingId)).Should().Be(1);
     }
 
     [Fact]
@@ -286,6 +445,122 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
     }
 
     [Fact]
+    public async Task TranslationListingIdMove_ActiveToActiveRejectsAtomically()
+    {
+        Guid activeSourceId = await InsertListingAsync(ListingStatus.Draft);
+        Guid sourceTranslationId = await InsertTranslationAsync(
+            activeSourceId,
+            "en",
+            "Active source title",
+            "Skopje",
+            "Active source description");
+        await SetListingStatusAsync(activeSourceId, ListingStatus.Active);
+
+        Guid activeDestinationId = await InsertListingAsync(ListingStatus.Draft);
+        Guid destinationTranslationId = await InsertTranslationAsync(
+            activeDestinationId,
+            "mk",
+            "Active destination title",
+            "Bitola",
+            "Active destination description");
+        await SetListingStatusAsync(
+            activeDestinationId,
+            ListingStatus.Active);
+        long sourceXmin = await ReadListingXminAsync(activeSourceId);
+        long destinationXmin =
+            await ReadListingXminAsync(activeDestinationId);
+
+        await AssertActiveFreezeRejectedAsync(
+            () => MoveTranslationAsync(
+                sourceTranslationId,
+                activeDestinationId));
+
+        (await ReadTranslationAsync(sourceTranslationId)).ListingId
+            .Should().Be(activeSourceId);
+        (await ReadTranslationAsync(destinationTranslationId)).ListingId
+            .Should().Be(activeDestinationId);
+        (await CountTranslationsAsync(activeSourceId)).Should().Be(1);
+        (await CountTranslationsAsync(activeDestinationId)).Should().Be(1);
+        (await ReadListingXminAsync(activeSourceId)).Should().Be(sourceXmin);
+        (await ReadListingXminAsync(activeDestinationId))
+            .Should().Be(destinationXmin);
+    }
+
+    [Fact]
+    public async Task MultiRowTranslationUpdate_WithActiveParentRejectsEntireStatement()
+    {
+        Guid draftListingId = await InsertListingAsync(ListingStatus.Draft);
+        Guid draftTranslationId = await InsertTranslationAsync(
+            draftListingId,
+            "en",
+            "Draft original title",
+            "Skopje",
+            "Draft description");
+        Guid activeListingId = await InsertListingAsync(ListingStatus.Draft);
+        Guid activeTranslationId = await InsertTranslationAsync(
+            activeListingId,
+            "en",
+            "Active original title",
+            "Bitola",
+            "Active description");
+        await SetListingStatusAsync(activeListingId, ListingStatus.Active);
+        long draftXmin = await ReadListingXminAsync(draftListingId);
+        long activeXmin = await ReadListingXminAsync(activeListingId);
+
+        await AssertActiveFreezeRejectedAsync(
+            () => UpdateTranslationTitlesAsync(
+                [draftTranslationId, activeTranslationId],
+                "Rejected multi-row title"));
+
+        (await ReadTranslationAsync(draftTranslationId)).Title
+            .Should().Be("Draft original title");
+        (await ReadTranslationAsync(activeTranslationId)).Title
+            .Should().Be("Active original title");
+        (await ReadListingXminAsync(draftListingId)).Should().Be(draftXmin);
+        (await ReadListingXminAsync(activeListingId)).Should().Be(activeXmin);
+    }
+
+    [Fact]
+    public async Task MultiRowDraftTranslationUpdate_TouchesEveryParentWithoutAuditChange()
+    {
+        Guid firstListingId = await InsertListingAsync(ListingStatus.Draft);
+        Guid firstTranslationId = await InsertTranslationAsync(
+            firstListingId,
+            "en",
+            "First original title",
+            city: null,
+            description: null);
+        Guid secondListingId = await InsertListingAsync(ListingStatus.Draft);
+        Guid secondTranslationId = await InsertTranslationAsync(
+            secondListingId,
+            "en",
+            "Second original title",
+            city: null,
+            description: null);
+        long firstXmin = await ReadListingXminAsync(firstListingId);
+        long secondXmin = await ReadListingXminAsync(secondListingId);
+        DateTime? firstModifiedAt =
+            await ReadListingModifiedAtAsync(firstListingId);
+        DateTime? secondModifiedAt =
+            await ReadListingModifiedAtAsync(secondListingId);
+
+        await UpdateTranslationTitlesAsync(
+            [firstTranslationId, secondTranslationId],
+            "Accepted multi-row title");
+
+        (await ReadTranslationAsync(firstTranslationId)).Title
+            .Should().Be("Accepted multi-row title");
+        (await ReadTranslationAsync(secondTranslationId)).Title
+            .Should().Be("Accepted multi-row title");
+        (await ReadListingXminAsync(firstListingId)).Should().NotBe(firstXmin);
+        (await ReadListingXminAsync(secondListingId)).Should().NotBe(secondXmin);
+        (await ReadListingModifiedAtAsync(firstListingId))
+            .Should().Be(firstModifiedAt);
+        (await ReadListingModifiedAtAsync(secondListingId))
+            .Should().Be(secondModifiedAt);
+    }
+
+    [Fact]
     public async Task ListingDelete_CascadesTranslationsWithoutChildGuardFailure()
     {
         Guid listingId = await InsertListingAsync(ListingStatus.Draft);
@@ -323,6 +598,59 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
             await migrator.MigrateAsync(CurrentMigration);
             (await CountIntegrityObjectsAsync(dbContext)).Should().Be((5, 7));
         }
+    }
+
+    [Fact]
+    public async Task AlreadyActiveUpdate_RevalidatesMalformedAggregateInIsolatedDatabase()
+    {
+        await using IsolatedMigrationDatabase database =
+            await CreateIsolatedMigrationDatabaseAsync();
+        Guid listingId = Guid.NewGuid();
+        Guid translationId = Guid.NewGuid();
+
+        await using RealEstateDbContext dbContext = database.CreateContext();
+        IMigrator migrator = dbContext.GetService<IMigrator>();
+        await migrator.MigrateAsync(CurrentMigration);
+        await InsertListingAsync(dbContext, listingId, ListingStatus.Draft);
+        await InsertTranslationAsync(
+            dbContext,
+            translationId,
+            listingId,
+            "en",
+            "Initially valid title",
+            "Skopje",
+            "Initially valid description");
+        await SetListingStatusAsync(
+            dbContext,
+            listingId,
+            ListingStatus.Active);
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE public."ListingTranslations"
+            DISABLE TRIGGER "TR_ListingTranslations_ActiveFreeze_Update";
+            """);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE public."ListingTranslations"
+             SET "Description" = NULL
+             WHERE "Id" = {translationId}
+             """);
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE public."ListingTranslations"
+            ENABLE TRIGGER "TR_ListingTranslations_ActiveFreeze_Update";
+            """);
+
+        Func<Task> action = () => UpdateListingPriceToCurrentValueAsync(
+            dbContext,
+            listingId);
+
+        await AssertIntegrityRejectedAsync(action);
+        (await ReadListingStatusAsync(dbContext, listingId))
+            .Should().Be(ListingStatus.Active);
+        (await ReadTranslationDescriptionAsync(dbContext, translationId))
+            .Should().BeNull();
     }
 
     [Fact]
@@ -414,15 +742,34 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
             .GetRequiredService<RealEstateDbContext>();
         Guid translationId = Guid.NewGuid();
 
-        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+        await InsertTranslationAsync(
+            dbContext,
+            translationId,
+            listingId,
+            languageCode,
+            title,
+            city,
+            description);
+
+        return translationId;
+    }
+
+    private static Task InsertTranslationAsync(
+        RealEstateDbContext dbContext,
+        Guid translationId,
+        Guid listingId,
+        string languageCode,
+        string title,
+        string? city,
+        string? description)
+    {
+        return dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              INSERT INTO "ListingTranslations"
                  ("Id", "ListingId", "LanguageCode", "Title", "City", "Description")
              VALUES
                  ({translationId}, {listingId}, {languageCode}, {title}, {city}, {description})
              """);
-
-        return translationId;
     }
 
     private async Task SetListingStatusAsync(
@@ -433,10 +780,38 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         RealEstateDbContext dbContext = scope.ServiceProvider
             .GetRequiredService<RealEstateDbContext>();
 
-        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+        await SetListingStatusAsync(dbContext, listingId, status);
+    }
+
+    private static Task SetListingStatusAsync(
+        RealEstateDbContext dbContext,
+        Guid listingId,
+        ListingStatus status)
+    {
+        return dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              UPDATE "Listings"
              SET "Status" = {status.ToString()}
+             WHERE "Id" = {listingId}
+             """);
+    }
+
+    private async Task UpdateListingPriceToCurrentValueAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        await UpdateListingPriceToCurrentValueAsync(dbContext, listingId);
+    }
+
+    private static Task UpdateListingPriceToCurrentValueAsync(
+        RealEstateDbContext dbContext,
+        Guid listingId)
+    {
+        return dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE "Listings"
+             SET "Price" = "Price"
              WHERE "Id" = {listingId}
              """);
     }
@@ -468,6 +843,63 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
              UPDATE "ListingTranslations"
              SET "Title" = {title}
              WHERE "Id" = {translationId}
+             """);
+    }
+
+    private async Task UpdateTranslationColumnAsync(
+        Guid translationId,
+        string column,
+        string value)
+    {
+        string commandText = column switch
+        {
+            "Title" =>
+                "UPDATE \"ListingTranslations\" SET \"Title\" = @value WHERE \"Id\" = @id;",
+            "City" =>
+                "UPDATE \"ListingTranslations\" SET \"City\" = @value WHERE \"Id\" = @id;",
+            "Description" =>
+                "UPDATE \"ListingTranslations\" SET \"Description\" = @value WHERE \"Id\" = @id;",
+            "LanguageCode" =>
+                "UPDATE \"ListingTranslations\" SET \"LanguageCode\" = @value WHERE \"Id\" = @id;",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(column),
+                column,
+                "Unsupported translation column.")
+        };
+
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        DbConnection connection = dbContext.Database.GetDbConnection();
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        await using DbCommand command = connection.CreateCommand();
+        command.CommandText = commandText;
+        DbParameter valueParameter = command.CreateParameter();
+        valueParameter.ParameterName = "value";
+        valueParameter.DbType = DbType.String;
+        valueParameter.Value = value;
+        command.Parameters.Add(valueParameter);
+        AddGuidParameter(command, "id", translationId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task UpdateTranslationTitlesAsync(
+        Guid[] translationIds,
+        string title)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE "ListingTranslations"
+             SET "Title" = {title}
+             WHERE "Id" = ANY({translationIds})
              """);
     }
 
@@ -519,7 +951,14 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         RealEstateDbContext dbContext = scope.ServiceProvider
             .GetRequiredService<RealEstateDbContext>();
 
-        return await dbContext.Listings
+        return await ReadListingStatusAsync(dbContext, listingId);
+    }
+
+    private static Task<ListingStatus> ReadListingStatusAsync(
+        RealEstateDbContext dbContext,
+        Guid listingId)
+    {
+        return dbContext.Listings
             .AsNoTracking()
             .Where(listing => listing.Id == listingId)
             .Select(listing => listing.Status)
@@ -573,6 +1012,28 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         return await dbContext.Set<ListingTranslation>()
             .AsNoTracking()
             .SingleAsync(translation => translation.Id == translationId);
+    }
+
+    private static Task<string?> ReadTranslationDescriptionAsync(
+        RealEstateDbContext dbContext,
+        Guid translationId)
+    {
+        return dbContext.Set<ListingTranslation>()
+            .AsNoTracking()
+            .Where(translation => translation.Id == translationId)
+            .Select(translation => translation.Description)
+            .SingleAsync();
+    }
+
+    private async Task<int> CountTranslationsAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        return await dbContext.Set<ListingTranslation>()
+            .AsNoTracking()
+            .CountAsync(translation => translation.ListingId == listingId);
     }
 
     private async Task<bool> ListingExistsAsync(Guid listingId)
