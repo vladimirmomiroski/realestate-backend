@@ -179,6 +179,141 @@ public sealed class ListingUpdateConcurrencyTests
     }
 
     [Fact]
+    public async Task UpdateIncompleteDraftFirst_PublishWaitsThenReturnsListingNotReady()
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        ListingAuthoringResponse initial =
+            await ReadAuthoringResponseAsync(listingId);
+        string connectionString = await GetConnectionStringAsync();
+
+        await using AsyncServiceScope updateDependencyScope =
+            _factory.Services.CreateAsyncScope();
+        await using AsyncServiceScope publishDependencyScope =
+            _factory.Services.CreateAsyncScope();
+
+        RealEstateDbContext updateAuthoringDbContext =
+            updateDependencyScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+        await EnsureConnectionOpenAsync(updateAuthoringDbContext);
+        int updateBackendPid = await GetBackendProcessIdAsync(
+            updateAuthoringDbContext);
+        var updateGate = new GatedAuthoringRepository(
+            updateDependencyScope.ServiceProvider
+                .GetRequiredService<IListingAuthoringRepository>());
+        var publishProbe = new AuthoringProgressProbe();
+        await using RealEstateDbContext publishAuthoringDbContext =
+            CreateProbedAuthoringDbContext(connectionString, publishProbe);
+        await EnsureConnectionOpenAsync(publishAuthoringDbContext);
+        int publishBackendPid = await GetBackendProcessIdAsync(
+            publishAuthoringDbContext);
+        var publishRepository = new RecordingAuthoringRepository(
+            new ListingAuthoringRepository(publishAuthoringDbContext));
+
+        UpdateListingHandler updateHandler = CreateUpdateHandler(
+            updateGate,
+            updateDependencyScope.ServiceProvider,
+            owner.UserId);
+        PublishListingHandler publishHandler = CreatePublishHandler(
+            publishRepository,
+            publishDependencyScope.ServiceProvider,
+            owner.UserId);
+        UpdateListingRequest incompleteRequest = CreateApartmentRequest(
+            price: 345_000m,
+            ("en", "Committed incomplete English"),
+            ("de", "Committed incomplete German"));
+        incompleteRequest.Translations
+            .Single(translation => translation.LanguageCode == "de")
+            .City = null;
+        using var cancellation = new CancellationTokenSource();
+
+        Task<ServiceResult<ListingAuthoringResponse>>? updateTask = null;
+        Task<ServiceResult<ListingResponse>>? publishTask = null;
+
+        try
+        {
+            updateTask = updateHandler.HandleAsync(
+                listingId,
+                incompleteRequest,
+                cancellation.Token);
+
+            await updateGate.LockAcquired.WaitAsync(TestTimeout);
+
+            publishTask = publishHandler.HandleAsync(
+                new PublishListingCommand(listingId, "de"),
+                cancellation.Token);
+
+            await publishProbe.TransactionStarted.WaitAsync(TestTimeout);
+            await WaitForBlockedParentLockAsync(
+                waitingBackendPid: publishBackendPid,
+                blockingBackendPid: updateBackendPid,
+                competingTask: publishTask,
+                cancellation.Token);
+            publishProbe.AggregateLoadStarted.IsCompleted.Should().BeFalse(
+                "publish cannot load the aggregate before acquiring the parent lock");
+            publishTask.IsCompleted.Should().BeFalse();
+
+            updateGate.Release();
+
+            ServiceResult<ListingAuthoringResponse> updateResult =
+                await updateTask.WaitAsync(TestTimeout);
+            await publishProbe.AggregateLoadStarted.WaitAsync(TestTimeout);
+            ServiceResult<ListingResponse> publishResult =
+                await publishTask.WaitAsync(TestTimeout);
+
+            updateResult.Status.Should().Be(ServiceResultStatus.Success);
+            publishResult.Status.Should().Be(ServiceResultStatus.Conflict);
+            publishResult.ErrorCode.Should().Be(
+                ErrorCodes.ConflictListingNotReady);
+            publishRepository.SaveChangesCallCount.Should().Be(0);
+            publishRepository.CommitCallCount.Should().Be(0);
+            publishRepository.DisposeCallCount.Should().Be(1);
+
+            ListingAuthoringResponse updated = updateResult.Value!;
+            Guid committedGermanId = updated.Translations
+                .Single(translation => translation.LanguageCode == "de")
+                .Id;
+            committedGermanId.Should().NotBeEmpty();
+            initial.Translations.Select(translation => translation.Id)
+                .Should().NotContain(committedGermanId);
+
+            ListingAuthoringResponse persisted =
+                await ReadAuthoringResponseAsync(listingId);
+            persisted.Status.Should().Be(ListingStatus.Draft);
+            persisted.Price.Should().Be(345_000m);
+            persisted.Translations.Select(translation => translation.LanguageCode)
+                .Should().Equal("de", "en");
+            ListingAuthoringTranslationResponse german = persisted.Translations
+                .Single(translation => translation.LanguageCode == "de");
+            german.Id.Should().Be(committedGermanId);
+            german.Title.Should().Be("Committed incomplete German");
+            german.City.Should().BeNull();
+            german.Description.Should().Be(
+                "Committed incomplete German description");
+            persisted.Translations.Should().NotContain(translation =>
+                translation.LanguageCode == "mk");
+            persisted.ApartmentDetails.Should().NotBeNull();
+            persisted.HouseDetails.Should().BeNull();
+            persisted.ModifiedAtUtc.Should().NotBeNull();
+            persisted.ModifiedAtUtc.Should().BeAfter(initial.CreatedAtUtc);
+
+            await AssertSubtypeRowsAsync(
+                listingId,
+                expectedApartmentRows: 1,
+                expectedHouseRows: 0);
+        }
+        finally
+        {
+            updateGate.Release();
+            await DrainStartedTasksAsync(
+                cancellation,
+                updateTask,
+                publishTask);
+        }
+    }
+
+    [Fact]
     public async Task UpdateFirst_PublishWaitsAndObservesCommittedUpdate()
     {
         (Guid listingId, AuthenticatedTestUser owner) =
@@ -300,6 +435,9 @@ public sealed class ListingUpdateConcurrencyTests
         Guid imageId = await AddImageAsync(listingId);
         ListingAuthoringResponse before =
             await ReadAuthoringResponseAsync(listingId);
+        before.Translations.Should().OnlyContain(translation =>
+            !string.IsNullOrWhiteSpace(translation.City) &&
+            !string.IsNullOrWhiteSpace(translation.Description));
         string connectionString = await GetConnectionStringAsync();
 
         await using AsyncServiceScope publishDependencyScope =
@@ -793,6 +931,75 @@ public sealed class ListingUpdateConcurrencyTests
         public void Release()
         {
             _release.TrySetResult(true);
+        }
+    }
+
+    private sealed class RecordingAuthoringRepository(
+        IListingAuthoringRepository inner)
+        : IListingAuthoringRepository
+    {
+        public int SaveChangesCallCount { get; private set; }
+        public int CommitCallCount { get; private set; }
+        public int DisposeCallCount { get; private set; }
+
+        public Task<Listing?> GetByIdReadOnlyAsync(
+            Guid listingId,
+            CancellationToken cancellationToken)
+        {
+            return inner.GetByIdReadOnlyAsync(listingId, cancellationToken);
+        }
+
+        public async Task<IListingAuthoringWriteScope?> BeginWriteAsync(
+            Guid listingId,
+            CancellationToken cancellationToken)
+        {
+            IListingAuthoringWriteScope? scope =
+                await inner.BeginWriteAsync(listingId, cancellationToken);
+
+            return scope is null
+                ? null
+                : new RecordingAuthoringWriteScope(this, scope);
+        }
+
+        private sealed class RecordingAuthoringWriteScope(
+            RecordingAuthoringRepository owner,
+            IListingAuthoringWriteScope innerScope)
+            : IListingAuthoringWriteScope
+        {
+            public Listing Listing => innerScope.Listing;
+
+            public void AddTranslation(ListingTranslation translation)
+            {
+                innerScope.AddTranslation(translation);
+            }
+
+            public void RemoveTranslation(ListingTranslation translation)
+            {
+                innerScope.RemoveTranslation(translation);
+            }
+
+            public void MarkListingModified()
+            {
+                innerScope.MarkListingModified();
+            }
+
+            public Task SaveChangesAsync(CancellationToken cancellationToken)
+            {
+                owner.SaveChangesCallCount++;
+                return innerScope.SaveChangesAsync(cancellationToken);
+            }
+
+            public Task CommitAsync(CancellationToken cancellationToken)
+            {
+                owner.CommitCallCount++;
+                return innerScope.CommitAsync(cancellationToken);
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                owner.DisposeCallCount++;
+                await innerScope.DisposeAsync();
+            }
         }
     }
 
