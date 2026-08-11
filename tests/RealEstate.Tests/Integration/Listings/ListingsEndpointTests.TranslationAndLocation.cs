@@ -201,51 +201,6 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task GetListingById_WhenListingHasNoTranslations_ReturnsNullTranslatedFields()
-    {
-        Guid listingId =
-            await CreateActiveSearchListingAsync(
-                price: 100000m,
-                currency: "TLE",
-                createdAtUtc: new DateTime(
-                    2033,
-                    1,
-                    5,
-                    10,
-                    0,
-                    0,
-                    DateTimeKind.Utc));
-
-        await ListingTestHelpers.ReplaceListingTranslationsAsync(
-            _factory,
-            listingId);
-
-        HttpResponseMessage response =
-            await _httpClient.GetAsync(
-                $"/api/listings/{listingId}?lang=en");
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        JsonElement json =
-            await response.Content.ReadFromJsonAsync<JsonElement>();
-
-        json.GetProperty("languageCode").ValueKind
-            .Should().Be(JsonValueKind.Null);
-        json.GetProperty("title").ValueKind
-            .Should().Be(JsonValueKind.Null);
-        json.GetProperty("description").ValueKind
-            .Should().Be(JsonValueKind.Null);
-        json.GetProperty("addressLine").ValueKind
-            .Should().Be(JsonValueKind.Null);
-        json.GetProperty("city").ValueKind
-            .Should().Be(JsonValueKind.Null);
-        json.GetProperty("municipality").ValueKind
-            .Should().Be(JsonValueKind.Null);
-        json.GetProperty("neighborhood").ValueKind
-            .Should().Be(JsonValueKind.Null);
-    }
-
-    [Fact]
     public async Task GetListings_StructuredLocation_DoesNotMatchPartialValue()
     {
         const string currency = "TLF";

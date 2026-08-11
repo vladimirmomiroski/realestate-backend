@@ -42,6 +42,8 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
             dbContext.Listings.Add(listing);
 
             await dbContext.SaveChangesAsync();
+            listing.Publish();
+            await dbContext.SaveChangesAsync();
 
             listingId = listing.Id;
             agencyId = agency.Id;
@@ -131,7 +133,6 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
         };
 
         listing.AssignCreator(userId);
-        listing.Publish();
 
         return listing;
     }

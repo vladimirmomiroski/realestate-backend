@@ -213,6 +213,13 @@ internal static class ListingTestHelpers
         RealEstateDbContext dbContext =
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
 
+        if (status == ListingStatus.Active)
+        {
+            await EnsureFixtureTranslationsArePublicationReadyAsync(
+                dbContext,
+                listingId);
+        }
+
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              UPDATE "Listings"
@@ -232,6 +239,13 @@ internal static class ListingTestHelpers
 
         RealEstateDbContext dbContext =
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        if (status == ListingStatus.Active)
+        {
+            await EnsureFixtureTranslationsArePublicationReadyAsync(
+                dbContext,
+                listingId);
+        }
 
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
@@ -301,6 +315,23 @@ internal static class ListingTestHelpers
         RealEstateDbContext dbContext =
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
 
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync();
+        ListingStatus originalStatus = await dbContext.Listings
+            .Where(listing => listing.Id == listingId)
+            .Select(listing => listing.Status)
+            .SingleAsync();
+
+        if (originalStatus == ListingStatus.Active)
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "Listings"
+                 SET "Status" = 'Draft'
+                 WHERE "Id" = {listingId}
+                 """);
+        }
+
         await dbContext.Set<ListingTranslation>()
             .Where(translation =>
                 translation.ListingId == listingId)
@@ -309,6 +340,13 @@ internal static class ListingTestHelpers
         foreach (ListingTranslation translation in translations)
         {
             translation.ListingId = listingId;
+
+            if (originalStatus == ListingStatus.Active)
+            {
+                translation.City ??= "Integration fixture city";
+                translation.Description ??=
+                    "Integration fixture description";
+            }
         }
 
         if (translations.Length > 0)
@@ -318,6 +356,33 @@ internal static class ListingTestHelpers
 
             await dbContext.SaveChangesAsync();
         }
+
+        if (originalStatus == ListingStatus.Active)
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "Listings"
+                 SET "Status" = 'Active'
+                 WHERE "Id" = {listingId}
+                 """);
+        }
+
+        await transaction.CommitAsync();
+    }
+
+    private static Task EnsureFixtureTranslationsArePublicationReadyAsync(
+        RealEstateDbContext dbContext,
+        Guid listingId)
+    {
+        return dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE "ListingTranslations"
+             SET "City" = COALESCE("City", 'Integration fixture city'),
+                 "Description" = COALESCE(
+                     "Description",
+                     'Integration fixture description')
+             WHERE "ListingId" = {listingId}
+             """);
     }
 
     private static async Task<Guid> PostListingAndReturnIdAsync(
