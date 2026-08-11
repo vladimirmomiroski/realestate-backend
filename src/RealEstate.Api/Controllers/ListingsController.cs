@@ -184,7 +184,7 @@ public sealed class ListingsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(
-    typeof(PagedResponse<ListingResponse>),
+    typeof(PagedResponse<PublicListingResponse>),
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetListings(
@@ -248,7 +248,7 @@ public sealed class ListingsController : ControllerBase
             PageSize = pageSize
         };
 
-        ServiceResult<PagedResponse<ListingResponse>> result =
+        ServiceResult<PagedResponse<PublicListingResponse>> result =
             await _getListingsHandler.HandleAsync(
                 query,
                 cancellationToken);
@@ -294,14 +294,18 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet("{id:guid}", Name = GetListingByIdRouteName)]
-    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PublicListingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetListingById(
         Guid id,
         [FromQuery] string lang = "mk",
         CancellationToken cancellationToken = default)
     {
-        var result = await _getListingByIdHandler.HandleAsync(id, lang, cancellationToken);
+        ServiceResult<PublicListingResponse> result =
+            await _getListingByIdHandler.HandleAsync(
+                id,
+                lang,
+                cancellationToken);
 
         return result.Status switch
         {

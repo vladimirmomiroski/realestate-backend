@@ -54,6 +54,8 @@ public sealed partial class ListingsEndpointTests
         item.GetProperty("title").GetString()
             .Should().Be("Requested English Title");
         item.GetProperty("city").GetString().Should().Be("Skopje");
+        item.GetProperty("description").GetString()
+            .Should().Be("Requested English Title description");
     }
 
     [Fact]

@@ -15,7 +15,7 @@ public sealed class GetListingByIdHandler
         _listingRepository = listingRepository;
     }
 
-    public async Task<ServiceResult<ListingResponse>> HandleAsync(
+    public async Task<ServiceResult<PublicListingResponse>> HandleAsync(
         Guid id,
         string languageCode,
         CancellationToken cancellationToken)
@@ -24,13 +24,13 @@ public sealed class GetListingByIdHandler
 
         if (listing is null || listing.Status != ListingStatus.Active)
         {
-            return ServiceResult<ListingResponse>.NotFound(
+            return ServiceResult<PublicListingResponse>.NotFound(
                 "Listing was not found.",
                 ErrorCodes.ResourceNotFound);
         }
 
-        var response = listing.ToResponse(languageCode);
+        PublicListingResponse response = listing.ToPublicResponse(languageCode);
 
-        return ServiceResult<ListingResponse>.Success(response);
+        return ServiceResult<PublicListingResponse>.Success(response);
     }
 }
