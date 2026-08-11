@@ -1,5 +1,6 @@
 ﻿using RealEstate.Domain.Enums;
 using RealEstate.Domain.Common;
+using RealEstate.Domain.Listings;
 
 namespace RealEstate.Domain.Entities;
 
@@ -17,7 +18,7 @@ public class Listing : IAuditableEntity
 
     public PropertyType PropertyType { get; set; }
 
-    public ListingStatus Status { get; set; } = ListingStatus.Draft;
+    public ListingStatus Status { get; private set; } = ListingStatus.Draft;
 
     public decimal Price { get; set; }
 
@@ -92,19 +93,79 @@ public class Listing : IAuditableEntity
         CreatedByUserId = userId;
     }
 
-    public void Publish()
+    public ListingPublicationReadinessResult EvaluatePublicationReadiness()
     {
-        if (Status == ListingStatus.Active)
+        if (Translations.Count == 0)
         {
-            return;
+            return ListingPublicationReadinessResult.FromViolations(
+            [
+                new ListingPublicationReadinessViolation(
+                    ListingPublicationReadinessViolationCode.MissingTranslation,
+                    TranslationId: null)
+            ]);
         }
 
-        if (Status != ListingStatus.Draft)
+        var violations = new List<ListingPublicationReadinessViolation>();
+
+        foreach (ListingTranslation translation in Translations)
+        {
+            if (translation.LanguageCode is null ||
+                !ListingTranslationRules.IsCanonicalLanguageCode(
+                    translation.LanguageCode))
+            {
+                violations.Add(new ListingPublicationReadinessViolation(
+                    ListingPublicationReadinessViolationCode.InvalidLanguageCode,
+                    translation.Id));
+            }
+
+            if (!IsTrimmedNonBlank(translation.Title))
+            {
+                violations.Add(new ListingPublicationReadinessViolation(
+                    ListingPublicationReadinessViolationCode.InvalidTitle,
+                    translation.Id));
+            }
+
+            if (!IsTrimmedNonBlank(translation.City))
+            {
+                violations.Add(new ListingPublicationReadinessViolation(
+                    ListingPublicationReadinessViolationCode.InvalidCity,
+                    translation.Id));
+            }
+
+            if (!IsTrimmedNonBlank(translation.Description))
+            {
+                violations.Add(new ListingPublicationReadinessViolation(
+                    ListingPublicationReadinessViolationCode.InvalidDescription,
+                    translation.Id));
+            }
+        }
+
+        return violations.Count == 0
+            ? ListingPublicationReadinessResult.Ready
+            : ListingPublicationReadinessResult.FromViolations(violations);
+    }
+
+    public ListingPublicationReadinessResult Publish()
+    {
+        if (Status != ListingStatus.Draft && Status != ListingStatus.Active)
         {
             throw new InvalidOperationException("Only draft listings can be published.");
         }
 
-        Status = ListingStatus.Active;
+        ListingPublicationReadinessResult readiness =
+            EvaluatePublicationReadiness();
+
+        if (!readiness.IsReady)
+        {
+            return readiness;
+        }
+
+        if (Status == ListingStatus.Draft)
+        {
+            Status = ListingStatus.Active;
+        }
+
+        return readiness;
     }
 
     public void Unpublish()
@@ -145,5 +206,12 @@ public class Listing : IAuditableEntity
         }
 
         return Price / AreaSquareMeters;
+    }
+
+    private static bool IsTrimmedNonBlank(string? value)
+    {
+        return value is not null &&
+               value.Length > 0 &&
+               value == ListingTranslationRules.NormalizeRequiredText(value);
     }
 }

@@ -62,6 +62,12 @@ internal sealed record ApiFailureDescriptor(
         "Conflict",
         "The request conflicts with the current resource state.");
 
+    public static readonly ApiFailureDescriptor ListingNotReadyConflict = new(
+        StatusCodes.Status409Conflict,
+        ErrorCodes.ConflictListingNotReady,
+        "Conflict",
+        "The listing is not ready for publication.");
+
     public static readonly ApiFailureDescriptor ResourceCapacityConflict = new(
         StatusCodes.Status409Conflict,
         ErrorCodes.ConflictResourceCapacity,
@@ -135,6 +141,7 @@ internal sealed record ApiFailureDescriptor(
             ErrorCodes.ConflictAgencySlugAlreadyExists =>
                 AgencySlugAlreadyExists,
             ErrorCodes.ConflictResourceState => ResourceStateConflict,
+            ErrorCodes.ConflictListingNotReady => ListingNotReadyConflict,
             ErrorCodes.ConflictResourceCapacity => ResourceCapacityConflict,
             ErrorCodes.ConflictResourceSetChanged => ResourceSetChangedConflict,
             ErrorCodes.ServerUnexpected => Unexpected,

@@ -39,6 +39,7 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
 
         EnsureResponse(operation, "500", "Internal Server Error");
         ApplyCanonicalFailures(operation, context);
+        ApplyPublishDocumentation(operation, context);
         ApplyPaginationDocumentation(operation);
         ApplyMultipartDocumentation(operation);
         ApplyHealthDocumentation(operation, context);
@@ -132,6 +133,28 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
                 }
             }
         };
+    }
+
+    private static void ApplyPublishDocumentation(
+        OpenApiOperation operation,
+        OperationFilterContext context)
+    {
+        if (context.ApiDescription.ActionDescriptor is not ControllerActionDescriptor controller ||
+            !controller.ActionName.Equals("PublishListing", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        OpenApiResponses responses = GetResponses(operation);
+
+        if (responses.TryGetValue("409", out IOpenApiResponse? response) &&
+            response is OpenApiResponse conflict)
+        {
+            conflict.Description =
+                "Conflict. `conflict.resource_state`: The request conflicts with " +
+                "the current resource state. `conflict.listing_not_ready`: " +
+                "The listing is not ready for publication.";
+        }
     }
 
     private static void ApplyResponseHeaders(OpenApiOperation operation)

@@ -33,6 +33,8 @@ public static class ErrorCodes
     public const string ConflictAgencySlugAlreadyExists =
         "conflict.agency_slug_already_exists";
     public const string ConflictResourceState = "conflict.resource_state";
+    public const string ConflictListingNotReady =
+        "conflict.listing_not_ready";
     public const string ConflictResourceCapacity =
         "conflict.resource_capacity";
     public const string ConflictResourceSetChanged =
@@ -58,6 +60,7 @@ public static class ErrorCodes
         ConflictEmailAlreadyExists,
         ConflictAgencySlugAlreadyExists,
         ConflictResourceState,
+        ConflictListingNotReady,
         ConflictResourceCapacity,
         ConflictResourceSetChanged,
         ServerUnexpected
