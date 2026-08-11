@@ -16,6 +16,10 @@ internal static class DeterministicProfileSeeder
     {
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
+        await EnsurePublicationIntegritySchemaAsync(
+            connection,
+            transaction,
+            cancellationToken);
         await EnsureProfileTablesAreEmptyAsync(connection, transaction, cancellationToken);
         await ExecuteAsync(connection, transaction, "SELECT setseed(0.1042001);", cancellationToken);
         await ExecuteAsync(connection, transaction, SeedUsersAndAgenciesSql, cancellationToken);
@@ -23,6 +27,15 @@ internal static class DeterministicProfileSeeder
         await ExecuteAsync(connection, transaction, SeedTranslationsSql, cancellationToken);
         await ExecuteAsync(connection, transaction, SeedDetailsSql, cancellationToken);
         await ExecuteAsync(connection, transaction, SeedImagesSql, cancellationToken);
+        await EnsureIntendedActiveAggregatesReadyAsync(
+            connection,
+            transaction,
+            cancellationToken);
+        await ExecuteAsync(connection, transaction, ApplyIntendedStatusesSql, cancellationToken);
+        await EnsureFinalActiveAggregatesValidAsync(
+            connection,
+            transaction,
+            cancellationToken);
 
         var verification = await ProfileInvariants.VerifyAsync(
             connection,
@@ -33,6 +46,74 @@ internal static class DeterministicProfileSeeder
         await transaction.CommitAsync(cancellationToken);
 
         return verification;
+    }
+
+    private static async Task EnsurePublicationIntegritySchemaAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = PublicationIntegritySchemaSql;
+
+        var isInstalledAndEnabled =
+            (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+
+        if (!isInstalledAndEnabled)
+        {
+            throw new ProfileInvariantException(
+                "The query-review profile requires all Chapter 13A translation checks and " +
+                "enabled Chapter 13F Active-integrity triggers.");
+        }
+    }
+
+    private static Task EnsureIntendedActiveAggregatesReadyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        return EnsureNoAggregateViolationsAsync(
+            connection,
+            transaction,
+            IntendedActiveAggregateValidationSql,
+            "Intended Active query-review aggregates are not publication-ready",
+            cancellationToken);
+    }
+
+    private static Task EnsureFinalActiveAggregatesValidAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        return EnsureNoAggregateViolationsAsync(
+            connection,
+            transaction,
+            FinalActiveAggregateValidationSql,
+            "Final Active query-review aggregates violate publication integrity",
+            cancellationToken);
+    }
+
+    private static async Task EnsureNoAggregateViolationsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string sql,
+        string failurePrefix,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 300;
+        command.CommandText = sql;
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        string? diagnostics = result as string;
+
+        if (diagnostics is not null)
+        {
+            throw new ProfileInvariantException(
+                $"{failurePrefix}: {diagnostics}.");
+        }
     }
 
     private static async Task EnsureProfileTablesAreEmptyAsync(
@@ -79,6 +160,130 @@ internal static class DeterministicProfileSeeder
         command.CommandText = sql;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    private const string PublicationIntegritySchemaSql = """
+        WITH expected_triggers("Name", "TableName") AS
+        (
+            VALUES
+                ('TR_Listings_ActivePublicationIntegrity_Insert', 'Listings'),
+                ('TR_Listings_ActivePublicationIntegrity_Update', 'Listings'),
+                ('TR_ListingTranslations_ActiveFreeze_Insert', 'ListingTranslations'),
+                ('TR_ListingTranslations_ActiveFreeze_Update', 'ListingTranslations'),
+                ('TR_ListingTranslations_ActiveFreeze_Delete', 'ListingTranslations')
+        ),
+        installed_triggers AS
+        (
+            SELECT trigger.tgenabled
+            FROM pg_catalog.pg_trigger AS trigger
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = trigger.tgrelid
+            JOIN pg_catalog.pg_namespace AS schema
+              ON schema.oid = relation.relnamespace
+            JOIN expected_triggers AS expected
+              ON expected."Name" = trigger.tgname
+             AND expected."TableName" = relation.relname
+            WHERE schema.nspname = 'public'
+              AND NOT trigger.tgisinternal
+        ),
+        expected_constraints("Name") AS
+        (
+            VALUES
+                ('CK_ListingTranslations_City_TrimmedNonBlank'),
+                ('CK_ListingTranslations_Description_TrimmedNonBlank'),
+                ('CK_ListingTranslations_LanguageCode_Canonical'),
+                ('CK_ListingTranslations_Title_TrimmedNonBlank')
+        ),
+        installed_constraints AS
+        (
+            SELECT db_constraint.convalidated
+            FROM pg_catalog.pg_constraint AS db_constraint
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = db_constraint.conrelid
+            JOIN pg_catalog.pg_namespace AS schema
+              ON schema.oid = relation.relnamespace
+            JOIN expected_constraints AS expected
+              ON expected."Name" = db_constraint.conname
+            WHERE schema.nspname = 'public'
+              AND relation.relname = 'ListingTranslations'
+              AND db_constraint.contype = 'c'
+        )
+        SELECT
+            (SELECT count(*) = 5
+                    AND bool_and(tgenabled IN ('O', 'A'))
+             FROM installed_triggers)
+            AND
+            (SELECT count(*) = 4
+                    AND bool_and(convalidated)
+             FROM installed_constraints);
+        """;
+
+    private const string IntendedActiveAggregateValidationSql = """
+        WITH invalid AS
+        (
+            SELECT staged."ListingId",
+                   count(translation."Id") AS translation_count,
+                   count(translation."Id") FILTER
+                       (WHERE translation."City" IS NULL) AS null_city_count,
+                   count(translation."Id") FILTER
+                       (WHERE translation."Description" IS NULL)
+                       AS null_description_count
+            FROM pg_temp."QueryReviewIntendedListingStatuses" AS staged
+            LEFT JOIN public."ListingTranslations" AS translation
+              ON translation."ListingId" = staged."ListingId"
+            WHERE staged."IntendedStatus" = 'Active'
+            GROUP BY staged."ListingId"
+            HAVING count(translation."Id") = 0
+                OR count(translation."Id") FILTER
+                    (WHERE translation."City" IS NULL) > 0
+                OR count(translation."Id") FILTER
+                    (WHERE translation."Description" IS NULL) > 0
+            ORDER BY staged."ListingId"
+            LIMIT 10
+        )
+        SELECT string_agg(
+            format(
+                '%s translations=%s null_city=%s null_description=%s',
+                "ListingId",
+                translation_count,
+                null_city_count,
+                null_description_count),
+            '; ' ORDER BY "ListingId")
+        FROM invalid;
+        """;
+
+    private const string FinalActiveAggregateValidationSql = """
+        WITH invalid AS
+        (
+            SELECT listing."Id" AS "ListingId",
+                   count(translation."Id") AS translation_count,
+                   count(translation."Id") FILTER
+                       (WHERE translation."City" IS NULL) AS null_city_count,
+                   count(translation."Id") FILTER
+                       (WHERE translation."Description" IS NULL)
+                       AS null_description_count
+            FROM public."Listings" AS listing
+            LEFT JOIN public."ListingTranslations" AS translation
+              ON translation."ListingId" = listing."Id"
+            WHERE listing."Status" = 'Active'
+            GROUP BY listing."Id"
+            HAVING count(translation."Id") = 0
+                OR count(translation."Id") FILTER
+                    (WHERE translation."City" IS NULL) > 0
+                OR count(translation."Id") FILTER
+                    (WHERE translation."Description" IS NULL) > 0
+            ORDER BY listing."Id"
+            LIMIT 10
+        )
+        SELECT string_agg(
+            format(
+                '%s translations=%s null_city=%s null_description=%s',
+                "ListingId",
+                translation_count,
+                null_city_count,
+                null_description_count),
+            '; ' ORDER BY "ListingId")
+        FROM invalid;
+        """;
 
     private const string SeedUsersAndAgenciesSql = """
         INSERT INTO "Users"
@@ -144,38 +349,52 @@ internal static class DeterministicProfileSeeder
         """;
 
     private const string SeedListingsSql = """
+        CREATE TEMP TABLE "QueryReviewIntendedListingStatuses"
+        ON COMMIT DROP
+        AS
+        SELECT i AS "Sequence",
+               ('40000000-0000-0000-0000-' ||
+                lpad(to_hex(i), 12, '0'))::uuid AS "ListingId",
+               CASE
+                   WHEN i BETWEEN 1 AND 70000 THEN 'Active'
+                   WHEN i BETWEEN 70001 AND 76000 THEN 'Draft'
+                   WHEN i BETWEEN 76001 AND 82000 THEN 'Archived'
+                   WHEN i BETWEEN 82001 AND 88000 THEN 'Reserved'
+                   WHEN i BETWEEN 88001 AND 94000 THEN 'Sold'
+                   ELSE 'Rented'
+               END AS "IntendedStatus"
+        FROM generate_series(1, 100000) AS series(i);
+
         WITH source AS
         (
-            SELECT i,
+            SELECT staged."Sequence" AS i,
+                   staged."ListingId" AS listing_id,
                    CASE
-                       WHEN i BETWEEN 1 AND 70000 THEN 'Active'
-                       WHEN i BETWEEN 70001 AND 76000 THEN 'Draft'
-                       WHEN i BETWEEN 76001 AND 82000 THEN 'Archived'
-                       WHEN i BETWEEN 82001 AND 88000 THEN 'Reserved'
-                       WHEN i BETWEEN 88001 AND 94000 THEN 'Sold'
-                       ELSE 'Rented'
-                   END AS status,
-                   CASE
-                       WHEN i BETWEEN 3001 AND 3031 THEN 'Rent'
-                       WHEN i BETWEEN 3033 AND 3061 AND mod(i, 2) = 1 THEN 'Sale'
-                       WHEN mod(i, 2) = 0 THEN 'Sale'
+                       WHEN staged."Sequence" BETWEEN 3001 AND 3031 THEN 'Rent'
+                       WHEN staged."Sequence" BETWEEN 3033 AND 3061
+                            AND mod(staged."Sequence", 2) = 1 THEN 'Sale'
+                       WHEN mod(staged."Sequence", 2) = 0 THEN 'Sale'
                        ELSE 'Rent'
                    END AS listing_type,
                    CASE
-                       WHEN i BETWEEN 3001 AND 3031 THEN 'Apartment'
-                       WHEN i BETWEEN 3101 AND 3129 AND mod(i, 4) IN (1, 2) THEN 'House'
-                       WHEN mod(((i - 1) / 2), 2) = 0 THEN 'Apartment'
+                       WHEN staged."Sequence" BETWEEN 3001 AND 3031 THEN 'Apartment'
+                       WHEN staged."Sequence" BETWEEN 3101 AND 3129
+                            AND mod(staged."Sequence", 4) IN (1, 2) THEN 'House'
+                       WHEN mod(((staged."Sequence" - 1) / 2), 2) = 0
+                           THEN 'Apartment'
                        ELSE 'House'
                    END AS property_type,
                    CASE
-                       WHEN i BETWEEN 3001 AND 3031 THEN 'EUR'
-                       WHEN i BETWEEN 3202 AND 3229 AND mod(i, 3) = 1 THEN 'USD'
-                       WHEN i BETWEEN 3232 AND 3259 AND mod(i, 3) = 1 THEN 'MKD'
-                       WHEN mod(i, 3) = 1 THEN 'EUR'
-                       WHEN mod(i, 3) = 2 THEN 'USD'
+                       WHEN staged."Sequence" BETWEEN 3001 AND 3031 THEN 'EUR'
+                       WHEN staged."Sequence" BETWEEN 3202 AND 3229
+                            AND mod(staged."Sequence", 3) = 1 THEN 'USD'
+                       WHEN staged."Sequence" BETWEEN 3232 AND 3259
+                            AND mod(staged."Sequence", 3) = 1 THEN 'MKD'
+                       WHEN mod(staged."Sequence", 3) = 1 THEN 'EUR'
+                       WHEN mod(staged."Sequence", 3) = 2 THEN 'USD'
                        ELSE 'MKD'
                    END AS currency
-            FROM generate_series(1, 100000) AS series(i)
+            FROM pg_temp."QueryReviewIntendedListingStatuses" AS staged
         )
         INSERT INTO "Listings"
         (
@@ -185,7 +404,7 @@ internal static class DeterministicProfileSeeder
             "FurnishingStatus", "Condition", "YearRenovated", "Orientation", "YearBuilt",
             "Latitude", "Longitude", "CreatedAtUtc", "ModifiedAtUtc"
         )
-        SELECT ('40000000-0000-0000-0000-' || lpad(to_hex(i), 12, '0'))::uuid,
+        SELECT listing_id,
                CASE
                    WHEN mod(i, 2) = 0
                        THEN '10000000-0000-0000-0000-000000000065'::uuid
@@ -199,7 +418,7 @@ internal static class DeterministicProfileSeeder
                END,
                listing_type,
                property_type,
-               status,
+               'Draft',
                CASE
                    WHEN i = 3001 THEN 200000
                    WHEN i BETWEEN 3002 AND 3031 THEN
@@ -255,6 +474,14 @@ internal static class DeterministicProfileSeeder
                END,
                NULL
         FROM source;
+        """;
+
+    private const string ApplyIntendedStatusesSql = """
+        UPDATE public."Listings" AS listing
+        SET "Status" = staged."IntendedStatus"
+        FROM pg_temp."QueryReviewIntendedListingStatuses" AS staged
+        WHERE listing."Id" = staged."ListingId"
+          AND listing."Status" IS DISTINCT FROM staged."IntendedStatus";
         """;
 
     private const string SeedTranslationsSql = """
