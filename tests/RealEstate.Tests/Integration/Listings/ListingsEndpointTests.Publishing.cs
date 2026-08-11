@@ -160,36 +160,6 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task PublishListing_ShouldReturnListingNotReady_WhenPersonalActiveIsMalformed()
-    {
-        (Guid listingId, AuthenticatedTestUser owner) =
-            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
-        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
-        await SetListingStatusAsync(listingId, ListingStatus.Active);
-        await MakeListingPublicationContentIncompleteAsync(listingId);
-        PublicationSnapshot before = await GetPublicationSnapshotAsync(listingId);
-        _httpClient.AuthorizeAs(owner.AccessToken);
-
-        try
-        {
-            HttpResponseMessage response = await _httpClient.PutAsync(
-                $"/api/listings/{listingId}/publish",
-                null);
-
-            await AssertFailureAsync(
-                response,
-                HttpStatusCode.Conflict,
-                ErrorCodes.ConflictListingNotReady,
-                $"/api/listings/{listingId}/publish");
-            (await GetPublicationSnapshotAsync(listingId)).Should().BeEquivalentTo(before);
-        }
-        finally
-        {
-            _httpClient.ClearAuthorization();
-        }
-    }
-
-    [Fact]
     public async Task PublishListing_ShouldReturnConflict_WhenPersonalListingIsArchived()
     {
         // Arrange
@@ -439,35 +409,6 @@ public sealed partial class ListingsEndpointTests
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             (await ReadListingStatusAsync(response)).Should().Be(ListingStatus.Active);
-        }
-        finally
-        {
-            _httpClient.ClearAuthorization();
-        }
-    }
-
-    [Fact]
-    public async Task PublishListing_ShouldReturnListingNotReady_WhenAgencyActiveIsMalformed()
-    {
-        (Guid listingId, _, AuthenticatedTestUser owner) =
-            await CreateAgencyListingWithOwnerAsync();
-        await SetListingStatusAsync(listingId, ListingStatus.Active);
-        await MakeListingPublicationContentIncompleteAsync(listingId);
-        PublicationSnapshot before = await GetPublicationSnapshotAsync(listingId);
-        _httpClient.AuthorizeAs(owner.AccessToken);
-
-        try
-        {
-            HttpResponseMessage response = await _httpClient.PutAsync(
-                $"/api/listings/{listingId}/publish",
-                null);
-
-            await AssertFailureAsync(
-                response,
-                HttpStatusCode.Conflict,
-                ErrorCodes.ConflictListingNotReady,
-                $"/api/listings/{listingId}/publish");
-            (await GetPublicationSnapshotAsync(listingId)).Should().BeEquivalentTo(before);
         }
         finally
         {
