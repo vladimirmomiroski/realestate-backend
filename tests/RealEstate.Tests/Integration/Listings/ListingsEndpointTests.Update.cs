@@ -761,6 +761,8 @@ public sealed partial class ListingsEndpointTests
             "createdByUserId",
             "agencyId",
             "status",
+            "latitude",
+            "longitude",
             "images",
             "createdAtUtc",
             "modifiedAtUtc"

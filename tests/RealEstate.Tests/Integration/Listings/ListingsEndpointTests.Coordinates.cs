@@ -1,173 +1,132 @@
-﻿using FluentAssertions;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Application.Listings.Commands.CreateListing;
-using RealEstate.Domain.Enums;
+using RealEstate.Domain.Entities;
+using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace RealEstate.Tests.Integration.Listings;
 
 public sealed partial class ListingsEndpointTests
 {
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task CreateListing_WithOnlyOneCoordinate_ReturnsBadRequest(
-        bool provideLatitude)
+    [Fact]
+    public async Task CreateListing_WithUnknownLocationMembers_PersistsUnresolvedDraft()
     {
-        object request =
-            ListingTestHelpers.CreateValidListingRequest(
-                latitude: provideLatitude
-                    ? 41.9981m
-                    : null,
-                longitude: provideLatitude
-                    ? null
-                    : 21.4254m);
+        JsonObject request = JsonSerializer.SerializeToNode(
+            ListingTestHelpers.CreateValidListingRequest(),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!.AsObject();
+        request["latitude"] = 41.998123m;
+        request["longitude"] = 21.425456m;
+        request["locationPrecision"] = "ExactAddress";
+        request["geocodingProviderKey"] = "caller-provider";
 
         HttpResponseMessage response =
             await PostListingAsNewUserAsync(request);
 
-        string responseBody =
-            await response.Content.ReadAsStringAsync();
-
-        response.StatusCode.Should().Be(
-            HttpStatusCode.BadRequest);
-
-        responseBody.Should().Contain(
-            CreateListingValidator.CoordinatePairError);
-    }
-
-    [Theory]
-    [InlineData(-91, 21)]
-    [InlineData(91, 21)]
-    public async Task CreateListing_WithOutOfRangeLatitude_ReturnsBadRequest(
-        int latitude,
-        int longitude)
-    {
-        object request =
-            ListingTestHelpers.CreateValidListingRequest(
-                latitude: latitude,
-                longitude: longitude);
-
-        HttpResponseMessage response =
-            await PostListingAsNewUserAsync(request);
-
-        string responseBody =
-            await response.Content.ReadAsStringAsync();
-
-        response.StatusCode.Should().Be(
-            HttpStatusCode.BadRequest);
-
-        responseBody.Should().Contain(
-            CreateListingValidator.LatitudeOutOfRangeError);
-    }
-
-    [Theory]
-    [InlineData(41, -181)]
-    [InlineData(41, 181)]
-    public async Task CreateListing_WithOutOfRangeLongitude_ReturnsBadRequest(
-        int latitude,
-        int longitude)
-    {
-        object request =
-            ListingTestHelpers.CreateValidListingRequest(
-                latitude: latitude,
-                longitude: longitude);
-
-        HttpResponseMessage response =
-            await PostListingAsNewUserAsync(request);
-
-        string responseBody =
-            await response.Content.ReadAsStringAsync();
-
-        response.StatusCode.Should().Be(
-            HttpStatusCode.BadRequest);
-
-        responseBody.Should().Contain(
-            CreateListingValidator.LongitudeOutOfRangeError);
-    }
-
-    [Theory]
-    [InlineData(-90, -180)]
-    [InlineData(90, 180)]
-    public async Task CreateListing_WithBoundaryCoordinates_PersistsAndReturnsThem(
-        int latitude,
-        int longitude)
-    {
-        object request =
-            ListingTestHelpers.CreateValidListingRequest(
-                latitude: latitude,
-                longitude: longitude);
-
-        HttpResponseMessage createResponse =
-            await PostListingAsNewUserAsync(request);
-
-        createResponse.StatusCode.Should().Be(
-            HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         JsonElement created =
-            await createResponse.Content
-                .ReadFromJsonAsync<JsonElement>();
+            await response.Content.ReadFromJsonAsync<JsonElement>();
+        Guid listingId = created.GetProperty("id").GetGuid();
 
-        Guid listingId =
-            created.GetProperty("id").GetGuid();
+        created.GetProperty("latitude").ValueKind
+            .Should().Be(JsonValueKind.Null);
+        created.GetProperty("longitude").ValueKind
+            .Should().Be(JsonValueKind.Null);
 
-        created.GetProperty("latitude").GetDecimal()
-            .Should().Be(latitude);
-
-        created.GetProperty("longitude").GetDecimal()
-            .Should().Be(longitude);
-
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            listingId,
-            ListingStatus.Active);
-
-        HttpResponseMessage getResponse =
-            await _httpClient.GetAsync(
-                $"/api/listings/{listingId}?lang=en");
-
-        getResponse.StatusCode.Should().Be(
-            HttpStatusCode.OK);
-
-        JsonElement persisted =
-            await getResponse.Content
-                .ReadFromJsonAsync<JsonElement>();
-
-        persisted.GetProperty("latitude").GetDecimal()
-            .Should().Be(latitude);
-
-        persisted.GetProperty("longitude").GetDecimal()
-            .Should().Be(longitude);
+        (decimal? latitude, decimal? longitude) =
+            await ReadPersistedCoordinatesAsync(listingId);
+        latitude.Should().BeNull();
+        longitude.Should().BeNull();
     }
 
     [Fact]
-    public async Task CreateListing_WithSixDecimalCoordinates_PreservesPrecision()
+    public async Task UpdateListing_WithCoordinateJsonMembers_CannotReplacePersistedCoordinates()
     {
-        const decimal latitude = 41.998123m;
-        const decimal longitude = 21.425456m;
+        const decimal originalLatitude = 41.998123m;
+        const decimal originalLongitude = 21.425456m;
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetPersistedCoordinatesAsync(
+            listingId,
+            originalLatitude,
+            originalLongitude);
+        _httpClient.AuthorizeAs(owner.AccessToken);
 
-        object request =
-            ListingTestHelpers.CreateValidListingRequest(
-                latitude: latitude,
-                longitude: longitude);
+        try
+        {
+            JsonObject payload = CreateWritablePayload(
+                await GetManagementJsonAsync(listingId));
+            payload["latitude"] = -12.345678m;
+            payload["longitude"] = 98.765432m;
 
-        HttpResponseMessage response =
-            await PostListingAsNewUserAsync(request);
+            HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
+                $"/api/listings/{listingId}",
+                payload);
 
-        response.StatusCode.Should().Be(
-            HttpStatusCode.Created);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            JsonElement body =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+            body.GetProperty("latitude").GetDecimal()
+                .Should().Be(originalLatitude);
+            body.GetProperty("longitude").GetDecimal()
+                .Should().Be(originalLongitude);
 
-        JsonElement json =
-            await response.Content
-                .ReadFromJsonAsync<JsonElement>();
+            (decimal? latitude, decimal? longitude) =
+                await ReadPersistedCoordinatesAsync(listingId);
+            latitude.Should().Be(originalLatitude);
+            longitude.Should().Be(originalLongitude);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
 
-        json.GetProperty("latitude").GetDecimal()
-            .Should().Be(latitude);
+    [Fact]
+    public async Task UpdateListing_WhenCoordinatesAreOmitted_PreservesPersistedCoordinates()
+    {
+        const decimal originalLatitude = 41.998123m;
+        const decimal originalLongitude = 21.425456m;
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetPersistedCoordinatesAsync(
+            listingId,
+            originalLatitude,
+            originalLongitude);
+        _httpClient.AuthorizeAs(owner.AccessToken);
 
-        json.GetProperty("longitude").GetDecimal()
-            .Should().Be(longitude);
+        try
+        {
+            JsonObject payload = CreateWritablePayload(
+                await GetManagementJsonAsync(listingId));
+            payload.ContainsKey("latitude").Should().BeFalse();
+            payload.ContainsKey("longitude").Should().BeFalse();
+            payload["price"] = 321_000m;
+
+            HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
+                $"/api/listings/{listingId}",
+                payload);
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            JsonElement body =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+            body.GetProperty("price").GetDecimal().Should().Be(321_000m);
+
+            (decimal? latitude, decimal? longitude) =
+                await ReadPersistedCoordinatesAsync(listingId);
+            latitude.Should().Be(originalLatitude);
+            longitude.Should().Be(originalLongitude);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 
     [Theory]
@@ -236,5 +195,37 @@ public sealed partial class ListingsEndpointTests
         {
             _httpClient.ClearAuthorization();
         }
+    }
+
+    private async Task SetPersistedCoordinatesAsync(
+        Guid listingId,
+        decimal latitude,
+        decimal longitude)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        Listing listing = await dbContext.Listings.SingleAsync(
+            current => current.Id == listingId);
+
+        listing.Latitude = latitude;
+        listing.Longitude = longitude;
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task<(decimal? Latitude, decimal? Longitude)>
+        ReadPersistedCoordinatesAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        Listing listing = await dbContext.Listings
+            .AsNoTracking()
+            .SingleAsync(current => current.Id == listingId);
+
+        return (listing.Latitude, listing.Longitude);
     }
 }

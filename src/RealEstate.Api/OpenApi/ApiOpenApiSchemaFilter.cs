@@ -272,9 +272,7 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
             "hasBasement",
             "isExchangePossible",
             "yearRenovated",
-            "yearBuilt",
-            "latitude",
-            "longitude"
+            "yearBuilt"
         })
         {
             SetDescription(

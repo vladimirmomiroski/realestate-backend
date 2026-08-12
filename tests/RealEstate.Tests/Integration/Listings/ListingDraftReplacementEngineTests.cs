@@ -29,6 +29,7 @@ public sealed class ListingDraftReplacementEngineTests
     {
         Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
         Guid imageId = await AddImageAsync(listingId);
+        await SetCoordinatesAsync(listingId, 41.9981m, 21.4254m);
         Listing original = await ReadListingAsync(listingId);
         ListingTranslation originalEnglish = original.Translations
             .Single(translation => translation.LanguageCode == "en");
@@ -57,8 +58,6 @@ public sealed class ListingDraftReplacementEngineTests
                 request.YearRenovated = null;
                 request.Orientation = Orientation.Unknown;
                 request.YearBuilt = null;
-                request.Latitude = null;
-                request.Longitude = null;
                 request.ApartmentDetails = new UpdateListingApartmentDetailsRequest
                 {
                     ApartmentType = ApartmentType.Penthouse,
@@ -115,8 +114,8 @@ public sealed class ListingDraftReplacementEngineTests
         persisted.YearRenovated.Should().BeNull();
         persisted.Orientation.Should().Be(Orientation.Unknown);
         persisted.YearBuilt.Should().BeNull();
-        persisted.Latitude.Should().BeNull();
-        persisted.Longitude.Should().BeNull();
+        persisted.Latitude.Should().Be(original.Latitude);
+        persisted.Longitude.Should().Be(original.Longitude);
 
         persisted.ApartmentDetails.Should().NotBeNull();
         persisted.ApartmentDetails!.ApartmentType.Should().Be(ApartmentType.Penthouse);
@@ -543,6 +542,24 @@ public sealed class ListingDraftReplacementEngineTests
         houseRows.Should().Be(expectedHouseRows);
     }
 
+    private async Task SetCoordinatesAsync(
+        Guid listingId,
+        decimal latitude,
+        decimal longitude)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        Listing listing = await dbContext.Listings.SingleAsync(
+            current => current.Id == listingId);
+
+        listing.Latitude = latitude;
+        listing.Longitude = longitude;
+
+        await dbContext.SaveChangesAsync();
+    }
+
     private static UpdateListingRequest CreateReplacementRequest(Listing listing)
     {
         return new UpdateListingRequest
@@ -564,8 +581,6 @@ public sealed class ListingDraftReplacementEngineTests
             YearRenovated = listing.YearRenovated,
             Orientation = listing.Orientation,
             YearBuilt = listing.YearBuilt,
-            Latitude = listing.Latitude,
-            Longitude = listing.Longitude,
             ApartmentDetails = listing.ApartmentDetails is null
                 ? null
                 : new UpdateListingApartmentDetailsRequest

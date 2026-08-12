@@ -813,8 +813,6 @@ public sealed class ListingUpdateConcurrencyTests
             YearRenovated = 2021,
             Orientation = Orientation.South,
             YearBuilt = 2010,
-            Latitude = 41.9981m,
-            Longitude = 21.4254m,
             ApartmentDetails = new UpdateListingApartmentDetailsRequest
             {
                 ApartmentType = ApartmentType.Standard,

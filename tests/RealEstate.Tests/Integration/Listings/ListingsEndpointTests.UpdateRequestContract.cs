@@ -58,8 +58,6 @@ public sealed partial class ListingsEndpointTests
         request.IsExchangePossible.Should().BeNull();
         request.YearRenovated.Should().BeNull();
         request.YearBuilt.Should().BeNull();
-        request.Latitude.Should().BeNull();
-        request.Longitude.Should().BeNull();
         request.HouseDetails.Should().BeNull();
         translation.Description.Should().BeNull();
         translation.AddressLine.Should().BeNull();
@@ -76,7 +74,7 @@ public sealed partial class ListingsEndpointTests
         [
             "rooms", "bathrooms", "balconyCount", "parkingSpaces",
             "hasBasement", "isExchangePossible", "yearRenovated", "yearBuilt",
-            "latitude", "longitude", "houseDetails"
+            "houseDetails"
         ];
         foreach (string member in nullableRootMembers)
         {
@@ -103,8 +101,6 @@ public sealed partial class ListingsEndpointTests
         request.IsExchangePossible.Should().BeNull();
         request.YearRenovated.Should().BeNull();
         request.YearBuilt.Should().BeNull();
-        request.Latitude.Should().BeNull();
-        request.Longitude.Should().BeNull();
         request.HouseDetails.Should().BeNull();
         request.Translations.Single().Description.Should().BeNull();
         request.Translations.Single().AddressLine.Should().BeNull();
@@ -174,7 +170,7 @@ public sealed partial class ListingsEndpointTests
             "AreaSquareMeters", "Rooms", "Bathrooms", "BalconyCount",
             "ParkingSpaces", "HasBasement", "IsExchangePossible",
             "HeatingType", "FurnishingStatus", "Condition", "YearRenovated",
-            "Orientation", "YearBuilt", "Latitude", "Longitude",
+            "Orientation", "YearBuilt",
             "ApartmentDetails", "HouseDetails", "Translations"
         ]);
 

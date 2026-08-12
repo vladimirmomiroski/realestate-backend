@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
@@ -19,7 +20,9 @@ public sealed partial class ListingsEndpointTests
     AuthenticatedTestUser owner,
     object request,
     string title,
-    DateTime createdAtUtc)
+    DateTime createdAtUtc,
+    decimal? latitude = null,
+    decimal? longitude = null)
     {
         Guid listingId;
 
@@ -58,6 +61,14 @@ public sealed partial class ListingsEndpointTests
                 neighborhood: "Center",
                 title: title));
 
+        if (latitude.HasValue || longitude.HasValue)
+        {
+            await SetComparableCoordinatesAsync(
+                listingId,
+                latitude,
+                longitude);
+        }
+
         await ListingTestHelpers
             .SetListingStatusAndCreatedAtUtcAsync(
                 _factory,
@@ -66,6 +77,24 @@ public sealed partial class ListingsEndpointTests
                 createdAtUtc);
 
         return listingId;
+    }
+
+    private async Task SetComparableCoordinatesAsync(
+        Guid listingId,
+        decimal? latitude,
+        decimal? longitude)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        Listing listing = await dbContext.Listings.SingleAsync(
+            current => current.Id == listingId);
+
+        listing.Latitude = latitude;
+        listing.Longitude = longitude;
+
+        await dbContext.SaveChangesAsync();
     }
 
     private async Task<Guid> CreateComparableAgencyWithOwnerAsync(

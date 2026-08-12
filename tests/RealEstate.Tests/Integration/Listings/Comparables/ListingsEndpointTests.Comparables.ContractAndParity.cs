@@ -184,9 +184,7 @@ public sealed partial class ListingsEndpointTests
                 price: 100_000m,
                 currency: currency,
                 areaSquareMeters: 100m,
-                rooms: null,
-                latitude: null,
-                longitude: null);
+                rooms: null);
 
         Guid sourceId =
             await CreateActiveComparableFromRequestAsync(
@@ -200,9 +198,7 @@ public sealed partial class ListingsEndpointTests
                 price: 100_000m,
                 currency: currency,
                 areaSquareMeters: 100m,
-                rooms: null,
-                latitude: null,
-                longitude: null);
+                rooms: null);
 
         Guid nullFieldsCandidateId =
             await CreateActiveComparableFromRequestAsync(
@@ -217,9 +213,7 @@ public sealed partial class ListingsEndpointTests
                     price: 100_000m,
                     currency: currency,
                     areaSquareMeters: 100m,
-                    rooms: 7m,
-                    latitude: -45.123456m,
-                    longitude: 120.654321m))!
+                    rooms: 7m))!
                 .AsObject();
 
         JsonObject divergentApartmentDetails =
@@ -236,7 +230,9 @@ public sealed partial class ListingsEndpointTests
                 owner,
                 divergentCandidateRequest,
                 title: "Divergent ignored fields candidate",
-                createdAtUtc: newerTimestamp);
+                createdAtUtc: newerTimestamp,
+                latitude: -45.123456m,
+                longitude: 120.654321m);
 
         _httpClient.ClearAuthorization();
 
@@ -286,47 +282,47 @@ public sealed partial class ListingsEndpointTests
             ListingTestHelpers.CreateValidListingRequest(
                 price: 100_000m,
                 currency: currency,
-                areaSquareMeters: 100m,
-                latitude: 41.998123m,
-                longitude: 21.425456m);
+                areaSquareMeters: 100m);
 
         Guid sourceId =
             await CreateActiveComparableFromRequestAsync(
                 owner,
                 sourceRequest,
                 title: "Comparable source",
-                createdAtUtc: olderTimestamp);
+                createdAtUtc: olderTimestamp,
+                latitude: 41.998123m,
+                longitude: 21.425456m);
 
         object personalRequest =
             ListingTestHelpers.CreateValidListingRequest(
                 price: 100_000m,
                 currency: currency,
-                areaSquareMeters: 100m,
-                latitude: 41.900001m,
-                longitude: 21.400001m);
+                areaSquareMeters: 100m);
 
         Guid personalCandidateId =
             await CreateActiveComparableFromRequestAsync(
                 owner,
                 personalRequest,
                 title: "Personal comparable",
-                createdAtUtc: olderTimestamp);
+                createdAtUtc: olderTimestamp,
+                latitude: 41.900001m,
+                longitude: 21.400001m);
 
         object agencyRequest =
             ListingTestHelpers.CreateValidListingRequest(
                 price: 100_000m,
                 agencyId: agencyId,
                 currency: currency,
-                areaSquareMeters: 100m,
-                latitude: 42.100001m,
-                longitude: 22.100001m);
+                areaSquareMeters: 100m);
 
         Guid agencyCandidateId =
             await CreateActiveComparableFromRequestAsync(
                 owner,
                 agencyRequest,
                 title: "Agency comparable",
-                createdAtUtc: newerTimestamp);
+                createdAtUtc: newerTimestamp,
+                latitude: 42.100001m,
+                longitude: 22.100001m);
 
         _httpClient.ClearAuthorization();
 

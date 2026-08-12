@@ -10,15 +10,6 @@ public sealed class CreateListingValidator
     public const string InvalidCurrencyError =
     "Currency must contain exactly three ASCII letters.";
 
-    public const string CoordinatePairError =
-        "Latitude and longitude must both be provided or both be omitted.";
-
-    public const string LatitudeOutOfRangeError =
-        "Latitude must be between -90 and 90.";
-
-    public const string LongitudeOutOfRangeError =
-        "Longitude must be between -180 and 180.";
-
     public const string InvalidListingTypeError =
         "Listing type must be a currently supported value.";
 
@@ -66,27 +57,6 @@ public sealed class CreateListingValidator
         if (!IsValidCurrency(trimmedCurrency))
         {
             return Failure("currency", InvalidCurrencyError);
-        }
-
-        bool hasLatitude =
-            request.Latitude.HasValue;
-
-        bool hasLongitude =
-            request.Longitude.HasValue;
-
-        if (hasLatitude != hasLongitude)
-        {
-            return Failure("request", CoordinatePairError);
-        }
-
-        if (request.Latitude is < -90m or > 90m)
-        {
-            return Failure("latitude", LatitudeOutOfRangeError);
-        }
-
-        if (request.Longitude is < -180m or > 180m)
-        {
-            return Failure("longitude", LongitudeOutOfRangeError);
         }
 
         if (request.Translations is null || request.Translations.Count == 0)
