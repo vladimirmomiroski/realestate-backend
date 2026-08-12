@@ -229,7 +229,7 @@ public sealed class ListingUpdateConcurrencyTests
         using var cancellation = new CancellationTokenSource();
 
         Task<ServiceResult<ListingAuthoringResponse>>? updateTask = null;
-        Task<ServiceResult<ListingResponse>>? publishTask = null;
+        Task<ServiceResult<PublicListingResponse>>? publishTask = null;
 
         try
         {
@@ -259,7 +259,7 @@ public sealed class ListingUpdateConcurrencyTests
             ServiceResult<ListingAuthoringResponse> updateResult =
                 await updateTask.WaitAsync(TestTimeout);
             await publishProbe.AggregateLoadStarted.WaitAsync(TestTimeout);
-            ServiceResult<ListingResponse> publishResult =
+            ServiceResult<PublicListingResponse> publishResult =
                 await publishTask.WaitAsync(TestTimeout);
 
             updateResult.Status.Should().Be(ServiceResultStatus.Success);
@@ -359,7 +359,7 @@ public sealed class ListingUpdateConcurrencyTests
         using var cancellation = new CancellationTokenSource();
 
         Task<ServiceResult<ListingAuthoringResponse>>? updateTask = null;
-        Task<ServiceResult<ListingResponse>>? publishTask = null;
+        Task<ServiceResult<PublicListingResponse>>? publishTask = null;
 
         try
         {
@@ -389,7 +389,7 @@ public sealed class ListingUpdateConcurrencyTests
             ServiceResult<ListingAuthoringResponse> updateResult =
                 await updateTask.WaitAsync(TestTimeout);
             await publishProbe.AggregateLoadStarted.WaitAsync(TestTimeout);
-            ServiceResult<ListingResponse> publishResult =
+            ServiceResult<PublicListingResponse> publishResult =
                 await publishTask.WaitAsync(TestTimeout);
 
             updateResult.Status.Should().Be(ServiceResultStatus.Success);
@@ -477,7 +477,7 @@ public sealed class ListingUpdateConcurrencyTests
             ("de", "Darf nicht gespeichert werden"));
         using var cancellation = new CancellationTokenSource();
 
-        Task<ServiceResult<ListingResponse>>? publishTask = null;
+        Task<ServiceResult<PublicListingResponse>>? publishTask = null;
         Task<ServiceResult<ListingAuthoringResponse>>? updateTask = null;
 
         try
@@ -505,7 +505,7 @@ public sealed class ListingUpdateConcurrencyTests
 
             publishGate.Release();
 
-            ServiceResult<ListingResponse> publishResult =
+            ServiceResult<PublicListingResponse> publishResult =
                 await publishTask.WaitAsync(TestTimeout);
             await updateProbe.AggregateLoadStarted.WaitAsync(TestTimeout);
             ServiceResult<ListingAuthoringResponse> updateResult =

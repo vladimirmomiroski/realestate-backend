@@ -238,7 +238,8 @@ public sealed partial class ListingsEndpointTests
         string title,
         string city,
         string municipality,
-        string neighborhood)
+        string neighborhood,
+        string description = "Comparable test description")
     {
         item.GetProperty("languageCode")
             .GetString()
@@ -249,6 +250,11 @@ public sealed partial class ListingsEndpointTests
             .GetString()
             .Should()
             .Be(title);
+
+        item.GetProperty("description")
+            .GetString()
+            .Should()
+            .Be(description);
 
         item.GetProperty("city")
             .GetString()

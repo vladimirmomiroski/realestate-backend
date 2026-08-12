@@ -21,7 +21,7 @@ public sealed class PublishListingHandlerTests
         var context = new TestContext();
         context.Listing.Translations.Single().Description = null;
 
-        ServiceResult<ListingResponse> result = await context.HandleAsync();
+        ServiceResult<PublicListingResponse> result = await context.HandleAsync();
 
         result.Status.Should().Be(ServiceResultStatus.Conflict);
         result.ErrorCode.Should().Be(ErrorCodes.ConflictListingNotReady);
@@ -43,7 +43,7 @@ public sealed class PublishListingHandlerTests
         context.Listing.Publish().IsReady.Should().BeTrue();
         context.Listing.Translations.Single().City = null;
 
-        ServiceResult<ListingResponse> result = await context.HandleAsync();
+        ServiceResult<PublicListingResponse> result = await context.HandleAsync();
 
         result.Status.Should().Be(ServiceResultStatus.Conflict);
         result.ErrorCode.Should().Be(ErrorCodes.ConflictListingNotReady);
@@ -59,7 +59,7 @@ public sealed class PublishListingHandlerTests
         var context = new TestContext();
         context.Listing.AssignCreator(Guid.NewGuid());
 
-        ServiceResult<ListingResponse> result = await context.HandleAsync();
+        ServiceResult<PublicListingResponse> result = await context.HandleAsync();
 
         result.Status.Should().Be(ServiceResultStatus.Forbidden);
         result.ErrorCode.Should().Be(ErrorCodes.AuthorizationForbidden);
@@ -88,7 +88,7 @@ public sealed class PublishListingHandlerTests
         context.AgencyRepository.AgencyResult = agency;
         context.AgencyRepository.MemberAccessResult = null;
 
-        ServiceResult<ListingResponse> result = await context.HandleAsync();
+        ServiceResult<PublicListingResponse> result = await context.HandleAsync();
 
         result.Status.Should().Be(ServiceResultStatus.Forbidden);
         result.ErrorCode.Should().Be(ErrorCodes.AuthorizationForbidden);
@@ -110,10 +110,15 @@ public sealed class PublishListingHandlerTests
     {
         var context = new TestContext();
 
-        ServiceResult<ListingResponse> result = await context.HandleAsync();
+        ServiceResult<PublicListingResponse> result = await context.HandleAsync();
 
         result.Status.Should().Be(ServiceResultStatus.Success);
         result.Value.Should().NotBeNull();
+        result.Value!.LanguageCode.Should().Be("en");
+        result.Value.Title.Should().Be("Ready listing");
+        result.Value.City.Should().Be("Skopje");
+        result.Value.Description.Should().Be(
+            "Complete publication content.");
         context.Listing.Status.Should().Be(ListingStatus.Active);
         context.WriteScope.SaveChangesCallCount.Should().Be(1);
         context.WriteScope.CommitCallCount.Should().Be(1);
@@ -167,7 +172,7 @@ public sealed class PublishListingHandlerTests
         public FakeCurrentUserService CurrentUser { get; }
         public PublishListingHandler Handler { get; }
 
-        public Task<ServiceResult<ListingResponse>> HandleAsync()
+        public Task<ServiceResult<PublicListingResponse>> HandleAsync()
         {
             return Handler.HandleAsync(
                 new PublishListingCommand(Listing.Id, "en"),

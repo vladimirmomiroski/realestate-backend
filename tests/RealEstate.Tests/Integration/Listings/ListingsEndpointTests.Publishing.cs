@@ -76,8 +76,7 @@ public sealed partial class ListingsEndpointTests
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            ListingStatus responseStatus = await ReadListingStatusAsync(response);
-            responseStatus.Should().Be(ListingStatus.Active);
+            await AssertStrictPublishedIdentityAsync(response);
 
             ListingStatus databaseStatus = await GetListingStatusAsync(listingId);
             databaseStatus.Should().Be(ListingStatus.Active);
@@ -150,8 +149,7 @@ public sealed partial class ListingsEndpointTests
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            ListingStatus responseStatus = await ReadListingStatusAsync(response);
-            responseStatus.Should().Be(ListingStatus.Active);
+            await AssertStrictPublishedIdentityAsync(response);
         }
         finally
         {
@@ -320,8 +318,7 @@ public sealed partial class ListingsEndpointTests
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            ListingStatus responseStatus = await ReadListingStatusAsync(response);
-            responseStatus.Should().Be(ListingStatus.Active);
+            await AssertStrictPublishedIdentityAsync(response);
         }
         finally
         {
@@ -404,11 +401,11 @@ public sealed partial class ListingsEndpointTests
         try
         {
             HttpResponseMessage response = await _httpClient.PutAsync(
-                $"/api/listings/{listingId}/publish",
+                $"/api/listings/{listingId}/publish?lang=en",
                 null);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            (await ReadListingStatusAsync(response)).Should().Be(ListingStatus.Active);
+            await AssertStrictPublishedIdentityAsync(response);
         }
         finally
         {
@@ -560,6 +557,24 @@ public sealed partial class ListingsEndpointTests
             agencyId);
 
         return (listingId, agencyId, owner);
+    }
+
+    private static async Task AssertStrictPublishedIdentityAsync(
+        HttpResponseMessage response)
+    {
+        JsonElement body =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        body.GetProperty("status").GetString().Should()
+            .Be("Active");
+        body.GetProperty("languageCode").GetString().Should()
+            .Be("en");
+        body.GetProperty("title").GetString().Should()
+            .Be("Integration test apartment");
+        body.GetProperty("city").GetString().Should()
+            .Be("Skopje");
+        body.GetProperty("description").GetString().Should()
+            .Be("Test listing created from integration tests.");
     }
 
     private async Task<Guid> CreateAgencyAsAsync(AuthenticatedTestUser user)

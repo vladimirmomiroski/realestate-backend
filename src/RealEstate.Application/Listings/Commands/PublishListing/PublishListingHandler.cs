@@ -29,7 +29,7 @@ public sealed class PublishListingHandler
         _currentUserService = currentUserService;
     }
 
-    public async Task<ServiceResult<ListingResponse>> HandleAsync(
+    public async Task<ServiceResult<PublicListingResponse>> HandleAsync(
         PublishListingCommand command,
         CancellationToken cancellationToken)
     {
@@ -37,7 +37,7 @@ public sealed class PublishListingHandler
 
         if (!currentUserId.HasValue)
         {
-            return ServiceResult<ListingResponse>.Unauthorized(
+            return ServiceResult<PublicListingResponse>.Unauthorized(
                 "Current user could not be resolved.",
                 ErrorCodes.AuthenticationInvalidPrincipal);
         }
@@ -48,21 +48,21 @@ public sealed class PublishListingHandler
 
         if (user is null)
         {
-            return ServiceResult<ListingResponse>.Unauthorized(
+            return ServiceResult<PublicListingResponse>.Unauthorized(
                 "Current user could not be resolved.",
                 ErrorCodes.AuthenticationInvalidPrincipal);
         }
 
         if (user.Status == UserStatus.Disabled)
         {
-            return ServiceResult<ListingResponse>.Forbidden(
+            return ServiceResult<PublicListingResponse>.Forbidden(
                 "User is not allowed to publish listings.",
                 ErrorCodes.AuthorizationAccountDisabled);
         }
 
         if (user.Status != UserStatus.Active)
         {
-            return ServiceResult<ListingResponse>.Forbidden(
+            return ServiceResult<PublicListingResponse>.Forbidden(
                 "User is not allowed to publish listings.",
                 ErrorCodes.AuthorizationForbidden);
         }
@@ -74,7 +74,7 @@ public sealed class PublishListingHandler
 
         if (writeScope is null)
         {
-            return ServiceResult<ListingResponse>.NotFound(
+            return ServiceResult<PublicListingResponse>.NotFound(
                 "Listing was not found.",
                 ErrorCodes.ResourceNotFound);
         }
@@ -86,7 +86,7 @@ public sealed class PublishListingHandler
             if (listing.AgencyId.HasValue)
             {
                 var agencyAccessResult =
-                    await _agencyListingAccessChecker.EnsureCanPublishAgencyListingsAsync<ListingResponse>(
+                    await _agencyListingAccessChecker.EnsureCanPublishAgencyListingsAsync<PublicListingResponse>(
                         listing.AgencyId.Value,
                         userId,
                         cancellationToken);
@@ -98,7 +98,7 @@ public sealed class PublishListingHandler
             }
             else if (listing.CreatedByUserId != userId)
             {
-                return ServiceResult<ListingResponse>.Forbidden(
+                return ServiceResult<PublicListingResponse>.Forbidden(
                     "User is not allowed to publish this listing.",
                     ErrorCodes.AuthorizationForbidden);
             }
@@ -111,14 +111,14 @@ public sealed class PublishListingHandler
             }
             catch (InvalidOperationException exception)
             {
-                return ServiceResult<ListingResponse>.Conflict(
+                return ServiceResult<PublicListingResponse>.Conflict(
                     exception.Message,
                     ErrorCodes.ConflictResourceState);
             }
 
             if (!readiness.IsReady)
             {
-                return ServiceResult<ListingResponse>.Conflict(
+                return ServiceResult<PublicListingResponse>.Conflict(
                     "The listing is not ready for publication.",
                     ErrorCodes.ConflictListingNotReady);
             }
@@ -129,8 +129,8 @@ public sealed class PublishListingHandler
 
             var languageCode = NormalizeLanguageCode(command.LanguageCode);
 
-            return ServiceResult<ListingResponse>.Success(
-                listing.ToResponse(languageCode));
+            return ServiceResult<PublicListingResponse>.Success(
+                listing.ToPublicResponse(languageCode));
         }
     }
 

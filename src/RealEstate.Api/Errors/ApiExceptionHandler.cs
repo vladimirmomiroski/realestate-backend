@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using RealEstate.Application.Listings.Mappings;
 
 namespace RealEstate.Api.Errors;
 
@@ -23,6 +24,27 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
                 HandledExceptionEvent,
                 "Handled unexpected exception for API request {RequestId} " +
                 "{Method} {Route} with status {StatusCode}.");
+
+    private static readonly Action<
+        ILogger,
+        string,
+        string,
+        string,
+        int,
+        Guid,
+        string,
+        Exception?> LogPublicListingIntegrityException = LoggerMessage.Define<
+            string,
+            string,
+            string,
+            int,
+            Guid,
+            string>(
+                LogLevel.Error,
+                HandledExceptionEvent,
+                "Handled public-listing integrity violation for API request " +
+                "{RequestId} {Method} {Route} with status {StatusCode}. " +
+                "Listing {ListingId}; violations {IntegrityViolationCodes}.");
 
     private readonly ApiFailureService _failureService;
     private readonly ILogger<ApiExceptionHandler> _logger;
@@ -62,13 +84,35 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
         ApiRequestLogContext context =
             ApiRequestLogContext.Create(httpContext);
 
-        LogHandledException(
-            _logger,
-            context.RequestId,
-            context.Method,
-            context.Route,
-            context.StatusCode,
-            exception);
+        if (exception is PublicListingIntegrityException integrityException)
+        {
+            string violationCodes = string.Join(
+                ",",
+                integrityException.Violations
+                    .Select(violation => violation.Code)
+                    .Distinct()
+                    .Order());
+
+            LogPublicListingIntegrityException(
+                _logger,
+                context.RequestId,
+                context.Method,
+                context.Route,
+                context.StatusCode,
+                integrityException.ListingId,
+                violationCodes,
+                exception);
+        }
+        else
+        {
+            LogHandledException(
+                _logger,
+                context.RequestId,
+                context.Method,
+                context.Route,
+                context.StatusCode,
+                exception);
+        }
 
         return true;
     }
