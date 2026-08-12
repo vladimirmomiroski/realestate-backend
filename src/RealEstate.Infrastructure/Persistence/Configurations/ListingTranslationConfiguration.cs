@@ -19,6 +19,15 @@ public class ListingTranslationConfiguration : IEntityTypeConfiguration<ListingT
     public const string DescriptionConstraintName =
         "CK_ListingTranslations_Description_TrimmedNonBlank";
 
+    public const string AddressLineConstraintName =
+        "CK_ListingTranslations_AddressLine_TrimmedNonBlank";
+
+    public const string MunicipalityConstraintName =
+        "CK_ListingTranslations_Municipality_TrimmedNonBlank";
+
+    public const string NeighborhoodConstraintName =
+        "CK_ListingTranslations_Neighborhood_TrimmedNonBlank";
+
     private const string PostgreSqlLanguageCodePattern =
         "^[a-z]{2,3}(-[a-z0-9]{2,8})*$";
 
@@ -67,6 +76,36 @@ public class ListingTranslationConfiguration : IEntityTypeConfiguration<ListingT
                     OR (
                         "Description" <> ''
                         AND "Description" = btrim("Description", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    AddressLineConstraintName,
+                    $"""
+                    "AddressLine" IS NULL
+                    OR (
+                        "AddressLine" <> ''
+                        AND "AddressLine" = btrim("AddressLine", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    MunicipalityConstraintName,
+                    $"""
+                    "Municipality" IS NULL
+                    OR (
+                        "Municipality" <> ''
+                        AND "Municipality" = btrim("Municipality", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    NeighborhoodConstraintName,
+                    $"""
+                    "Neighborhood" IS NULL
+                    OR (
+                        "Neighborhood" <> ''
+                        AND "Neighborhood" = btrim("Neighborhood", {PostgreSqlBoundaryWhitespaceExpression})
                     )
                     """);
             });
