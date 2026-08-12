@@ -301,8 +301,8 @@ public sealed partial class ListingsEndpointTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task GetComparables_BlankMunicipalityDoesNotEarnTierZeroOrOne(
-    bool blankOnSource)
+    public async Task GetComparables_MissingMunicipalityDoesNotEarnTierZeroOrOne(
+    bool missingOnSource)
     {
         // Arrange
         string currency =
@@ -312,9 +312,9 @@ public sealed partial class ListingsEndpointTests
             await AuthTestHelpers.RegisterAndLoginAsync(
                 _httpClient);
 
-        string sourceMunicipality =
-            blankOnSource
-                ? "   "
+        string? sourceMunicipality =
+            missingOnSource
+                ? null
                 : "Centar";
 
         Guid sourceId =
@@ -326,13 +326,13 @@ public sealed partial class ListingsEndpointTests
                 municipality: sourceMunicipality,
                 neighborhood: "Center");
 
-        Guid blankMunicipalityCandidateId =
+        Guid missingMunicipalityCandidateId =
             await CreateActiveComparableAsync(
                 owner,
                 currency,
                 price: 120_000m,
                 areaSquareMeters: 120m,
-                municipality: "   ",
+                municipality: null,
                 neighborhood: "Center");
 
         Guid sameCorrectTierControlId =
@@ -357,14 +357,14 @@ public sealed partial class ListingsEndpointTests
         // Assert
         returnedIds.Should().Equal(
             sameCorrectTierControlId,
-            blankMunicipalityCandidateId);
+            missingMunicipalityCandidateId);
     }
 
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task GetComparables_BlankNeighborhoodDoesNotEarnTierZero(
-    bool blankOnSource)
+    public async Task GetComparables_MissingNeighborhoodDoesNotEarnTierZero(
+    bool missingOnSource)
     {
         // Arrange
         string currency =
@@ -374,9 +374,9 @@ public sealed partial class ListingsEndpointTests
             await AuthTestHelpers.RegisterAndLoginAsync(
                 _httpClient);
 
-        string sourceNeighborhood =
-            blankOnSource
-                ? "   "
+        string? sourceNeighborhood =
+            missingOnSource
+                ? null
                 : "Center";
 
         Guid sourceId =
@@ -388,14 +388,14 @@ public sealed partial class ListingsEndpointTests
                 municipality: "Centar",
                 neighborhood: sourceNeighborhood);
 
-        Guid blankNeighborhoodCandidateId =
+        Guid missingNeighborhoodCandidateId =
             await CreateActiveComparableAsync(
                 owner,
                 currency,
                 price: 120_000m,
                 areaSquareMeters: 120m,
                 municipality: "Centar",
-                neighborhood: "   ");
+                neighborhood: null);
 
         Guid sameCorrectTierControlId =
             await CreateActiveComparableAsync(
@@ -419,7 +419,7 @@ public sealed partial class ListingsEndpointTests
         // Assert
         returnedIds.Should().Equal(
             sameCorrectTierControlId,
-            blankNeighborhoodCandidateId);
+            missingNeighborhoodCandidateId);
     }
 
     [Fact]
