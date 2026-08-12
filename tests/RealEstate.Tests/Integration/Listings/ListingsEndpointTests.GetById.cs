@@ -27,6 +27,9 @@ public sealed partial class ListingsEndpointTests
         json.GetProperty("id").GetGuid().Should().Be(listingId);
         json.GetProperty("languageCode").GetString().Should().Be("mk");
         json.GetProperty("title").GetString().Should().Be("Интеграциски тест стан");
+        json.GetProperty("city").GetString().Should().Be("Скопје");
+        json.GetProperty("description").GetString().Should()
+            .Be("Тест оглас креиран од integration tests.");
         json.GetProperty("municipality").GetString().Should().Be("Центар");
 
         json.GetProperty("apartmentDetails").ValueKind.Should().Be(JsonValueKind.Object);

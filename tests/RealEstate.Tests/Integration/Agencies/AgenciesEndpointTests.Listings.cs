@@ -459,6 +459,8 @@ public sealed partial class AgenciesEndpointTests
             .Should().Be("Private Use Title");
         item.GetProperty("city").GetString()
             .Should().Be("Private Use City");
+        item.GetProperty("description").GetString()
+            .Should().Be("Private Use Title description");
     }
 
     [Fact]

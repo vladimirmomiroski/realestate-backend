@@ -184,7 +184,7 @@ public sealed class ListingsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(
-    typeof(PagedResponse<ListingResponse>),
+    typeof(PagedResponse<PublicListingResponse>),
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetListings(
@@ -248,7 +248,7 @@ public sealed class ListingsController : ControllerBase
             PageSize = pageSize
         };
 
-        ServiceResult<PagedResponse<ListingResponse>> result =
+        ServiceResult<PagedResponse<PublicListingResponse>> result =
             await _getListingsHandler.HandleAsync(
                 query,
                 cancellationToken);
@@ -294,14 +294,18 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet("{id:guid}", Name = GetListingByIdRouteName)]
-    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PublicListingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetListingById(
         Guid id,
         [FromQuery] string lang = "mk",
         CancellationToken cancellationToken = default)
     {
-        var result = await _getListingByIdHandler.HandleAsync(id, lang, cancellationToken);
+        ServiceResult<PublicListingResponse> result =
+            await _getListingByIdHandler.HandleAsync(
+                id,
+                lang,
+                cancellationToken);
 
         return result.Status switch
         {
@@ -316,7 +320,7 @@ public sealed class ListingsController : ControllerBase
 
     [HttpGet("{id:guid}/comparables")]
     [ProducesResponseType(
-    typeof(IReadOnlyList<ListingResponse>),
+    typeof(IReadOnlyList<PublicListingResponse>),
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -334,7 +338,7 @@ public sealed class ListingsController : ControllerBase
             Limit = limit
         };
 
-        ServiceResult<IReadOnlyList<ListingResponse>> result =
+        ServiceResult<IReadOnlyList<PublicListingResponse>> result =
             await _getComparableListingsHandler.HandleAsync(
                 query,
                 cancellationToken);
@@ -353,7 +357,7 @@ public sealed class ListingsController : ControllerBase
 
     [Authorize]
     [HttpPut("{id:guid}/publish")]
-    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PublicListingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -364,11 +368,23 @@ public sealed class ListingsController : ControllerBase
     [FromQuery] string? lang,
     CancellationToken cancellationToken)
     {
-        var result = await _publishListingHandler.HandleAsync(
-            new PublishListingCommand(id, lang),
-            cancellationToken);
+        ServiceResult<PublicListingResponse> result =
+            await _publishListingHandler.HandleAsync(
+                new PublishListingCommand(id, lang),
+                cancellationToken);
 
-        return MapLifecycleResult(result, "publish-listing");
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful publish-listing result must provide a value.")),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The publish-listing result was not mapped.")
+        };
     }
 
     [Authorize]

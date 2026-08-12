@@ -195,7 +195,7 @@ public sealed class AgenciesController : ControllerBase
 
     [HttpGet("{id:guid}/listings")]
     [ProducesResponseType(
-        typeof(PagedResponse<ListingResponse>),
+        typeof(PagedResponse<PublicListingResponse>),
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -218,7 +218,7 @@ public sealed class AgenciesController : ControllerBase
             PageSize = pageSize
         };
 
-        ServiceResult<PagedResponse<ListingResponse>> result =
+        ServiceResult<PagedResponse<PublicListingResponse>> result =
             await _getAgencyListingsHandler.HandleAsync(
                 query,
                 cancellationToken);

@@ -18,7 +18,7 @@ public sealed class GetComparableListingsHandler
         _validator = validator;
     }
 
-    public async Task<ServiceResult<IReadOnlyList<ListingResponse>>>
+    public async Task<ServiceResult<IReadOnlyList<PublicListingResponse>>>
         HandleAsync(
             GetComparableListingsQuery query,
             CancellationToken cancellationToken)
@@ -33,7 +33,7 @@ public sealed class GetComparableListingsHandler
 
         if (validationError is not null)
         {
-            return ServiceResult<IReadOnlyList<ListingResponse>>
+            return ServiceResult<IReadOnlyList<PublicListingResponse>>
                 .ValidationError(
                     validationError.Error,
                     validationError.Key,
@@ -50,19 +50,26 @@ public sealed class GetComparableListingsHandler
 
         if (!readResult.SourceFound)
         {
-            return ServiceResult<IReadOnlyList<ListingResponse>>
+            return ServiceResult<IReadOnlyList<PublicListingResponse>>
                 .NotFound(
                     "Listing was not found.",
                     ErrorCodes.ResourceNotFound);
         }
 
-        IReadOnlyList<ListingResponse> responses =
+        if (readResult.SourceIntegrityViolations.Count > 0)
+        {
+            throw new PublicListingIntegrityException(
+                query.ListingId,
+                readResult.SourceIntegrityViolations);
+        }
+
+        IReadOnlyList<PublicListingResponse> responses =
             readResult.Items
                 .Select(listing =>
-                    listing.ToResponse(query.LanguageCode))
+                    listing.ToPublicResponse(query.LanguageCode))
                 .ToList();
 
-        return ServiceResult<IReadOnlyList<ListingResponse>>
+        return ServiceResult<IReadOnlyList<PublicListingResponse>>
             .Success(responses);
     }
 }

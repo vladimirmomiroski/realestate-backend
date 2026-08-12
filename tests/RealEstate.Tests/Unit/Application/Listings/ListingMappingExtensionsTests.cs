@@ -139,6 +139,83 @@ public sealed class ListingMappingExtensionsTests
     }
 
     [Fact]
+    public void ToPublicResponse_WithPublishableListing_MapsStrictSelectedTranslation()
+    {
+        // Arrange
+        var listing = CreateBaseListing();
+        listing.Translations =
+        [
+            CreateTranslation("mk", "Македонски наслов"),
+            new ListingTranslation
+            {
+                Id = Guid.NewGuid(),
+                LanguageCode = "en",
+                Title = "Exact public title",
+                City = "Exact public city",
+                Description = "Exact public description",
+                AddressLine = "Exact public address",
+                Municipality = "Exact public municipality",
+                Neighborhood = "Exact public neighborhood"
+            }
+        ];
+
+        // Act
+        var response = listing.ToPublicResponse("en");
+
+        // Assert
+        response.LanguageCode.Should().Be("en");
+        response.Title.Should().Be("Exact public title");
+        response.City.Should().Be("Exact public city");
+        response.Description.Should().Be("Exact public description");
+    }
+
+    [Fact]
+    public void ToPublicResponse_WithMissingMaterializedTranslation_ThrowsIntegrityFailure()
+    {
+        // Arrange
+        var listing = CreateBaseListing();
+        listing.Translations = [];
+
+        // Act
+        Action act = () => listing.ToPublicResponse("en");
+
+        // Assert
+        PublicListingIntegrityException exception = act.Should()
+            .Throw<PublicListingIntegrityException>()
+            .Which;
+        exception.ListingId.Should().Be(listing.Id);
+        exception.Violations.Should().NotBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(PublicIdentityCorruption.NullLanguageCode)]
+    [InlineData(PublicIdentityCorruption.BlankLanguageCode)]
+    [InlineData(PublicIdentityCorruption.NullTitle)]
+    [InlineData(PublicIdentityCorruption.BlankTitle)]
+    [InlineData(PublicIdentityCorruption.NullCity)]
+    [InlineData(PublicIdentityCorruption.BlankCity)]
+    [InlineData(PublicIdentityCorruption.NullDescription)]
+    [InlineData(PublicIdentityCorruption.BlankDescription)]
+    public void ToPublicResponse_WithCorruptActivePublicIdentity_ThrowsIntegrityFailure(
+        PublicIdentityCorruption corruption)
+    {
+        // Arrange
+        Listing listing = CreateBaseListing();
+        ListingTranslation translation = listing.Translations.Single();
+        CorruptPublicIdentity(translation, corruption);
+
+        // Act
+        Action act = () => listing.ToPublicResponse("mk");
+
+        // Assert
+        PublicListingIntegrityException exception = act.Should()
+            .Throw<PublicListingIntegrityException>()
+            .Which;
+        exception.ListingId.Should().Be(listing.Id);
+        exception.Violations.Should().NotBeEmpty();
+    }
+
+    [Fact]
     public void ToResponse_ShouldLeaveTranslatedFieldsNull_WhenListingHasNoTranslations()
     {
         // Arrange
@@ -363,5 +440,71 @@ public sealed class ListingMappingExtensionsTests
             SortOrder = sortOrder,
             IsPrimary = isPrimary
         };
+    }
+
+    private static void CorruptPublicIdentity(
+        ListingTranslation translation,
+        PublicIdentityCorruption corruption)
+    {
+        switch (corruption)
+        {
+            case PublicIdentityCorruption.NullLanguageCode:
+                SetNullForCorruptFixture(
+                    translation,
+                    nameof(ListingTranslation.LanguageCode));
+                break;
+            case PublicIdentityCorruption.BlankLanguageCode:
+                translation.LanguageCode = " ";
+                break;
+            case PublicIdentityCorruption.NullTitle:
+                SetNullForCorruptFixture(
+                    translation,
+                    nameof(ListingTranslation.Title));
+                break;
+            case PublicIdentityCorruption.BlankTitle:
+                translation.Title = " ";
+                break;
+            case PublicIdentityCorruption.NullCity:
+                translation.City = null;
+                break;
+            case PublicIdentityCorruption.BlankCity:
+                translation.City = " ";
+                break;
+            case PublicIdentityCorruption.NullDescription:
+                translation.Description = null;
+                break;
+            case PublicIdentityCorruption.BlankDescription:
+                translation.Description = " ";
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(corruption),
+                    corruption,
+                    null);
+        }
+    }
+
+    private static void SetNullForCorruptFixture(
+        ListingTranslation translation,
+        string propertyName)
+    {
+        System.Reflection.PropertyInfo property =
+            typeof(ListingTranslation).GetProperty(propertyName)
+            ?? throw new InvalidOperationException(
+                $"ListingTranslation.{propertyName} was not found.");
+
+        property.SetValue(translation, null);
+    }
+
+    public enum PublicIdentityCorruption
+    {
+        NullLanguageCode,
+        BlankLanguageCode,
+        NullTitle,
+        BlankTitle,
+        NullCity,
+        BlankCity,
+        NullDescription,
+        BlankDescription
     }
 }
