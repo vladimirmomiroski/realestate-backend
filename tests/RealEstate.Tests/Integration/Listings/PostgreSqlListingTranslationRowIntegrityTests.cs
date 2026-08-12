@@ -1,8 +1,11 @@
 using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using RealEstate.Domain.Entities;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Configurations;
 
@@ -111,6 +114,108 @@ public sealed class PostgreSqlListingTranslationRowIntegrityTests
         }
     }
 
+    [Theory]
+    [InlineData("AddressLine")]
+    [InlineData("Municipality")]
+    [InlineData("Neighborhood")]
+    public async Task OptionalLocalizedLocationConstraints_AcceptNullAndMeaningfulValues(
+        string columnName)
+    {
+        Guid translationId = await CreateTranslationIdAsync();
+
+        await SetColumnAsync(translationId, columnName, null);
+        await SetColumnAsync(translationId, columnName, "Meaningful location");
+        await SetColumnAsync(translationId, columnName, "Улица Македонија 1");
+    }
+
+    [Theory]
+    [InlineData(
+        "AddressLine",
+        ListingTranslationConfiguration.AddressLineConstraintName)]
+    [InlineData(
+        "Municipality",
+        ListingTranslationConfiguration.MunicipalityConstraintName)]
+    [InlineData(
+        "Neighborhood",
+        ListingTranslationConfiguration.NeighborhoodConstraintName)]
+    public async Task OptionalLocalizedLocationConstraints_RejectBlankOrUntrimmedValues(
+        string columnName,
+        string constraintName)
+    {
+        Guid translationId = await CreateTranslationIdAsync();
+
+        await AssertCheckRejectedAsync(
+            translationId,
+            columnName,
+            string.Empty,
+            constraintName);
+
+        foreach (string whitespace in BoundaryWhitespaceCases)
+        {
+            await AssertCheckRejectedAsync(
+                translationId,
+                columnName,
+                whitespace,
+                constraintName);
+            await AssertCheckRejectedAsync(
+                translationId,
+                columnName,
+                $"{whitespace}Location",
+                constraintName);
+            await AssertCheckRejectedAsync(
+                translationId,
+                columnName,
+                $"Location{whitespace}",
+                constraintName);
+        }
+    }
+
+    [Fact]
+    public async Task EfModel_DeclaresOptionalLocalizedLocationConstraintsAndNullableColumns()
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+        var entityType = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(ListingTranslation));
+
+        entityType.Should().NotBeNull();
+        string[] expectedConstraints =
+        [
+            ListingTranslationConfiguration.AddressLineConstraintName,
+            ListingTranslationConfiguration.MunicipalityConstraintName,
+            ListingTranslationConfiguration.NeighborhoodConstraintName
+        ];
+        Dictionary<string, string> checks = entityType!.GetCheckConstraints()
+            .Where(constraint => expectedConstraints.Contains(constraint.Name))
+            .ToDictionary(
+                constraint => constraint.Name!,
+                constraint => constraint.Sql!,
+                StringComparer.Ordinal);
+
+        checks.Keys.Should().BeEquivalentTo(expectedConstraints);
+
+        foreach (string propertyName in new[]
+        {
+            nameof(ListingTranslation.AddressLine),
+            nameof(ListingTranslation.Municipality),
+            nameof(ListingTranslation.Neighborhood)
+        })
+        {
+            entityType.FindProperty(propertyName)!.IsNullable.Should().BeTrue();
+        }
+
+        checks.Values.Should().OnlyContain(sql =>
+            sql.Contains("IS NULL", StringComparison.Ordinal) &&
+            sql.Contains("<> ''", StringComparison.Ordinal) &&
+            sql.Contains("btrim", StringComparison.Ordinal) &&
+            sql.Contains("chr(160)", StringComparison.Ordinal) &&
+            sql.Contains("chr(8195)", StringComparison.Ordinal) &&
+            sql.Contains("chr(12288)", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task RowIntegrityConstraints_CoexistWithUniqueAndTrigramIndexes()
     {
@@ -148,7 +253,10 @@ public sealed class PostgreSqlListingTranslationRowIntegrityTests
                 ListingTranslationConfiguration.LanguageCodeConstraintName,
                 ListingTranslationConfiguration.TitleConstraintName,
                 ListingTranslationConfiguration.CityConstraintName,
-                ListingTranslationConfiguration.DescriptionConstraintName);
+                ListingTranslationConfiguration.DescriptionConstraintName,
+                ListingTranslationConfiguration.AddressLineConstraintName,
+                ListingTranslationConfiguration.MunicipalityConstraintName,
+                ListingTranslationConfiguration.NeighborhoodConstraintName);
             constraints.Values.Should().OnlyContain(definition =>
                 definition.Contains("btrim", StringComparison.Ordinal) &&
                 definition.Contains("chr(160)", StringComparison.Ordinal) &&
@@ -263,6 +371,30 @@ public sealed class PostgreSqlListingTranslationRowIntegrityTests
                     $"""
                      UPDATE "ListingTranslations"
                      SET "Description" = {value}
+                     WHERE "Id" = {translationId}
+                     """);
+                break;
+            case "AddressLine":
+                await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                     UPDATE "ListingTranslations"
+                     SET "AddressLine" = {value}
+                     WHERE "Id" = {translationId}
+                     """);
+                break;
+            case "Municipality":
+                await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                     UPDATE "ListingTranslations"
+                     SET "Municipality" = {value}
+                     WHERE "Id" = {translationId}
+                     """);
+                break;
+            case "Neighborhood":
+                await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                     UPDATE "ListingTranslations"
+                     SET "Neighborhood" = {value}
                      WHERE "Id" = {translationId}
                      """);
                 break;
