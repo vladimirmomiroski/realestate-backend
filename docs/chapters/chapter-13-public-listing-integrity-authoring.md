@@ -4,11 +4,11 @@
 
 This document is the authoritative architecture and implementation plan for Chapter 13. It is a planning artifact, not implementation evidence.
 
-Checkpoints 13A–13G are **COMPLETED** and remain the verified foundation. Chapter 13 was reopened before closeout because the product requirement for a map-ready public location was finalized only after the original Active/public invariant had been implemented. The former Checkpoint 13H must not run in its old position. Checkpoints 13H–13K are **NEWLY REQUIRED BEFORE CLOSEOUT**, and the comprehensive verification/frontend handoff moves to Checkpoint 13L.
+Checkpoints 13A–13G are **COMPLETED** and remain the verified foundation. Chapter 13 was reopened before closeout because the product requirement for a map-ready public location was finalized only after the original Active/public invariant had been implemented. The abandoned attempt to implement the first replanned 13H as one large slice is not completed work and contributes no source or verification baseline. The repository has returned to the clean completed-13G state.
 
-Chapter 13 is therefore not complete, and the frontend handoff remains paused, until Checkpoint 13L records the integrated results for the stronger location invariant and geocoding workflow.
+The approved location architecture remains locked, but the remaining execution plan is now split into the small tasks in Section 19: 13H.1–13H.7, 13I.1–13I.12, 13J.1–13J.7, 13K.1–13K.3, and 13L.1–13L.2. Chapter 13 is not complete, and the frontend handoff remains paused, until 13L.2 records durable closeout after every preceding task has passed implementation evidence and narrow source audit.
 
-Primary evidence: `docs/planning/chapter-13-ultra-preparation.md`.
+Primary architecture evidence: `docs/planning/chapter-13-location-model-replan-implementation.md`. Remaining-task decomposition evidence: `docs/planning/chapter-13-remaining-work-granular-resplit.md`.
 
 The filename follows the repository's established lowercase, hyphenated `chapter-NN-description.md` convention and names both responsibilities that must move together: trustworthy public publication state and the supported authoring path needed to reach it.
 
@@ -54,7 +54,7 @@ This is an extension, not a rewrite. The existing authoring, locking, readiness,
 
 ### 2.2 Mandatory current field-model gate
 
-The following matrix describes the repository **before** the newly required 13H–13K work. “Create/PUT” refers to the supported request contract; “Active” means the current 13G publication rule, not the stronger target defined in Section 3. Public and management columns describe the current response nullability. “Search/map” records current behavior, not desired future discovery.
+The following matrix describes the clean repository **before** the newly required 13H.1–13K.3 work. “Create/PUT” refers to the supported request contract; “Active” means the current 13G publication rule, not the stronger target defined in Section 3. Public and management columns describe the current response nullability. “Search/map” records current behavior, not desired future discovery.
 
 #### Listing aggregate root
 
@@ -140,7 +140,7 @@ The approved model is therefore a **hybrid confirmed snapshot**:
 1. Keep all four existing location strings on `ListingTranslation` as localized display/search text.
 2. Require City, Municipality, and AddressLine on every Active translation because any translation may win the effective selector. Neighborhood remains optional.
 3. Reuse listing-level Latitude and Longitude as the one canonical physical/public pin.
-4. Add one provider-neutral, atomic confirmation snapshot on Listing: nullable `LocationPrecision`, internal nullable `GeocodingProviderKey`, internal nullable opaque `GeocodingResultReference`, optional internal nullable `GeocodedDisplayName`, and nullable `LocationConfirmedAtUtc` alongside Latitude/Longitude. These are the target field names. `GeocodingProviderKey` is a stable adapter identifier such as a configured provider code, never an API credential. Checkpoint 13H locks conservative provider-neutral maximum lengths in EF/PostgreSQL. Before 13I persists a live-provider result, provider approval must permit retention and fit those bounds; otherwise implementation returns to this field-model gate. Bare coordinates are never an equivalent substitute.
+4. Add one provider-neutral, atomic confirmation snapshot on Listing: nullable `LocationPrecision`, internal nullable `GeocodingProviderKey`, internal nullable opaque `GeocodingResultReference`, optional internal nullable `GeocodedDisplayName`, and nullable `LocationConfirmedAtUtc` alongside Latitude/Longitude. These are the target field names. `GeocodingProviderKey` is a stable adapter identifier such as a configured provider code, never an API credential. Task 13H.3 locks explicit conservative provider-neutral maximum lengths in Domain/EF/PostgreSQL before generating the root migration; the implementation evidence must state those exact values and why they fit the existing field conventions. Task 13I.1 then requires the approved provider's retention terms and identifiers to fit those locked bounds; otherwise implementation returns to this field-model gate. Bare coordinates are never an equivalent substitute.
 5. Treat `LocationPrecision` as a provider-neutral enum with conservative outcomes: `ExactAddress`, `Street`, `Neighborhood`, `Municipality`, `City`, and `Approximate`. Null means unresolved; no provider-specific enum enters Domain or public contracts.
 6. Permit a Draft to be unresolved. A confirmed snapshot is all-or-nothing; partial coordinates/provenance are invalid. Transitional legacy paired coordinates may remain explicitly classified as unverified during the first migration, but they can never satisfy final Active readiness.
 7. Clear all stored location state—including a transitional legacy-unverified coordinate pair—whenever any normalized City, Municipality, AddressLine, or Neighborhood value in the complete Draft translation set changes. The rule is intentionally conservative because the backend cannot prove cross-language semantic equivalence.
@@ -171,7 +171,7 @@ Provider calls do not occur inside Publish or while holding the database transac
 
 PostgreSQL can enforce snapshot shape, ranges, completeness, and immutability; it cannot prove that a historical external call actually occurred. The supported backend confirmation operation is the origin trust boundary. Privileged direct database writers remain an operational trust boundary and must not manufacture provider provenance; Chapter 13 does not claim cryptographic provider attestation inside PostgreSQL.
 
-Frontend-direct geocoding is rejected because it exposes or constrains provider credentials, couples the UI to a vendor, and leaves the backend trusting arbitrary numbers. One-shot backend geocoding without user confirmation is rejected because ambiguous or broad addresses can silently bind the wrong place. Provider selection remains an adapter/configuration decision, but a provider, terms, retention policy, quota, and credential deployment must be approved before Checkpoint 13I can close.
+Frontend-direct geocoding is rejected because it exposes or constrains provider credentials, couples the UI to a vendor, and leaves the backend trusting arbitrary numbers. One-shot backend geocoding without user confirmation is rejected because ambiguous or broad addresses can silently bind the wrong place. Provider selection remains an adapter/configuration decision, but Task 13I.1 must approve a provider, terms, retention policy, quota, credential deployment, and Data Protection key-ring topology before any concrete provider adapter is implemented.
 
 ### 2.5 Precision and public-location privacy
 
@@ -190,7 +190,7 @@ Every listing created or replaced through supported authoring APIs has at least 
 - normalized optional text, where blank/whitespace optional input becomes `null`;
 - no duplicate normalized language within one listing.
 
-Existing core authoring rules remain in force: defined current `ListingType` and `PropertyType` enum values, positive price and area, a three-letter currency, nonnegative/count/year rules, and exactly the current matching Apartment or House detail shape. Chapter 13 shares those rules between create and update; omitted/default/undefined enum values are validation failures. Ordinary create/update coordinate pairing and range validation is retired in 13H because those requests cease accepting coordinates. Equivalent and stronger pair/range checks move to the Domain geocoded-location operation and PostgreSQL. The chapter does not claim a new database-wide invariant for every unrelated historical numeric/property-detail rule.
+Existing core authoring rules remain in force: defined current `ListingType` and `PropertyType` enum values, positive price and area, a three-letter currency, nonnegative/count/year rules, and exactly the current matching Apartment or House detail shape. Chapter 13 shares those rules between create and update; omitted/default/undefined enum values are validation failures. Ordinary create/update coordinate pairing and range validation is retired in 13H.1 because those requests cease accepting coordinates. Equivalent and stronger pair/range checks move to the Domain geocoded-location operation and PostgreSQL in 13H.3. The chapter does not claim a new database-wide invariant for every unrelated historical numeric/property-detail rule.
 
 ### 3.2 Active publication invariant
 
@@ -271,7 +271,7 @@ The authenticated management GET is required because the current response expose
 
 If sparse mutation is needed later, it must use an explicitly designed PATCH or focused operation; Chapter 13 does not overload PUT with ambiguous semantics.
 
-The request contains the current editable core fields, the complete translation collection, and exactly one matching Apartment or House detail payload. From 13H onward it excludes status, AgencyId, CreatedByUserId, image mutations, translation IDs, detail IDs, auditing fields, Latitude, Longitude, LocationPrecision, and every geocoding provenance member. Create has the same no-coordinate trust boundary.
+The request contains the current editable core fields, the complete translation collection, and exactly one matching Apartment or House detail payload. From 13H.1 onward it excludes status, AgencyId, CreatedByUserId, image mutations, translation IDs, detail IDs, auditing fields, Latitude, Longitude, LocationPrecision, and every geocoding provenance member. Create has the same no-coordinate trust boundary.
 
 Required JSON presence is explicit rather than inferred from CLR defaults. `listingType`, `propertyType`, `price`, `currency`, `areaSquareMeters`, and `translations` are required top-level members; every translation requires `languageCode` and `title`. `UpdateListingRequest` declares these as C# `required` members recognized by the configured System.Text.Json input formatter, so an omitted `currency` cannot silently become `EUR`; focused model-binding tests must prove this configured behavior. The matching `apartmentDetails` or `houseDetails` object is conditionally required by the validated PropertyType. Other nullable members are optional and omission clears them. Optional value enums such as heating/furnishing/condition/orientation and subtype kind reset to their documented `Unknown` default when omitted; every supplied enum numeric value must still be defined.
 
@@ -354,7 +354,7 @@ Publication readiness is layered:
 
 ### 7.1 Domain behavior
 
-The Domain owns a typed publication-readiness result/violation model; handlers must not parse `InvalidOperationException.Message`. Checkpoint 13J extends the existing codes with explicit invalid Municipality, invalid AddressLine, and invalid/missing confirmed-location violations. Location violations identify the listing-level invariant without leaking provider response data. The exact code set is deterministic so publish conflicts and integrity logs remain testable.
+The Domain owns a typed publication-readiness result/violation model; handlers must not parse `InvalidOperationException.Message`. Task 13J.3 extends the existing codes with explicit invalid Municipality, invalid AddressLine, and invalid/missing confirmed-location violations. Location violations identify the listing-level invariant without leaking provider response data. The exact code set is deterministic so publish conflicts and integrity logs remain testable.
 
 Transition order is:
 
@@ -383,12 +383,13 @@ Readiness details are therefore visible only to an authorized manager of that li
 
 ## 8. Persistence/Database Strategy
 
-Four forward Chapter 13 migrations separate row truth, existing aggregate truth, location-state compatibility, and final strengthened Active truth:
+Five forward Chapter 13 migrations separate row truth, existing aggregate truth, optional translated-location row truth, root location-state compatibility, and final strengthened Active truth:
 
 1. completed 13A row truth;
 2. completed 13F four-field Active aggregate truth;
-3. new 13H nullable location-state and row-shape foundation;
-4. new 13J stronger Active translation/location enforcement.
+3. new 13H.2 optional AddressLine/Municipality/Neighborhood row truth;
+4. new 13H.3 nullable root location-state compatibility;
+5. new 13J.4 stronger Active translation/location enforcement.
 
 Already-applied 13A/13F migration history is never edited.
 
@@ -403,7 +404,7 @@ The translation columns keep their current nullability and lengths. Named Postgr
 
 Title and LanguageCode remain NOT NULL. City and Description remain nullable because Draft may be incomplete. The unique `(ListingId, LanguageCode)` index remains unchanged and becomes semantically canonical because nonlowercase storage is rejected. The four-column trigram GIN index remains unchanged.
 
-The 13H forward migration extends optional row truth to AddressLine, Municipality, and Neighborhood using the same explicit whitespace vocabulary. It also adds nullable location metadata and focused Listing checks for coordinate pairing/ranges and snapshot coherence. The deployable compatibility states are: unresolved (coordinates and provenance absent), explicitly legacy-unverified (a valid paired coordinate exists but confirmation metadata is absent), or confirmed (valid paired coordinates plus the complete required provenance/precision/time set). Partial metadata is rejected. Legacy-unverified is a migration bridge only and cannot satisfy final publication readiness.
+The 13H.2 forward migration extends optional row truth to AddressLine, Municipality, and Neighborhood using the same explicit whitespace vocabulary. The separate 13H.3 forward migration adds nullable location metadata and focused Listing checks for coordinate pairing/ranges and snapshot coherence. The deployable compatibility states are: unresolved (coordinates and provenance absent), explicitly legacy-unverified (a valid paired coordinate exists but confirmation metadata is absent), or confirmed (valid paired coordinates plus the complete required provenance/precision/time set). Partial metadata is rejected. Legacy-unverified is a migration bridge only and cannot satisfy final publication readiness. The two migrations are deliberately separate because translated-row compatibility and root-snapshot compatibility are independent failure and rollback domains.
 
 ### 8.2 Cross-row Active truth
 
@@ -419,9 +420,9 @@ Because Chapter 13 permits edits only while Draft, PostgreSQL uses targeted imme
 
 The parent MVCC touch closes the higher-isolation write-skew case: a `REPEATABLE READ` transaction that took an old child snapshot cannot activate the parent after a concurrent Draft child mutation; its root update must observe the newer parent tuple and abort rather than validate stale translations. The set-based shape is required: it must not execute one parent lock, parent touch, or aggregate subquery per translation/profile row. It keeps the 200,000-translation query-review seed and the final 70,000 Active transitions practical. Supported application writers acquire the parent first. Arbitrary direct child SQL can already hold child tuples before its statement trigger locks the parent; in a collision PostgreSQL may abort/deadlock-victimize one out-of-band writer, but no committed result may violate integrity. The database rule remains simple because Active translations are frozen and all supported edits first unpublish.
 
-The completed 13F migration avoids a check-then-enable race. The 13J forward migration must preserve that architecture: in one migration transaction it takes write-conflicting locks on `Listings` and `ListingTranslations` in that order, replaces/extends the named assertion functions and triggers, and runs set-based fail-fast validation before commit. It adds every-translation Municipality/AddressLine checks, complete confirmed root location checks, and Active root-location immutability until unpublish. It must preserve the parent MVCC touch and all transition-table/concurrency guarantees.
+The completed 13F migration avoids a check-then-enable race. The 13J.4 forward migration must preserve that architecture: in one migration transaction it takes write-conflicting locks on `Listings` and `ListingTranslations` in that order, replaces/extends the named assertion functions and triggers, and runs set-based fail-fast validation before commit. It adds every-translation Municipality/AddressLine checks, complete confirmed root location checks, and Active root-location immutability until unpublish. Its Down path restores the exact completed-13F function/trigger behavior. Root Active-to-Active location immutability requires old and new Listing transition data; the existing translation triggers already freeze translated location mutation. The migration must preserve the parent MVCC touch and all transition-table/concurrency guarantees.
 
-No migration fabricates coordinates, precision, provider identity, or confirmation. Before 13J, existing Active rows must be audited and either resolved through the supported Draft workflow (`Active -> unpublish -> resolve -> publish`) or deliberately kept non-Active. Incompatible Active rows make the migration fail atomically. This is a forward compatibility/remediation gate, not production repair machinery. The focused location constraints are a new owner-approved invariant and a narrow exception to the quality handoff's earlier decision not to duplicate request validation broadly in PostgreSQL.
+No migration fabricates coordinates, precision, provider identity, or confirmation. Task 13J.2 is an explicit compatibility/remediation gate: existing Active rows must be audited and either resolved through the supported Draft workflow (`Active -> unpublish -> resolve -> publish`) or deliberately kept non-Active before stronger readiness/enforcement is deployed. Incompatible Active rows make 13J.4 fail atomically. This is a forward compatibility/remediation gate, not production repair machinery. The focused location constraints are a new owner-approved invariant and a narrow exception to the quality handoff's earlier decision not to duplicate request validation broadly in PostgreSQL.
 
 ### 8.3 Query-review profile compatibility
 
@@ -580,12 +581,12 @@ The Chapter 10F baseline remains the acceptance reference: N1 56.925 ms first pa
 | Draft PUT | mutation-only | atomicity and bounded-query tests; no read benchmark |
 | activation/translation triggers and parent MVCC touch | write-side only | migration/isolation/trigger tests and set-based query-review profile seed compatibility |
 | public DTO/strict mapper | after materialization | generated public SQL equality/review; no recapture if unchanged |
-| listing-level precision/provenance scalar columns | EF entity root projection changes; no intended predicate/join/order change | stop-and-review capture in 13H; recapture every actually changed locked command across N1/P1/P2/A1/R1/L1/Q1/C1 and establish the post-location baseline |
-| geocoding candidate/confirmation workflow | new authenticated write/dependency paths only | bounded-query/concurrency/resilience evidence; no public-read benchmark |
-| stronger publication trigger/readiness | write-side only | migration/trigger/profile compatibility; public SQL exact against 13H baseline |
-| expanded strict public mapper/OpenAPI | after materialization | exact generated-SQL comparison against 13H post-location baseline |
+| listing-level precision/provenance scalar columns | EF entity root projection changes; no intended predicate/join/order change | stop-and-review capture in 13H.6 and evidence review in 13H.7; recapture every actually changed locked command across N1/P1/P2/A1/R1/L1/Q1/C1 and establish the post-location baseline |
+| geocoding candidate/confirmation workflow | new authenticated write/dependency paths only | bounded-query/concurrency/resilience evidence in 13I.5–13I.12; no public-read benchmark |
+| stronger publication trigger/readiness | write-side only | migration/trigger/profile compatibility in 13J.3–13J.7; public SQL exact against the post-location baseline |
+| expanded strict public mapper/OpenAPI | after materialization | exact generated-SQL comparison in 13K.3 against the post-location baseline |
 
-The original 13G `33/33` exact SQL result remains the pre-location baseline. A mapped scalar added to `Listing` is selected by EF when materializing root entities, so root projections will materially differ even though discovery semantics do not. Checkpoint 13H must capture production-generated SQL immediately after the final location field model lands, identify the exact changed command roles, review plans/row width/buffers/spills/results, and recapture every affected locked command across all eight logical shapes. Unaffected count, agency-existence, comparable-source, and child-split commands must remain byte-exact. That accepted output becomes the post-location baseline; 13I–13K may not introduce further public SQL differences.
+The original 13G `33/33` exact SQL result remains the pre-location baseline. A mapped scalar added to `Listing` is selected by EF when materializing root entities, so root projections will materially differ even though discovery semantics do not. Tasks 13H.6–13H.7 must capture production-generated SQL immediately after the final location field model and read-contract work lands, identify the exact changed command roles, review plans/row width/buffers/spills/results, and recapture every affected locked command across all eight logical shapes. Unaffected count, agency-existence, comparable-source, and child-split commands must remain byte-exact. That accepted output becomes the post-location baseline; 13I.1–13K.3 may not introduce further public SQL differences.
 
 The implementation must still stop and reassess if it deviates beyond the approved scalar projection:
 
@@ -594,7 +595,7 @@ The implementation must still stop and reassess if it deviates beyond the approv
 - root/split projection or include topology change on public paths: all eight shapes are affected;
 - comparable source/candidate SQL change: C1 is affected.
 
-Recapture uses the existing Chapter 10F capture/replay/export discipline and documented totals, ordered IDs, buffers, spills, and five-run medians rather than a remembered latency. It is not permission to bless new predicates or joins. A full unrelated large-profile/benchmark redesign is not required when the only approved difference is scalar projection and all result/plan gates remain healthy; the existing 61 deterministic profile invariants still run. Checkpoint 13K must prove exact equality to the new 13H baseline before closeout.
+Recapture uses the existing Chapter 10F capture/replay/export discipline and documented totals, ordered IDs, buffers, spills, and five-run medians rather than a remembered latency. It is not permission to bless new predicates or joins. A full unrelated large-profile/benchmark redesign is not required when the only approved difference is scalar projection and all result/plan gates remain healthy; the existing 61 deterministic profile invariants still run. Task 13K.3 must prove exact equality to the accepted post-location baseline before closeout.
 
 ## 16. Test Strategy
 
@@ -718,7 +719,16 @@ Chapter 14 remains property model/taxonomy expansion. Chapter 15 remains integra
 
 ## 19. Ordered Checkpoint Plan
 
-The checkpoint history is intentionally preserved. 13A–13G describe what was implemented and audited under the then-current four-field location decision. They are frozen foundations, not work to repeat. The newly required 13H–13K extend that architecture; 13L is the moved final closeout.
+The checkpoint history is intentionally preserved. 13A–13G describe what was implemented and audited under the then-current four-field location decision. They are frozen foundations, not work to repeat. The remaining work uses decimal task identifiers so architectural groupings remain recognizable without forcing independent risks into one commit.
+
+Execution rules for every remaining task:
+
+- one primary concern and normally one commit;
+- implementation evidence and a narrow source audit precede the next task;
+- no task may silently absorb a later task because tests or Swagger are temporarily inconvenient;
+- 13J.3 and 13J.4 are separate reviewable commits but one coordinated deployment unit: applying stronger PostgreSQL enforcement before Application readiness can turn supported incomplete publish into 500, while deploying readiness against unremediated Active data can make the existing strict mapper return sanitized 500;
+- performance capture/export and cumulative verification are independent tasks, not tails of feature commits;
+- any provider incompatibility, unexpected public SQL change, fabricated data repair, or locked field-model contradiction returns to the owning gate.
 
 ### Checkpoint 13A — Translation Authoring Rules and Row-Level Truth — COMPLETED
 
@@ -1209,332 +1219,346 @@ The checkpoint history is intentionally preserved. 13A–13G describe what was i
 
     13F.
 
-### Checkpoint 13H — Canonical Geocoded Location State and Draft Contract — NEWLY REQUIRED
-
-1. **Goal**
-
-   Establish the listing-level location state and eliminate arbitrary coordinate authoring before any external provider workflow or stronger Active invariant is introduced.
-
-2. **Why it exists**
-
-   The current parent coordinates have the correct physical ownership but no provenance, precision, confirmation, encapsulation, or PostgreSQL coherence. Combining that field/schema correction with a live provider and irreversible Active enforcement would make review, rollback, and data compatibility unsafe.
-
-3. **Exact scope**
-
-   - Add the provider-neutral location precision enum and coherent listing-level geocoded snapshot members defined in Section 2.3.
-   - Encapsulate Latitude/Longitude mutation behind explicit Domain confirm/clear behavior; EF materialization remains supported.
-   - Remove Latitude/Longitude from create and full-replacement request contracts and validators; callers cannot write precision or provenance.
-   - Keep nullable read-only location state on private/management responses so Draft UX can show resolution status.
-   - Conservatively clear all stored location state, including transitional legacy-unverified coordinates, when the normalized complete translation set changes City, Municipality, AddressLine, or Neighborhood.
-   - Add one forward nullable schema migration with optional-text row checks, coordinate pair/range checks, and unresolved/legacy-unverified/confirmed snapshot coherence.
-   - Audit existing coordinate/location rows before enforcing checks; fail on incompatible partial/blank data rather than silently repairing it.
-   - Capture and review production-generated SQL after the mapped root columns land. Recapture every actually changed locked command and establish the post-location baseline under Section 15.
-
-4. **Likely source areas/files or architectural surfaces**
-
-   `Listing`, new Domain enum/value semantics, create/update requests and validators, create handler, `ListingDraftReplacementEngine`, authoring/private DTO mappings, EF configurations/model snapshot/new migration, OpenAPI request/management tests, migration integration tests, query-review capture/verification artifacts and evidence.
-
-5. **Invariant established**
-
-   Supported create/PUT cannot set coordinates. A Draft location is unresolved, explicitly legacy-unverified for migration compatibility, or a fully coherent confirmed snapshot; partial state is impossible through Domain/DB paths. Location-text edits cannot leave a stale confirmed pin.
-
-6. **Tests required**
-
-   Domain confirm/clear/coherence/ranges; direct setter inaccessibility; create/PUT model binding and OpenAPI absence of coordinate inputs; Draft optionality; normalized no-op versus meaningful location-text invalidation; persistence round-trip; row/check-constraint rejection; legacy-coordinate compatibility; fresh/repeat/Down migration and pending-model verification; private/management response truth; all affected frozen SQL commands, result IDs/totals, plans, buffers/spills, and medians.
-
-7. **Regression tests that must remain unchanged**
-
-   Create/update core validation, translation ID reconciliation, subtype conversion, authorization, parent-lock serialization, lifecycle behavior, public result semantics, q/location/comparable behavior, images, ProblemDetails, and existing public DTO contract until 13K.
-
-8. **Migration implications**
-
-   One new forward migration; never edit 13A/13F. New columns are nullable for staged deployment. Named checks enforce optional text normalization and root location coherence/ranges. Down removes only this checkpoint's objects. No Active tightening and no fabricated coordinate/provenance backfill.
-
-9. **OpenAPI implications**
-
-   Remove Latitude/Longitude from create/PUT request schemas. Keep nullable read-only location state in management/private responses. Do not tighten `PublicListingResponse` yet.
-
-10. **Performance/query implications**
-
-    Adding mapped Listing scalar columns changes root SELECT projections even when LINQ is untouched. This checkpoint owns the mandatory stop/review and affected-command Chapter 10F recapture across N1/P1/P2/A1/R1/L1/Q1/C1. Predicates, selector, count, q/location, ranking, joins, limit, and child hydration must remain semantically unchanged. The accepted capture becomes the baseline for 13I–13K.
-
-11. **Explicit exclusions**
-
-    No provider package/call, candidate endpoint, production adapter, publish/readiness change, Active trigger tightening, strict public field change, PostGIS/catalog/search feature, frontend edit, or privacy masking.
-
-12. **Completion/acceptance criteria**
-
-    - No supported create/PUT coordinate input remains in runtime or Swagger.
-    - Root location mutation and coherence are encapsulated and tested.
-    - Location text invalidates confirmation exactly as specified.
-    - The forward migration is fresh/repeat/Down clean and the EF model has no pending change.
-    - Existing data has an explicit compatibility/audit outcome; no partial snapshot can persist.
-    - Every changed frozen SQL command has accepted plan/result/performance evidence; every unaffected command is exact; no query semantic/topology change is accepted.
-
-13. **Dependencies**
-
-    Completed 13A–13G and explicit approval of the Section 2 field model.
-
-### Checkpoint 13I — Backend-Mediated Geocoding Resolution — NEWLY REQUIRED
-
-1. **Goal**
-
-   Provide a secure, provider-neutral, user-confirmed path from stored human-readable Draft location text to the canonical geocoded snapshot.
-
-2. **Why it exists**
-
-   An external dependency has separate ambiguity, credential, timeout, quota, privacy, testing, and operational risks. It must be proven before publication begins requiring its output.
-
-3. **Exact scope**
-
-   - Add an Application-owned geocoding port and provider-neutral search/candidate/confirmed-snapshot contracts.
-   - Add a configured Infrastructure adapter for an owner-approved provider while keeping provider SDK/types out of Domain/API contracts.
-   - Add authenticated listing-scoped Draft candidate search, confirmation, and explicit clear operations at `POST /api/listings/{id}/location/candidates`, `PUT /api/listings/{id}/location`, and `DELETE /api/listings/{id}/location`.
-   - Build search input from one selected stored translation's City, Municipality, AddressLine, and optional Neighborhood; return provider-neutral label, preview coordinates, precision, and opaque confirmation token.
-   - Bind short-lived protected tokens to listing, actor, provider result, normalized input fingerprint, and expiry. Confirmation accepts no numeric coordinates.
-   - Re-resolve/validate outside the transaction, then use the existing parent write scope to reauthorize current Draft, reject stale input/token, and persist provider output atomically.
-   - Add timeout/cancellation, bounded transient retry, safe configuration/startup validation, narrow rate limits, provider-compliant caching/retention, and sanitized dependency logging/errors.
-   - Use deterministic fake adapters for automated tests and local contract seams; never call a live provider from the test suite.
-
-4. **Likely source areas/files or architectural surfaces**
-
-   New Application location feature folders/contracts/handlers, Application provider interface, Infrastructure adapter and options, API controller/request/response metadata, dependency injection/configuration, data-protection/token component, rate-limiting policy, existing authoring write scope, Chapter 12 ProblemDetails/logging boundary, and focused unit/integration/API tests.
-
-5. **Invariant established**
-
-   Every supported confirmed location is derived from a configured backend provider result that the authorized user previewed and confirmed against the current Draft text. The frontend can see preview coordinates but cannot persist arbitrary numbers or stale candidates.
-
-6. **Tests required**
-
-   Personal and agency Owner/Agent authorization; Disabled/Pending/Manager/nonmember behavior according to existing management rules; Draft-only status; missing/inaccessible listing; candidate ordering/shape; exact and broad precision mapping; token tampering/expiry/actor/listing/input binding; provider re-resolution; text-change and publish races; parent-lock atomicity; clear/idempotency; timeout/cancellation/retry limits; rate limiting; configuration failure; sanitized 4xx/409/503 ProblemDetails and logging; no secret/address/raw-provider leakage; deterministic fake-adapter tests.
-
-7. **Regression tests that must remain unchanged**
-
-   Existing create/update/publish authorization ordering, no provider call during Publish, lifecycle concurrency, public queries/responses, images, Chapter 12 request correlation/single-owner logging, and 13H SQL baseline.
-
-8. **Migration implications**
-
-   None planned; 13H owns storage. If provider terms require a materially different persisted field, stop and return to the field-model gate rather than hiding a schema change here.
-
-9. **OpenAPI implications**
-
-   Document candidate, confirm, and clear operations; provider-neutral precision and preview shape; opaque token input; established auth/errors/correlation. Do not expose API keys, provider-specific raw responses/IDs, or writable coordinate properties.
-
-10. **Performance/query implications**
-
-    New authenticated write/dependency paths are outside public discovery. Bound provider calls and database query counts; no change to N1/P1/P2/A1/R1/L1/Q1/C1. Generated SQL must remain exact against the 13H baseline.
-
-11. **Explicit exclusions**
-
-    No frontend-direct geocoder, publish-time geocoding, provider call inside a DB transaction, arbitrary coordinate confirmation, provider-specific public/Domain type, PostGIS, geography catalog, viewport/radius search, clustering, or frontend implementation.
-
-12. **Completion/acceptance criteria**
-
-    - A production-capable provider adapter, its terms/retention/quota, and deployment configuration are explicitly approved and verified.
-    - Candidate search and token confirmation work for authorized personal/agency Drafts.
-    - Arbitrary/stale/tampered coordinate selection cannot persist.
-    - Resilience, rate, privacy/logging, and deterministic-test requirements pass.
-    - Provider failure leaves a truthful unresolved Draft; Publish still makes no provider call.
-    - Public/query SQL remains exact to 13H.
-
-13. **Dependencies**
-
-    13H and owner/operator provider selection before checkpoint acceptance.
-
-### Checkpoint 13J — Strong Location Publication and PostgreSQL Integrity — NEWLY REQUIRED
-
-1. **Goal**
-
-   Make the expanded location requirement a Domain/Application/PostgreSQL Active invariant after the resolution workflow exists.
-
-2. **Why it exists**
-
-   Provider capability alone does not make publication truthful. Readiness and PostgreSQL must prevent every supported or direct conforming transaction from creating or retaining an Active listing without complete localized location text and a confirmed map snapshot.
-
-3. **Exact scope**
-
-   - Extend `ListingPublicationReadinessViolationCode` with `InvalidMunicipality`, `InvalidAddressLine`, `MissingConfirmedLocation`, `InvalidLatitude`, `InvalidLongitude`, `InvalidLocationPrecision`, and `InvalidGeocodingProvenance` (or an audited equally explicit one-to-one code set).
-   - Extend `EvaluatePublicationReadiness()` and `Listing.Publish()` so every translation requires City/Municipality/AddressLine/Description and the root requires a coherent confirmed snapshot.
-   - Preserve authorization-before-readiness, existing 409 `conflict.listing_not_ready`, resource-state rules, agency prerequisites, and valid already-Active idempotency.
-   - Add a second new forward migration that extends the 13F assertion functions/triggers rather than editing their migration history.
-   - Validate stronger translation/root Active truth and freeze root geocoded-location mutation while Active; unpublish remains the supported correction path.
-   - Preserve statement-level transition tables, canonical parent locking, parent MVCC touch, stale-`REPEATABLE READ` protection, cascade/no-parent behavior, and set-based profile compatibility.
-   - Audit/remediate existing Active rows through supported unpublish/resolve/publish workflow before migration; migration fails atomically on any remaining incompatible row.
-
-4. **Likely source areas/files or architectural surfaces**
-
-   `Listing`, publication-readiness result/codes, publish handler/tests, test builders/seeders, Listing/translation EF check metadata, new migration SQL/functions/triggers/model snapshot, PostgreSQL migration/constraint/trigger/concurrency integration tests, integrity exception/logging tests.
-
-5. **Invariant established**
-
-   Every committed Active listing has at least one translation; every translation has canonical LanguageCode and meaningful Title/City/Municipality/AddressLine/Description; the root has valid paired coordinates, precision, provider provenance, and confirmation time; those translation/location facts cannot mutate while Active.
-
-6. **Tests required**
-
-   Domain readiness null/blank/whitespace and root pair/range/precision/provenance matrix; Draft and already-Active publish; personal/agency authorization-before-readiness; 409 versus typed 500 corruption; fresh/repeat/Down migration; trigger catalog; direct activation rejection for every violation; Active root-location mutation rejection; unpublish-then-change; multirow statements; parent deletion; old/new parent movement; supported writer serialization; stale `REPEATABLE READ`; install-time validation failure; set-based 100,000/200,000 seed with zero malformed Active rows.
-
-7. **Regression tests that must remain unchanged**
-
-   All completed 13E/13F authorization/lifecycle/concurrency semantics, Chapter 11 images, public visibility/fallback/search/pagination/comparables, candidate workflow, and Chapter 12 sanitized errors/logging.
-
-8. **Migration implications**
-
-   One new forward enforcement migration; never edit 13F. It acquires write-conflicting locks in the established order, installs guards, validates all Active rows, and commits atomically. No fake centroid, provider identity, timestamp, or coordinate backfill. With 13A, 13F, 13H, and 13J, Chapter 13 has four migrations.
-
-9. **OpenAPI implications**
-
-   Readiness remains the existing sanitized 409 contract. Runtime public DTO annotations for the newly guaranteed fields remain staged until 13K; no temporary frontend handoff is allowed. No public integrity error schema is added.
-
-10. **Performance/query implications**
-
-    Write-side Domain/trigger changes only. Public/comparable LINQ, projections, predicates, selectors, ranking, joins, and hydration remain exact against the 13H baseline. Profile seeding attaches explicit trusted test resolution metadata set-wise; no live provider call.
-
-11. **Explicit exclusions**
-
-    No query eligibility/readiness filter, usable-row predicate, corruption hiding, DTO/OpenAPI tightening, provider redesign, repair/backfill utility, Active content editing, PostGIS/search change, or frontend work.
-
-12. **Completion/acceptance criteria**
-
-    - Domain and Application enforce the complete stronger readiness rule with existing disclosure ordering.
-    - No conforming PostgreSQL transaction can commit malformed or location-mutated Active state.
-    - Existing Active compatibility has an explicit audited outcome; enforcement never fabricates truth.
-    - Migrations/concurrency/profile tests pass and the public SQL baseline is unchanged.
-    - Supported readiness is 409; impossible materialized corruption remains typed/sanitized 500.
-
-13. **Dependencies**
-
-    13I and completion of the existing-Active remediation gate.
-
-### Checkpoint 13K — Truthful Public Location DTO, OpenAPI, and SQL Closure — NEWLY REQUIRED
-
-1. **Goal**
-
-   Expose the stronger persisted Active truth through strict runtime mapping and generated API documentation, and prove no read semantics changed after the 13H projection rebaseline.
-
-2. **Why it exists**
-
-   13J makes the data true, but public CLR/OpenAPI contracts still describe Municipality, AddressLine, Latitude, and Longitude as nullable and do not expose precision. Tightening them before database truth would be dishonest; mixing the contract audit into the trigger migration would be too large.
-
-3. **Exact scope**
-
-   - Extend `PublicListingResponse` so Municipality, AddressLine, Latitude, Longitude, and LocationPrecision join LanguageCode, Title, City, and Description as required/non-null.
-   - Extend `ToPublicResponse(...)` after materialization, reusing `EvaluatePublicationReadiness()` and `EffectiveTranslationOrdering`; assign real selected/root values and throw `PublicListingIntegrityException` on impossible state.
-   - Preserve nullable `ListingResponse` for create, `/my`, dashboard, unpublish, archive and Draft-truthful `ListingAuthoringResponse` for management GET/PUT.
-   - Preserve provider/provenance internals; expose only precision and the confirmed public coordinates/location text.
-   - Apply the strict contract automatically to public list/detail/agency list/comparables/publish, which already use `PublicListingResponse`.
-   - Update OpenAPI schema handling/tests for DTO requiredness/nullability, endpoints, paged public/private separation, management truth, enums/media/errors/security, and request coordinate exclusion.
-   - Capture all 33 production SQL commands and require exact equality with the accepted 13H post-location baseline.
-
-4. **Likely source areas/files or architectural surfaces**
-
-   Listing DTOs/mappers/integrity exception, public/publish/comparable tests, API OpenAPI schema filter/document tests, controllers for metadata orientation only, query-review capture/comparison evidence, and checkpoint documentation.
-
-5. **Invariant established**
-
-   Every strict public surface and Swagger schema truthfully guarantees the effective localized identity plus Municipality, AddressLine, valid public coordinates, and honest precision. Draft/private/management contracts remain nullable where resolution/completeness is optional.
-
-6. **Tests required**
-
-   Strict mapper exact values and every new corruption case; all five strict public surface families; create/private/lifecycle/management nullability; public fields required, string/decimal/enum and non-null in serialized OpenAPI; endpoint `$ref`s; public/private seven-member pagination; no provenance/internal exception schema; candidate API coordinate-input boundary; canonical 500 logging; complete 33-command SQL equality and relevant 61 profile invariants.
-
-7. **Regression tests that must remain unchanged**
-
-   Translation fallback, list/detail/agency behavior, pagination/count, q/location/wildcards, comparable eligibility/ranking/order/limit, publish authorization/readiness, lifecycle responses, Chapter 12 ProblemDetails/security/media/enums/request IDs, and 13I workflow.
-
-8. **Migration implications**
-
-   None; consumes 13J truth. Any requested migration indicates scope/model drift and stops the checkpoint.
-
-9. **OpenAPI implications**
-
-   This is the final contract checkpoint. Public required/non-null fields are LanguageCode, Title, City, Municipality, AddressLine, Description, Latitude, Longitude, and LocationPrecision. Private flattened and authoring location members remain nullable; create/PUT have no writable coordinates; all endpoint schemas/errors/security/media/enums remain accurate.
-
-10. **Performance/query implications**
-
-    Strictness is post-materialization. Do not add a translation `Any`, readiness filter, integrity join, source-only comparable AddressLine/Title/Description/coordinate projection, selector change, q/location change, ranking change, or extra hydration. All 33 commands must equal 13H exactly; a mismatch stops closeout.
-
-11. **Explicit exclusions**
-
-    No query redesign, migration, provider workflow change, structured-error framework, public provenance, privacy masking, benchmark blessing of changed semantics, frontend regeneration, or unrelated DTO refactor.
-
-12. **Completion/acceptance criteria**
-
-    - Runtime mapper/DTO/serialized OpenAPI/tests agree on all nine required public location/identity members.
-    - Private and management truth remains nullable and all-translations authoring remains intact.
-    - Every strict public endpoint references the right schema and exposes no provider internals.
-    - Corruption remains typed internal failure to sanitized `server.unexpected` with one structured log owner.
-    - Generated SQL is 33/33 exact to 13H, profile invariants pass, and result semantics are unchanged.
-
-13. **Dependencies**
-
-    13J and the accepted 13H post-location SQL baseline.
-
-### Checkpoint 13L — Comprehensive Verification and Frontend Handoff — MOVED FINAL CLOSEOUT
-
-1. **Goal**
-
-   Verify the complete reopened chapter, record actual evidence, update durable backend context, and hand the truthful backend contract and geocoding flow to the paused frontend work.
-
-2. **Why it exists**
-
-   The final system now crosses authoring, external-provider resilience, authorization, concurrency, two layers of PostgreSQL integrity, strict mapping, OpenAPI, and a controlled SQL rebaseline. Focused checkpoint evidence is necessary but insufficient for final closeout.
-
-3. **Exact scope**
-
-   - Run all focused Domain/Application/provider/PostgreSQL/API/concurrency/OpenAPI/query suites for 13A–13K.
-   - Run Release build and the complete backend suite; record exact totals/skips.
-   - Apply all migrations to fresh PostgreSQL, repeat update, test relevant Down paths, inspect catalog objects, and prove no pending model changes.
-   - Smoke personal and agency create → management location text → candidate search → map preview → token confirmation → publish → every public surface; include broad precision, stale token, provider outage, not-ready, unpublish/repair, and unauthorized paths.
-   - Verify provider configuration/startup/resilience with a controlled adapter; no live external dependency is required for deterministic closeout.
-   - Reverify the accepted post-location SQL baseline, 61 deterministic profile invariants, result IDs/totals/order, and all performance gates.
-   - Update `docs/backend-context.md`, `docs/backend-quality-handoff.md`, Chapter 13 completion evidence, migration counts, and historical security/config deferral to reflect final source truth.
-   - Produce a backend-only frontend handoff defining address entry, candidate/precision presentation, map preview/confirmation, stale/unresolved state, errors, and generated contract. Do not modify the frontend.
-
-4. **Likely source areas/files or architectural surfaces**
-
-   Entire backend solution verification, four Chapter 13 migrations/catalog, provider adapter/configuration seam, Swagger provider/document tests, query-review artifacts/profile, context/quality/chapter planning evidence, and backend-only handoff documentation. No new feature implementation belongs here.
-
-5. **Invariant established**
-
-   No new behavior. This checkpoint proves and freezes the integrated stronger Chapter 13 contract from human input/provider confirmation through committed PostgreSQL truth to strict public map responses.
-
-6. **Tests required**
-
-   Focused cumulative chapter suites, full suite, Release build, fresh/repeat/Down migrations, catalog and pending-model verification, controlled provider/resilience/configuration smoke, personal/agency end-to-end flows, serialized OpenAPI, exact SQL/profile/performance verification, and documentation/evidence audit.
-
-7. **Regression tests that must remain unchanged**
-
-   All Chapter 08–12 guarantees, especially auth/invitations, agency ownership/roles, visibility, search/filter/pagination/comparables, images/concurrency/compensation, ProblemDetails/request IDs/logging, health/CORS/media/security/OpenAPI, plus completed 13A–13G evidence.
-
-8. **Migration implications**
-
-   All four Chapter 13 migrations (13A, 13F, 13H, 13J) must apply from empty and through the real upgrade order, have accurate relevant Down behavior, match the snapshot, leave no pending model change, and never fabricate confirmed location data.
-
-9. **OpenAPI implications**
-
-   Generate and inspect the serialized backend v1 document. Prove strict public location, Draft/private/management nullability, geocoding workflow input/output, all endpoint schemas/errors/security/media/enums/correlation, and absence of internal/provider types. Frontend generation remains outside this backend checkpoint.
-
-10. **Performance/query implications**
-
-    Reconfirm exact final equality to the accepted 13H post-location baseline and all 61 profile invariants. No new recapture is allowed during closeout; a mismatch or failed plan/result gate reopens the owning checkpoint rather than being blessed here. Do not recapture unrelated large profiles.
-
-11. **Explicit exclusions**
-
-    No cleanup branch, opportunistic refactor, new provider feature, frontend implementation, taxonomy expansion, spatial discovery, privacy feature, JWT/config Chapter 16 work, or new behavior after verification begins.
-
-12. **Completion/acceptance criteria**
-
-    - Release build is zero warnings/zero errors and full/focused suites are green with exact totals.
-    - Fresh/repeat/relevant Down migration, catalog, and pending-model checks pass for all four Chapter 13 migrations.
-    - Controlled provider workflow and all authorization/resilience/correlation/error cases pass.
-    - OpenAPI proves all nine strict public fields, Draft/management truth, and safe workflow schemas.
-    - Final SQL is exact to 13H, profile/performance/result gates pass, and no discovery semantics changed.
-    - Durable backend context/handoff documents are current and evidence is source-consistent.
-    - A backend-only frontend handoff is complete; only then may the owner authorize frontend regeneration and resume Chapter 2C.
-
-13. **Dependencies**
-
-    13A–13K.
+### Task 13H.1 — Remove Trusted Coordinate Authoring
+
+- **Exact goal:** Remove the ordinary client trust path for Latitude/Longitude while leaving all completed authoring and lifecycle behavior intact.
+- **Implementation scope:** Remove Latitude/Longitude from create and full-replacement request DTOs, their coordinate validation, create assignment, and PUT replacement assignment; remove stale request-schema descriptions; make new Draft fixtures unresolved by default; preserve pre-existing root location state on PUT until the dedicated invalidation task exists.
+- **Explicit exclusions:** No new Listing field or enum, private coordinate setter, geocoded snapshot, invalidation rule, response DTO change, migration, provider code, readiness change, or public DTO change.
+- **Migration impact:** None.
+- **Test/evidence required:** Request-reflection and serialized OpenAPI absence; unknown JSON coordinate/geocoding fields cannot persist trusted state; new Draft coordinates are null; PUT cannot replace/clear an existing test-only coordinate pair; create/update validation, replacement, authorization, atomicity, and coordinate-response regression premises remain meaningful.
+- **Dependencies:** Completed 13A–13G only.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13H.2 — Optional Localized Location Row Truth
+
+- **Exact goal:** Make present AddressLine, Municipality, and Neighborhood values obey the already-established Chapter 13 Unicode normalization contract while preserving nullable Draft values.
+- **Implementation scope:** Add three focused named `ListingTranslation` checks using the exact shared whitespace vocabulary; add one forward migration, designer/snapshot changes, and direct PostgreSQL/catalog/upgrade tests.
+- **Explicit exclusions:** No `NOT NULL`, Active requirement, root location field, search/index/query change, cleanup, backfill, or edit to 13A/13F migrations.
+- **Migration impact:** Exactly one forward migration containing only the three optional-text checks; incompatible existing values fail application without repair; Down removes only those checks.
+- **Test/evidence required:** Null accepted; empty, all supported boundary-whitespace, and untrimmed values rejected with exact constraint names; valid normalized values accepted; existing four row checks, unique language index, and trigram index preserved; fresh, repeat, Down/re-Up, incompatible-upgrade, snapshot, and pending-model evidence.
+- **Dependencies:** 13H.1 for linear execution; technically consumes only completed 13A–13G row rules.
+- **Expected commit count:** 1.
+- **Approximate size:** Small.
+
+### Task 13H.3 — Canonical Geocoded Snapshot Domain and Persistence
+
+- **Exact goal:** Establish one Listing-owned unresolved/legacy-unverified/confirmed location state with provider-neutral precision and coherent mutation/persistence.
+- **Implementation scope:** Add the exact six-value `LocationPrecision`; lock explicit provider-key/result-reference/display-name maximum lengths; add private-set Latitude/Longitude and snapshot members; add narrow atomic confirm/clear Domain methods; map nullable scalar columns/string enum; add pair/range/defined-precision/normalized-provenance/state checks and one root-location forward migration; adapt coordinate-specific tests to explicit confirmed or legacy setup.
+- **Explicit exclusions:** No create/PUT input, translated-row checks, stale-text invalidation, response expansion, provider call/API, readiness/Active/public tightening, geography table, or generic value-object framework.
+- **Migration impact:** Exactly one forward root-snapshot compatibility migration. It accepts unresolved and valid paired legacy coordinates, accepts complete confirmed snapshots, rejects one-sided/out-of-range/partial/blank state, fabricates nothing, and has focused Down behavior. CLR mapping and this migration land atomically.
+- **Test/evidence required:** Initial unresolved state; inclusive boundaries and invalid ranges; exact enum set/undefined precision; provenance normalization, nonblank and locked-length limits; UTC confirmation time; clear-all behavior; inaccessible ordinary setters; EF round-trip; database state matrix and named catalog; fresh/repeat/Down/re-Up; incompatible legacy fail-fast; clean snapshot/pending model.
+- **Dependencies:** 13H.1 and 13H.2.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13H.4 — Draft Location-Text Invalidation
+
+- **Exact goal:** Prevent a Draft replacement from retaining a stale confirmed or legacy map location when its normalized location-driving translations change.
+- **Implementation scope:** Compare normalized complete old/new translation sets by canonical LanguageCode and City/Municipality/AddressLine/Neighborhood before reconciliation; clear the entire root location state for a meaningful value change or language addition/removal; reuse existing normalization and locked write scope.
+- **Explicit exclusions:** No geocoder, schema/DTO/readiness/public/query change, partial invalidation, or cross-language semantic equivalence inference.
+- **Migration impact:** None.
+- **Test/evidence required:** Each of the four fields clears independently; translation addition/removal clears; Unicode-boundary normalization-equivalent no-op preserves; Title/Description/price/unrelated scalar changes preserve; confirmed and legacy states both clear; failed transaction preserves the old coherent state; translation IDs, subtype replacement, audit propagation, and parent locking remain intact.
+- **Dependencies:** 13H.3 Domain clear behavior.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13H.5 — Nullable Draft and Private Location Read Contract
+
+- **Exact goal:** Expose truthful nullable resolution state to private/management clients without exposing provider provenance or tightening public truth.
+- **Implementation scope:** Add nullable LocationPrecision, GeocodedDisplayName, and LocationConfirmedAtUtc to `ListingResponse` and `ListingAuthoringResponse`; retain nullable coordinates; update private/authoring mappings and narrow nullable-enum schema handling; verify create, management GET/PUT, `/my`, dashboard, unpublish, and archive contracts.
+- **Explicit exclusions:** No `PublicListingResponse` change, request mutation member, provider key/reference exposure, provider endpoint, readiness, migration, or query work.
+- **Migration impact:** None; consumes 13H.3 storage.
+- **Test/evidence required:** Exact unresolved/confirmed/legacy mapping; management retains all translations; private and authoring serialized schemas remain nullable; provider key/reference absent from API components and JSON; existing public DTO remains the 13G four-field strict shape with nullable coordinates and no precision requirement.
+- **Dependencies:** 13H.3 and 13H.4.
+- **Expected commit count:** 1.
+- **Approximate size:** Small.
+
+### Task 13H.6 — Post-Location SQL and Performance Rebaseline
+
+- **Exact goal:** Isolate and approve only the EF root-projection consequence of the final mapped location state, establishing the baseline used by all later tasks.
+- **Implementation scope:** Use the existing query-review capture/replay/verify/export pipeline across N1/P1/P2/A1/R1/L1/Q1/C1; compare all 33 commands to 13G; classify exact versus scalar-projection-only changes; review plans/results/row width/buffers/spills/five-run medians; update only accepted benchmark artifacts and task evidence.
+- **Explicit exclusions:** No production LINQ/repository edit, predicate/join/selector/q/location/count/ranking/order/limit/hydration change, feature code, provider work, readiness, public contract, or performance-framework redesign.
+- **Migration impact:** None; run the latest 13H.2/13H.3 migration chain on disposable PostgreSQL.
+- **Test/evidence required:** 33-command classification; every unaffected command byte-exact; verbatim diff for every changed command showing only approved Listing scalar columns; identical expected totals/ordered IDs; plan and buffer/spill evidence; five measured runs; Q1 gates; 61/61 profile; successful verified export/hash and credential scan. Any additional difference stops the task.
+- **Dependencies:** 13H.2–13H.5, especially the final mapped root model in 13H.3.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium (generated evidence volume, one review concern).
+
+### Task 13H.7 — Canonical Location Foundation Closure
+
+- **Exact goal:** Close the foundation as an evidence-only gate before any external provider implementation begins.
+- **Implementation scope:** Run the cumulative 13H.1–13H.6 focused suites, real migration chain/repeat/relevant Down paths, catalog inspection, EF pending-model check, Release build, and exact verification of the newly exported SQL artifacts; produce one consolidated source/evidence audit document.
+- **Explicit exclusions:** No feature correction unless a concrete result reopens its owning task, no provider selection/integration, no full Chapter 13 suite, no stronger readiness/public contract, and no frontend work.
+- **Migration impact:** No new migration; verify the two new 13H migrations independently and together. The repository moves from 17 to 19 forward migrations at this gate.
+- **Test/evidence required:** Exact focused totals/skips, migration results and object inventory, 0-warning/0-error Release build, no pending model changes, 33/33 accepted post-location artifacts, 61/61 profile, diff/evidence consistency, and narrow source audit PASS.
+- **Dependencies:** 13H.1–13H.6.
+- **Expected commit count:** 1 (evidence only).
+- **Approximate size:** Small.
+
+### Task 13I.1 — Provider Suitability and Operational Approval Gate
+
+- **Exact goal:** Select and explicitly approve one production-capable provider/adapter before code or storage depends on its behavior.
+- **Implementation scope:** Record North Macedonia coverage, candidate search and stable-reference re-resolution support, conservative precision mapping, provider-key/reference/display retention rights and fit within 13H.3 bounds, quotas/rate budget, credentials/rotation/environments, regional/privacy posture, retry rules, and durable/shared Data Protection key-ring topology.
+- **Explicit exclusions:** No package, config, production code, live call, provider credential, or field-model change.
+- **Migration impact:** None; an identifier/retention mismatch returns to the field-model gate before implementation.
+- **Test/evidence required:** Primary provider documentation/terms citations, provider-neutral field/precision mapping table, maximum-length and retention assessment, quota/resilience matrix, secret/key-ring deployment decision, and explicit owner/operator approval.
+- **Dependencies:** 13H.7.
+- **Expected commit count:** 1 (decision/evidence).
+- **Approximate size:** Small.
+
+### Task 13I.2 — Provider-Neutral Contracts and Location Fingerprint
+
+- **Exact goal:** Establish the vendor-free Application seam and one deterministic identity for the Draft text against which a candidate was resolved.
+- **Implementation scope:** Add an Application-owned geocoding port with search/re-resolve operations; provider-neutral normalized input, candidate, resolved snapshot, and typed outcome models; add a versioned, length-prefixed, culture-independent fingerprint over selected canonical LanguageCode plus normalized City/Municipality/AddressLine/Neighborhood; reuse Domain `LocationPrecision`.
+- **Explicit exclusions:** No HTTP adapter, provider SDK/wire DTO, token crypto, handler/controller/DI, persistence, retry, rate limit, or public DTO.
+- **Migration impact:** None.
+- **Test/evidence required:** Exact normalization/fingerprint vectors; each driving field and language changes the fingerprint; normalization-equivalent Unicode input does not; null optional Neighborhood is unambiguous; concatenation collisions are prevented; cancellation contracts and typed outcomes are deterministic; no provider-specific type/raw response leaks from Application.
+- **Dependencies:** 13I.1 and 13H.3.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.3 — Opaque Selection-Token Protection
+
+- **Exact goal:** Build the secure, short-lived preview-to-confirmation bridge independently from endpoint and provider orchestration.
+- **Implementation scope:** Add an Application token port/payload and Infrastructure Data Protection implementation with versioned purpose and `TimeProvider`; bind listing ID, actor ID, provider key/reference, selected language/input fingerprint, issue time, and expiry; use the approved durable/shared key-ring topology; carry no trusted coordinates, address, or raw provider response.
+- **Explicit exclusions:** No provider call, listing authorization, endpoint, persistence, rate limiting, or generic token framework.
+- **Migration impact:** None.
+- **Test/evidence required:** Round trip; tamper, truncation, wrong purpose/version, expiry and clock-boundary rejection; actor/listing/provider/language/fingerprint binding; cross-instance/key-ring behavior required by deployment; opaque payload and sanitized diagnostics with no token contents logged.
+- **Dependencies:** 13I.1–13I.2.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.4 — Geocoding Error and Abuse-Control Foundation
+
+- **Exact goal:** Define safe expected transport outcomes before provider-calling routes exist.
+- **Implementation scope:** Add narrow closed-catalog handling for sanitized geocoding dependency unavailability (normally 503) and authenticated provider-rate exhaustion (429); add a named partitioned rate policy keyed by resolved actor with deterministic `Retry-After` where applicable; preserve request ID, media type, and single-owner logging conventions.
+- **Explicit exclusions:** No provider retry, handler/controller route, global rate-limit/security redesign, special public integrity error, or generic error framework.
+- **Migration impact:** None.
+- **Test/evidence required:** Exact canonical ProblemDetails codes/status/content type/correlation; anonymous authentication precedence; per-actor isolation and replenishment using controlled time; no address/key/token/reference disclosure; existing Chapter 12 catalog behavior unchanged.
+- **Dependencies:** 13I.1 operational quota and completed Chapter 12 boundary.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.5 — Concrete Provider Adapter and Startup Configuration
+
+- **Exact goal:** Implement only the approved provider's deterministic success-path transport and provider-neutral mapping behind the Application port.
+- **Implementation scope:** Add Infrastructure options with startup validation, secret supplied outside committed configuration, typed/named HttpClient, provider-only wire DTOs, search and lookup-by-reference, bounded result count/order, coordinate/reference/display bounds, audited precision mapping, and DI selection; use an SDK only if 13I.1 proves it necessary.
+- **Explicit exclusions:** No Application use case, token, persistence, retry policy, API rate policy, controller, public DTO, live test call, or schema change.
+- **Migration impact:** None; stop if actual provider retention or identifier shape does not fit 13H.3.
+- **Test/evidence required:** Stub-transport contract fixtures; exact encoded request construction; successful, empty, malformed, out-of-range, and overlength response mapping; exact/broad precision mapping and provider order; missing/invalid configuration startup failures; committed configuration contains no secret.
+- **Dependencies:** 13I.1–13I.2.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.6 — Provider Resilience and Safe Dependency Telemetry
+
+- **Exact goal:** Bound provider operations and make failures observable without leaking addresses, credentials, tokens, references, or raw payloads.
+- **Implementation scope:** Add timeout/caller-cancellation distinction, bounded retry only for approved transient idempotent cases, provider-429 behavior per terms, typed unavailable/permanent/malformed outcomes, one terminal structured dependency event, and suppression/redaction of unsafe default HTTP logging; document no cache unless terms and measured need justify one.
+- **Explicit exclusions:** No API rate policy change, endpoint, database transaction, Publish call, distributed cache, or generic resilience framework.
+- **Migration impact:** None.
+- **Test/evidence required:** Deterministic transport/time tests for exact attempt counts, timeout, caller cancellation, transient recovery, permanent/no-result/malformed behavior, provider 429, and cancellation propagation; log property inventory plus secret/address/token/reference scans; one terminal event ownership.
+- **Dependencies:** 13I.4–13I.5.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.7 — Draft Candidate-Search Application Use Case
+
+- **Exact goal:** Authorize one current Draft translation and return ordered provider-neutral preview candidates with protected confirmation tokens.
+- **Implementation scope:** Add a handler using current principal/user, read-only complete authoring aggregate, existing management agency authorization, Draft status, `EffectiveTranslationOrdering`, meaningful City/Municipality/AddressLine and optional Neighborhood, the shared fingerprint, provider search, and one token per candidate; return label, preview coordinates, precision, and token only.
+- **Explicit exclusions:** No controller/OpenAPI/rate attachment, database write/lock, arbitrary caller search text/coordinates, public query, or provider-specific ID/output.
+- **Migration impact:** None.
+- **Test/evidence required:** Personal and agency Owner/Agent success; PendingVerification management behavior; Disabled/Manager/nonmember/missing/inaccessible/Active outcomes; authorization and input checks before provider call; requested/mk/deterministic selection; incomplete location input; candidate values/order, broad precision, empty results, typed dependency failures, and no internal IDs.
+- **Dependencies:** 13I.2–13I.6.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.8 — Token-Confirmation Application Use Case
+
+- **Exact goal:** Persist only a re-resolved provider candidate that remains current and authorized at commit time.
+- **Implementation scope:** Add a token-only handler; perform identity/user/read-only preflight, token actor/listing/fingerprint checks, and provider re-resolution outside a transaction; then enter `BeginWriteAsync`, reauthorize the latest personal/agency Draft, recompute selected input/fingerprint, verify provider/reference and resolved snapshot, call the Domain confirm operation, save/commit, and return nullable management location state.
+- **Explicit exclusions:** No controller/OpenAPI/rate attachment, numeric coordinate input, publish/readiness, SQL redesign, or concurrency harness beyond focused unit/application ordering tests.
+- **Migration impact:** None.
+- **Test/evidence required:** Success/round-trip; malformed/expired/wrong actor/listing/stale token; missing or changed provider result; dependency failure leaves Draft unchanged; Domain/persistence failure rolls back; authorization-before-private-state disclosure; explicit proof provider call finishes before write scope acquisition; no trusted token coordinates.
+- **Dependencies:** 13I.2–13I.7 and the completed authoring write scope.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.9 — Explicit Draft Location-Clear Use Case
+
+- **Exact goal:** Provide an independent, idempotent, locked way to clear confirmed or legacy Draft location state without contacting the provider.
+- **Implementation scope:** Add a handler using current management authorization, `BeginWriteAsync`, Draft-only status, complete Domain clear, save/commit, and nullable management response.
+- **Explicit exclusions:** No provider/token, controller/OpenAPI/rate limit, Publish/readiness, public contract, or schema change.
+- **Migration impact:** None.
+- **Test/evidence required:** Personal/agency Owner/Agent matrix, Pending/Disabled/Manager/nonmember, missing and non-Draft behavior, confirmed and legacy clearing, unresolved idempotency, persisted response, rollback/disposal, and no provider interaction.
+- **Dependencies:** 13H.3–13H.5 and existing authoring write scope; may follow 13I.8 for feature-folder consistency.
+- **Expected commit count:** 1.
+- **Approximate size:** Small.
+
+### Task 13I.10 — Geocoding Concurrency and Lock Closure
+
+- **Exact goal:** Prove the provider-outside-transaction and parent-lock protocol against update, publish, confirm, and clear races.
+- **Implementation scope:** Add deterministic PostgreSQL integration probes/tests for update-before-confirm stale rejection, confirm-before-update followed by invalidation, publish-before-confirm conflict, confirm-before-publish serialization, confirm/clear ordering, and post-wait actor/agency reauthorization; exercise commit/rollback state without changing feature semantics.
+- **Explicit exclusions:** No ETag, advisory/global lock, new authorization rule, provider behavior, endpoint/OpenAPI, query change, or production edit absent a concrete defect.
+- **Migration impact:** None.
+- **Test/evidence required:** Controlled gates and bounded timeouts for each interleaving; exact final state; no provider call while transaction/parent lock is held; existing update/publish/image lock assertions remain unchanged; any defect returns to 13I.8/13I.9.
+- **Dependencies:** 13I.8–13I.9.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.11 — Listing-Scoped Geocoding HTTP and OpenAPI Surface
+
+- **Exact goal:** Expose the completed use cases through thin authenticated routes with truthful provider-neutral contracts.
+- **Implementation scope:** Add `POST /api/listings/{id}/location/candidates`, `PUT /api/listings/{id}/location`, and `DELETE /api/listings/{id}/location`; confirmation accepts token only; candidate response exposes label/preview decimals/precision/token; confirm/clear return approved nullable management state; attach the named provider rate policy to candidate and confirmation routes; register handlers and document established 200/400/401/403/404/409/429/503 responses.
+- **Explicit exclusions:** No controller business logic, writable coordinates/provenance/raw response, global OpenAPI redesign, strict public DTO, provider implementation change, or frontend work.
+- **Migration impact:** None.
+- **Test/evidence required:** End-to-end fake-adapter API success/failure matrix; exact schemas/required arrays/security/rate policy; token opacity; coordinates output-only; no provider internals; canonical ProblemDetails/media/request ID; anonymous 401 precedence; clear route is not provider-rate limited unless evidence requires it.
+- **Dependencies:** 13I.4 and 13I.7–13I.10.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13I.12 — Geocoding Workflow Verification and SQL Freeze
+
+- **Exact goal:** Close backend-mediated geocoding independently from later publication truth and prove it did not alter public discovery SQL.
+- **Implementation scope:** Run cumulative 13I focused provider/Application/API/concurrency/configuration/resilience tests with controlled adapters; verify bounded provider and database call counts; capture all 33 public commands and compare exactly to the 13H.6 accepted baseline; run relevant profile invariants and Release build; create consolidated evidence and narrow audit.
+- **Explicit exclusions:** No production query edit, baseline recapture/export, stronger publication rule, public DTO tightening, full Chapter 13 suite, live provider, or frontend work; any mismatch reopens the owning task.
+- **Migration impact:** None.
+- **Test/evidence required:** Exact focused totals/skips and Release warnings/errors; configuration and dependency-outage smoke; authorization/token/rate/concurrency matrices; 33/33 exact SQL with zero mismatch; relevant 61/61 profile; bounded call evidence; source/evidence audit PASS.
+- **Dependencies:** 13I.1–13I.11 and the accepted 13H.6 baseline.
+- **Expected commit count:** 1 (evidence only).
+- **Approximate size:** Medium.
+
+### Task 13J.1 — Strong-Location Test Fixture Foundation
+
+- **Exact goal:** Establish explicit, reusable test vocabulary for unresolved Draft, publishable confirmed Draft, valid Active, corrupt unit entity, and direct-database rejection premises before stronger readiness changes many tests.
+- **Implementation scope:** Add/adapt narrowly named builders and helpers so valid Active fixtures contain every required translated field and an explicit trusted test-only confirmed snapshot; keep malformed entities unit-only and direct SQL corruption tests explicitly named; do not call a provider or alter production behavior.
+- **Explicit exclusions:** No Domain readiness, migration/trigger, query-review seeder, public DTO/OpenAPI, production handler, or fake production provenance path.
+- **Migration impact:** None.
+- **Test/evidence required:** Builder contract tests proving each state, no direct public setter misuse, no committed malformed Active fixture, existing 13A–13G tests compile with unchanged assertions where their premise is valid, and fixture diff is auditable rather than broad cleanup.
+- **Dependencies:** 13I.12 and the 13H root snapshot model.
+- **Expected commit count:** 1.
+- **Approximate size:** Small.
+
+### Task 13J.2 — Existing Active Location Compatibility and Remediation Gate
+
+- **Exact goal:** Prove every deployed Active row already satisfies the stronger target before readiness or PostgreSQL enforcement changes runtime behavior.
+- **Implementation scope:** Define and independently verify an exact read-only classification/report for missing/blank Municipality or AddressLine and unresolved/legacy/partial/invalid confirmed root state; record counts and identifiers in controlled operator evidence; remediate only through the supported `Active -> unpublish -> resolve -> publish` workflow or deliberately keep a row non-Active; require a final zero-incompatible result.
+- **Explicit exclusions:** No raw SQL update/delete/backfill, fabricated centroid/provenance, generic repair utility, migration, readiness, DTO, or public-query change.
+- **Migration impact:** None; this is the mandatory pre-enforcement deployment gate.
+- **Test/evidence required:** Predicate-equivalence tests on disposable PostgreSQL for every incompatible family and a valid confirmed case; read-only/query-plan evidence; target-environment count/ID record with sensitive values excluded; supported remediation audit; final zero result. If target evidence is unavailable, 13J.3–13J.4 deployment remains blocked.
+- **Dependencies:** 13I.12 so supported resolution exists; 13J.1 for deterministic test premises.
+- **Expected commit count:** 1 (operational/evidence).
+- **Approximate size:** Small.
+
+### Task 13J.3 — Stronger Domain and Application Publication Readiness
+
+- **Exact goal:** Make authorized incomplete publish remain the expected sanitized 409 under the final translated-location and confirmed-root invariant.
+- **Implementation scope:** Add deterministic readiness violation codes and extend `EvaluatePublicationReadiness()`/`Publish()` for every translation's Municipality and AddressLine plus coherent confirmed coordinates, precision, provenance, and confirmation time; preserve authorization-before-readiness, resource-state ordering, Active-agency rules, and valid already-Active idempotency; adapt publish and strict-mapper fixtures through 13J.1.
+- **Explicit exclusions:** No migration/trigger, DTO nullability change, OpenAPI closure, query filter/join, provider call, or error-framework redesign.
+- **Migration impact:** None, but this commit must not be deployed independently of 13J.4 and cannot deploy before 13J.2 reports zero incompatible Active rows.
+- **Test/evidence required:** Full per-translation/root readiness matrix; valid/malformed already-Active behavior; personal/agency publish; 401/403/404/resource-state/`conflict.listing_not_ready` precedence; authorization-before-readiness; unpublish/archive repairability; strict mapper produces typed corruption rather than business conflict; no provider internals in logs/responses.
+- **Dependencies:** 13J.1–13J.2 and 13I.12.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13J.4 — Strong Active Location PostgreSQL Migration Core
+
+- **Exact goal:** Extend, without editing, the 13F database architecture so malformed or location-mutated Active state cannot commit.
+- **Implementation scope:** Add one forward SQL migration that locks Listings then ListingTranslations; replaces/extends the named set-based assertion/trigger functions; requires every Active translation's Municipality/AddressLine and a complete confirmed root snapshot; freezes Active-to-Active root location mutation using old/new transition data; retains translation freeze, canonical parent locks, parent MVCC touch, cascade/no-parent behavior, and install-time fail-fast validation; Down restores exact 13F definitions.
+- **Explicit exclusions:** No exhaustive adversarial matrix, query-review seeder, DTO/OpenAPI, data repair/backfill, per-row/deferred generic trigger, production query, or edit to historical migrations.
+- **Migration impact:** Exactly one new forward enforcement migration; the fifth Chapter 13-owned migration and twentieth repository migration. Apply only as a coordinated deployment with 13J.3 after 13J.2 is zero-compatible.
+- **Test/evidence required:** Fresh chain, repeat, Down/re-Up and migration history; exact function/trigger/catalog definitions; basic valid and each invalid translation/root family; Active root mutation; install-time validation atomic failure/no repair; Down proves completed 13F four-field behavior restored; snapshot/pending-model result as appropriate for SQL-only migration.
+- **Dependencies:** 13J.2–13J.3.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13J.5 — Direct Integrity and Sanitized Failure Matrix
+
+- **Exact goal:** Independently prove the frozen 13J.4 migration handles direct/multirow corruption and retains the Chapter 12 unexpected-error boundary.
+- **Implementation scope:** Add test-only direct PostgreSQL/API cases for every required translated field, unresolved/legacy/partial/invalid root states, Active root snapshot mutation, unpublish-then-change, multirow statement atomicity, parent deletion and ListingId movement, and real trigger failure reaching canonical error handling.
+- **Explicit exclusions:** No migration edit absent a concrete defect, no concurrency orchestration, DTO/OpenAPI/query work, provider workflow, or production corruption bypass.
+- **Migration impact:** None; audits 13J.4.
+- **Test/evidence required:** Exact accepted/rejected matrix and rollback state; SQLSTATE/constraint-function diagnostic evidence internally; HTTP 500 `server.unexpected`, canonical media/correlation, one log owner, and no PostgreSQL/provenance/readiness leakage; supported readiness remains 409.
+- **Dependencies:** 13J.4.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13J.6 — Strong Active Adversarial Concurrency Closure
+
+- **Exact goal:** Prove the completed parent-lock/MVCC protocol remains sound for the stronger translation and root-location invariant.
+- **Implementation scope:** Add deterministic PostgreSQL interleavings for translation/location mutation versus activation in both orders, stale `REPEATABLE READ` activation, supported writer serialization, set-wise multi-parent ordering, and permitted unpublish-before-mutation; inspect blockers/catalog where needed.
+- **Explicit exclusions:** No generic concurrency framework, advisory lock, ETag, production/migration change absent a concrete defect, provider/API/OpenAPI/query work, or relaxed deadlock acceptance.
+- **Migration impact:** None; audits 13J.4 and preserves 13F architecture.
+- **Test/evidence required:** Bounded deterministic gates; exact winner/loser and final committed state for every race; stale activation aborts; no invalid commit; no unexplained deadlock; parent-first lock order and MVCC touch remain observable; existing image/update/status concurrency assertions stay intact.
+- **Dependencies:** 13J.4–13J.5.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13J.7 — Query-Review Profile Compatibility with Strong Active Truth
+
+- **Exact goal:** Keep the deterministic 100,000-listing/200,000-translation/70,000-Active profile valid under the stronger trigger without changing its discovery identities or using a live geocoder.
+- **Implementation scope:** Adapt only query-review seed preconditions/order/data: populate required AddressLine/Municipality and explicit trusted test precision/provenance/coordinates set-wise; retain Draft-first children-next and one set-based final Active transition; extend integrity/profile assertions only where necessary to prove zero malformed Active and enabled trigger catalog.
+- **Explicit exclusions:** No production repository/query, candidate/provider call, permanent SQL baseline export, profile scale/result redistribution, per-listing loop, or benchmark-framework redesign.
+- **Migration impact:** None; consumes the 13J.4 migration.
+- **Test/evidence required:** Profile create and read-only verify; 61/61 established invariants plus explicitly reported new integrity checks without weakening/removing existing metrics; exact listing/translation/status totals and locked result IDs; zero malformed Active; trigger enabled/catalog state; set-based command audit and setup elapsed time without invented threshold.
+- **Dependencies:** 13J.4–13J.6.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13K.1 — Strict Public Location Runtime Contract
+
+- **Exact goal:** Make the existing five strict public surface families return the final truthful nine-field public identity/map contract after PostgreSQL guarantees it.
+- **Implementation scope:** Require Municipality, AddressLine, Latitude, Longitude, and LocationPrecision on `PublicListingResponse` alongside LanguageCode/Title/City/Description; extend `ToPublicResponse(...)` after materialization using existing readiness and `EffectiveTranslationOrdering`; assign real selected/root values and throw `PublicListingIntegrityException` for impossible state; preserve all other mapping behavior and internal provenance.
+- **Explicit exclusions:** No OpenAPI schema-filter/document closure, repository LINQ/SQL, migration, provider workflow, nullable private/authoring tightening, public provenance, fallback values, or new integrity framework.
+- **Migration impact:** None; consumes 13J.4 truth.
+- **Test/evidence required:** Exact nine values; every new translation/root corruption family; public list/detail/agency/comparables/publish success; candidate ordering/fallback; private/create/`my`/dashboard/unpublish/archive and management regression; canonical sanitized 500 and deterministic internal violation identifiers; no `!`, `?? ""`, fabricated value, or filtering.
+- **Dependencies:** 13J.3–13J.7.
+- **Expected commit count:** 1.
+- **Approximate size:** Medium.
+
+### Task 13K.2 — Serialized OpenAPI Location-Contract Closure
+
+- **Exact goal:** Make the actual serialized OpenAPI document agree with the final runtime public, private, management, and geocoding contracts.
+- **Implementation scope:** Narrowly extend schema handling/tests for required/non-null public strings, decimals, and `LocationPrecision`; verify endpoint refs for all five strict public families; preserve nullable `ListingResponse`/`ListingAuthoringResponse`, all-translations authoring, coordinate-free create/PUT, geocoding token input/output, seven-member pagination, errors/security/media/enums/correlation, and internal schema exclusions.
+- **Explicit exclusions:** No handler/mapper/repository/migration/provider behavior, generic schema generator rewrite, public provenance, frontend generation, or assertion weakening.
+- **Migration impact:** None.
+- **Test/evidence required:** Serialized OpenAPI proves all nine public members required and non-null with correct types; private/management members nullable; strict/public and nullable/private endpoint matrix; management GET/PUT refs; candidate/confirm/clear schemas; create/PUT input exclusion; pagination; no `ServiceResult`, `PublicListingIntegrityException`, provider key/reference, raw provider type, or credential schema.
+- **Dependencies:** 13K.1 and 13I.11.
+- **Expected commit count:** 1.
+- **Approximate size:** Small.
+
+### Task 13K.3 — Final Generated-SQL Freeze Proof
+
+- **Exact goal:** Prove all work after the accepted 13H projection rebaseline changed no public/comparable SQL or result semantics.
+- **Implementation scope:** Run profile verification and production capture for N1/P1/P2/A1/R1/L1/Q1/C1; compare all 33 commands to the 13H.6 artifacts using line-ending/metadata normalization only; validate locked totals/IDs/order and relevant plans; record evidence and narrow audit.
+- **Explicit exclusions:** No repository/query edit, new baseline export, recapture/blessing, feature correction, benchmark redesign, or frontend work; any mismatch reopens the owning implementation task.
+- **Migration impact:** None; run the complete migration chain through 13J.4.
+- **Test/evidence required:** 33/33 exact and zero mismatches; 61/61 established profile; unchanged predicates, joins, effective selector, q/location, count/page, agency reuse, comparable source/candidate/ranking/limit, and split hydration; no readiness filter, `Translations.Any`, extra source projection, or corruption hiding; source/evidence audit PASS.
+- **Dependencies:** 13J.7 and 13K.1–13K.2, plus the accepted 13H.6 baseline.
+- **Expected commit count:** 1 (evidence only).
+- **Approximate size:** Small.
+
+### Task 13L.1 — Cumulative Chapter 13 Verification Gate
+
+- **Exact goal:** Add no behavior; prove completed 13A–13G plus every reopened implementation task work together before documentation declares closure.
+- **Implementation scope:** Run focused cumulative Domain/Application/provider/PostgreSQL/API/concurrency/OpenAPI suites; controlled-provider personal and agency Draft-to-public smoke; fresh/repeat/relevant Down migration chain and catalog; EF pending model; Release build; complete backend suite; final SQL/profile/performance re-verification; create immutable closeout evidence.
+- **Explicit exclusions:** No feature implementation, cleanup/refactor, new provider behavior, baseline recapture, frontend work, or documentation status claim; any red result reopens the owning task.
+- **Migration impact:** No new migration; verify all five Chapter 13 migrations and all 20 repository migrations from empty and upgrade paths without fabricated data.
+- **Test/evidence required:** Exact discovered/passed/failed/skipped totals; 0-warning/0-error Release build; fresh/repeat/Down/catalog and no-pending-model result; controlled provider success/outage/stale/token/auth/rate flows; all nine public fields in runtime/OpenAPI; 33/33 SQL, 61/61 profile, result/plan/performance gates; evidence/source audit PASS.
+- **Dependencies:** 13A–13K.3.
+- **Expected commit count:** 1 (verification evidence only).
+- **Approximate size:** Medium (runtime-heavy, diff-small).
+
+### Task 13L.2 — Durable Closeout and Backend-Only Frontend Handoff
+
+- **Exact goal:** Mark Chapter 13 complete only from 13L.1 evidence and hand the truthful workflow/contract to frontend work without modifying the frontend.
+- **Implementation scope:** Update this chapter's status, `docs/backend-context.md`, `docs/backend-quality-handoff.md`, migration inventory/results, security deferral references, and final Chapter 13 evidence; create a backend-only frontend handoff for translated location entry, candidate display, precision/map preview, opaque confirmation, unresolved/stale/provider-failure states, publish readiness, strict public map fields, and generated OpenAPI consumption.
+- **Explicit exclusions:** No production/test/migration/query change, frontend type generation/code, new behavior, taxonomy/spatial/privacy/security work, or opportunistic cleanup.
+- **Migration impact:** None; documentation records the verified five Chapter 13 and 20 total repository migrations.
+- **Test/evidence required:** Documentation-to-source/OpenAPI/migration/test-number consistency audit; all earlier evidence references resolve; no stale old-13H/13L execution claim; quality issues updated only when source evidence warrants it; frontend handoff exposes no provider credentials/internals and preserves explicit deferrals.
+- **Dependencies:** Green 13L.1 and repository-owner approval of its evidence.
+- **Expected commit count:** 1.
+- **Approximate size:** Small.
 
 ## 20. Final Verification/Closeout Requirements
 
@@ -1553,9 +1577,9 @@ Chapter 13 is complete only when all of the following are true:
 - impossible materialized Active corruption becomes `PublicListingIntegrityException`, one structured internal log, and sanitized canonical `server.unexpected` without provider/listing/readiness detail;
 - OpenAPI agrees with runtime on all nine public required fields, private/management nullability, workflow schemas, pagination, errors, security, media, and enums;
 - q remains Title/City/Municipality/Neighborhood; AddressLine, coordinates, and precision do not become discovery/comparable inputs; fallback, paging, ranking, and agency reuse remain unchanged;
-- 13H's approved scalar-projection rebaseline is documented and final SQL is exact against it with profile/result/performance gates green;
+- 13H.6's approved scalar-projection rebaseline is documented and 13K.3 proves final SQL exact against it with profile/result/performance gates green;
 - Chapter 11 image guarantees, Chapter 12 failure/pagination/observability guarantees, and completed 13A–13G architecture pass unchanged;
-- all four Chapter 13 forward migrations apply cleanly to fresh/upgrade PostgreSQL without fabricated location backfill and leave no pending EF model change;
+- all five Chapter 13 forward migrations apply cleanly to fresh/upgrade PostgreSQL without fabricated location backfill and leave no pending EF model change;
 - actual Release, complete tests, smoke, OpenAPI, provider, migration, profile, and query evidence is recorded;
 - frontend remains untouched until it consumes the verified generated contract after the owner completes the manual Git step;
 - PostGIS/spatial discovery, canonical geography IDs, public pin privacy, taxonomy, global cleanup, and provisional Chapter 16 security/config remain deferred.
