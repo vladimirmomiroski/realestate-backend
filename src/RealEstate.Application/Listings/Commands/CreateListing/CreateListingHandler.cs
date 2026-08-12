@@ -97,8 +97,6 @@ public sealed class CreateListingHandler
             YearRenovated = request.YearRenovated,
             Orientation = request.Orientation,
             YearBuilt = request.YearBuilt,
-            Latitude = request.Latitude,
-            Longitude = request.Longitude,
             Translations = request.Translations.Select(translation => new ListingTranslation
             {
                 Id = Guid.NewGuid(),

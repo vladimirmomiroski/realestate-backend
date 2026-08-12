@@ -661,13 +661,13 @@ public sealed class OpenApiDocumentTests
             "yearRenovated",
             "orientation",
             "yearBuilt",
-            "latitude",
-            "longitude",
             "apartmentDetails",
             "houseDetails",
             "translations"
         ];
         JsonElement updateProperties = updateSchema.GetProperty("properties");
+        updateProperties.TryGetProperty("latitude", out _).Should().BeFalse();
+        updateProperties.TryGetProperty("longitude", out _).Should().BeFalse();
         updateProperties.EnumerateObject().Select(property => property.Name)
             .Should().BeEquivalentTo(writableMembers);
         updateSchema.GetProperty("description").GetString()
@@ -682,9 +682,7 @@ public sealed class OpenApiDocumentTests
             "hasBasement",
             "isExchangePossible",
             "yearRenovated",
-            "yearBuilt",
-            "latitude",
-            "longitude"
+            "yearBuilt"
         })
         {
             JsonElement property = updateProperties.GetProperty(nullableMember);
@@ -813,6 +811,12 @@ public sealed class OpenApiDocumentTests
         JsonElement schemas = document.RootElement
             .GetProperty("components")
             .GetProperty("schemas");
+        JsonElement createProperties = schemas
+            .GetProperty("CreateListingRequest")
+            .GetProperty("properties");
+        createProperties.TryGetProperty("latitude", out _).Should().BeFalse();
+        createProperties.TryGetProperty("longitude", out _).Should().BeFalse();
+
         JsonElement properties = schemas
             .GetProperty("CreateListingTranslationRequest")
             .GetProperty("properties");

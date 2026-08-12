@@ -50,8 +50,6 @@ public sealed class ListingDraftReplacementEngine
         listing.YearRenovated = request.YearRenovated;
         listing.Orientation = request.Orientation;
         listing.YearBuilt = request.YearBuilt;
-        listing.Latitude = request.Latitude;
-        listing.Longitude = request.Longitude;
     }
 
     private static void ReconcileTranslations(

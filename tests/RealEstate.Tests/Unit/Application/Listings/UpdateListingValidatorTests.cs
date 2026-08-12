@@ -36,6 +36,22 @@ public sealed class UpdateListingValidatorTests
     }
 
     [Fact]
+    public void UpdateContract_DoesNotExposeCoordinateAuthoring()
+    {
+        typeof(UpdateListingRequest).GetProperties()
+            .Select(property => property.Name)
+            .Should().NotContain(["Latitude", "Longitude"]);
+
+        typeof(UpdateListingValidator).GetFields()
+            .Select(field => field.Name)
+            .Should().NotContain([
+                "CoordinatePairError",
+                "LatitudeOutOfRangeError",
+                "LongitudeOutOfRangeError"
+            ]);
+    }
+
+    [Fact]
     public void ValidateWithKey_AcceptsCurrentListingTypesAndDefinedOptionalEnums()
     {
         UpdateListingRequest request = CreateValidApartmentRequest();
@@ -126,8 +142,6 @@ public sealed class UpdateListingValidatorTests
     [InlineData("balconyCount")]
     [InlineData("parkingSpaces")]
     [InlineData("yearRenovated")]
-    [InlineData("latitude")]
-    [InlineData("longitude")]
     public void ValidateWithKey_RejectsExistingInvalidRootScalarBoundaries(
         string field)
     {
@@ -150,12 +164,6 @@ public sealed class UpdateListingValidatorTests
             case "yearRenovated":
                 request.YearRenovated = 1799;
                 break;
-            case "latitude":
-                request.Latitude = 91;
-                break;
-            case "longitude":
-                request.Longitude = 181;
-                break;
         }
 
         AssertFailure(request, field);
@@ -175,12 +183,8 @@ public sealed class UpdateListingValidatorTests
     }
 
     [Fact]
-    public void ValidateWithKey_RejectsCoordinatePairAndRenovationOrdering()
+    public void ValidateWithKey_RejectsRenovationOrdering()
     {
-        UpdateListingRequest coordinateRequest = CreateValidApartmentRequest();
-        coordinateRequest.Longitude = null;
-        AssertFailure(coordinateRequest, "request");
-
         UpdateListingRequest renovationRequest = CreateValidApartmentRequest();
         renovationRequest.YearBuilt = 2020;
         renovationRequest.YearRenovated = 2019;
@@ -434,8 +438,6 @@ public sealed class UpdateListingValidatorTests
             ParkingSpaces = 1,
             YearBuilt = 2015,
             YearRenovated = 2020,
-            Latitude = 41.9981m,
-            Longitude = 21.4254m,
             ApartmentDetails = new UpdateListingApartmentDetailsRequest
             {
                 ApartmentType = ApartmentType.Standard,
@@ -465,8 +467,6 @@ public sealed class UpdateListingValidatorTests
             ParkingSpaces = 2,
             YearBuilt = 2010,
             YearRenovated = 2020,
-            Latitude = 41.9981m,
-            Longitude = 21.4254m,
             HouseDetails = new UpdateListingHouseDetailsRequest
             {
                 HouseType = HouseType.Detached,

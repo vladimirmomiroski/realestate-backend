@@ -38,10 +38,6 @@ public sealed class UpdateListingRequest
 
     public int? YearBuilt { get; set; }
 
-    public decimal? Latitude { get; set; }
-
-    public decimal? Longitude { get; set; }
-
     public UpdateListingApartmentDetailsRequest? ApartmentDetails { get; set; }
 
     public UpdateListingHouseDetailsRequest? HouseDetails { get; set; }
