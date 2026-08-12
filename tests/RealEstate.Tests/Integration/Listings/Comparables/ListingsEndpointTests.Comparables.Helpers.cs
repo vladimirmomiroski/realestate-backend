@@ -175,8 +175,8 @@ public sealed partial class ListingsEndpointTests
     decimal price,
     decimal areaSquareMeters,
     string city = "Skopje",
-    string municipality = "Centar",
-    string neighborhood = "Center",
+    string? municipality = "Centar",
+    string? neighborhood = "Center",
     DateTime? createdAtUtc = null)
     {
         Guid listingId =
