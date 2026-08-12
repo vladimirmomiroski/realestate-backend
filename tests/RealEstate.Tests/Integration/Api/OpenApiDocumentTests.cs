@@ -199,43 +199,98 @@ public sealed class OpenApiDocumentTests
             "hasNextPage",
             "hasPreviousPage"
         ];
-        JsonElement paginationSchema = schemas
-            .GetProperty("ListingResponsePagedResponse");
-        paginationSchema.GetProperty("properties")
-            .EnumerateObject()
-            .Select(property => property.Name)
-            .Should()
-            .BeEquivalentTo(paginationMembers);
-        paginationSchema.GetProperty("required")
-            .EnumerateArray()
-            .Select(value => value.GetString())
-            .Should()
-            .Contain("items");
-        paginationSchema.GetProperty("properties")
-            .GetProperty("items")
-            .TryGetProperty("nullable", out JsonElement nullableItems)
-            .Should()
-            .BeFalse("items must not be represented as nullable");
-
-        (string Path, string Method)[] paginatedOperations =
+        (string Schema, string ItemSchema)[] paginationSchemas =
         [
-            ("/api/listings", "get"),
-            ("/api/listings/my", "get"),
-            ("/api/agencies/{id}/listings", "get"),
-            ("/api/agencies/{id}/dashboard/listings", "get")
+            ("PublicListingResponsePagedResponse", "PublicListingResponse"),
+            ("ListingResponsePagedResponse", "ListingResponse")
         ];
 
-        foreach ((string path, string method) in paginatedOperations)
+        foreach ((string schemaName, string itemSchemaName) in paginationSchemas)
         {
+            JsonElement paginationSchema = schemas.GetProperty(schemaName);
+            JsonElement paginationProperties =
+                paginationSchema.GetProperty("properties");
+            paginationProperties
+                .EnumerateObject()
+                .Select(property => property.Name)
+                .Should()
+                .BeEquivalentTo(paginationMembers);
+            paginationSchema.GetProperty("required")
+                .EnumerateArray()
+                .Select(value => value.GetString())
+                .Should()
+                .Contain("items");
+
+            JsonElement items = paginationProperties.GetProperty("items");
+            items.GetProperty("type").GetString().Should().Be("array");
+            items.GetProperty("items")
+                .GetProperty("$ref")
+                .GetString()
+                .Should()
+                .Be($"#/components/schemas/{itemSchemaName}");
+            IsNullable(items).Should().BeFalse(
+                "paged items must not be represented as nullable");
+
+            foreach (string integerMember in new[]
+            {
+                "page",
+                "pageSize",
+                "totalCount",
+                "totalPages"
+            })
+            {
+                paginationProperties.GetProperty(integerMember)
+                    .GetProperty("type")
+                    .GetString()
+                    .Should()
+                    .Be("integer");
+            }
+
+            foreach (string booleanMember in new[]
+            {
+                "hasNextPage",
+                "hasPreviousPage"
+            })
+            {
+                paginationProperties.GetProperty(booleanMember)
+                    .GetProperty("type")
+                    .GetString()
+                    .Should()
+                    .Be("boolean");
+            }
+        }
+
+        (string Path, string Method, string ResponseSchema)[] paginatedOperations =
+        [
+            (
+                "/api/listings",
+                "get",
+                "PublicListingResponsePagedResponse"),
+            (
+                "/api/agencies/{id}/listings",
+                "get",
+                "PublicListingResponsePagedResponse"),
+            (
+                "/api/listings/my",
+                "get",
+                "ListingResponsePagedResponse"),
+            (
+                "/api/agencies/{id}/dashboard/listings",
+                "get",
+                "ListingResponsePagedResponse")
+        ];
+
+        foreach ((string path, string method, string responseSchema) in
+                 paginatedOperations)
+        {
+            AssertResponseSchemaReference(
+                root,
+                path,
+                method,
+                "200",
+                responseSchema);
+
             JsonElement operation = GetOperation(root, path, method);
-            JsonElement successSchema = operation
-                .GetProperty("responses")
-                .GetProperty("200")
-                .GetProperty("content")
-                .GetProperty("application/json")
-                .GetProperty("schema");
-            successSchema.GetProperty("$ref").GetString().Should().Be(
-                "#/components/schemas/ListingResponsePagedResponse");
 
             JsonElement page = GetParameter(operation, "page");
             page.GetProperty("schema")
@@ -303,7 +358,7 @@ public sealed class OpenApiDocumentTests
             .GetProperty("$ref")
             .GetString()
             .Should()
-            .Be("#/components/schemas/ListingResponse");
+            .Be("#/components/schemas/PublicListingResponse");
 
         foreach (string status in new[] { "400", "401", "403", "404", "409" })
         {
@@ -337,6 +392,127 @@ public sealed class OpenApiDocumentTests
             .Select(value => value.GetString())
             .Should()
             .Contain(ErrorCodes.ConflictListingNotReady);
+    }
+
+    [Fact]
+    public void OpenApiDocument_Chapter13GListingResponses_AreSeparatedAndTruthful()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement root = document.RootElement;
+        JsonElement schemas = root
+            .GetProperty("components")
+            .GetProperty("schemas");
+
+        (string Path, string Method, string Status, string Schema)[] directResponses =
+        [
+            ("/api/listings/{id}", "get", "200", "PublicListingResponse"),
+            ("/api/listings/{id}/publish", "put", "200", "PublicListingResponse"),
+            ("/api/listings", "post", "201", "ListingResponse"),
+            ("/api/listings/{id}/unpublish", "put", "200", "ListingResponse"),
+            ("/api/listings/{id}/archive", "put", "200", "ListingResponse"),
+            (
+                "/api/listings/{id}/management",
+                "get",
+                "200",
+                "ListingAuthoringResponse"),
+            ("/api/listings/{id}", "put", "200", "ListingAuthoringResponse")
+        ];
+
+        foreach ((string path, string method, string status, string schema) in
+                 directResponses)
+        {
+            AssertResponseSchemaReference(root, path, method, status, schema);
+        }
+
+        AssertResponseSchemaReference(
+            root,
+            "/api/listings",
+            "get",
+            "200",
+            "PublicListingResponsePagedResponse");
+        AssertResponseSchemaReference(
+            root,
+            "/api/agencies/{id}/listings",
+            "get",
+            "200",
+            "PublicListingResponsePagedResponse");
+        AssertResponseSchemaReference(
+            root,
+            "/api/listings/my",
+            "get",
+            "200",
+            "ListingResponsePagedResponse");
+        AssertResponseSchemaReference(
+            root,
+            "/api/agencies/{id}/dashboard/listings",
+            "get",
+            "200",
+            "ListingResponsePagedResponse");
+
+        JsonElement comparableSchema = GetSuccessSchema(
+            root,
+            "/api/listings/{id}/comparables",
+            "get");
+        comparableSchema.GetProperty("type").GetString().Should().Be("array");
+        comparableSchema.GetProperty("items")
+            .GetProperty("$ref")
+            .GetString()
+            .Should()
+            .Be("#/components/schemas/PublicListingResponse");
+        AssertProblemResponse(
+            root,
+            "/api/listings/{id}/comparables",
+            "get",
+            "400",
+            "ApiValidationProblemDetailsResponse");
+        AssertProblemResponse(
+            root,
+            "/api/listings/{id}/comparables",
+            "get",
+            "404",
+            "ApiProblemDetailsResponse");
+
+        JsonElement publicSchema = schemas.GetProperty("PublicListingResponse");
+        foreach (string propertyName in new[]
+        {
+            "languageCode",
+            "title",
+            "city",
+            "description"
+        })
+        {
+            AssertRequiredNonNullableString(publicSchema, propertyName);
+        }
+
+        JsonElement privateSchema = schemas.GetProperty("ListingResponse");
+        foreach (string propertyName in new[]
+        {
+            "languageCode",
+            "title",
+            "city",
+            "description"
+        })
+        {
+            AssertNullableString(privateSchema, propertyName);
+        }
+
+        JsonElement authoringTranslationSchema = schemas
+            .GetProperty("ListingAuthoringTranslationResponse");
+        AssertRequiredNonNullableString(
+            authoringTranslationSchema,
+            "languageCode");
+        AssertRequiredNonNullableString(authoringTranslationSchema, "title");
+        AssertNullableString(authoringTranslationSchema, "city");
+        AssertNullableString(authoringTranslationSchema, "description");
+
+        schemas.EnumerateObject()
+            .Select(schema => schema.Name)
+            .Should()
+            .NotContain(schemaName =>
+                schemaName.Contains("ServiceResult", StringComparison.Ordinal) ||
+                schemaName.Contains(
+                    "PublicListingIntegrityException",
+                    StringComparison.Ordinal));
     }
 
     [Fact]
@@ -753,6 +929,7 @@ public sealed class OpenApiDocumentTests
             ("AgencyResponse", "logoUrl"),
             ("MyAgencyResponse", "logoUrl"),
             ("ListingResponse", "primaryImageUrl"),
+            ("PublicListingResponse", "primaryImageUrl"),
             ("ListingImageResponse", "url")
         ];
 
@@ -918,6 +1095,68 @@ public sealed class OpenApiDocumentTests
         return root.GetProperty("paths")
             .GetProperty(path)
             .GetProperty(method);
+    }
+
+    private static JsonElement GetSuccessSchema(
+        JsonElement root,
+        string path,
+        string method,
+        string status = "200")
+    {
+        return GetOperation(root, path, method)
+            .GetProperty("responses")
+            .GetProperty(status)
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+    }
+
+    private static void AssertResponseSchemaReference(
+        JsonElement root,
+        string path,
+        string method,
+        string status,
+        string schemaName)
+    {
+        GetSuccessSchema(root, path, method, status)
+            .GetProperty("$ref")
+            .GetString()
+            .Should()
+            .Be($"#/components/schemas/{schemaName}");
+    }
+
+    private static void AssertRequiredNonNullableString(
+        JsonElement schema,
+        string propertyName)
+    {
+        schema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .Contain(propertyName);
+
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("type").GetString().Should().Be("string");
+        IsNullable(property).Should().BeFalse();
+    }
+
+    private static void AssertNullableString(
+        JsonElement schema,
+        string propertyName)
+    {
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("type").GetString().Should().Be("string");
+        IsNullable(property).Should().BeTrue();
+    }
+
+    private static bool IsNullable(JsonElement schema)
+    {
+        return schema.TryGetProperty("nullable", out JsonElement nullable) &&
+               nullable.GetBoolean();
     }
 
     private static JsonElement GetParameter(

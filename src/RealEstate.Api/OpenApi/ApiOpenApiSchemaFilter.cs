@@ -38,9 +38,28 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
 
         if (context.Type.IsGenericType &&
             context.Type.GetGenericTypeDefinition() == typeof(PagedResponse<>) &&
-            context.Type.GenericTypeArguments[0] == typeof(ListingResponse))
+            (context.Type.GenericTypeArguments[0] == typeof(ListingResponse) ||
+             context.Type.GenericTypeArguments[0] == typeof(PublicListingResponse)))
         {
             ApplyPaginationSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(PublicListingResponse))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "languageCode",
+                "title",
+                "city",
+                "description");
+        }
+
+        if (context.Type == typeof(ListingAuthoringTranslationResponse))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "languageCode",
+                "title");
         }
 
         if (context.Type == typeof(CreateListingTranslationRequest))
@@ -175,6 +194,28 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         schema.Required.Add("items");
     }
 
+    private static void ApplyRequiredNonNullableStrings(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
+        schema.Required ??= new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (string propertyName in propertyNames)
+        {
+            schema.Required.Add(propertyName);
+
+            if (schema.Properties is not null &&
+                schema.Properties.TryGetValue(
+                    propertyName,
+                    out IOpenApiSchema? propertyValue) &&
+                propertyValue is OpenApiSchema property &&
+                property.Type.HasValue)
+            {
+                property.Type &= ~JsonSchemaType.Null;
+            }
+        }
+    }
+
     private static void ApplyCreateListingTranslationSchema(
         OpenApiSchema schema)
     {
@@ -307,7 +348,8 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         {
             SetDescription(schema, "logoUrl", RelativeMediaPathDescription);
         }
-        else if (type == typeof(ListingResponse))
+        else if (type == typeof(ListingResponse) ||
+                 type == typeof(PublicListingResponse))
         {
             SetDescription(schema, "primaryImageUrl", RelativeMediaPathDescription);
         }
