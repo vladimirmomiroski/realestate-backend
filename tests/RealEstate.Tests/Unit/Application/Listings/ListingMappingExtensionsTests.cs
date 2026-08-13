@@ -397,14 +397,21 @@ public sealed class ListingMappingExtensionsTests
             Condition = PropertyCondition.Good,
             YearRenovated = 2020,
             Orientation = Orientation.SouthEast,
-            Latitude = 41.9981m,
-            Longitude = 21.4254m,
             Translations =
             [
                 CreateTranslation("mk", "МК Наслов")
             ],
             Images = []
         };
+
+        listing.ConfirmLocation(
+            41.9981m,
+            21.4254m,
+            LocationPrecision.ExactAddress,
+            "mapping-test",
+            "Opaque:Result/Reference",
+            null,
+            new DateTime(2026, 8, 13, 10, 0, 0, DateTimeKind.Utc));
 
         listing.Publish();
 

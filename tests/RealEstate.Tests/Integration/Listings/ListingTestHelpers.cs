@@ -364,6 +364,26 @@ internal static class ListingTestHelpers
         await transaction.CommitAsync();
     }
 
+    public static async Task SetLegacyCoordinatesAsync(
+        CustomWebApplicationFactory factory,
+        Guid listingId,
+        decimal latitude,
+        decimal longitude)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE "Listings"
+             SET "Latitude" = {latitude},
+                 "Longitude" = {longitude}
+             WHERE "Id" = {listingId}
+             """);
+    }
+
     private static Task EnsureFixtureTranslationsArePublicationReadyAsync(
         RealEstateDbContext dbContext,
         Guid listingId)

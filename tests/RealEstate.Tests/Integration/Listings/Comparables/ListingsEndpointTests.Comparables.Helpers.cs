@@ -84,17 +84,17 @@ public sealed partial class ListingsEndpointTests
         decimal? latitude,
         decimal? longitude)
     {
-        await using AsyncServiceScope scope =
-            _factory.Services.CreateAsyncScope();
-        RealEstateDbContext dbContext = scope.ServiceProvider
-            .GetRequiredService<RealEstateDbContext>();
-        Listing listing = await dbContext.Listings.SingleAsync(
-            current => current.Id == listingId);
+        if (!latitude.HasValue || !longitude.HasValue)
+        {
+            throw new ArgumentException(
+                "Comparable legacy coordinates must be supplied as a pair.");
+        }
 
-        listing.Latitude = latitude;
-        listing.Longitude = longitude;
-
-        await dbContext.SaveChangesAsync();
+        await ListingTestHelpers.SetLegacyCoordinatesAsync(
+            _factory,
+            listingId,
+            latitude.Value,
+            longitude.Value);
     }
 
     private async Task<Guid> CreateComparableAgencyWithOwnerAsync(

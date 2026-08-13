@@ -1,4 +1,5 @@
 ﻿using RealEstate.Domain.Enums;
+using System.Text;
 using RealEstate.Domain.Common;
 using RealEstate.Domain.Listings;
 
@@ -50,9 +51,19 @@ public class Listing : IAuditableEntity
 
     public int? YearBuilt { get; set; }
 
-    public decimal? Latitude { get; set; }
+    public decimal? Latitude { get; private set; }
 
-    public decimal? Longitude { get; set; }
+    public decimal? Longitude { get; private set; }
+
+    public LocationPrecision? LocationPrecision { get; private set; }
+
+    public string? GeocodingProviderKey { get; private set; }
+
+    public string? GeocodingResultReference { get; private set; }
+
+    public string? GeocodedDisplayName { get; private set; }
+
+    public DateTime? LocationConfirmedAtUtc { get; private set; }
 
     public DateTime CreatedAtUtc { get; set; }
 
@@ -91,6 +102,85 @@ public class Listing : IAuditableEntity
         }
 
         CreatedByUserId = userId;
+    }
+
+    public void ConfirmLocation(
+        decimal latitude,
+        decimal longitude,
+        LocationPrecision precision,
+        string geocodingProviderKey,
+        string geocodingResultReference,
+        string? geocodedDisplayName,
+        DateTime confirmedAtUtc)
+    {
+        if (latitude < ListingLocationRules.MinimumLatitude ||
+            latitude > ListingLocationRules.MaximumLatitude)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(latitude),
+                latitude,
+                $"Latitude must be between {ListingLocationRules.MinimumLatitude} and {ListingLocationRules.MaximumLatitude}.");
+        }
+
+        if (longitude < ListingLocationRules.MinimumLongitude ||
+            longitude > ListingLocationRules.MaximumLongitude)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(longitude),
+                longitude,
+                $"Longitude must be between {ListingLocationRules.MinimumLongitude} and {ListingLocationRules.MaximumLongitude}.");
+        }
+
+        if (!Enum.IsDefined(precision))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(precision),
+                precision,
+                "Location precision must be a defined value.");
+        }
+
+        ValidateCanonicalRequiredText(
+            geocodingProviderKey,
+            ListingLocationRules.GeocodingProviderKeyMaxLength,
+            nameof(geocodingProviderKey));
+        ValidateCanonicalRequiredText(
+            geocodingResultReference,
+            ListingLocationRules.GeocodingResultReferenceMaxLength,
+            nameof(geocodingResultReference));
+
+        if (geocodedDisplayName is not null)
+        {
+            ValidateCanonicalRequiredText(
+                geocodedDisplayName,
+                ListingLocationRules.GeocodedDisplayNameMaxLength,
+                nameof(geocodedDisplayName));
+        }
+
+        if (confirmedAtUtc.Kind != DateTimeKind.Utc)
+        {
+            throw new ArgumentException(
+                "Location confirmation time must be UTC.",
+                nameof(confirmedAtUtc));
+        }
+
+        Latitude = latitude;
+        Longitude = longitude;
+        LocationPrecision = precision;
+        GeocodingProviderKey = geocodingProviderKey;
+        GeocodingResultReference = geocodingResultReference;
+        GeocodedDisplayName = geocodedDisplayName;
+        LocationConfirmedAtUtc = confirmedAtUtc;
+    }
+
+    public void ClearLocation()
+    {
+        Latitude = null;
+        Longitude = null;
+        LocationPrecision = null;
+        GeocodingProviderKey = null;
+        GeocodingResultReference = null;
+        GeocodedDisplayName = null;
+        LocationConfirmedAtUtc = null;
     }
 
     public ListingPublicationReadinessResult EvaluatePublicationReadiness()
@@ -213,5 +303,30 @@ public class Listing : IAuditableEntity
         return value is not null &&
                value.Length > 0 &&
                value == ListingTranslationRules.NormalizeRequiredText(value);
+    }
+
+    private static void ValidateCanonicalRequiredText(
+        string? value,
+        int maximumLength,
+        string parameterName)
+    {
+        if (value is null ||
+            value.Length == 0 ||
+            value != ListingTranslationRules.NormalizeRequiredText(value))
+        {
+            throw new ArgumentException(
+                "Value must be nonblank and free of boundary whitespace.",
+                parameterName);
+        }
+
+        int scalarLength = value.EnumerateRunes().Count();
+
+        if (scalarLength > maximumLength)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                scalarLength,
+                $"Value cannot exceed {maximumLength} characters.");
+        }
     }
 }

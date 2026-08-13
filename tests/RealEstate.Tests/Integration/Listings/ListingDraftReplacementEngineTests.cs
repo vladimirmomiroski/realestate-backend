@@ -547,17 +547,11 @@ public sealed class ListingDraftReplacementEngineTests
         decimal latitude,
         decimal longitude)
     {
-        await using AsyncServiceScope scope =
-            _factory.Services.CreateAsyncScope();
-        RealEstateDbContext dbContext = scope.ServiceProvider
-            .GetRequiredService<RealEstateDbContext>();
-        Listing listing = await dbContext.Listings.SingleAsync(
-            current => current.Id == listingId);
-
-        listing.Latitude = latitude;
-        listing.Longitude = longitude;
-
-        await dbContext.SaveChangesAsync();
+        await ListingTestHelpers.SetLegacyCoordinatesAsync(
+            _factory,
+            listingId,
+            latitude,
+            longitude);
     }
 
     private static UpdateListingRequest CreateReplacementRequest(Listing listing)
