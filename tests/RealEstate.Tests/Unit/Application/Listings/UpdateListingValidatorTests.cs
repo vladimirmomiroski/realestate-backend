@@ -40,7 +40,16 @@ public sealed class UpdateListingValidatorTests
     {
         typeof(UpdateListingRequest).GetProperties()
             .Select(property => property.Name)
-            .Should().NotContain(["Latitude", "Longitude"]);
+            .Should().NotContain(
+            [
+                "Latitude",
+                "Longitude",
+                "LocationPrecision",
+                "GeocodingProviderKey",
+                "GeocodingResultReference",
+                "GeocodedDisplayName",
+                "LocationConfirmedAtUtc"
+            ]);
 
         typeof(UpdateListingValidator).GetFields()
             .Select(field => field.Name)

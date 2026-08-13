@@ -24,6 +24,9 @@ public sealed partial class ListingsEndpointTests
         request["longitude"] = 21.425456m;
         request["locationPrecision"] = "ExactAddress";
         request["geocodingProviderKey"] = "caller-provider";
+        request["geocodingResultReference"] = "caller-result";
+        request["geocodedDisplayName"] = "Caller display name";
+        request["locationConfirmedAtUtc"] = "2026-08-13T12:30:00Z";
 
         HttpResponseMessage response =
             await PostListingAsNewUserAsync(request);
@@ -38,6 +41,16 @@ public sealed partial class ListingsEndpointTests
             .Should().Be(JsonValueKind.Null);
         created.GetProperty("longitude").ValueKind
             .Should().Be(JsonValueKind.Null);
+        created.GetProperty("locationPrecision").ValueKind
+            .Should().Be(JsonValueKind.Null);
+        created.GetProperty("geocodedDisplayName").ValueKind
+            .Should().Be(JsonValueKind.Null);
+        created.GetProperty("locationConfirmedAtUtc").ValueKind
+            .Should().Be(JsonValueKind.Null);
+        created.TryGetProperty("geocodingProviderKey", out _)
+            .Should().BeFalse();
+        created.TryGetProperty("geocodingResultReference", out _)
+            .Should().BeFalse();
 
         (decimal? latitude, decimal? longitude) =
             await ReadPersistedCoordinatesAsync(listingId);
@@ -64,6 +77,11 @@ public sealed partial class ListingsEndpointTests
                 await GetManagementJsonAsync(listingId));
             payload["latitude"] = -12.345678m;
             payload["longitude"] = 98.765432m;
+            payload["locationPrecision"] = "ExactAddress";
+            payload["geocodingProviderKey"] = "caller-provider";
+            payload["geocodingResultReference"] = "caller-result";
+            payload["geocodedDisplayName"] = "Caller display name";
+            payload["locationConfirmedAtUtc"] = "2026-08-13T12:30:00Z";
 
             HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
                 $"/api/listings/{listingId}",
@@ -76,6 +94,16 @@ public sealed partial class ListingsEndpointTests
                 .Should().Be(originalLatitude);
             body.GetProperty("longitude").GetDecimal()
                 .Should().Be(originalLongitude);
+            body.GetProperty("locationPrecision").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            body.GetProperty("geocodedDisplayName").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            body.GetProperty("locationConfirmedAtUtc").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            body.TryGetProperty("geocodingProviderKey", out _)
+                .Should().BeFalse();
+            body.TryGetProperty("geocodingResultReference", out _)
+                .Should().BeFalse();
 
             (decimal? latitude, decimal? longitude) =
                 await ReadPersistedCoordinatesAsync(listingId);

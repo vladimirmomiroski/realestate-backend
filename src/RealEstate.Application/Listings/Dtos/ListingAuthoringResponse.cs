@@ -50,6 +50,12 @@ public sealed class ListingAuthoringResponse
 
     public decimal? Longitude { get; set; }
 
+    public LocationPrecision? LocationPrecision { get; set; }
+
+    public string? GeocodedDisplayName { get; set; }
+
+    public DateTime? LocationConfirmedAtUtc { get; set; }
+
     public ListingApartmentDetailsResponse? ApartmentDetails { get; set; }
 
     public ListingHouseDetailsResponse? HouseDetails { get; set; }

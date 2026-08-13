@@ -516,6 +516,130 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
+    public void OpenApiDocument_Chapter13H5PrivateLocationReadContract_IsNullableAndPrivate()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement schemas = document.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas");
+
+        foreach (string schemaName in new[]
+        {
+            "ListingResponse",
+            "ListingAuthoringResponse"
+        })
+        {
+            JsonElement schema = schemas.GetProperty(schemaName);
+            JsonElement properties = schema.GetProperty("properties");
+
+            foreach (string coordinate in new[] { "latitude", "longitude" })
+            {
+                JsonElement property = properties.GetProperty(coordinate);
+                property.GetProperty("type").GetString().Should().Be("number");
+                IsNullable(property).Should().BeTrue();
+            }
+
+            JsonElement precision = properties.GetProperty("locationPrecision");
+            JsonElement[] precisionAlternatives = precision
+                .GetProperty("oneOf")
+                .EnumerateArray()
+                .ToArray();
+            precisionAlternatives.Should().HaveCount(2);
+            precisionAlternatives[0]
+                .GetProperty("$ref")
+                .GetString()
+                .Should().Be("#/components/schemas/LocationPrecision");
+            IsNullable(precisionAlternatives[1]).Should().BeTrue();
+            precisionAlternatives[1].GetProperty("enum")[0].ValueKind
+                .Should().Be(JsonValueKind.Null);
+
+            AssertNullableString(schema, "geocodedDisplayName");
+
+            JsonElement confirmedAt =
+                properties.GetProperty("locationConfirmedAtUtc");
+            confirmedAt.GetProperty("type").GetString().Should().Be("string");
+            confirmedAt.GetProperty("format").GetString().Should().Be("date-time");
+            IsNullable(confirmedAt).Should().BeTrue();
+
+            properties.TryGetProperty("geocodingProviderKey", out _)
+                .Should().BeFalse();
+            properties.TryGetProperty("geocodingResultReference", out _)
+                .Should().BeFalse();
+            if (schema.TryGetProperty("required", out JsonElement required))
+            {
+                required.EnumerateArray()
+                    .Select(value => value.GetString())
+                    .Should().NotContain(
+                    [
+                        "latitude",
+                        "longitude",
+                        "locationPrecision",
+                        "geocodedDisplayName",
+                        "locationConfirmedAtUtc"
+                    ]);
+            }
+        }
+
+        schemas.GetProperty("LocationPrecision")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().BeEquivalentTo(
+                "ExactAddress",
+                "Street",
+                "Neighborhood",
+                "Municipality",
+                "City",
+                "Approximate");
+        schemas.GetRawText().Should()
+            .NotContain("geocodingProviderKey")
+            .And.NotContain("geocodingResultReference");
+
+        JsonElement publicProperties = schemas
+            .GetProperty("PublicListingResponse")
+            .GetProperty("properties");
+        publicProperties.TryGetProperty("latitude", out _).Should().BeTrue();
+        publicProperties.TryGetProperty("longitude", out _).Should().BeTrue();
+        foreach (string privateOnly in new[]
+        {
+            "locationPrecision",
+            "geocodedDisplayName",
+            "locationConfirmedAtUtc",
+            "geocodingProviderKey",
+            "geocodingResultReference"
+        })
+        {
+            publicProperties.TryGetProperty(privateOnly, out _)
+                .Should().BeFalse();
+        }
+
+        foreach (string requestName in new[]
+        {
+            "CreateListingRequest",
+            "UpdateListingRequest"
+        })
+        {
+            JsonElement requestProperties = schemas
+                .GetProperty(requestName)
+                .GetProperty("properties");
+            foreach (string readOnlyLocationMember in new[]
+            {
+                "latitude",
+                "longitude",
+                "locationPrecision",
+                "geocodedDisplayName",
+                "locationConfirmedAtUtc",
+                "geocodingProviderKey",
+                "geocodingResultReference"
+            })
+            {
+                requestProperties.TryGetProperty(readOnlyLocationMember, out _)
+                    .Should().BeFalse();
+            }
+        }
+    }
+
+    [Fact]
     public void OpenApiDocument_ListingManagementContract_IsCompleteAndTruthful()
     {
         using JsonDocument document = GetDocument();
@@ -666,8 +790,20 @@ public sealed class OpenApiDocumentTests
             "translations"
         ];
         JsonElement updateProperties = updateSchema.GetProperty("properties");
-        updateProperties.TryGetProperty("latitude", out _).Should().BeFalse();
-        updateProperties.TryGetProperty("longitude", out _).Should().BeFalse();
+        foreach (string readOnlyLocationMember in new[]
+        {
+            "latitude",
+            "longitude",
+            "locationPrecision",
+            "geocodedDisplayName",
+            "locationConfirmedAtUtc",
+            "geocodingProviderKey",
+            "geocodingResultReference"
+        })
+        {
+            updateProperties.TryGetProperty(readOnlyLocationMember, out _)
+                .Should().BeFalse();
+        }
         updateProperties.EnumerateObject().Select(property => property.Name)
             .Should().BeEquivalentTo(writableMembers);
         updateSchema.GetProperty("description").GetString()
@@ -814,8 +950,20 @@ public sealed class OpenApiDocumentTests
         JsonElement createProperties = schemas
             .GetProperty("CreateListingRequest")
             .GetProperty("properties");
-        createProperties.TryGetProperty("latitude", out _).Should().BeFalse();
-        createProperties.TryGetProperty("longitude", out _).Should().BeFalse();
+        foreach (string readOnlyLocationMember in new[]
+        {
+            "latitude",
+            "longitude",
+            "locationPrecision",
+            "geocodedDisplayName",
+            "locationConfirmedAtUtc",
+            "geocodingProviderKey",
+            "geocodingResultReference"
+        })
+        {
+            createProperties.TryGetProperty(readOnlyLocationMember, out _)
+                .Should().BeFalse();
+        }
 
         JsonElement properties = schemas
             .GetProperty("CreateListingTranslationRequest")
