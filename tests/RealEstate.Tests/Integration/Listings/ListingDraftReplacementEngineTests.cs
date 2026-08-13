@@ -14,6 +14,81 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed class ListingDraftReplacementEngineTests
     : IClassFixture<CustomWebApplicationFactory>
 {
+    private static readonly DateTime ConfirmationTime =
+        new(2026, 8, 13, 14, 0, 0, DateTimeKind.Utc);
+
+    public static TheoryData<string, string?, string?, string>
+        LocationTextChangeCases =>
+        new()
+        {
+            {
+                nameof(UpdateListingTranslationRequest.City),
+                "Skopje",
+                "Ohrid",
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.Municipality),
+                "Centar",
+                "Karpos",
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.AddressLine),
+                "Original address",
+                "Replacement address",
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.Neighborhood),
+                "Center",
+                "Debar Maalo",
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.Municipality),
+                null,
+                "Centar",
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.Municipality),
+                "Centar",
+                null,
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.AddressLine),
+                null,
+                "New address",
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.AddressLine),
+                "Address",
+                null,
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.Neighborhood),
+                null,
+                "Center",
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.Neighborhood),
+                "Center",
+                null,
+                "en"
+            },
+            {
+                nameof(UpdateListingTranslationRequest.City),
+                "Скопје",
+                "Охрид",
+                "mk"
+            }
+        };
+
     private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _httpClient;
 
@@ -114,8 +189,7 @@ public sealed class ListingDraftReplacementEngineTests
         persisted.YearRenovated.Should().BeNull();
         persisted.Orientation.Should().Be(Orientation.Unknown);
         persisted.YearBuilt.Should().BeNull();
-        persisted.Latitude.Should().Be(original.Latitude);
-        persisted.Longitude.Should().Be(original.Longitude);
+        AssertUnresolvedLocation(persisted);
 
         persisted.ApartmentDetails.Should().NotBeNull();
         persisted.ApartmentDetails!.ApartmentType.Should().Be(ApartmentType.Penthouse);
@@ -203,6 +277,199 @@ public sealed class ListingDraftReplacementEngineTests
                 translation => translation.Id,
                 StringComparer.Ordinal)
             .Should().BeEquivalentTo(idsByLanguage);
+    }
+
+    [Theory]
+    [MemberData(nameof(LocationTextChangeCases))]
+    public async Task ApplyAndPersist_LocationTextChangeClearsConfirmedSnapshot(
+        string field,
+        string? oldValue,
+        string? newValue,
+        string languageCode)
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                SetLocationText(request, languageCode, field, oldValue);
+                return request;
+            });
+        await ConfirmLocationAsync(listingId);
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                SetLocationText(request, languageCode, field, newValue);
+                return request;
+            });
+
+        AssertUnresolvedLocation(await ReadListingAsync(listingId));
+    }
+
+    [Fact]
+    public async Task ApplyAndPersist_LocationTextChangeClearsLegacyCoordinates()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await SetCoordinatesAsync(listingId, 41.9981m, 21.4254m);
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                request.Translations
+                    .Single(translation => translation.LanguageCode == "en")
+                    .City = "Ohrid";
+                return request;
+            });
+
+        AssertUnresolvedLocation(await ReadListingAsync(listingId));
+    }
+
+    [Fact]
+    public async Task ApplyAndPersist_AddedLanguageClearsConfirmedSnapshot()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await ConfirmLocationAsync(listingId);
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                request.Translations.Add(CreateTranslation("sq", "Titull"));
+                return request;
+            });
+
+        AssertUnresolvedLocation(await ReadListingAsync(listingId));
+    }
+
+    [Fact]
+    public async Task ApplyAndPersist_RemovedLanguageClearsLegacyCoordinates()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await SetCoordinatesAsync(listingId, 41.9981m, 21.4254m);
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                request.Translations.RemoveAll(
+                    translation => translation.LanguageCode == "mk");
+                return request;
+            });
+
+        AssertUnresolvedLocation(await ReadListingAsync(listingId));
+    }
+
+    [Fact]
+    public async Task ApplyAndPersist_ReorderedTranslationsPreserveConfirmedSnapshot()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await ConfirmLocationAsync(listingId);
+        LocationSnapshot original = CaptureLocation(
+            await ReadListingAsync(listingId));
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                request.Translations.Reverse();
+                return request;
+            });
+
+        CaptureLocation(await ReadListingAsync(listingId)).Should().Be(original);
+    }
+
+    [Theory]
+    [InlineData("title")]
+    [InlineData("description")]
+    [InlineData("root")]
+    [InlineData("canonical-location")]
+    public async Task ApplyAndPersist_NonLocationOrCanonicalNoOpPreservesConfirmedSnapshot(
+        string change)
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await ConfirmLocationAsync(listingId);
+        LocationSnapshot original = CaptureLocation(
+            await ReadListingAsync(listingId));
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                UpdateListingTranslationRequest english = request.Translations
+                    .Single(translation => translation.LanguageCode == "en");
+
+                switch (change)
+                {
+                    case "title":
+                        english.Title = "Changed title";
+                        break;
+                    case "description":
+                        english.Description = "Changed description";
+                        break;
+                    case "root":
+                        request.Price += 10_000m;
+                        break;
+                    case "canonical-location":
+                        AddCanonicalBoundaryWhitespace(request.Translations);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(change));
+                }
+
+                return request;
+            });
+
+        CaptureLocation(await ReadListingAsync(listingId)).Should().Be(original);
+    }
+
+    [Fact]
+    public async Task ApplyAndPersist_CanonicalLocationNoOpPreservesLegacyCoordinates()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await SetCoordinatesAsync(listingId, 41.9981m, 21.4254m);
+        LocationSnapshot original = CaptureLocation(
+            await ReadListingAsync(listingId));
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                AddCanonicalBoundaryWhitespace(request.Translations);
+                return request;
+            });
+
+        CaptureLocation(await ReadListingAsync(listingId)).Should().Be(original);
+    }
+
+    [Fact]
+    public async Task ApplyAndPersist_LocationTextChangeKeepsUnresolvedListingUnresolved()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        await ApplyAndCommitAsync(
+            listingId,
+            listing =>
+            {
+                UpdateListingRequest request = CreateReplacementRequest(listing);
+                request.Translations
+                    .Single(translation => translation.LanguageCode == "en")
+                    .City = "Ohrid";
+                return request;
+            });
+
+        AssertUnresolvedLocation(await ReadListingAsync(listingId));
     }
 
     [Fact]
@@ -343,7 +610,9 @@ public sealed class ListingDraftReplacementEngineTests
     {
         Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
         Guid imageId = await AddImageAsync(listingId);
+        await ConfirmLocationAsync(listingId);
         Listing original = await ReadListingAsync(listingId);
+        LocationSnapshot originalLocation = CaptureLocation(original);
 
         await using (AsyncServiceScope serviceScope =
             _factory.Services.CreateAsyncScope())
@@ -414,6 +683,7 @@ public sealed class ListingDraftReplacementEngineTests
         persisted.ApartmentDetails.Should().NotBeNull();
         persisted.HouseDetails.Should().BeNull();
         persisted.Images.Should().ContainSingle(image => image.Id == imageId);
+        CaptureLocation(persisted).Should().Be(originalLocation);
         await AssertSubtypeRowsAsync(
             listingId,
             expectedApartmentRows: 1,
@@ -424,6 +694,7 @@ public sealed class ListingDraftReplacementEngineTests
     public async Task Apply_WhenListingIsNotDraft_RejectsBeforeMutation()
     {
         Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await ConfirmLocationAsync(listingId);
         await ListingTestHelpers.SetListingStatusAsync(
             _factory,
             listingId,
@@ -451,6 +722,8 @@ public sealed class ListingDraftReplacementEngineTests
             apply.Should().Throw<InvalidOperationException>()
                 .WithMessage("Only draft listings can be replaced.");
             writeScope.Listing.Price.Should().Be(original.Price);
+            CaptureLocation(writeScope.Listing).Should().Be(
+                CaptureLocation(original));
         }
     }
 
@@ -554,6 +827,97 @@ public sealed class ListingDraftReplacementEngineTests
             longitude);
     }
 
+    private async Task ConfirmLocationAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        Listing listing = await dbContext.Listings.SingleAsync(
+            current => current.Id == listingId);
+
+        listing.ConfirmLocation(
+            41.9981m,
+            21.4254m,
+            LocationPrecision.ExactAddress,
+            "replacement-test",
+            "Opaque/Replacement:ABC-123",
+            "Confirmed replacement test location",
+            ConfirmationTime);
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static void SetLocationText(
+        UpdateListingRequest request,
+        string languageCode,
+        string field,
+        string? value)
+    {
+        UpdateListingTranslationRequest translation = request.Translations
+            .Single(current => current.LanguageCode == languageCode);
+
+        switch (field)
+        {
+            case nameof(UpdateListingTranslationRequest.City):
+                translation.City = value;
+                break;
+            case nameof(UpdateListingTranslationRequest.Municipality):
+                translation.Municipality = value;
+                break;
+            case nameof(UpdateListingTranslationRequest.AddressLine):
+                translation.AddressLine = value;
+                break;
+            case nameof(UpdateListingTranslationRequest.Neighborhood):
+                translation.Neighborhood = value;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(field),
+                    field,
+                    "Unknown location-text field.");
+        }
+    }
+
+    private static void AddCanonicalBoundaryWhitespace(
+        IEnumerable<UpdateListingTranslationRequest> translations)
+    {
+        foreach (UpdateListingTranslationRequest translation in translations)
+        {
+            translation.City = AddCanonicalBoundaryWhitespace(translation.City);
+            translation.Municipality =
+                AddCanonicalBoundaryWhitespace(translation.Municipality);
+            translation.AddressLine =
+                AddCanonicalBoundaryWhitespace(translation.AddressLine);
+            translation.Neighborhood =
+                AddCanonicalBoundaryWhitespace(translation.Neighborhood);
+        }
+    }
+
+    private static string? AddCanonicalBoundaryWhitespace(string? value)
+    {
+        return value is null
+            ? null
+            : $"\u00A0{value}\u3000";
+    }
+
+    private static LocationSnapshot CaptureLocation(Listing listing)
+    {
+        return new LocationSnapshot(
+            listing.Latitude,
+            listing.Longitude,
+            listing.LocationPrecision,
+            listing.GeocodingProviderKey,
+            listing.GeocodingResultReference,
+            listing.GeocodedDisplayName,
+            listing.LocationConfirmedAtUtc);
+    }
+
+    private static void AssertUnresolvedLocation(Listing listing)
+    {
+        CaptureLocation(listing).Should().Be(LocationSnapshot.Unresolved);
+    }
+
     private static UpdateListingRequest CreateReplacementRequest(Listing listing)
     {
         return new UpdateListingRequest
@@ -624,5 +988,24 @@ public sealed class ListingDraftReplacementEngineTests
             Municipality = municipality,
             Neighborhood = neighborhood
         };
+    }
+
+    private sealed record LocationSnapshot(
+        decimal? Latitude,
+        decimal? Longitude,
+        LocationPrecision? Precision,
+        string? ProviderKey,
+        string? ResultReference,
+        string? DisplayName,
+        DateTime? ConfirmedAtUtc)
+    {
+        public static LocationSnapshot Unresolved { get; } = new(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
     }
 }
