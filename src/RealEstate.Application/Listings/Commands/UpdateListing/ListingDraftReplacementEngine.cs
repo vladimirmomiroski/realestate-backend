@@ -22,11 +22,66 @@ public sealed class ListingDraftReplacementEngine
                 "Only draft listings can be replaced.");
         }
 
+        bool locationTextChanged = HasLocationTextChanged(
+            listing.Translations,
+            request.Translations);
+
+        if (locationTextChanged)
+        {
+            listing.ClearLocation();
+        }
+
         ApplyRoot(listing, request);
         ReconcileTranslations(writeScope, request.Translations);
         ReplaceSubtypeDetails(listing, request);
 
         writeScope.MarkListingModified();
+    }
+
+    private static bool HasLocationTextChanged(
+        IEnumerable<ListingTranslation> existingTranslations,
+        IEnumerable<UpdateListingTranslationRequest> requestedTranslations)
+    {
+        Dictionary<string, LocationText> existingByLanguage =
+            existingTranslations.ToDictionary(
+                translation => ListingTranslationRules.NormalizeLanguageCode(
+                    translation.LanguageCode),
+                translation => LocationText.From(
+                    translation.City,
+                    translation.Municipality,
+                    translation.AddressLine,
+                    translation.Neighborhood),
+                StringComparer.Ordinal);
+
+        Dictionary<string, LocationText> requestedByLanguage =
+            requestedTranslations.ToDictionary(
+                translation => ListingTranslationRules.NormalizeLanguageCode(
+                    translation.LanguageCode),
+                translation => LocationText.From(
+                    translation.City,
+                    translation.Municipality,
+                    translation.AddressLine,
+                    translation.Neighborhood),
+                StringComparer.Ordinal);
+
+        if (existingByLanguage.Count != requestedByLanguage.Count)
+        {
+            return true;
+        }
+
+        foreach ((string languageCode, LocationText existing) in
+            existingByLanguage)
+        {
+            if (!requestedByLanguage.TryGetValue(
+                    languageCode,
+                    out LocationText? requested) ||
+                existing != requested)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void ApplyRoot(
@@ -153,5 +208,25 @@ public sealed class ListingDraftReplacementEngine
         listing.HouseDetails.NumberOfFloors = houseRequested.NumberOfFloors;
         listing.HouseDetails.YardAreaSquareMeters =
             houseRequested.YardAreaSquareMeters;
+    }
+
+    private sealed record LocationText(
+        string? City,
+        string? Municipality,
+        string? AddressLine,
+        string? Neighborhood)
+    {
+        public static LocationText From(
+            string? city,
+            string? municipality,
+            string? addressLine,
+            string? neighborhood)
+        {
+            return new LocationText(
+                ListingTranslationRules.NormalizeOptionalText(city),
+                ListingTranslationRules.NormalizeOptionalText(municipality),
+                ListingTranslationRules.NormalizeOptionalText(addressLine),
+                ListingTranslationRules.NormalizeOptionalText(neighborhood));
+        }
     }
 }
