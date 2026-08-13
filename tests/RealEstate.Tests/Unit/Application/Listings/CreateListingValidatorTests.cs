@@ -39,7 +39,16 @@ public sealed class CreateListingValidatorTests
     {
         typeof(CreateListingRequest).GetProperties()
             .Select(property => property.Name)
-            .Should().NotContain(["Latitude", "Longitude"]);
+            .Should().NotContain(
+            [
+                "Latitude",
+                "Longitude",
+                "LocationPrecision",
+                "GeocodingProviderKey",
+                "GeocodingResultReference",
+                "GeocodedDisplayName",
+                "LocationConfirmedAtUtc"
+            ]);
 
         typeof(CreateListingValidator).GetFields()
             .Select(field => field.Name)

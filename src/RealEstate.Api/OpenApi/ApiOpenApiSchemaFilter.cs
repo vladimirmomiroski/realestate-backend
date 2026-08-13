@@ -62,6 +62,15 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
                 "title");
         }
 
+        if (context.Type == typeof(ListingResponse) ||
+            context.Type == typeof(ListingAuthoringResponse))
+        {
+            WrapNullableReference(
+                mutableSchema,
+                "locationPrecision",
+                "Nullable provider-neutral precision of a confirmed location snapshot.");
+        }
+
         if (context.Type == typeof(CreateListingTranslationRequest))
         {
             ApplyCreateListingTranslationSchema(mutableSchema);

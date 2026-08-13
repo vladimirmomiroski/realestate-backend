@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Mappings;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
@@ -373,6 +374,66 @@ public sealed class ListingMappingExtensionsTests
         response.HouseDetails.NumberOfFloors.Should().Be(2);
         response.HouseDetails.YardAreaSquareMeters.Should().Be(350m);
         response.ApartmentDetails.Should().BeNull();
+    }
+
+    [Fact]
+    public void ToResponse_ShouldMapConfirmedLocationSnapshot()
+    {
+        Listing listing = CreateBaseListing();
+
+        ListingResponse response = listing.ToResponse("mk");
+
+        response.Latitude.Should().Be(41.9981m);
+        response.Longitude.Should().Be(21.4254m);
+        response.LocationPrecision.Should().Be(LocationPrecision.ExactAddress);
+        response.GeocodedDisplayName.Should().BeNull();
+        response.LocationConfirmedAtUtc.Should().Be(
+            new DateTime(2026, 8, 13, 10, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public void ToResponse_ShouldMapUnresolvedLocationSnapshot()
+    {
+        Listing listing = CreateBaseListing();
+        listing.ClearLocation();
+
+        ListingResponse response = listing.ToResponse("mk");
+
+        response.Latitude.Should().BeNull();
+        response.Longitude.Should().BeNull();
+        response.LocationPrecision.Should().BeNull();
+        response.GeocodedDisplayName.Should().BeNull();
+        response.LocationConfirmedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    public void ToAuthoringResponse_ShouldMapConfirmedLocationSnapshot()
+    {
+        Listing listing = CreateBaseListing();
+
+        ListingAuthoringResponse response = listing.ToAuthoringResponse();
+
+        response.Latitude.Should().Be(41.9981m);
+        response.Longitude.Should().Be(21.4254m);
+        response.LocationPrecision.Should().Be(LocationPrecision.ExactAddress);
+        response.GeocodedDisplayName.Should().BeNull();
+        response.LocationConfirmedAtUtc.Should().Be(
+            new DateTime(2026, 8, 13, 10, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public void ToAuthoringResponse_ShouldMapUnresolvedLocationSnapshot()
+    {
+        Listing listing = CreateBaseListing();
+        listing.ClearLocation();
+
+        ListingAuthoringResponse response = listing.ToAuthoringResponse();
+
+        response.Latitude.Should().BeNull();
+        response.Longitude.Should().BeNull();
+        response.LocationPrecision.Should().BeNull();
+        response.GeocodedDisplayName.Should().BeNull();
+        response.LocationConfirmedAtUtc.Should().BeNull();
     }
 
     private static Listing CreateBaseListing()

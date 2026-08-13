@@ -35,6 +35,9 @@ public static class ListingAuthoringMappingExtensions
             YearBuilt = listing.YearBuilt,
             Latitude = listing.Latitude,
             Longitude = listing.Longitude,
+            LocationPrecision = listing.LocationPrecision,
+            GeocodedDisplayName = listing.GeocodedDisplayName,
+            LocationConfirmedAtUtc = listing.LocationConfirmedAtUtc,
             ApartmentDetails = listing.ApartmentDetails is null
                 ? null
                 : new ListingApartmentDetailsResponse
