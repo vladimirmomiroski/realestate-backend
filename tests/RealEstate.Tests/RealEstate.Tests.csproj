@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\RealEstate.Api\RealEstate.Api.csproj" />
+    <ProjectReference Include="..\..\tools\RealEstate.QueryReview\RealEstate.QueryReview.csproj" />
   </ItemGroup>
 
 </Project>

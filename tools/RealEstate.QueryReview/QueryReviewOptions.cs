@@ -31,7 +31,8 @@ internal sealed record QueryReviewOptions(
         "  dotnet run --project tools/RealEstate.QueryReview -- doctor " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- profile create " +
-        "--connection-string \"<connection-string>\" --confirm-disposable\n" +
+        "--connection-string \"<connection-string>\" --confirm-disposable " +
+        "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- profile verify " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- capture-sql " +
@@ -193,15 +194,22 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
-        if (command == QueryReviewCommand.BaselineRun && string.IsNullOrWhiteSpace(containerName))
+        if ((command is QueryReviewCommand.ProfileCreate or QueryReviewCommand.BaselineRun) &&
+            string.IsNullOrWhiteSpace(containerName))
         {
-            error = $"The official baseline command requires '{ContainerNameOption}'.";
+            error =
+                $"'{FormatCommand(command)}' requires '{ContainerNameOption}' to identify " +
+                "the exact running disposable PostgreSQL container.";
             return false;
         }
 
-        if (command != QueryReviewCommand.BaselineRun && containerName is not null)
+        if (command is not QueryReviewCommand.ProfileCreate and
+            not QueryReviewCommand.BaselineRun &&
+            containerName is not null)
         {
-            error = $"Option '{ContainerNameOption}' is valid only for 'baseline run'.";
+            error =
+                $"Option '{ContainerNameOption}' is valid only for 'profile create' and " +
+                "'baseline run'.";
             return false;
         }
 
@@ -308,6 +316,8 @@ internal sealed record QueryReviewOptions(
     {
         return command switch
         {
+            QueryReviewCommand.ProfileCreate => "profile create",
+            QueryReviewCommand.BaselineRun => "baseline run",
             QueryReviewCommand.BaselineVerify => "baseline verify",
             QueryReviewCommand.BaselineExport => "baseline export",
             _ => command.ToString()

@@ -12,12 +12,25 @@ dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj 
   --confirm-disposable
 ```
 
-Create the deterministic profile only in a fresh disposable database. The command applies the existing committed EF migrations and then inserts and transactionally verifies the profile described in [profile.md](profile.md):
+Create the deterministic profile only in a fresh local disposable Docker container. Start the repository-supported PostgreSQL image with automatic removal and an explicit local published port:
+
+```powershell
+docker run --rm -d --name realestate-queryreview-postgres16 `
+  -e POSTGRES_PASSWORD=<password> `
+  -e POSTGRES_DB=realestate_queryreview_local `
+  -p 55442:5432 `
+  postgres:16-alpine
+```
+
+`profile create` requires the exact container name and, before opening any database connection, inspects the current Docker context and that container. It accepts only a local named-pipe/Unix-socket Docker engine, the exact running `postgres:16-alpine` container with Docker `AutoRemove` enabled, and `localhost`, `127.0.0.1`, or `::1` when the supplied connection port matches that container's unambiguous published `5432/tcp` host port. The database-name prefix and `--confirm-disposable` remain additional safeguards; neither is treated as container ownership proof. Remote Docker contexts, remote database hosts, stopped or persistent containers, and endpoint mismatches fail before migrations or other database access.
+
+After structural ownership verification, the command applies the existing committed EF migrations, inserts and transactionally verifies the profile described in [profile.md](profile.md), normalizes the seeded `Listings` heap with `VACUUM FULL (ANALYZE)`, and verifies the same 61 logical invariants again. This rewrite is benchmark-profile preparation only, not production database maintenance guidance. It removes deterministic MVCC/index bloat from integrity-aware bulk seeding before later plan and timing capture; it does not bypass the production integrity triggers or change logical profile data.
 
 ```powershell
 dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -- profile create `
-  --connection-string "Host=localhost;Port=5432;Database=realestate_queryreview_local;Username=postgres;Password=<password>" `
-  --confirm-disposable
+  --connection-string "Host=localhost;Port=55442;Database=realestate_queryreview_local;Username=postgres;Password=<password>" `
+  --confirm-disposable `
+  --container-name realestate-queryreview-postgres16
 ```
 
 Verify an existing profile separately with SELECT-only checks. This command does not apply migrations or change data:

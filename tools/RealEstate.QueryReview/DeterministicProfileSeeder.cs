@@ -2,6 +2,12 @@ using Npgsql;
 
 namespace RealEstate.QueryReview;
 
+internal sealed record ListingPhysicalProfile(long HeapBytes, long HeapPages);
+
+internal sealed record ListingPhysicalNormalizationResult(
+    ListingPhysicalProfile Before,
+    ListingPhysicalProfile After);
+
 internal static class DeterministicProfileSeeder
 {
     public const int CSharpSeed = 1_042_001;
@@ -46,6 +52,46 @@ internal static class DeterministicProfileSeeder
         await transaction.CommitAsync(cancellationToken);
 
         return verification;
+    }
+
+    public static async Task<ListingPhysicalNormalizationResult> NormalizePhysicalProfileAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await ReadListingPhysicalProfileAsync(connection, cancellationToken);
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandTimeout = 600;
+            command.CommandText = "VACUUM (FULL, ANALYZE) public.\"Listings\";";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var after = await ReadListingPhysicalProfileAsync(connection, cancellationToken);
+        return new ListingPhysicalNormalizationResult(before, after);
+    }
+
+    private static async Task<ListingPhysicalProfile> ReadListingPhysicalProfileAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT pg_relation_size('public."Listings"'::regclass),
+                   ceil(pg_relation_size('public."Listings"'::regclass) / 8192.0)::bigint;
+            """;
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new ProfileInvariantException(
+                "PostgreSQL returned no Listings physical-profile measurement.");
+        }
+
+        return new ListingPhysicalProfile(reader.GetInt64(0), reader.GetInt64(1));
     }
 
     private static async Task EnsurePublicationIntegritySchemaAsync(
