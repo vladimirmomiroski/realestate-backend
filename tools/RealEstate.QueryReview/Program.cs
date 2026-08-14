@@ -104,10 +104,23 @@ internal static class Program
 
         Console.WriteLine("Disposable-database confirmation: accepted.");
         Console.WriteLine($"Future output directory: {options.OutputDirectory}");
-        Console.WriteLine("Opening the requested database through RealEstateDbContext and Npgsql...");
 
         try
         {
+            if (options.Command == QueryReviewCommand.ProfileCreate)
+            {
+                Console.WriteLine(
+                    "Verifying local disposable PostgreSQL container endpoint ownership...");
+                await DisposablePostgreSqlContainerVerifier.VerifyAsync(
+                    connectionStringBuilder,
+                    options.ContainerName!);
+                Console.WriteLine(
+                    "Disposable container endpoint ownership: verified before database access.");
+            }
+
+            Console.WriteLine(
+                "Opening the requested database through RealEstateDbContext and Npgsql...");
+
             var dbContextOptions = new DbContextOptionsBuilder<RealEstateDbContext>()
                 .UseNpgsql(options.ConnectionString!)
                 .Options;
@@ -354,9 +367,32 @@ internal static class Program
         Console.WriteLine("Creating deterministic set-based profile...");
 
         var profileStopwatch = Stopwatch.StartNew();
-        var verification = await DeterministicProfileSeeder.CreateAsync(connection);
+        var beforeNormalizationVerification = await DeterministicProfileSeeder.CreateAsync(connection);
+        beforeNormalizationVerification.EnsureValid();
+
+        Console.WriteLine(
+            $"Logical profile before physical normalization: SUCCESS " +
+            $"({beforeNormalizationVerification.Invariants.Count}/" +
+            $"{beforeNormalizationVerification.Invariants.Count} invariants).");
+        Console.WriteLine(
+            "Normalizing the disposable Listings heap with " +
+            "VACUUM FULL (ANALYZE)...");
+
+        var normalization = await DeterministicProfileSeeder.NormalizePhysicalProfileAsync(
+            connection);
+        var verification = await ProfileInvariants.VerifyAsync(connection);
+        verification.EnsureValid();
         profileStopwatch.Stop();
 
+        Console.WriteLine(
+            $"Listings physical profile: " +
+            $"before={normalization.Before.HeapBytes:N0} bytes/" +
+            $"{normalization.Before.HeapPages:N0} pages; " +
+            $"after={normalization.After.HeapBytes:N0} bytes/" +
+            $"{normalization.After.HeapPages:N0} pages.");
+        Console.WriteLine(
+            $"Logical profile after physical normalization: SUCCESS " +
+            $"({verification.Invariants.Count}/{verification.Invariants.Count} invariants).");
         PrintInvariantTotals(verification);
         Console.WriteLine($"Profile creation duration: {profileStopwatch.Elapsed}.");
         Console.WriteLine("Profile create result: SUCCESS. All exact invariants passed.");
@@ -593,8 +629,8 @@ internal static class Program
             case QueryReviewCommand.ProfileCreate:
                 Console.WriteLine(
                     "No migration was created, and no SQL capture, EXPLAIN, benchmark, or index " +
-                    "operation occurred. This command may only apply existing migrations and seed " +
-                    "the deterministic profile.");
+                    "operation occurred. This command may only apply existing migrations, seed " +
+                    "the deterministic profile, and normalize its disposable Listings heap.");
                 break;
 
             case QueryReviewCommand.ProfileVerify:

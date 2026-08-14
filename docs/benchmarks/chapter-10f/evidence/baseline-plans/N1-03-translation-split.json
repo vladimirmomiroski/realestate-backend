@@ -5,11 +5,11 @@
       "Parallel Aware": false,
       "Async Capable": false,
       "Startup Cost": 17.16,
-      "Total Cost": 328.28,
+      "Total Cost": 328.15,
       "Plan Rows": 40,
       "Plan Width": 168,
-      "Actual Startup Time": 0.158,
-      "Actual Total Time": 0.180,
+      "Actual Startup Time": 0.156,
+      "Actual Total Time": 0.178,
       "Actual Rows": 40,
       "Actual Loops": 1,
       "Sort Key": ["l0.\"ListingId\"", "l0.\"Id\""],
@@ -40,11 +40,11 @@
           "Async Capable": false,
           "Join Type": "Inner",
           "Startup Cost": 0.84,
-          "Total Cost": 327.18,
+          "Total Cost": 327.05,
           "Plan Rows": 40,
           "Plan Width": 168,
-          "Actual Startup Time": 0.046,
-          "Actual Total Time": 0.138,
+          "Actual Startup Time": 0.044,
+          "Actual Total Time": 0.130,
           "Actual Rows": 40,
           "Actual Loops": 1,
           "Inner Unique": false,
@@ -72,8 +72,8 @@
               "Total Cost": 88.70,
               "Plan Rows": 20,
               "Plan Width": 16,
-              "Actual Startup Time": 0.027,
-              "Actual Total Time": 0.056,
+              "Actual Startup Time": 0.026,
+              "Actual Total Time": 0.052,
               "Actual Rows": 20,
               "Actual Loops": 1,
               "Index Cond": "(\"Id\" = ANY ('{40000000-0000-0000-0000-000000000bd7,40000000-0000-0000-0000-000000000bd6,40000000-0000-0000-0000-000000000bd5,40000000-0000-0000-0000-000000000bd4,40000000-0000-0000-0000-000000000bd3,40000000-0000-0000-0000-000000000bd2,40000000-0000-0000-0000-000000000bd1,40000000-0000-0000-0000-000000000bd0,40000000-0000-0000-0000-000000000bcf,40000000-0000-0000-0000-000000000bce,40000000-0000-0000-0000-000000000bcd,40000000-0000-0000-0000-000000000bcc,40000000-0000-0000-0000-000000000bcb,40000000-0000-0000-0000-000000000bca,40000000-0000-0000-0000-000000000bc9,40000000-0000-0000-0000-000000000bc8,40000000-0000-0000-0000-000000000bc7,40000000-0000-0000-0000-000000000bc6,40000000-0000-0000-0000-000000000bc5,40000000-0000-0000-0000-000000000bc4}'::uuid[]))",
@@ -138,9 +138,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.366,
+    "Planning Time": 0.444,
     "Triggers": [
     ],
-    "Execution Time": 0.252
+    "Execution Time": 0.251
   }
 ]

@@ -1,6 +1,6 @@
 {
-  "BaselineRunId": "chapter-10f-v1-baseline-20260721T201941Z-db3ad322",
-  "VerifiedAtUtc": "2026-07-21T20:21:59.3790769Z",
+  "BaselineRunId": "chapter-10f-v1-baseline-20260814T112202Z-2925368b",
+  "VerifiedAtUtc": "2026-08-14T11:23:03.8613706Z",
   "CommandCount": 33,
   "SampleCount": 198,
   "Commands": [
@@ -10,23 +10,23 @@
       "ShapeSequence": 1,
       "CommandRole": "filtered-count",
       "PlanningTimeMedian": {
-        "Value": 0.071,
-        "RunNumber": 4
+        "Value": 0.083,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 21.381,
-        "RunNumber": 5
+        "Value": 20.685,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2447,
+        "Value": 2448,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/N1-01-filtered-count/run-5.json",
-      "ExecutionMedianPlanSha256": "da8a61b1969d78f555707f1700f101231b2baa72299bcfd6406ccc92b38fba29",
+      "ExecutionMedianPlanPath": "raw-plans/N1-01-filtered-count/run-4.json",
+      "ExecutionMedianPlanSha256": "5817804709c62b02c2945e9793c20a432273e8727582ff8ddea5afdde03c83b2",
       "AnySpill": false,
       "ScanTypes": [
         "Seq Scan"
@@ -41,23 +41,23 @@
       "ShapeSequence": 2,
       "CommandRole": "page-root",
       "PlanningTimeMedian": {
-        "Value": 0.482,
-        "RunNumber": 2
+        "Value": 0.647,
+        "RunNumber": 5
       },
       "ExecutionTimeMedian": {
-        "Value": 56.460,
-        "RunNumber": 2
+        "Value": 57.451,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2592,
+        "Value": 2593,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/N1-02-page-root/run-2.json",
-      "ExecutionMedianPlanSha256": "da48a0d3ad996d169409af3dd4c6b14d648f5b85dab2de615fb5f8f701e9c456",
+      "ExecutionMedianPlanPath": "raw-plans/N1-02-page-root/run-1.json",
+      "ExecutionMedianPlanSha256": "4cf9213d9ab14a55e2d3baf5e37f5bb29837a50e14477b5eaa4d7e0832fe84ab",
       "AnySpill": false,
       "ScanTypes": [
         "Index Scan",
@@ -80,12 +80,12 @@
       "ShapeSequence": 3,
       "CommandRole": "translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.366,
-        "RunNumber": 2
+        "Value": 0.381,
+        "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 0.252,
-        "RunNumber": 2
+        "Value": 0.251,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
         "Value": 161,
@@ -95,8 +95,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/N1-03-translation-split/run-2.json",
-      "ExecutionMedianPlanSha256": "4cda515a9314a4c1b7942fb96cc4958d632b0882fc460a8f6ded6f6a08a4c6aa",
+      "ExecutionMedianPlanPath": "raw-plans/N1-03-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "dd4f81cb03e022ee2307d182994bd2e42dc2748b2a3d16850e3a6f793ba17be5",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -117,11 +117,11 @@
       "ShapeSequence": 4,
       "CommandRole": "image-split",
       "PlanningTimeMedian": {
-        "Value": 0.364,
-        "RunNumber": 5
+        "Value": 0.515,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 0.249,
+        "Value": 0.199,
         "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
@@ -133,7 +133,7 @@
         "RunNumber": 3
       },
       "ExecutionMedianPlanPath": "raw-plans/N1-04-image-split/run-1.json",
-      "ExecutionMedianPlanSha256": "f4b06549449b0a5bc12297f74cf268d9e35888396f7ce10a708f03cca0d8f631",
+      "ExecutionMedianPlanSha256": "616fa41ab1ff8fb2ec484d8bfcd6f0c5e71282b2e0bf2c6310121a49c23b6dc6",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -154,23 +154,23 @@
       "ShapeSequence": 1,
       "CommandRole": "filtered-count",
       "PlanningTimeMedian": {
-        "Value": 0.085,
+        "Value": 0.083,
         "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 19.379,
-        "RunNumber": 3
+        "Value": 19.391,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2447,
+        "Value": 2448,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P1-01-filtered-count/run-3.json",
-      "ExecutionMedianPlanSha256": "8455ca64194739a2d902d08222ae8c14f1d1e3bcd97632b96e5eba024e5db9e2",
+      "ExecutionMedianPlanPath": "raw-plans/P1-01-filtered-count/run-4.json",
+      "ExecutionMedianPlanSha256": "e39540af6cde6d504667d2ccceb887dfb14fa6e49403f024f13706676ab8fd3b",
       "AnySpill": false,
       "ScanTypes": [
         "Seq Scan"
@@ -185,23 +185,23 @@
       "ShapeSequence": 2,
       "CommandRole": "page-root",
       "PlanningTimeMedian": {
-        "Value": 0.485,
-        "RunNumber": 4
-      },
-      "ExecutionTimeMedian": {
-        "Value": 40.688,
+        "Value": 0.667,
         "RunNumber": 1
       },
+      "ExecutionTimeMedian": {
+        "Value": 36.323,
+        "RunNumber": 4
+      },
       "SharedAccessBlocksMedian": {
-        "Value": 2547,
+        "Value": 2548,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P1-02-page-root/run-1.json",
-      "ExecutionMedianPlanSha256": "ae23657b6d91914d1c62b1e7c5ffc36d0f97cc386742110d4593ba6989178fc1",
+      "ExecutionMedianPlanPath": "raw-plans/P1-02-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "75d794fa6b889ef491b173f42bf15973deccca3504a6fa6e8353a0a1b761be6d",
       "AnySpill": false,
       "ScanTypes": [
         "Index Scan",
@@ -224,12 +224,12 @@
       "ShapeSequence": 3,
       "CommandRole": "translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.324,
-        "RunNumber": 4
+        "Value": 0.460,
+        "RunNumber": 1
       },
       "ExecutionTimeMedian": {
-        "Value": 0.365,
-        "RunNumber": 3
+        "Value": 0.389,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
         "Value": 161,
@@ -239,8 +239,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P1-03-translation-split/run-3.json",
-      "ExecutionMedianPlanSha256": "a96a0d47b90158dd1a0202af57ef6d9cc1fe17064618553a5cc6ffd0ce2d62bc",
+      "ExecutionMedianPlanPath": "raw-plans/P1-03-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "3aff11f60f79467eba540a3222f5265de90bbcced6116d1004c8eb8d472b605f",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -261,12 +261,12 @@
       "ShapeSequence": 4,
       "CommandRole": "image-split",
       "PlanningTimeMedian": {
-        "Value": 0.359,
+        "Value": 0.485,
         "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 0.253,
-        "RunNumber": 5
+        "Value": 0.310,
+        "RunNumber": 3
       },
       "SharedAccessBlocksMedian": {
         "Value": 121,
@@ -276,8 +276,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P1-04-image-split/run-5.json",
-      "ExecutionMedianPlanSha256": "2a779e527c2bf68000610a81bf083d2691179c1e92ac1b3fdfcfbb1e83d3f3bc",
+      "ExecutionMedianPlanPath": "raw-plans/P1-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "fe268f010c3e5ef598615b39f06c37ff84c3c0b6f5dc49f485d5d1dc7d3e32a0",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -298,23 +298,23 @@
       "ShapeSequence": 1,
       "CommandRole": "filtered-count",
       "PlanningTimeMedian": {
-        "Value": 0.076,
-        "RunNumber": 5
+        "Value": 0.089,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 18.352,
-        "RunNumber": 5
+        "Value": 17.804,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2447,
+        "Value": 2448,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P2-01-filtered-count/run-5.json",
-      "ExecutionMedianPlanSha256": "6b4a85534ec8e1eed418376356f1c9b876e7a8f1ec02b80a63d75ecff38892d3",
+      "ExecutionMedianPlanPath": "raw-plans/P2-01-filtered-count/run-4.json",
+      "ExecutionMedianPlanSha256": "e5841c8eff7175f0e2bb892e6d3484cef5a5c1988a67a4b075ee5f56d5a3ed9e",
       "AnySpill": false,
       "ScanTypes": [
         "Seq Scan"
@@ -329,23 +329,23 @@
       "ShapeSequence": 2,
       "CommandRole": "page-root",
       "PlanningTimeMedian": {
-        "Value": 0.424,
-        "RunNumber": 5
+        "Value": 0.630,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 36.412,
-        "RunNumber": 3
+        "Value": 35.765,
+        "RunNumber": 2
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2547,
+        "Value": 2548,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P2-02-page-root/run-3.json",
-      "ExecutionMedianPlanSha256": "3e2b7fdaca099b6f22a8c42d93fa0174f460782571ebcfd4ac85cd6edbb32f3a",
+      "ExecutionMedianPlanPath": "raw-plans/P2-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "01117b118e226ab9af79ec8895e3ca5f5b768b24fd248b8cfee9684f3eb88e3e",
       "AnySpill": false,
       "ScanTypes": [
         "Index Scan",
@@ -368,12 +368,12 @@
       "ShapeSequence": 3,
       "CommandRole": "translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.319,
-        "RunNumber": 4
+        "Value": 0.460,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 0.377,
-        "RunNumber": 3
+        "Value": 0.442,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
         "Value": 161,
@@ -383,8 +383,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P2-03-translation-split/run-3.json",
-      "ExecutionMedianPlanSha256": "9eec8f14411e321efbf344a92cfdd2c2d375bf09e7bc1bf830bac12fcde292e0",
+      "ExecutionMedianPlanPath": "raw-plans/P2-03-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "2d3a0dae87d7a9fc789efc6dcfd8b9d1867f8a2b69cfe531ff64955866cb7238",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -405,12 +405,12 @@
       "ShapeSequence": 4,
       "CommandRole": "image-split",
       "PlanningTimeMedian": {
-        "Value": 0.350,
-        "RunNumber": 4
+        "Value": 0.601,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 0.297,
-        "RunNumber": 2
+        "Value": 0.439,
+        "RunNumber": 3
       },
       "SharedAccessBlocksMedian": {
         "Value": 141,
@@ -420,8 +420,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/P2-04-image-split/run-2.json",
-      "ExecutionMedianPlanSha256": "d612b3a46b12f404064db3949fffb0acf5db8868dcc86e7adeeb73111406b8ed",
+      "ExecutionMedianPlanPath": "raw-plans/P2-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "a854d69b14cfd15971043263ec19160ccc5cc06d1634636d537411f1bac1e586",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -442,12 +442,12 @@
       "ShapeSequence": 1,
       "CommandRole": "agency-existence",
       "PlanningTimeMedian": {
-        "Value": 0.078,
-        "RunNumber": 4
+        "Value": 0.083,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 0.071,
-        "RunNumber": 4
+        "Value": 0.138,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
         "Value": 2,
@@ -457,8 +457,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/A1-01-agency-existence/run-4.json",
-      "ExecutionMedianPlanSha256": "379f403b36445f1c51ac7abff29b5df18ed0f061b92304db639e5f3c623c41e6",
+      "ExecutionMedianPlanPath": "raw-plans/A1-01-agency-existence/run-1.json",
+      "ExecutionMedianPlanSha256": "c00037704a3a90f10068ee2db7093f5b3f965d2ce63a44fb94be5b5efba2ec57",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan"
@@ -479,8 +479,8 @@
         "RunNumber": 1
       },
       "ExecutionTimeMedian": {
-        "Value": 0.866,
-        "RunNumber": 3
+        "Value": 0.943,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
         "Value": 502,
@@ -490,8 +490,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/A1-02-filtered-count/run-3.json",
-      "ExecutionMedianPlanSha256": "5fc2c45080d526f0b90145aa4bc700bf34bc64a856240995950fbcce773a2400",
+      "ExecutionMedianPlanPath": "raw-plans/A1-02-filtered-count/run-1.json",
+      "ExecutionMedianPlanSha256": "17ff2ce6af4280f5867ef0310ead5b42de8c5b164d2641b19cfdb4dacc253ea4",
       "AnySpill": false,
       "ScanTypes": [
         "Bitmap Heap Scan",
@@ -509,12 +509,12 @@
       "ShapeSequence": 3,
       "CommandRole": "page-root",
       "PlanningTimeMedian": {
-        "Value": 0.467,
-        "RunNumber": 2
+        "Value": 0.719,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 1.597,
-        "RunNumber": 4
+        "Value": 1.748,
+        "RunNumber": 3
       },
       "SharedAccessBlocksMedian": {
         "Value": 602,
@@ -524,8 +524,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/A1-03-page-root/run-4.json",
-      "ExecutionMedianPlanSha256": "7d7aae1f4a688e6f07019d220645c3d7300570541256bccbf75c70b087b35b89",
+      "ExecutionMedianPlanPath": "raw-plans/A1-03-page-root/run-3.json",
+      "ExecutionMedianPlanSha256": "46f199c00edce1f3d8cb59cd5dffd370733e4b1fd401b6176edf5f56e2b7758e",
       "AnySpill": false,
       "ScanTypes": [
         "Bitmap Heap Scan",
@@ -550,12 +550,12 @@
       "ShapeSequence": 4,
       "CommandRole": "translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.384,
-        "RunNumber": 5
+        "Value": 0.527,
+        "RunNumber": 1
       },
       "ExecutionTimeMedian": {
-        "Value": 0.391,
-        "RunNumber": 2
+        "Value": 0.367,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
         "Value": 161,
@@ -565,8 +565,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/A1-04-translation-split/run-2.json",
-      "ExecutionMedianPlanSha256": "1f1b3fe7ce205eba8d76c026830bca70ee1aedff4e4e93f369e2c69662788781",
+      "ExecutionMedianPlanPath": "raw-plans/A1-04-translation-split/run-4.json",
+      "ExecutionMedianPlanSha256": "9373fe05fdeefc088885a619dea96cbceff00f3566465a84e0416bef408cd29a",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -587,12 +587,12 @@
       "ShapeSequence": 5,
       "CommandRole": "image-split",
       "PlanningTimeMedian": {
-        "Value": 0.357,
-        "RunNumber": 4
+        "Value": 0.499,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 0.252,
-        "RunNumber": 2
+        "Value": 0.300,
+        "RunNumber": 5
       },
       "SharedAccessBlocksMedian": {
         "Value": 121,
@@ -602,8 +602,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/A1-05-image-split/run-2.json",
-      "ExecutionMedianPlanSha256": "26ab8b2ab17ec37441f555ad502791f2a06260d9a9454c8bd055d8edbd83ecc6",
+      "ExecutionMedianPlanPath": "raw-plans/A1-05-image-split/run-5.json",
+      "ExecutionMedianPlanSha256": "57cc92f3797e0fdf561f4c672a44c1a80551751a9ccc99c33efb04b39a8f5afd",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -624,23 +624,23 @@
       "ShapeSequence": 1,
       "CommandRole": "filtered-count",
       "PlanningTimeMedian": {
-        "Value": 0.091,
-        "RunNumber": 1
-      },
-      "ExecutionTimeMedian": {
-        "Value": 20.394,
+        "Value": 0.172,
         "RunNumber": 4
       },
+      "ExecutionTimeMedian": {
+        "Value": 20.819,
+        "RunNumber": 2
+      },
       "SharedAccessBlocksMedian": {
-        "Value": 2447,
+        "Value": 2448,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/R1-01-filtered-count/run-4.json",
-      "ExecutionMedianPlanSha256": "5876576ed62d18fd13447d62c41add88d5f7761237f720cc379843c7234c4d85",
+      "ExecutionMedianPlanPath": "raw-plans/R1-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "64a73d2fd2b772d6e5530a8425d160a9e15744818a96190091ee6411a90dd2f3",
       "AnySpill": false,
       "ScanTypes": [
         "Seq Scan"
@@ -655,23 +655,23 @@
       "ShapeSequence": 2,
       "CommandRole": "page-root",
       "PlanningTimeMedian": {
-        "Value": 0.474,
-        "RunNumber": 4
+        "Value": 0.662,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 21.346,
-        "RunNumber": 5
+        "Value": 21.266,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2547,
+        "Value": 2548,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/R1-02-page-root/run-5.json",
-      "ExecutionMedianPlanSha256": "60352afe5d2be5583779371ca1a990a848cfee173010f3fbd9bbefb634609d9a",
+      "ExecutionMedianPlanPath": "raw-plans/R1-02-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "6fc32f34e7b43c719ec58f2b0438645c1434fa3adb0aa626fa922a258e49b9a8",
       "AnySpill": false,
       "ScanTypes": [
         "Index Scan",
@@ -694,12 +694,12 @@
       "ShapeSequence": 3,
       "CommandRole": "translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.330,
-        "RunNumber": 3
+        "Value": 0.384,
+        "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 0.353,
-        "RunNumber": 3
+        "Value": 0.389,
+        "RunNumber": 2
       },
       "SharedAccessBlocksMedian": {
         "Value": 161,
@@ -709,8 +709,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/R1-03-translation-split/run-3.json",
-      "ExecutionMedianPlanSha256": "f10175efe98710da38e07947a3a0cb1e30bb2b623007cdb65d7632ba232ee5d3",
+      "ExecutionMedianPlanPath": "raw-plans/R1-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "24291a9ce98a59a0fbeba5a1ef5cddef521a11ca6825c72d640b7314bd58534c",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -731,12 +731,12 @@
       "ShapeSequence": 4,
       "CommandRole": "image-split",
       "PlanningTimeMedian": {
-        "Value": 0.381,
-        "RunNumber": 1
+        "Value": 0.502,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 0.309,
-        "RunNumber": 2
+        "Value": 0.358,
+        "RunNumber": 3
       },
       "SharedAccessBlocksMedian": {
         "Value": 141,
@@ -746,8 +746,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/R1-04-image-split/run-2.json",
-      "ExecutionMedianPlanSha256": "dfdd5896253d104ee54ca18537bfc4011786f340eff7b88389a6c1a8495a6e65",
+      "ExecutionMedianPlanPath": "raw-plans/R1-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "02db70afc9e8eb157b0f67fdf7c9bbf24494904cdb85f6ae81e76b9570a34d22",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -768,23 +768,23 @@
       "ShapeSequence": 1,
       "CommandRole": "filtered-count",
       "PlanningTimeMedian": {
-        "Value": 1.715,
-        "RunNumber": 5
+        "Value": 1.895,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 11.179,
-        "RunNumber": 1
+        "Value": 10.730,
+        "RunNumber": 5
       },
       "SharedAccessBlocksMedian": {
-        "Value": 1406,
+        "Value": 1420,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/L1-01-filtered-count/run-1.json",
-      "ExecutionMedianPlanSha256": "c1c68eac41f0b2277cfae73fbea0d1c4f9acf251376b7fe8c412f70af07a06ad",
+      "ExecutionMedianPlanPath": "raw-plans/L1-01-filtered-count/run-5.json",
+      "ExecutionMedianPlanSha256": "db55331afa8ddfa83a328b51632a7382e6e9cab47881bd755b39a360665a7085",
       "AnySpill": false,
       "ScanTypes": [
         "Bitmap Heap Scan",
@@ -810,23 +810,23 @@
       "ShapeSequence": 2,
       "CommandRole": "page-root",
       "PlanningTimeMedian": {
-        "Value": 2.854,
-        "RunNumber": 3
-      },
-      "ExecutionTimeMedian": {
-        "Value": 11.123,
+        "Value": 2.868,
         "RunNumber": 2
       },
+      "ExecutionTimeMedian": {
+        "Value": 10.488,
+        "RunNumber": 3
+      },
       "SharedAccessBlocksMedian": {
-        "Value": 1506,
+        "Value": 1520,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/L1-02-page-root/run-2.json",
-      "ExecutionMedianPlanSha256": "7e64b2306837a7c1bba3da2a29213e6d608aa56fe2dc944b5ed56074fc7be2ee",
+      "ExecutionMedianPlanPath": "raw-plans/L1-02-page-root/run-3.json",
+      "ExecutionMedianPlanSha256": "c45aecbefc0e5d8622a6a6331982ce5b5fd1749afbeae0be95280dab447971bb",
       "AnySpill": false,
       "ScanTypes": [
         "Bitmap Heap Scan",
@@ -856,12 +856,12 @@
       "ShapeSequence": 3,
       "CommandRole": "translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.311,
-        "RunNumber": 2
+        "Value": 0.383,
+        "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 0.254,
-        "RunNumber": 2
+        "Value": 0.306,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
         "Value": 161,
@@ -871,8 +871,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/L1-03-translation-split/run-2.json",
-      "ExecutionMedianPlanSha256": "02858c760bf3d529b12fa658220f5dd2c2a884388b69be569b5b7c836b6e1140",
+      "ExecutionMedianPlanPath": "raw-plans/L1-03-translation-split/run-4.json",
+      "ExecutionMedianPlanSha256": "cf98abdf2f6c8b33d1cd6803d53cd7d4825016caa34f85b7b9e73153ef122557",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -893,12 +893,12 @@
       "ShapeSequence": 4,
       "CommandRole": "image-split",
       "PlanningTimeMedian": {
-        "Value": 0.351,
-        "RunNumber": 1
+        "Value": 0.436,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 0.204,
-        "RunNumber": 3
+        "Value": 0.299,
+        "RunNumber": 5
       },
       "SharedAccessBlocksMedian": {
         "Value": 133,
@@ -908,8 +908,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/L1-04-image-split/run-3.json",
-      "ExecutionMedianPlanSha256": "e36c63df65d5154eb0f9dd5c35190a14e8dbdc0b81f86b315366e435bf1bfada",
+      "ExecutionMedianPlanPath": "raw-plans/L1-04-image-split/run-5.json",
+      "ExecutionMedianPlanSha256": "f44f0769580d420ce883498b9d6abdec17871907f46906a5d1cba6f21d6e02e9",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -930,15 +930,15 @@
       "ShapeSequence": 1,
       "CommandRole": "filtered-count",
       "PlanningTimeMedian": {
-        "Value": 1.830,
-        "RunNumber": 3
+        "Value": 2.151,
+        "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 9.419,
+        "Value": 8.795,
         "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 1148,
+        "Value": 1164,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -946,7 +946,7 @@
         "RunNumber": 3
       },
       "ExecutionMedianPlanPath": "raw-plans/Q1-01-filtered-count/run-4.json",
-      "ExecutionMedianPlanSha256": "62add2cc5774b334cdbf025aac57c54a1229fe5a3202e9b765a1d4bbacac8cec",
+      "ExecutionMedianPlanSha256": "4709f505ed7b42397f223916df81df5e7dc2a32266f4a1d6d21f2401d584d3ce",
       "AnySpill": false,
       "ScanTypes": [
         "Bitmap Heap Scan",
@@ -972,23 +972,23 @@
       "ShapeSequence": 2,
       "CommandRole": "page-root",
       "PlanningTimeMedian": {
-        "Value": 3.157,
-        "RunNumber": 4
-      },
-      "ExecutionTimeMedian": {
-        "Value": 9.928,
+        "Value": 3.210,
         "RunNumber": 2
       },
+      "ExecutionTimeMedian": {
+        "Value": 8.915,
+        "RunNumber": 5
+      },
       "SharedAccessBlocksMedian": {
-        "Value": 1248,
+        "Value": 1264,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/Q1-02-page-root/run-2.json",
-      "ExecutionMedianPlanSha256": "9d6e258b63923272c1cf6704ae3b61d3b07e4ac399ac29ada9368abecc21ae2e",
+      "ExecutionMedianPlanPath": "raw-plans/Q1-02-page-root/run-5.json",
+      "ExecutionMedianPlanSha256": "636c8412113e603d67ed78fd2072c66041e14a5693d55b752d653a7fc9269e4a",
       "AnySpill": false,
       "ScanTypes": [
         "Bitmap Heap Scan",
@@ -1018,12 +1018,12 @@
       "ShapeSequence": 3,
       "CommandRole": "translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.351,
-        "RunNumber": 3
+        "Value": 0.435,
+        "RunNumber": 5
       },
       "ExecutionTimeMedian": {
-        "Value": 0.249,
-        "RunNumber": 4
+        "Value": 0.248,
+        "RunNumber": 2
       },
       "SharedAccessBlocksMedian": {
         "Value": 161,
@@ -1033,8 +1033,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/Q1-03-translation-split/run-4.json",
-      "ExecutionMedianPlanSha256": "8f2fe778f5b736ac674b8ab2cd4fae6432d5660316c181046abf5f9c9315be04",
+      "ExecutionMedianPlanPath": "raw-plans/Q1-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "f016e0a9d8a0b464b8486f590dda99ebf81680ad514cbe7b2bd203b55af53346",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -1055,12 +1055,12 @@
       "ShapeSequence": 4,
       "CommandRole": "image-split",
       "PlanningTimeMedian": {
-        "Value": 0.345,
-        "RunNumber": 2
+        "Value": 0.582,
+        "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 0.230,
-        "RunNumber": 4
+        "Value": 0.318,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
         "Value": 133,
@@ -1070,8 +1070,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/Q1-04-image-split/run-4.json",
-      "ExecutionMedianPlanSha256": "348b6750c4266773a8d12039ef610cee23bbefa945831e88ae3df58c06694c9a",
+      "ExecutionMedianPlanPath": "raw-plans/Q1-04-image-split/run-1.json",
+      "ExecutionMedianPlanSha256": "c29cf83d7c5260f25e2644094faad0bfab9dccf14938f303f86767b142b4a5d7",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -1092,12 +1092,12 @@
       "ShapeSequence": 1,
       "CommandRole": "comparable-source",
       "PlanningTimeMedian": {
-        "Value": 0.233,
-        "RunNumber": 5
+        "Value": 0.336,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 0.234,
-        "RunNumber": 1
+        "Value": 0.259,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
         "Value": 9,
@@ -1107,8 +1107,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/C1-01-comparable-source/run-1.json",
-      "ExecutionMedianPlanSha256": "d30efc61eef3c42a921153fa4b67b22aee3e9b16701b98f753136aa529117529",
+      "ExecutionMedianPlanPath": "raw-plans/C1-01-comparable-source/run-4.json",
+      "ExecutionMedianPlanSha256": "52566c2bcd49428d812d43e90350563d29439460562714cb29dbe99f541e1aa7",
       "AnySpill": false,
       "ScanTypes": [
         "Index Scan"
@@ -1130,23 +1130,23 @@
       "ShapeSequence": 2,
       "CommandRole": "comparable-ranked-root",
       "PlanningTimeMedian": {
-        "Value": 3.526,
-        "RunNumber": 4
-      },
-      "ExecutionTimeMedian": {
-        "Value": 62.721,
+        "Value": 3.922,
         "RunNumber": 5
       },
+      "ExecutionTimeMedian": {
+        "Value": 57.736,
+        "RunNumber": 3
+      },
       "SharedAccessBlocksMedian": {
-        "Value": 20328,
+        "Value": 20329,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/C1-02-comparable-ranked-root/run-5.json",
-      "ExecutionMedianPlanSha256": "12317f8c91545d1d89768ee9d34c64de8692720185e746a4eac0a3bad5c23cab",
+      "ExecutionMedianPlanPath": "raw-plans/C1-02-comparable-ranked-root/run-3.json",
+      "ExecutionMedianPlanSha256": "fdc6d9d077a5d5787894e8aaeab29ae47bf5179f8c349d254464ea91b68dbda8",
       "AnySpill": false,
       "ScanTypes": [
         "Bitmap Heap Scan",
@@ -1176,12 +1176,12 @@
       "ShapeSequence": 3,
       "CommandRole": "comparable-translation-split",
       "PlanningTimeMedian": {
-        "Value": 0.379,
-        "RunNumber": 4
+        "Value": 0.392,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 0.211,
-        "RunNumber": 2
+        "Value": 0.175,
+        "RunNumber": 5
       },
       "SharedAccessBlocksMedian": {
         "Value": 49,
@@ -1191,8 +1191,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/C1-03-comparable-translation-split/run-2.json",
-      "ExecutionMedianPlanSha256": "98f3a3483f4d12ccbc1e51b0e3525efa3f78ba8e6ed83ca9698dba24ca30a6e8",
+      "ExecutionMedianPlanPath": "raw-plans/C1-03-comparable-translation-split/run-5.json",
+      "ExecutionMedianPlanSha256": "bf0596549fb0375e252b1e8bf0841553997d55c862c94101fbf8107b11f0c596",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -1213,12 +1213,12 @@
       "ShapeSequence": 4,
       "CommandRole": "comparable-image-split",
       "PlanningTimeMedian": {
-        "Value": 0.411,
+        "Value": 0.480,
         "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 0.166,
-        "RunNumber": 5
+        "Value": 0.208,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
         "Value": 40,
@@ -1228,8 +1228,8 @@
         "Value": 0,
         "RunNumber": 3
       },
-      "ExecutionMedianPlanPath": "raw-plans/C1-04-comparable-image-split/run-5.json",
-      "ExecutionMedianPlanSha256": "90c96eaec74d4eb3c3e8dd2b9a9f797a0b30f6e3370f25a453e69a54345f0c81",
+      "ExecutionMedianPlanPath": "raw-plans/C1-04-comparable-image-split/run-1.json",
+      "ExecutionMedianPlanSha256": "6af7b4db4c24c14dec58356a315363504457406f62e074d47345c31f69298e7c",
       "AnySpill": false,
       "ScanTypes": [
         "Index Only Scan",
@@ -1256,55 +1256,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 1.072,
-          "ExecutionTimeMilliseconds": 55.270,
-          "SharedAccessBlocks": 2886,
+          "PlanningTimeMilliseconds": 1.591,
+          "ExecutionTimeMilliseconds": 57.901,
+          "SharedAccessBlocks": 2887,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 1.238,
-          "ExecutionTimeMilliseconds": 56.925,
-          "SharedAccessBlocks": 2886,
+          "PlanningTimeMilliseconds": 1.712,
+          "ExecutionTimeMilliseconds": 56.875,
+          "SharedAccessBlocks": 2887,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 1.154,
-          "ExecutionTimeMilliseconds": 54.142,
-          "SharedAccessBlocks": 2886,
+          "PlanningTimeMilliseconds": 1.533,
+          "ExecutionTimeMilliseconds": 60.903,
+          "SharedAccessBlocks": 2887,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 1.671,
-          "ExecutionTimeMilliseconds": 90.319,
-          "SharedAccessBlocks": 2886,
+          "PlanningTimeMilliseconds": 1.335,
+          "ExecutionTimeMilliseconds": 54.049,
+          "SharedAccessBlocks": 2887,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 1.230,
-          "ExecutionTimeMilliseconds": 61.233,
-          "SharedAccessBlocks": 2886,
+          "PlanningTimeMilliseconds": 1.451,
+          "ExecutionTimeMilliseconds": 61.345,
+          "SharedAccessBlocks": 2887,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 1.230,
-        "RunNumber": 5
+        "Value": 1.533,
+        "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 56.925,
-        "RunNumber": 2
+        "Value": 57.901,
+        "RunNumber": 1
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2886,
+        "Value": 2887,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1323,55 +1323,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 1.340,
-          "ExecutionTimeMilliseconds": 41.397,
-          "SharedAccessBlocks": 2829,
+          "PlanningTimeMilliseconds": 1.962,
+          "ExecutionTimeMilliseconds": 39.719,
+          "SharedAccessBlocks": 2830,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 1.092,
-          "ExecutionTimeMilliseconds": 35.313,
-          "SharedAccessBlocks": 2829,
+          "PlanningTimeMilliseconds": 1.501,
+          "ExecutionTimeMilliseconds": 34.927,
+          "SharedAccessBlocks": 2830,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 1.144,
-          "ExecutionTimeMilliseconds": 36.655,
-          "SharedAccessBlocks": 2829,
+          "PlanningTimeMilliseconds": 1.423,
+          "ExecutionTimeMilliseconds": 35.617,
+          "SharedAccessBlocks": 2830,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 1.168,
-          "ExecutionTimeMilliseconds": 42.231,
-          "SharedAccessBlocks": 2829,
+          "PlanningTimeMilliseconds": 1.667,
+          "ExecutionTimeMilliseconds": 37.074,
+          "SharedAccessBlocks": 2830,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 1.204,
-          "ExecutionTimeMilliseconds": 42.803,
-          "SharedAccessBlocks": 2829,
+          "PlanningTimeMilliseconds": 1.906,
+          "ExecutionTimeMilliseconds": 44.367,
+          "SharedAccessBlocks": 2830,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 1.168,
+        "Value": 1.667,
         "RunNumber": 4
       },
       "ExecutionTimeMedian": {
-        "Value": 41.397,
-        "RunNumber": 1
+        "Value": 37.074,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2829,
+        "Value": 2830,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1390,55 +1390,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 1.257,
-          "ExecutionTimeMilliseconds": 38.945,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.609,
+          "ExecutionTimeMilliseconds": 40.408,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 1.221,
-          "ExecutionTimeMilliseconds": 36.083,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.678,
+          "ExecutionTimeMilliseconds": 36.562,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 1.000,
-          "ExecutionTimeMilliseconds": 37.122,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.682,
+          "ExecutionTimeMilliseconds": 36.380,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 1.091,
-          "ExecutionTimeMilliseconds": 38.817,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.541,
+          "ExecutionTimeMilliseconds": 34.966,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 1.010,
-          "ExecutionTimeMilliseconds": 35.527,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.799,
+          "ExecutionTimeMilliseconds": 49.248,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 1.091,
-        "RunNumber": 4
+        "Value": 1.678,
+        "RunNumber": 2
       },
       "ExecutionTimeMedian": {
-        "Value": 37.122,
-        "RunNumber": 3
+        "Value": 36.562,
+        "RunNumber": 2
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2849,
+        "Value": 2850,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1457,52 +1457,52 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 1.338,
-          "ExecutionTimeMilliseconds": 2.393,
+          "PlanningTimeMilliseconds": 2.023,
+          "ExecutionTimeMilliseconds": 2.871,
           "SharedAccessBlocks": 884,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 1.192,
-          "ExecutionTimeMilliseconds": 2.140,
+          "PlanningTimeMilliseconds": 1.514,
+          "ExecutionTimeMilliseconds": 2.178,
           "SharedAccessBlocks": 884,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 1.257,
-          "ExecutionTimeMilliseconds": 2.293,
+          "PlanningTimeMilliseconds": 1.803,
+          "ExecutionTimeMilliseconds": 2.396,
           "SharedAccessBlocks": 884,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 1.276,
-          "ExecutionTimeMilliseconds": 2.184,
+          "PlanningTimeMilliseconds": 1.379,
+          "ExecutionTimeMilliseconds": 2.039,
           "SharedAccessBlocks": 884,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 1.140,
-          "ExecutionTimeMilliseconds": 1.955,
+          "PlanningTimeMilliseconds": 1.985,
+          "ExecutionTimeMilliseconds": 3.381,
           "SharedAccessBlocks": 884,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 1.257,
+        "Value": 1.803,
         "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 2.184,
-        "RunNumber": 4
+        "Value": 2.396,
+        "RunNumber": 3
       },
       "SharedAccessBlocksMedian": {
         "Value": 884,
@@ -1526,51 +1526,51 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 1.542,
-          "ExecutionTimeMilliseconds": 3.360,
+          "PlanningTimeMilliseconds": 2.242,
+          "ExecutionTimeMilliseconds": 3.952,
           "SharedAccessBlocks": 1388,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 1.394,
-          "ExecutionTimeMilliseconds": 3.119,
+          "PlanningTimeMilliseconds": 1.705,
+          "ExecutionTimeMilliseconds": 3.585,
           "SharedAccessBlocks": 1388,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 1.409,
-          "ExecutionTimeMilliseconds": 3.219,
+          "PlanningTimeMilliseconds": 1.969,
+          "ExecutionTimeMilliseconds": 3.472,
           "SharedAccessBlocks": 1388,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 1.469,
-          "ExecutionTimeMilliseconds": 3.072,
+          "PlanningTimeMilliseconds": 1.546,
+          "ExecutionTimeMilliseconds": 3.025,
           "SharedAccessBlocks": 1388,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 1.284,
-          "ExecutionTimeMilliseconds": 2.801,
+          "PlanningTimeMilliseconds": 2.234,
+          "ExecutionTimeMilliseconds": 4.670,
           "SharedAccessBlocks": 1388,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 1.409,
+        "Value": 1.969,
         "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 3.119,
+        "Value": 3.585,
         "RunNumber": 2
       },
       "SharedAccessBlocksMedian": {
@@ -1593,55 +1593,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 1.302,
-          "ExecutionTimeMilliseconds": 22.783,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.517,
+          "ExecutionTimeMilliseconds": 20.752,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 1.062,
-          "ExecutionTimeMilliseconds": 21.513,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.591,
+          "ExecutionTimeMilliseconds": 21.791,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 1.201,
-          "ExecutionTimeMilliseconds": 22.306,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.538,
+          "ExecutionTimeMilliseconds": 23.896,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 1.192,
-          "ExecutionTimeMilliseconds": 21.279,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.467,
+          "ExecutionTimeMilliseconds": 21.887,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 1.334,
-          "ExecutionTimeMilliseconds": 22.137,
-          "SharedAccessBlocks": 2849,
+          "PlanningTimeMilliseconds": 1.632,
+          "ExecutionTimeMilliseconds": 22.859,
+          "SharedAccessBlocks": 2850,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 1.201,
+        "Value": 1.538,
         "RunNumber": 3
       },
       "ExecutionTimeMedian": {
-        "Value": 22.137,
-        "RunNumber": 5
+        "Value": 21.887,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 2849,
+        "Value": 2850,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1660,55 +1660,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 4.052,
-          "ExecutionTimeMilliseconds": 12.517,
-          "SharedAccessBlocks": 1800,
+          "PlanningTimeMilliseconds": 4.112,
+          "ExecutionTimeMilliseconds": 15.999,
+          "SharedAccessBlocks": 1814,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 3.420,
-          "ExecutionTimeMilliseconds": 11.578,
-          "SharedAccessBlocks": 1800,
+          "PlanningTimeMilliseconds": 4.040,
+          "ExecutionTimeMilliseconds": 14.016,
+          "SharedAccessBlocks": 1814,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 3.448,
-          "ExecutionTimeMilliseconds": 11.244,
-          "SharedAccessBlocks": 1800,
+          "PlanningTimeMilliseconds": 3.664,
+          "ExecutionTimeMilliseconds": 11.004,
+          "SharedAccessBlocks": 1814,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 3.281,
-          "ExecutionTimeMilliseconds": 11.139,
-          "SharedAccessBlocks": 1800,
+          "PlanningTimeMilliseconds": 3.367,
+          "ExecutionTimeMilliseconds": 11.068,
+          "SharedAccessBlocks": 1814,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 3.519,
-          "ExecutionTimeMilliseconds": 11.852,
-          "SharedAccessBlocks": 1800,
+          "PlanningTimeMilliseconds": 4.005,
+          "ExecutionTimeMilliseconds": 10.756,
+          "SharedAccessBlocks": 1814,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 3.448,
-        "RunNumber": 3
+        "Value": 4.005,
+        "RunNumber": 5
       },
       "ExecutionTimeMedian": {
-        "Value": 11.578,
-        "RunNumber": 2
+        "Value": 11.068,
+        "RunNumber": 4
       },
       "SharedAccessBlocksMedian": {
-        "Value": 1800,
+        "Value": 1814,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1727,55 +1727,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 4.283,
-          "ExecutionTimeMilliseconds": 11.727,
-          "SharedAccessBlocks": 1542,
+          "PlanningTimeMilliseconds": 3.950,
+          "ExecutionTimeMilliseconds": 9.969,
+          "SharedAccessBlocks": 1558,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 3.593,
-          "ExecutionTimeMilliseconds": 10.584,
-          "SharedAccessBlocks": 1542,
+          "PlanningTimeMilliseconds": 4.028,
+          "ExecutionTimeMilliseconds": 9.091,
+          "SharedAccessBlocks": 1558,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 4.640,
-          "ExecutionTimeMilliseconds": 11.354,
-          "SharedAccessBlocks": 1542,
+          "PlanningTimeMilliseconds": 4.486,
+          "ExecutionTimeMilliseconds": 9.224,
+          "SharedAccessBlocks": 1558,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 3.788,
-          "ExecutionTimeMilliseconds": 9.766,
-          "SharedAccessBlocks": 1542,
+          "PlanningTimeMilliseconds": 4.397,
+          "ExecutionTimeMilliseconds": 9.828,
+          "SharedAccessBlocks": 1558,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 3.567,
-          "ExecutionTimeMilliseconds": 9.722,
-          "SharedAccessBlocks": 1542,
+          "PlanningTimeMilliseconds": 4.198,
+          "ExecutionTimeMilliseconds": 9.433,
+          "SharedAccessBlocks": 1558,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 3.788,
-        "RunNumber": 4
+        "Value": 4.198,
+        "RunNumber": 5
       },
       "ExecutionTimeMedian": {
-        "Value": 10.584,
-        "RunNumber": 2
+        "Value": 9.433,
+        "RunNumber": 5
       },
       "SharedAccessBlocksMedian": {
-        "Value": 1542,
+        "Value": 1558,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1794,55 +1794,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 4.101,
-          "ExecutionTimeMilliseconds": 68.177,
-          "SharedAccessBlocks": 20417,
+          "PlanningTimeMilliseconds": 5.682,
+          "ExecutionTimeMilliseconds": 55.616,
+          "SharedAccessBlocks": 20418,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 4.016,
-          "ExecutionTimeMilliseconds": 59.661,
-          "SharedAccessBlocks": 20417,
+          "PlanningTimeMilliseconds": 4.600,
+          "ExecutionTimeMilliseconds": 53.556,
+          "SharedAccessBlocks": 20418,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 5.704,
-          "ExecutionTimeMilliseconds": 65.354,
-          "SharedAccessBlocks": 20417,
+          "PlanningTimeMilliseconds": 6.639,
+          "ExecutionTimeMilliseconds": 58.106,
+          "SharedAccessBlocks": 20418,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 4.345,
-          "ExecutionTimeMilliseconds": 61.562,
-          "SharedAccessBlocks": 20417,
+          "PlanningTimeMilliseconds": 4.196,
+          "ExecutionTimeMilliseconds": 62.603,
+          "SharedAccessBlocks": 20418,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 5.326,
-          "ExecutionTimeMilliseconds": 63.048,
-          "SharedAccessBlocks": 20417,
+          "PlanningTimeMilliseconds": 4.787,
+          "ExecutionTimeMilliseconds": 62.349,
+          "SharedAccessBlocks": 20418,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 4.345,
-        "RunNumber": 4
-      },
-      "ExecutionTimeMedian": {
-        "Value": 63.048,
+        "Value": 4.787,
         "RunNumber": 5
       },
+      "ExecutionTimeMedian": {
+        "Value": 58.106,
+        "RunNumber": 3
+      },
       "SharedAccessBlocksMedian": {
-        "Value": 20417,
+        "Value": 20418,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1862,55 +1862,55 @@
       "Runs": [
         {
           "RunNumber": 1,
-          "PlanningTimeMilliseconds": 4.348,
-          "ExecutionTimeMilliseconds": 68.411,
-          "SharedAccessBlocks": 20426,
+          "PlanningTimeMilliseconds": 6.116,
+          "ExecutionTimeMilliseconds": 55.879,
+          "SharedAccessBlocks": 20427,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 2,
-          "PlanningTimeMilliseconds": 4.208,
-          "ExecutionTimeMilliseconds": 59.884,
-          "SharedAccessBlocks": 20426,
+          "PlanningTimeMilliseconds": 4.936,
+          "ExecutionTimeMilliseconds": 53.775,
+          "SharedAccessBlocks": 20427,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 3,
-          "PlanningTimeMilliseconds": 5.904,
-          "ExecutionTimeMilliseconds": 65.541,
-          "SharedAccessBlocks": 20426,
+          "PlanningTimeMilliseconds": 6.974,
+          "ExecutionTimeMilliseconds": 58.439,
+          "SharedAccessBlocks": 20427,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 4,
-          "PlanningTimeMilliseconds": 4.722,
-          "ExecutionTimeMilliseconds": 61.893,
-          "SharedAccessBlocks": 20426,
+          "PlanningTimeMilliseconds": 4.446,
+          "ExecutionTimeMilliseconds": 62.862,
+          "SharedAccessBlocks": 20427,
           "TempAccessBlocks": 0,
           "Spilled": false
         },
         {
           "RunNumber": 5,
-          "PlanningTimeMilliseconds": 5.559,
-          "ExecutionTimeMilliseconds": 63.325,
-          "SharedAccessBlocks": 20426,
+          "PlanningTimeMilliseconds": 5.126,
+          "ExecutionTimeMilliseconds": 62.560,
+          "SharedAccessBlocks": 20427,
           "TempAccessBlocks": 0,
           "Spilled": false
         }
       ],
       "PlanningTimeMedian": {
-        "Value": 4.722,
-        "RunNumber": 4
-      },
-      "ExecutionTimeMedian": {
-        "Value": 63.325,
+        "Value": 5.126,
         "RunNumber": 5
       },
+      "ExecutionTimeMedian": {
+        "Value": 58.439,
+        "RunNumber": 3
+      },
       "SharedAccessBlocksMedian": {
-        "Value": 20426,
+        "Value": 20427,
         "RunNumber": 3
       },
       "TempAccessBlocksMedian": {
@@ -1922,8 +1922,8 @@
   ],
   "Q1Gate": {
     "Passed": true,
-    "FilteredCountMedianMilliseconds": 9.419,
-    "FirstPageSequenceMedianMilliseconds": 10.584,
+    "FilteredCountMedianMilliseconds": 8.795,
+    "FirstPageSequenceMedianMilliseconds": 9.433,
     "AnyWarmUpOrMeasuredSpill": false,
     "Reasons": []
   },
@@ -2378,10 +2378,10 @@
       "FirstPage": {
         "SequenceId": "A1-first-page",
         "CorrectedPreIndexMilliseconds": 2.335,
-        "IndexedRunMilliseconds": 2.184,
-        "DifferenceMilliseconds": -0.151,
-        "AbsoluteDifferenceMilliseconds": 0.151,
-        "RelativeDifferencePercent": -6.4668094218415417558886509600,
+        "IndexedRunMilliseconds": 2.396,
+        "DifferenceMilliseconds": 0.061,
+        "AbsoluteDifferenceMilliseconds": 0.061,
+        "RelativeDifferencePercent": 2.6124197002141327623126338300,
         "AbsoluteDifferenceBelowOneMillisecond": true,
         "ExpectedSharedAccessBlocks": 884,
         "ActualSharedAccessBlocks": 884,
@@ -2390,10 +2390,10 @@
       "Supplementary": {
         "SequenceId": "A1-endpoint-supplementary",
         "CorrectedPreIndexMilliseconds": 3.278,
-        "IndexedRunMilliseconds": 3.119,
-        "DifferenceMilliseconds": -0.159,
-        "AbsoluteDifferenceMilliseconds": 0.159,
-        "RelativeDifferencePercent": -4.8505186089078706528370957900,
+        "IndexedRunMilliseconds": 3.585,
+        "DifferenceMilliseconds": 0.307,
+        "AbsoluteDifferenceMilliseconds": 0.307,
+        "RelativeDifferencePercent": 9.365466748017083587553386210,
         "AbsoluteDifferenceBelowOneMillisecond": true,
         "ExpectedSharedAccessBlocks": 1388,
         "ActualSharedAccessBlocks": 1388,
@@ -2585,8 +2585,8 @@
       "Accepted": true
     },
     "CaptureIdentity": {
-      "GitCommit": "db3ad3220f58a23b752c62d2f33b0a01fff864f1",
-      "GitBranch": "feature/chapter-10f-complete-evidence",
+      "GitCommit": "2925368b087a58440b720b6a5db59e4d4d9987be",
+      "GitBranch": "test/chapter-13h6-post-location-sql-performance-rebaseline",
       "PostgreSqlVersion": "16.14",
       "TrigramIndex": {
         "ExtensionName": "pg_trgm",
@@ -2628,11 +2628,11 @@
       "RootArtifacts": [
         {
           "Path": "environment.json",
-          "Sha256": "6cfec6130ab618da1cc6f205d2a64c9ba9227d12f7ffe9336ce6687bd6483da3"
+          "Sha256": "133db09cf78d0d2fd664bfde4c771db6c61acbea8bfa93e9cb9fa3741e2f56ef"
         },
         {
           "Path": "baseline-summary.md",
-          "Sha256": "a72d735d353096ad089fe1dc2f4808acf15dd1b067fd49ac3bf8bf4b78aba830"
+          "Sha256": "12dd13b9389f18b9934aace2c3e5aee104e171e0af57348bb852ab3f14b71a39"
         }
       ],
       "NormalizedSqlArtifacts": [
@@ -2642,7 +2642,7 @@
         },
         {
           "Path": "sql/N1-02-page-root.sql",
-          "Sha256": "c7eaa6646b33f03a99de56bd7cac9359539411c24a5e9493093a9d0af65a12c2"
+          "Sha256": "6ac635d49b34479191afb7d9ce1be6a3e9a19b43861c94327c2fb4988d9e665c"
         },
         {
           "Path": "sql/N1-03-translation-split.sql",
@@ -2658,7 +2658,7 @@
         },
         {
           "Path": "sql/P1-02-page-root.sql",
-          "Sha256": "1170fa775804e91891a0f5904238331fc996d8da4fb80d794f8d4ca1ba239bd5"
+          "Sha256": "0d4484d8900eafef50333afcbd3cd737de67ecebec433251089c8703f00a5afa"
         },
         {
           "Path": "sql/P1-03-translation-split.sql",
@@ -2674,7 +2674,7 @@
         },
         {
           "Path": "sql/P2-02-page-root.sql",
-          "Sha256": "4d9e83395d6aaa4c6171fdd02fc29907e4b5910851e7d658a2bed1a608c97cd1"
+          "Sha256": "401516a17717d27d71166aa6771f56c919991b77a1fda8f9dbd8b133e3f4b0de"
         },
         {
           "Path": "sql/P2-03-translation-split.sql",
@@ -2694,7 +2694,7 @@
         },
         {
           "Path": "sql/A1-03-page-root.sql",
-          "Sha256": "252b24e65109d77e3cef66dc88216e59d721909e3f81429f4367c6ea886ff46e"
+          "Sha256": "78592696ad80d0326c0244e60ecfea9a3173e3d0b3799e86d5041e369ba5b23f"
         },
         {
           "Path": "sql/A1-04-translation-split.sql",
@@ -2710,7 +2710,7 @@
         },
         {
           "Path": "sql/R1-02-page-root.sql",
-          "Sha256": "2eca95fdcdbfda5b75910bbbb0e15eafef43452e51ae193eadb4f26409cbe38d"
+          "Sha256": "303e2dfe836de14043d960fdc9bfeebcba1e00c4253334868475a5576f6c9bdf"
         },
         {
           "Path": "sql/R1-03-translation-split.sql",
@@ -2726,7 +2726,7 @@
         },
         {
           "Path": "sql/L1-02-page-root.sql",
-          "Sha256": "fe86accfc7556026d932864820e11f91b81ae41c128eba2e8641c82ba581e53e"
+          "Sha256": "10978b46d7ecf7e416914a1272a55bce9c2b0c28c49c29f08bc9a1bbd84dcddc"
         },
         {
           "Path": "sql/L1-03-translation-split.sql",
@@ -2742,7 +2742,7 @@
         },
         {
           "Path": "sql/Q1-02-page-root.sql",
-          "Sha256": "92ea4427bfb855466bc3472f3f5f696035fc3b570b91a8541cfc7ccea178b08a"
+          "Sha256": "aaeef27c03ad826b3040e33436fd3345094cd697cc3eaea46e21d21152eb6a29"
         },
         {
           "Path": "sql/Q1-03-translation-split.sql",
@@ -2758,7 +2758,7 @@
         },
         {
           "Path": "sql/C1-02-comparable-ranked-root.sql",
-          "Sha256": "9b5fd9b34f44ea80ff1c5070cf8f1f9964233e80c22d209483838bb8845642b4"
+          "Sha256": "204e9a1c35cbb2deb3b57f078f30be6be81a43ab359f9294a9bc5a5c4c001dc3"
         },
         {
           "Path": "sql/C1-03-comparable-translation-split.sql",
@@ -2772,135 +2772,135 @@
       "MedianPlanArtifacts": [
         {
           "Path": "baseline-plans/N1-01-filtered-count.json",
-          "Sha256": "da8a61b1969d78f555707f1700f101231b2baa72299bcfd6406ccc92b38fba29"
+          "Sha256": "5817804709c62b02c2945e9793c20a432273e8727582ff8ddea5afdde03c83b2"
         },
         {
           "Path": "baseline-plans/N1-02-page-root.json",
-          "Sha256": "da48a0d3ad996d169409af3dd4c6b14d648f5b85dab2de615fb5f8f701e9c456"
+          "Sha256": "4cf9213d9ab14a55e2d3baf5e37f5bb29837a50e14477b5eaa4d7e0832fe84ab"
         },
         {
           "Path": "baseline-plans/N1-03-translation-split.json",
-          "Sha256": "4cda515a9314a4c1b7942fb96cc4958d632b0882fc460a8f6ded6f6a08a4c6aa"
+          "Sha256": "dd4f81cb03e022ee2307d182994bd2e42dc2748b2a3d16850e3a6f793ba17be5"
         },
         {
           "Path": "baseline-plans/N1-04-image-split.json",
-          "Sha256": "f4b06549449b0a5bc12297f74cf268d9e35888396f7ce10a708f03cca0d8f631"
+          "Sha256": "616fa41ab1ff8fb2ec484d8bfcd6f0c5e71282b2e0bf2c6310121a49c23b6dc6"
         },
         {
           "Path": "baseline-plans/P1-01-filtered-count.json",
-          "Sha256": "8455ca64194739a2d902d08222ae8c14f1d1e3bcd97632b96e5eba024e5db9e2"
+          "Sha256": "e39540af6cde6d504667d2ccceb887dfb14fa6e49403f024f13706676ab8fd3b"
         },
         {
           "Path": "baseline-plans/P1-02-page-root.json",
-          "Sha256": "ae23657b6d91914d1c62b1e7c5ffc36d0f97cc386742110d4593ba6989178fc1"
+          "Sha256": "75d794fa6b889ef491b173f42bf15973deccca3504a6fa6e8353a0a1b761be6d"
         },
         {
           "Path": "baseline-plans/P1-03-translation-split.json",
-          "Sha256": "a96a0d47b90158dd1a0202af57ef6d9cc1fe17064618553a5cc6ffd0ce2d62bc"
+          "Sha256": "3aff11f60f79467eba540a3222f5265de90bbcced6116d1004c8eb8d472b605f"
         },
         {
           "Path": "baseline-plans/P1-04-image-split.json",
-          "Sha256": "2a779e527c2bf68000610a81bf083d2691179c1e92ac1b3fdfcfbb1e83d3f3bc"
+          "Sha256": "fe268f010c3e5ef598615b39f06c37ff84c3c0b6f5dc49f485d5d1dc7d3e32a0"
         },
         {
           "Path": "baseline-plans/P2-01-filtered-count.json",
-          "Sha256": "6b4a85534ec8e1eed418376356f1c9b876e7a8f1ec02b80a63d75ecff38892d3"
+          "Sha256": "e5841c8eff7175f0e2bb892e6d3484cef5a5c1988a67a4b075ee5f56d5a3ed9e"
         },
         {
           "Path": "baseline-plans/P2-02-page-root.json",
-          "Sha256": "3e2b7fdaca099b6f22a8c42d93fa0174f460782571ebcfd4ac85cd6edbb32f3a"
+          "Sha256": "01117b118e226ab9af79ec8895e3ca5f5b768b24fd248b8cfee9684f3eb88e3e"
         },
         {
           "Path": "baseline-plans/P2-03-translation-split.json",
-          "Sha256": "9eec8f14411e321efbf344a92cfdd2c2d375bf09e7bc1bf830bac12fcde292e0"
+          "Sha256": "2d3a0dae87d7a9fc789efc6dcfd8b9d1867f8a2b69cfe531ff64955866cb7238"
         },
         {
           "Path": "baseline-plans/P2-04-image-split.json",
-          "Sha256": "d612b3a46b12f404064db3949fffb0acf5db8868dcc86e7adeeb73111406b8ed"
+          "Sha256": "a854d69b14cfd15971043263ec19160ccc5cc06d1634636d537411f1bac1e586"
         },
         {
           "Path": "baseline-plans/A1-01-agency-existence.json",
-          "Sha256": "379f403b36445f1c51ac7abff29b5df18ed0f061b92304db639e5f3c623c41e6"
+          "Sha256": "c00037704a3a90f10068ee2db7093f5b3f965d2ce63a44fb94be5b5efba2ec57"
         },
         {
           "Path": "baseline-plans/A1-02-filtered-count.json",
-          "Sha256": "5fc2c45080d526f0b90145aa4bc700bf34bc64a856240995950fbcce773a2400"
+          "Sha256": "17ff2ce6af4280f5867ef0310ead5b42de8c5b164d2641b19cfdb4dacc253ea4"
         },
         {
           "Path": "baseline-plans/A1-03-page-root.json",
-          "Sha256": "7d7aae1f4a688e6f07019d220645c3d7300570541256bccbf75c70b087b35b89"
+          "Sha256": "46f199c00edce1f3d8cb59cd5dffd370733e4b1fd401b6176edf5f56e2b7758e"
         },
         {
           "Path": "baseline-plans/A1-04-translation-split.json",
-          "Sha256": "1f1b3fe7ce205eba8d76c026830bca70ee1aedff4e4e93f369e2c69662788781"
+          "Sha256": "9373fe05fdeefc088885a619dea96cbceff00f3566465a84e0416bef408cd29a"
         },
         {
           "Path": "baseline-plans/A1-05-image-split.json",
-          "Sha256": "26ab8b2ab17ec37441f555ad502791f2a06260d9a9454c8bd055d8edbd83ecc6"
+          "Sha256": "57cc92f3797e0fdf561f4c672a44c1a80551751a9ccc99c33efb04b39a8f5afd"
         },
         {
           "Path": "baseline-plans/R1-01-filtered-count.json",
-          "Sha256": "5876576ed62d18fd13447d62c41add88d5f7761237f720cc379843c7234c4d85"
+          "Sha256": "64a73d2fd2b772d6e5530a8425d160a9e15744818a96190091ee6411a90dd2f3"
         },
         {
           "Path": "baseline-plans/R1-02-page-root.json",
-          "Sha256": "60352afe5d2be5583779371ca1a990a848cfee173010f3fbd9bbefb634609d9a"
+          "Sha256": "6fc32f34e7b43c719ec58f2b0438645c1434fa3adb0aa626fa922a258e49b9a8"
         },
         {
           "Path": "baseline-plans/R1-03-translation-split.json",
-          "Sha256": "f10175efe98710da38e07947a3a0cb1e30bb2b623007cdb65d7632ba232ee5d3"
+          "Sha256": "24291a9ce98a59a0fbeba5a1ef5cddef521a11ca6825c72d640b7314bd58534c"
         },
         {
           "Path": "baseline-plans/R1-04-image-split.json",
-          "Sha256": "dfdd5896253d104ee54ca18537bfc4011786f340eff7b88389a6c1a8495a6e65"
+          "Sha256": "02db70afc9e8eb157b0f67fdf7c9bbf24494904cdb85f6ae81e76b9570a34d22"
         },
         {
           "Path": "baseline-plans/L1-01-filtered-count.json",
-          "Sha256": "c1c68eac41f0b2277cfae73fbea0d1c4f9acf251376b7fe8c412f70af07a06ad"
+          "Sha256": "db55331afa8ddfa83a328b51632a7382e6e9cab47881bd755b39a360665a7085"
         },
         {
           "Path": "baseline-plans/L1-02-page-root.json",
-          "Sha256": "7e64b2306837a7c1bba3da2a29213e6d608aa56fe2dc944b5ed56074fc7be2ee"
+          "Sha256": "c45aecbefc0e5d8622a6a6331982ce5b5fd1749afbeae0be95280dab447971bb"
         },
         {
           "Path": "baseline-plans/L1-03-translation-split.json",
-          "Sha256": "02858c760bf3d529b12fa658220f5dd2c2a884388b69be569b5b7c836b6e1140"
+          "Sha256": "cf98abdf2f6c8b33d1cd6803d53cd7d4825016caa34f85b7b9e73153ef122557"
         },
         {
           "Path": "baseline-plans/L1-04-image-split.json",
-          "Sha256": "e36c63df65d5154eb0f9dd5c35190a14e8dbdc0b81f86b315366e435bf1bfada"
+          "Sha256": "f44f0769580d420ce883498b9d6abdec17871907f46906a5d1cba6f21d6e02e9"
         },
         {
           "Path": "baseline-plans/Q1-01-filtered-count.json",
-          "Sha256": "62add2cc5774b334cdbf025aac57c54a1229fe5a3202e9b765a1d4bbacac8cec"
+          "Sha256": "4709f505ed7b42397f223916df81df5e7dc2a32266f4a1d6d21f2401d584d3ce"
         },
         {
           "Path": "baseline-plans/Q1-02-page-root.json",
-          "Sha256": "9d6e258b63923272c1cf6704ae3b61d3b07e4ac399ac29ada9368abecc21ae2e"
+          "Sha256": "636c8412113e603d67ed78fd2072c66041e14a5693d55b752d653a7fc9269e4a"
         },
         {
           "Path": "baseline-plans/Q1-03-translation-split.json",
-          "Sha256": "8f2fe778f5b736ac674b8ab2cd4fae6432d5660316c181046abf5f9c9315be04"
+          "Sha256": "f016e0a9d8a0b464b8486f590dda99ebf81680ad514cbe7b2bd203b55af53346"
         },
         {
           "Path": "baseline-plans/Q1-04-image-split.json",
-          "Sha256": "348b6750c4266773a8d12039ef610cee23bbefa945831e88ae3df58c06694c9a"
+          "Sha256": "c29cf83d7c5260f25e2644094faad0bfab9dccf14938f303f86767b142b4a5d7"
         },
         {
           "Path": "baseline-plans/C1-01-comparable-source.json",
-          "Sha256": "d30efc61eef3c42a921153fa4b67b22aee3e9b16701b98f753136aa529117529"
+          "Sha256": "52566c2bcd49428d812d43e90350563d29439460562714cb29dbe99f541e1aa7"
         },
         {
           "Path": "baseline-plans/C1-02-comparable-ranked-root.json",
-          "Sha256": "12317f8c91545d1d89768ee9d34c64de8692720185e746a4eac0a3bad5c23cab"
+          "Sha256": "fdc6d9d077a5d5787894e8aaeab29ae47bf5179f8c349d254464ea91b68dbda8"
         },
         {
           "Path": "baseline-plans/C1-03-comparable-translation-split.json",
-          "Sha256": "98f3a3483f4d12ccbc1e51b0e3525efa3f78ba8e6ed83ca9698dba24ca30a6e8"
+          "Sha256": "bf0596549fb0375e252b1e8bf0841553997d55c862c94101fbf8107b11f0c596"
         },
         {
           "Path": "baseline-plans/C1-04-comparable-image-split.json",
-          "Sha256": "90c96eaec74d4eb3c3e8dd2b9a9f797a0b30f6e3370f25a453e69a54345f0c81"
+          "Sha256": "6af7b4db4c24c14dec58356a315363504457406f62e074d47345c31f69298e7c"
         }
       ]
     }

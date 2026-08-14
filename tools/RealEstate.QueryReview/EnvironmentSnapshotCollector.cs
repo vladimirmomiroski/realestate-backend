@@ -432,7 +432,7 @@ internal static class EnvironmentSnapshotCollector
         return reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
     }
 
-    private static async Task<string> RunProcessAsync(
+    internal static async Task<string> RunProcessAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken)
