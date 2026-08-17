@@ -1,3 +1,4 @@
+using RealEstate.Application.Listings.Geocoding;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
@@ -42,46 +43,25 @@ public sealed class ListingDraftReplacementEngine
         IEnumerable<ListingTranslation> existingTranslations,
         IEnumerable<UpdateListingTranslationRequest> requestedTranslations)
     {
-        Dictionary<string, LocationText> existingByLanguage =
-            existingTranslations.ToDictionary(
-                translation => ListingTranslationRules.NormalizeLanguageCode(
-                    translation.LanguageCode),
-                translation => LocationText.From(
+        CanonicalListingLocation existing = CanonicalListingLocation.From(
+            existingTranslations.Select(
+                translation => new CanonicalListingLocationInput(
+                    translation.LanguageCode,
                     translation.City,
                     translation.Municipality,
                     translation.AddressLine,
-                    translation.Neighborhood),
-                StringComparer.Ordinal);
+                    translation.Neighborhood)));
 
-        Dictionary<string, LocationText> requestedByLanguage =
-            requestedTranslations.ToDictionary(
-                translation => ListingTranslationRules.NormalizeLanguageCode(
-                    translation.LanguageCode),
-                translation => LocationText.From(
+        CanonicalListingLocation requested = CanonicalListingLocation.From(
+            requestedTranslations.Select(
+                translation => new CanonicalListingLocationInput(
+                    translation.LanguageCode,
                     translation.City,
                     translation.Municipality,
                     translation.AddressLine,
-                    translation.Neighborhood),
-                StringComparer.Ordinal);
+                    translation.Neighborhood)));
 
-        if (existingByLanguage.Count != requestedByLanguage.Count)
-        {
-            return true;
-        }
-
-        foreach ((string languageCode, LocationText existing) in
-            existingByLanguage)
-        {
-            if (!requestedByLanguage.TryGetValue(
-                    languageCode,
-                    out LocationText? requested) ||
-                existing != requested)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return !existing.HasSameIdentityAs(requested);
     }
 
     private static void ApplyRoot(
@@ -208,25 +188,5 @@ public sealed class ListingDraftReplacementEngine
         listing.HouseDetails.NumberOfFloors = houseRequested.NumberOfFloors;
         listing.HouseDetails.YardAreaSquareMeters =
             houseRequested.YardAreaSquareMeters;
-    }
-
-    private sealed record LocationText(
-        string? City,
-        string? Municipality,
-        string? AddressLine,
-        string? Neighborhood)
-    {
-        public static LocationText From(
-            string? city,
-            string? municipality,
-            string? addressLine,
-            string? neighborhood)
-        {
-            return new LocationText(
-                ListingTranslationRules.NormalizeOptionalText(city),
-                ListingTranslationRules.NormalizeOptionalText(municipality),
-                ListingTranslationRules.NormalizeOptionalText(addressLine),
-                ListingTranslationRules.NormalizeOptionalText(neighborhood));
-        }
     }
 }
