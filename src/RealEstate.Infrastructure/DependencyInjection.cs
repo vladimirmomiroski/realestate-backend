@@ -19,7 +19,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        string environmentName,
+        Action<Microsoft.AspNetCore.DataProtection.IDataProtectionBuilder>?
+            configureDataProtectionKeyEncryptionAtRest = null)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException(
@@ -47,6 +50,11 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        services.AddLocationConfirmationDataProtection(
+            configuration,
+            environmentName,
+            configureDataProtectionKeyEncryptionAtRest);
 
         return services;
     }

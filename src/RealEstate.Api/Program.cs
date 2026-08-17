@@ -36,7 +36,9 @@ builder.Services.Configure<LocalFileStorageOptions>(options =>
 // Services
 
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(
+    builder.Configuration,
+    builder.Environment.EnvironmentName);
 
 builder.Services.AddCors(options =>
 {

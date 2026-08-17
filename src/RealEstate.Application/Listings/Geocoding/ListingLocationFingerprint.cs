@@ -8,6 +8,7 @@ public static class ListingLocationFingerprint
 {
     public const int CurrentVersion = 1;
     public const string CurrentVersionPrefix = "v1:";
+    public const int DigestHexLength = 64;
 
     private const string FormatIdentifier =
         "RealEstate.ListingLocationFingerprint";
@@ -41,6 +42,33 @@ public static class ListingLocationFingerprint
             checked((int)canonicalBytes.Length)));
 
         return CurrentVersionPrefix + Convert.ToHexString(digest).ToLowerInvariant();
+    }
+
+    public static bool IsCurrentVersionFingerprint(string? value)
+    {
+        if (value is null ||
+            !value.StartsWith(CurrentVersionPrefix, StringComparison.Ordinal) ||
+            value.Length != CurrentVersionPrefix.Length + DigestHexLength)
+        {
+            return false;
+        }
+
+        return IsLowercaseHex(
+            value.AsSpan(CurrentVersionPrefix.Length));
+    }
+
+    private static bool IsLowercaseHex(ReadOnlySpan<char> value)
+    {
+        foreach (char character in value)
+        {
+            if (character is not (>= '0' and <= '9') and
+                not (>= 'a' and <= 'f'))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void WriteNullableString(Stream destination, string? value)
