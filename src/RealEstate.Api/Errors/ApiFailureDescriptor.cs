@@ -98,6 +98,18 @@ internal sealed record ApiFailureDescriptor(
         "Unsupported media type",
         "The request media type is not supported.");
 
+    public static readonly ApiFailureDescriptor GeocodingRateLimitExceeded = new(
+        StatusCodes.Status429TooManyRequests,
+        ErrorCodes.RateLimitGeocodingExceeded,
+        "Too many geocoding requests",
+        "Too many location requests were made. Try again later.");
+
+    public static readonly ApiFailureDescriptor GeocodingUnavailable = new(
+        StatusCodes.Status503ServiceUnavailable,
+        ErrorCodes.DependencyGeocodingUnavailable,
+        "Geocoding unavailable",
+        "Location search and confirmation are temporarily unavailable.");
+
     public static readonly ApiFailureDescriptor Unexpected = new(
         StatusCodes.Status500InternalServerError,
         ErrorCodes.ServerUnexpected,
@@ -144,6 +156,10 @@ internal sealed record ApiFailureDescriptor(
             ErrorCodes.ConflictListingNotReady => ListingNotReadyConflict,
             ErrorCodes.ConflictResourceCapacity => ResourceCapacityConflict,
             ErrorCodes.ConflictResourceSetChanged => ResourceSetChangedConflict,
+            ErrorCodes.DependencyGeocodingUnavailable =>
+                GeocodingUnavailable,
+            ErrorCodes.RateLimitGeocodingExceeded =>
+                GeocodingRateLimitExceeded,
             ErrorCodes.ServerUnexpected => Unexpected,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(errorCode),

@@ -40,6 +40,12 @@ public static class ErrorCodes
     public const string ConflictResourceSetChanged =
         "conflict.resource_set_changed";
 
+    public const string DependencyGeocodingUnavailable =
+        "dependency.geocoding_unavailable";
+
+    public const string RateLimitGeocodingExceeded =
+        "rate_limit.geocoding_exceeded";
+
     public const string ServerUnexpected = "server.unexpected";
 
     private static readonly FrozenSet<string> DefinedCodes = new[]
@@ -63,6 +69,8 @@ public static class ErrorCodes
         ConflictListingNotReady,
         ConflictResourceCapacity,
         ConflictResourceSetChanged,
+        DependencyGeocodingUnavailable,
+        RateLimitGeocodingExceeded,
         ServerUnexpected
     }.ToFrozenSet(StringComparer.Ordinal);
 
