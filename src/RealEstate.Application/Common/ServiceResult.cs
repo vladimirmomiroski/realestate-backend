@@ -7,7 +7,9 @@ public enum ServiceResultStatus
     NotFound = 3,
     Forbidden = 4,
     Unauthorized = 5,
-    Conflict = 6
+    Conflict = 6,
+    DependencyUnavailable = 7,
+    RateLimited = 8
 }
 
 public sealed record ServiceResult<T>(
@@ -89,6 +91,23 @@ public sealed record ServiceResult<T>(
     public static ServiceResult<T> Conflict(string error, string errorCode)
     {
         return Failure(ServiceResultStatus.Conflict, error, errorCode);
+    }
+
+    public static ServiceResult<T> DependencyUnavailable(
+        string error,
+        string errorCode)
+    {
+        return Failure(
+            ServiceResultStatus.DependencyUnavailable,
+            error,
+            errorCode);
+    }
+
+    public static ServiceResult<T> RateLimited(
+        string error,
+        string errorCode)
+    {
+        return Failure(ServiceResultStatus.RateLimited, error, errorCode);
     }
 
     private static ServiceResult<T> Failure(

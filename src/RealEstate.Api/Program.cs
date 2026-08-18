@@ -12,6 +12,7 @@ using Microsoft.OpenApi;
 using RealEstate.Api.Authentication;
 using RealEstate.Api.Errors;
 using RealEstate.Api.OpenApi;
+using RealEstate.Api.RateLimiting;
 using RealEstate.Application.Common.Authentication;
 using RealEstate.Application.Common.Health;
 
@@ -64,6 +65,7 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddSingleton<ApiFailureService>();
+builder.Services.AddGeocodingRateLimiting(builder.Configuration);
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.Replace(
@@ -236,6 +238,7 @@ app.UseCors(FrontendCorsPolicy);
 app.UseStaticFiles();
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
