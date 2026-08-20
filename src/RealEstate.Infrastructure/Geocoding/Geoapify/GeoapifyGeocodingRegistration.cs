@@ -23,17 +23,20 @@ public static class GeoapifyGeocodingRegistration
             .Bind(configuration.GetSection(GeoapifyOptions.SectionName))
             .ValidateOnStart();
 
-        services.AddHttpClient<IListingGeocoder, GeoapifyListingGeocoder>(
-            (serviceProvider, client) =>
-            {
-                GeoapifyOptions options = serviceProvider
-                    .GetRequiredService<IOptions<GeoapifyOptions>>()
-                    .Value;
+        services
+            .AddHttpClient<IListingGeocoder, GeoapifyListingGeocoder>(
+                (serviceProvider, client) =>
+                {
+                    GeoapifyOptions options = serviceProvider
+                        .GetRequiredService<IOptions<GeoapifyOptions>>()
+                        .Value;
 
-                client.BaseAddress = new Uri(
-                    options.BaseUri,
-                    UriKind.Absolute);
-            });
+                    client.BaseAddress = new Uri(
+                        options.BaseUri,
+                        UriKind.Absolute);
+                    client.Timeout = Timeout.InfiniteTimeSpan;
+                })
+            .RemoveAllLoggers();
 
         return services;
     }

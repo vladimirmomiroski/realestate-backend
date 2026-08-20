@@ -1,6 +1,8 @@
 using System.Net;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RealEstate.Application.Listings.Geocoding;
 using RealEstate.Domain.Enums;
@@ -23,16 +25,20 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
 
     private readonly HttpClient _httpClient;
     private readonly GeoapifyOptions _options;
+    private readonly ILogger<GeoapifyListingGeocoder> _logger;
 
     public GeoapifyListingGeocoder(
         HttpClient httpClient,
-        IOptions<GeoapifyOptions> options)
+        IOptions<GeoapifyOptions> options,
+        ILogger<GeoapifyListingGeocoder> logger)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _httpClient = httpClient;
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<GeocodingSearchResult> SearchAsync(
@@ -54,77 +60,13 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
             searchText!,
             providerLanguage!);
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-        using HttpResponseMessage response = await _httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
+        return await ExecuteWithResilienceAsync(
+            "search",
+            token => SearchOnceAsync(requestUri, token),
+            () => GeocodingSearchResult.Failure(
+                GeocodingSearchOutcome.Unavailable),
+            result => result.Outcome.ToString(),
             cancellationToken);
-
-        GeocodingSearchOutcome? failure = MapSearchFailure(response.StatusCode);
-
-        if (failure.HasValue)
-        {
-            return GeocodingSearchResult.Failure(failure.Value);
-        }
-
-        GeoapifySearchResponse? payload;
-
-        try
-        {
-            await using Stream content = await response.Content
-                .ReadAsStreamAsync(cancellationToken);
-
-            payload = await JsonSerializer.DeserializeAsync<
-                GeoapifySearchResponse>(
-                content,
-                SerializerOptions,
-                cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return GeocodingSearchResult.Failure(
-                GeocodingSearchOutcome.MalformedResponse);
-        }
-
-        if (payload?.Results is null)
-        {
-            return GeocodingSearchResult.Failure(
-                GeocodingSearchOutcome.MalformedResponse);
-        }
-
-        List<GeocodingCandidate> candidates = [];
-
-        foreach (GeoapifyResult? result in payload.Results.Take(
-                     _options.CandidateLimit))
-        {
-            if (result is null)
-            {
-                return GeocodingSearchResult.Failure(
-                    GeocodingSearchOutcome.MalformedResponse);
-            }
-
-            CandidateMappingOutcome mapping = TryMapCandidate(
-                result,
-                out GeocodingCandidate? candidate);
-
-            if (mapping == CandidateMappingOutcome.MalformedResponse)
-            {
-                return GeocodingSearchResult.Failure(
-                    GeocodingSearchOutcome.MalformedResponse);
-            }
-
-            if (mapping == CandidateMappingOutcome.Accepted)
-            {
-                candidates.Add(candidate!);
-
-                if (candidates.Count == _options.CandidateLimit)
-                {
-                    break;
-                }
-            }
-        }
-
-        return GeocodingSearchResult.Success(candidates);
     }
 
     public async Task<GeocodingResolutionResult> ResolveAsync(
@@ -148,6 +90,107 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
         string requestUri = BuildPlaceDetailsUri(
             reference.ResultReference);
 
+        return await ExecuteWithResilienceAsync(
+            "resolve",
+            token => ResolveOnceAsync(
+                requestUri,
+                reference.ResultReference,
+                token),
+            () => GeocodingResolutionResult.Failure(
+                GeocodingResolutionOutcome.Unavailable),
+            result => result.Outcome.ToString(),
+            cancellationToken);
+    }
+
+    private async Task<ProviderAttempt<GeocodingSearchResult>> SearchOnceAsync(
+        string requestUri,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        using HttpResponseMessage response = await _httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        GeocodingSearchOutcome? failure = MapSearchFailure(response.StatusCode);
+
+        if (failure.HasValue)
+        {
+            return new ProviderAttempt<GeocodingSearchResult>(
+                GeocodingSearchResult.Failure(failure.Value),
+                IsTransientServerFailure(response.StatusCode));
+        }
+
+        GeoapifySearchResponse? payload;
+
+        try
+        {
+            await using Stream content = await response.Content
+                .ReadAsStreamAsync(cancellationToken);
+
+            payload = await JsonSerializer.DeserializeAsync<
+                GeoapifySearchResponse>(
+                content,
+                SerializerOptions,
+                cancellationToken);
+        }
+        catch (JsonException)
+        {
+            return ProviderAttempt<GeocodingSearchResult>.Terminal(
+                GeocodingSearchResult.Failure(
+                    GeocodingSearchOutcome.MalformedResponse));
+        }
+
+        if (payload?.Results is null)
+        {
+            return ProviderAttempt<GeocodingSearchResult>.Terminal(
+                GeocodingSearchResult.Failure(
+                    GeocodingSearchOutcome.MalformedResponse));
+        }
+
+        List<GeocodingCandidate> candidates = [];
+
+        foreach (GeoapifyResult? result in payload.Results.Take(
+                     _options.CandidateLimit))
+        {
+            if (result is null)
+            {
+                return ProviderAttempt<GeocodingSearchResult>.Terminal(
+                    GeocodingSearchResult.Failure(
+                        GeocodingSearchOutcome.MalformedResponse));
+            }
+
+            CandidateMappingOutcome mapping = TryMapCandidate(
+                result,
+                out GeocodingCandidate? candidate);
+
+            if (mapping == CandidateMappingOutcome.MalformedResponse)
+            {
+                return ProviderAttempt<GeocodingSearchResult>.Terminal(
+                    GeocodingSearchResult.Failure(
+                        GeocodingSearchOutcome.MalformedResponse));
+            }
+
+            if (mapping == CandidateMappingOutcome.Accepted)
+            {
+                candidates.Add(candidate!);
+
+                if (candidates.Count == _options.CandidateLimit)
+                {
+                    break;
+                }
+            }
+        }
+
+        return ProviderAttempt<GeocodingSearchResult>.Terminal(
+            GeocodingSearchResult.Success(candidates));
+    }
+
+    private async Task<ProviderAttempt<GeocodingResolutionResult>> ResolveOnceAsync(
+        string requestUri,
+        string expectedReference,
+        CancellationToken cancellationToken)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
         using HttpResponseMessage response = await _httpClient.SendAsync(
             request,
@@ -159,7 +202,9 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
 
         if (failure.HasValue)
         {
-            return GeocodingResolutionResult.Failure(failure.Value);
+            return new ProviderAttempt<GeocodingResolutionResult>(
+                GeocodingResolutionResult.Failure(failure.Value),
+                IsTransientServerFailure(response.StatusCode));
         }
 
         GeoapifyPlaceDetailsResponse? payload;
@@ -177,20 +222,23 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
         }
         catch (JsonException)
         {
-            return GeocodingResolutionResult.Failure(
-                GeocodingResolutionOutcome.MalformedResponse);
+            return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+                GeocodingResolutionResult.Failure(
+                    GeocodingResolutionOutcome.MalformedResponse));
         }
 
         if (payload?.Features is null)
         {
-            return GeocodingResolutionResult.Failure(
-                GeocodingResolutionOutcome.MalformedResponse);
+            return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+                GeocodingResolutionResult.Failure(
+                    GeocodingResolutionOutcome.MalformedResponse));
         }
 
         if (payload.Features.Count == 0)
         {
-            return GeocodingResolutionResult.Failure(
-                GeocodingResolutionOutcome.NotFound);
+            return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+                GeocodingResolutionResult.Failure(
+                    GeocodingResolutionOutcome.NotFound));
         }
 
         if (payload.Features.Count != 1 ||
@@ -200,8 +248,9 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
                 "details",
                 StringComparison.Ordinal))
         {
-            return GeocodingResolutionResult.Failure(
-                GeocodingResolutionOutcome.MalformedResponse);
+            return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+                GeocodingResolutionResult.Failure(
+                    GeocodingResolutionOutcome.MalformedResponse));
         }
 
         GeoapifyResult? result = feature.Properties;
@@ -210,11 +259,12 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
             string.IsNullOrEmpty(result.PlaceId) ||
             !string.Equals(
                 result.PlaceId,
-                reference.ResultReference,
+                expectedReference,
                 StringComparison.Ordinal))
         {
-            return GeocodingResolutionResult.Failure(
-                GeocodingResolutionOutcome.Stale);
+            return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+                GeocodingResolutionResult.Failure(
+                    GeocodingResolutionOutcome.Stale));
         }
 
         if (!IsValidReference(
@@ -224,8 +274,9 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
             !TryGetCoordinates(result, out decimal latitude, out decimal longitude) ||
             !HasWellFormedMappingText(result))
         {
-            return GeocodingResolutionResult.Failure(
-                GeocodingResolutionOutcome.MalformedResponse);
+            return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+                GeocodingResolutionResult.Failure(
+                    GeocodingResolutionOutcome.MalformedResponse));
         }
 
         string? displayName = GetOptionalDisplayName(result.Formatted);
@@ -233,8 +284,9 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
         if (result.Formatted is not null && displayName is null &&
             !IsOptionalDisplayValue(result.Formatted))
         {
-            return GeocodingResolutionResult.Failure(
-                GeocodingResolutionOutcome.MalformedResponse);
+            return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+                GeocodingResolutionResult.Failure(
+                    GeocodingResolutionOutcome.MalformedResponse));
         }
 
         var snapshot = new ResolvedGeocodingSnapshot(
@@ -245,7 +297,86 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
             MapPrecision(result),
             displayName);
 
-        return GeocodingResolutionResult.Success(snapshot);
+        return ProviderAttempt<GeocodingResolutionResult>.Terminal(
+            GeocodingResolutionResult.Success(snapshot));
+    }
+
+    private async Task<TResult> ExecuteWithResilienceAsync<TResult>(
+        string operation,
+        Func<CancellationToken, Task<ProviderAttempt<TResult>>> executeAttempt,
+        Func<TResult> unavailableResultFactory,
+        Func<TResult, string> outcomeSelector,
+        CancellationToken cancellationToken)
+    {
+        long startedAt = Stopwatch.GetTimestamp();
+        int attemptCount = 0;
+        string terminalOutcome = "UnexpectedFailure";
+
+        using CancellationTokenSource operationTimeout =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        operationTimeout.CancelAfter(
+            TimeSpan.FromSeconds(_options.OperationTimeoutSeconds));
+
+        try
+        {
+            while (true)
+            {
+                operationTimeout.Token.ThrowIfCancellationRequested();
+                attemptCount++;
+
+                ProviderAttempt<TResult> attempt;
+
+                try
+                {
+                    attempt = await executeAttempt(operationTimeout.Token);
+                }
+                catch (HttpRequestException)
+                {
+                    attempt = ProviderAttempt<TResult>.Retryable(
+                        unavailableResultFactory());
+                }
+                catch (IOException)
+                {
+                    attempt = ProviderAttempt<TResult>.Retryable(
+                        unavailableResultFactory());
+                }
+
+                if (!attempt.CanRetry ||
+                    attemptCount > _options.MaxRetryAttempts)
+                {
+                    terminalOutcome = outcomeSelector(attempt.Result);
+                    return attempt.Result;
+                }
+
+                operationTimeout.Token.ThrowIfCancellationRequested();
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(
+                        _options.RetryDelayMilliseconds),
+                    operationTimeout.Token);
+            }
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            terminalOutcome = "Canceled";
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            TResult unavailable = unavailableResultFactory();
+            terminalOutcome = outcomeSelector(unavailable);
+            return unavailable;
+        }
+        finally
+        {
+            GeoapifyDependencyTelemetry.LogTerminal(
+                _logger,
+                ProviderKey,
+                operation,
+                terminalOutcome,
+                attemptCount,
+                Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds);
+        }
     }
 
     private string BuildForwardSearchUri(
@@ -532,6 +663,15 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
             : GeocodingSearchOutcome.PermanentFailure;
     }
 
+    private static bool IsTransientServerFailure(HttpStatusCode statusCode)
+    {
+        return statusCode is
+            HttpStatusCode.InternalServerError or
+            HttpStatusCode.BadGateway or
+            HttpStatusCode.ServiceUnavailable or
+            HttpStatusCode.GatewayTimeout;
+    }
+
     private static GeocodingResolutionOutcome? MapResolutionFailure(
         HttpStatusCode statusCode)
     {
@@ -562,6 +702,21 @@ public sealed class GeoapifyListingGeocoder : IListingGeocoder
         Accepted,
         Rejected,
         MalformedResponse
+    }
+
+    private sealed record ProviderAttempt<TResult>(
+        TResult Result,
+        bool CanRetry)
+    {
+        public static ProviderAttempt<TResult> Terminal(TResult result)
+        {
+            return new ProviderAttempt<TResult>(result, CanRetry: false);
+        }
+
+        public static ProviderAttempt<TResult> Retryable(TResult result)
+        {
+            return new ProviderAttempt<TResult>(result, CanRetry: true);
+        }
     }
 
     private sealed class GeoapifySearchResponse

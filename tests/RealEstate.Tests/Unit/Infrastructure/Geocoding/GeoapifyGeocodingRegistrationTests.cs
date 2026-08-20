@@ -29,6 +29,12 @@ public sealed class GeoapifyGeocodingRegistrationTests
 
         options.BaseUri.Should().Be(GeoapifyOptions.DefaultBaseUri);
         options.CandidateLimit.Should().Be(GeoapifyOptions.DefaultCandidateLimit);
+        options.OperationTimeoutSeconds.Should().Be(
+            GeoapifyOptions.DefaultOperationTimeoutSeconds);
+        options.MaxRetryAttempts.Should().Be(
+            GeoapifyOptions.DefaultMaxRetryAttempts);
+        options.RetryDelayMilliseconds.Should().Be(
+            GeoapifyOptions.DefaultRetryDelayMilliseconds);
         geocoder.Should().BeOfType<GeoapifyListingGeocoder>();
 
         await host.StopAsync(CancellationToken.None);
@@ -88,6 +94,30 @@ public sealed class GeoapifyGeocodingRegistrationTests
         (await act.Should().ThrowAsync<OptionsValidationException>())
             .Which.Failures.Should().Contain(failure =>
                 failure.Contains("CandidateLimit", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("OperationTimeoutSeconds", "0")]
+    [InlineData("OperationTimeoutSeconds", "31")]
+    [InlineData("MaxRetryAttempts", "-1")]
+    [InlineData("MaxRetryAttempts", "2")]
+    [InlineData("RetryDelayMilliseconds", "-1")]
+    [InlineData("RetryDelayMilliseconds", "1001")]
+    public async Task Registration_InvalidResilienceSettingFailsStartup(
+        string setting,
+        string value)
+    {
+        using IHost host = CreateHost(new Dictionary<string, string?>
+        {
+            ["Geoapify:ApiKey"] = "test-only-key",
+            [$"Geoapify:{setting}"] = value
+        });
+
+        Func<Task> act = () => host.StartAsync(CancellationToken.None);
+
+        (await act.Should().ThrowAsync<OptionsValidationException>())
+            .Which.Failures.Should().Contain(failure =>
+                failure.Contains(setting, StringComparison.Ordinal));
     }
 
     [Fact]
