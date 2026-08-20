@@ -8,6 +8,7 @@ using RealEstate.Application.Common.Storage;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Infrastructure.Health;
+using RealEstate.Infrastructure.Geocoding.Geoapify;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
 using RealEstate.Infrastructure.Security;
@@ -55,6 +56,8 @@ public static class DependencyInjection
             configuration,
             environmentName,
             configureDataProtectionKeyEncryptionAtRest);
+
+        services.AddGeoapifyGeocoding(configuration);
 
         return services;
     }
