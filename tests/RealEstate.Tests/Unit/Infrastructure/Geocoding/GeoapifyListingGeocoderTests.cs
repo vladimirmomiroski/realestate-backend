@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using RealEstate.Application.Listings.Geocoding;
 using RealEstate.Domain.Enums;
@@ -592,13 +593,14 @@ public sealed class GeoapifyListingGeocoderTests
     }
 
     [Theory]
-    [InlineData(HttpStatusCode.BadRequest, GeocodingSearchOutcome.PermanentFailure)]
-    [InlineData(HttpStatusCode.Unauthorized, GeocodingSearchOutcome.PermanentFailure)]
-    [InlineData(HttpStatusCode.TooManyRequests, GeocodingSearchOutcome.RateLimited)]
-    [InlineData(HttpStatusCode.InternalServerError, GeocodingSearchOutcome.Unavailable)]
-    public async Task SearchAsync_MapsDeterministicHttpStatusWithoutRetry(
+    [InlineData(HttpStatusCode.BadRequest, GeocodingSearchOutcome.PermanentFailure, 1)]
+    [InlineData(HttpStatusCode.Unauthorized, GeocodingSearchOutcome.PermanentFailure, 1)]
+    [InlineData(HttpStatusCode.TooManyRequests, GeocodingSearchOutcome.RateLimited, 1)]
+    [InlineData(HttpStatusCode.InternalServerError, GeocodingSearchOutcome.Unavailable, 2)]
+    public async Task SearchAsync_MapsDeterministicHttpStatusWithinRetryPolicy(
         HttpStatusCode statusCode,
-        GeocodingSearchOutcome expected)
+        GeocodingSearchOutcome expected,
+        int expectedAttempts)
     {
         var handler = StubHttpMessageHandler.Returning("{}", statusCode);
         GeoapifyListingGeocoder sut = CreateSut(handler);
@@ -608,7 +610,7 @@ public sealed class GeoapifyListingGeocoderTests
             CancellationToken.None);
 
         result.Outcome.Should().Be(expected);
-        handler.CallCount.Should().Be(1);
+        handler.CallCount.Should().Be(expectedAttempts);
     }
 
     [Fact]
@@ -664,7 +666,10 @@ public sealed class GeoapifyListingGeocoderTests
             CandidateLimit = candidateLimit
         });
 
-        return new GeoapifyListingGeocoder(httpClient, options);
+        return new GeoapifyListingGeocoder(
+            httpClient,
+            options,
+            NullLogger<GeoapifyListingGeocoder>.Instance);
     }
 
     private static GeocodingSearchInput SearchInput(

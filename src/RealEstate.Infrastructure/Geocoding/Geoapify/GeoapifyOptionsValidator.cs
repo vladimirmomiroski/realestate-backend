@@ -31,6 +31,33 @@ public sealed class GeoapifyOptionsValidator : IValidateOptions<GeoapifyOptions>
                 $"Geoapify CandidateLimit must be between {GeoapifyOptions.MinimumCandidateLimit} and {GeoapifyOptions.MaximumCandidateLimit}.");
         }
 
+        if (options.OperationTimeoutSeconds <
+                GeoapifyOptions.MinimumOperationTimeoutSeconds ||
+            options.OperationTimeoutSeconds >
+                GeoapifyOptions.MaximumOperationTimeoutSeconds)
+        {
+            failures.Add(
+                $"Geoapify OperationTimeoutSeconds must be between {GeoapifyOptions.MinimumOperationTimeoutSeconds} and {GeoapifyOptions.MaximumOperationTimeoutSeconds}.");
+        }
+
+        if (options.MaxRetryAttempts <
+                GeoapifyOptions.MinimumMaxRetryAttempts ||
+            options.MaxRetryAttempts >
+                GeoapifyOptions.MaximumMaxRetryAttempts)
+        {
+            failures.Add(
+                $"Geoapify MaxRetryAttempts must be between {GeoapifyOptions.MinimumMaxRetryAttempts} and {GeoapifyOptions.MaximumMaxRetryAttempts}.");
+        }
+
+        if (options.RetryDelayMilliseconds <
+                GeoapifyOptions.MinimumRetryDelayMilliseconds ||
+            options.RetryDelayMilliseconds >
+                GeoapifyOptions.MaximumRetryDelayMilliseconds)
+        {
+            failures.Add(
+                $"Geoapify RetryDelayMilliseconds must be between {GeoapifyOptions.MinimumRetryDelayMilliseconds} and {GeoapifyOptions.MaximumRetryDelayMilliseconds}.");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
