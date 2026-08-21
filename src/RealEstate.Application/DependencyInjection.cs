@@ -11,6 +11,7 @@ using RealEstate.Application.Agencies.Queries.GetMyAgencies;
 using RealEstate.Application.Auth.Commands.LoginUser;
 using RealEstate.Application.Auth.Commands.RegisterUser;
 using RealEstate.Application.Listings.Commands.ArchiveListing;
+using RealEstate.Application.Listings.Commands.ClearListingLocation;
 using RealEstate.Application.Listings.Commands.CreateListing;
 using RealEstate.Application.Listings.Commands.ConfirmListingLocation;
 using RealEstate.Application.Listings.Commands.DeleteListingImage;
@@ -52,6 +53,7 @@ public static class DependencyInjection
     {
         services.AddScoped<CreateListingValidator>();
         services.AddScoped<CreateListingHandler>();
+        services.AddScoped<ClearListingLocationHandler>();
         services.AddScoped<ConfirmListingLocationHandler>();
         services.AddScoped<GetListingsValidator>();
         services.AddScoped<GetListingsHandler>();
