@@ -16,7 +16,7 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
     private const int MaximumImageSizeBytes = 5 * 1024 * 1024;
 
     private static readonly string[] CanonicalProblemStatuses =
-        ["401", "403", "404", "409", "500"];
+        ["401", "403", "404", "409", "429", "500", "503"];
 
     public void Apply(
         OpenApiOperation operation,
@@ -189,6 +189,21 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
                     }
                 };
             }
+
+            if (status == "429")
+            {
+                response.Headers["Retry-After"] = new OpenApiHeader
+                {
+                    Description =
+                        "Application rate-limit delay in seconds when the limiter " +
+                        "provides a deterministic replenishment interval.",
+                    Schema = new OpenApiSchema
+                    {
+                        Type = JsonSchemaType.Integer,
+                        Minimum = "0"
+                    }
+                };
+            }
         }
     }
 
@@ -351,7 +366,9 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
             "403" => "Forbidden",
             "404" => "Not Found",
             "409" => "Conflict",
+            "429" => "Too Many Requests",
             "500" => "Internal Server Error",
+            "503" => "Service Unavailable",
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }

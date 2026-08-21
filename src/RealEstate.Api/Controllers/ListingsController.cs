@@ -20,6 +20,12 @@ using RealEstate.Application.Listings.Commands.UpdateListing;
 using RealEstate.Application.Listings.Queries.GetComparableListings;
 using RealEstate.Api.Errors;
 
+using Microsoft.AspNetCore.RateLimiting;
+using RealEstate.Api.RateLimiting;
+using RealEstate.Application.Listings.Commands.ClearListingLocation;
+using RealEstate.Application.Listings.Commands.ConfirmListingLocation;
+using RealEstate.Application.Listings.Queries.SearchLocationCandidates;
+
 namespace RealEstate.Api.Controllers;
 
 [ApiController]
@@ -44,6 +50,9 @@ public sealed class ListingsController : ControllerBase
     private readonly ArchiveListingHandler _archiveListingHandler;
     private readonly UpdateListingHandler _updateListingHandler;
     private readonly GetComparableListingsHandler _getComparableListingsHandler;
+    private readonly SearchLocationCandidatesHandler _searchLocationCandidatesHandler;
+    private readonly ConfirmListingLocationHandler _confirmListingLocationHandler;
+    private readonly ClearListingLocationHandler _clearListingLocationHandler;
     private readonly ApiFailureService _failureService;
 
     public ListingsController(
@@ -61,6 +70,9 @@ public sealed class ListingsController : ControllerBase
         UnpublishListingHandler unpublishListingHandler,
         ArchiveListingHandler archiveListingHandler,
         UpdateListingHandler updateListingHandler,
+        SearchLocationCandidatesHandler searchLocationCandidatesHandler,
+        ConfirmListingLocationHandler confirmListingLocationHandler,
+        ClearListingLocationHandler clearListingLocationHandler,
         ApiFailureService failureService
         )
     {
@@ -78,8 +90,112 @@ public sealed class ListingsController : ControllerBase
         _unpublishListingHandler = unpublishListingHandler;
         _archiveListingHandler = archiveListingHandler;
         _updateListingHandler = updateListingHandler;
+        _searchLocationCandidatesHandler = searchLocationCandidatesHandler;
+        _confirmListingLocationHandler = confirmListingLocationHandler;
+        _clearListingLocationHandler = clearListingLocationHandler;
         _failureService = failureService;
         
+    }
+
+    [Authorize]
+    [EnableRateLimiting(GeocodingRateLimitPolicy.Name)]
+    [HttpPost("{id:guid}/location/candidates")]
+    [Consumes("application/json")]
+    [ProducesResponseType(
+        typeof(IReadOnlyList<ListingLocationCandidateResponse>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> SearchLocationCandidates(
+        Guid id,
+        [FromBody] SearchLocationCandidatesRequest request,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<IReadOnlyList<ListingLocationCandidateResponse>> result =
+            await _searchLocationCandidatesHandler.HandleAsync(
+                new SearchLocationCandidatesQuery(
+                    id,
+                    request.LanguageCode),
+                cancellationToken);
+
+        return MapLocationResult(result, "location-candidate search");
+    }
+
+    [Authorize]
+    [EnableRateLimiting(GeocodingRateLimitPolicy.Name)]
+    [HttpPut("{id:guid}/location")]
+    [Consumes("application/json")]
+    [ProducesResponseType(
+        typeof(ListingLocationStateResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> ConfirmLocation(
+        Guid id,
+        [FromBody] ConfirmListingLocationRequest request,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<ListingLocationStateResponse> result =
+            await _confirmListingLocationHandler.HandleAsync(
+                new ConfirmListingLocationCommand(
+                    id,
+                    request.ConfirmationToken),
+                cancellationToken);
+
+        return MapLocationResult(result, "location confirmation");
+    }
+
+    [Authorize]
+    [HttpDelete("{id:guid}/location")]
+    [ProducesResponseType(
+        typeof(ListingLocationStateResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ClearLocation(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<ListingLocationStateResponse> result =
+            await _clearListingLocationHandler.HandleAsync(
+                new ClearListingLocationCommand(id),
+                cancellationToken);
+
+        return MapLocationResult(result, "location clear");
+    }
+
+    private IActionResult MapLocationResult<T>(
+        ServiceResult<T> result,
+        string operation)
+    {
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    $"A successful {operation} result must provide a value.")),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            ServiceResultStatus.DependencyUnavailable =>
+                CreateFailureResult(result),
+            ServiceResultStatus.RateLimited => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                $"The {operation} result was not mapped.")
+        };
     }
 
     [Authorize]

@@ -10,6 +10,9 @@ using RealEstate.Application.Users.Dtos;
 using RealEstate.Domain.Listings;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
+using RealEstate.Application.Listings.Commands.ConfirmListingLocation;
+using RealEstate.Application.Listings.Queries.SearchLocationCandidates;
+
 namespace RealEstate.Api.OpenApi;
 
 public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
@@ -63,12 +66,40 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         }
 
         if (context.Type == typeof(ListingResponse) ||
-            context.Type == typeof(ListingAuthoringResponse))
+            context.Type == typeof(ListingAuthoringResponse) ||
+            context.Type == typeof(ListingLocationStateResponse))
         {
             WrapNullableReference(
                 mutableSchema,
                 "locationPrecision",
                 "Nullable provider-neutral precision of a confirmed location snapshot.");
+        }
+
+        if (context.Type == typeof(ListingLocationCandidateResponse))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "label",
+                "confirmationToken");
+
+            mutableSchema.Required ??= new HashSet<string>(StringComparer.Ordinal);
+            mutableSchema.Required.UnionWith(
+                ["previewLatitude", "previewLongitude", "precision"]);
+            SetDescription(
+                mutableSchema,
+                "confirmationToken",
+                "Opaque short-lived token required to confirm this candidate.");
+        }
+
+        if (context.Type == typeof(ConfirmListingLocationRequest))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "confirmationToken");
+            SetDescription(
+                mutableSchema,
+                "confirmationToken",
+                "Opaque short-lived location-confirmation token. Coordinates and provider provenance are not accepted.");
         }
 
         if (context.Type == typeof(CreateListingTranslationRequest))
