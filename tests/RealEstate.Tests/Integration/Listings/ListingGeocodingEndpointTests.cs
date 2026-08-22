@@ -494,6 +494,9 @@ public sealed class ListingGeocodingEndpointTests
 
         return _factory.WithWebHostBuilder(builder =>
         {
+            builder.UseSetting(
+                "ConnectionStrings:DefaultConnection",
+                connectionString);
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
                 var values = new Dictionary<string, string?>
