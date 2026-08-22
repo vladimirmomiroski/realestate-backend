@@ -699,6 +699,229 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
+    public void OpenApiDocument_GeocodingRoutes_AreProviderNeutralAndTruthful()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement root = document.RootElement;
+        JsonElement schemas = root
+            .GetProperty("components")
+            .GetProperty("schemas");
+
+        (string Path, string Method)[] routes =
+        [
+            ("/api/listings/{id}/location/candidates", "post"),
+            ("/api/listings/{id}/location", "put"),
+            ("/api/listings/{id}/location", "delete")
+        ];
+
+        foreach ((string path, string method) in routes)
+        {
+            AssertBearerRequired(root, path, method);
+            JsonElement operation = GetOperation(root, path, method);
+            GetParameter(operation, "id").GetProperty("required")
+                .GetBoolean().Should().BeTrue();
+        }
+
+        root.GetProperty("paths")
+            .GetProperty("/api/listings/{id}/location/candidates")
+            .EnumerateObject().Select(operation => operation.Name)
+            .Should().BeEquivalentTo("post");
+        root.GetProperty("paths")
+            .GetProperty("/api/listings/{id}/location")
+            .EnumerateObject().Select(operation => operation.Name)
+            .Should().BeEquivalentTo("put", "delete");
+
+        JsonElement candidateOperation = GetOperation(
+            root,
+            "/api/listings/{id}/location/candidates",
+            "post");
+        candidateOperation.GetProperty("requestBody")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema")
+            .GetProperty("$ref").GetString().Should().Be(
+                "#/components/schemas/SearchLocationCandidatesRequest");
+        JsonElement candidateSuccess = candidateOperation
+            .GetProperty("responses")
+            .GetProperty("200")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+        candidateSuccess.GetProperty("type").GetString().Should().Be("array");
+        candidateSuccess.GetProperty("items").GetProperty("$ref")
+            .GetString().Should().Be(
+                "#/components/schemas/ListingLocationCandidateResponse");
+
+        JsonElement confirmationOperation = GetOperation(
+            root,
+            "/api/listings/{id}/location",
+            "put");
+        confirmationOperation.GetProperty("requestBody")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema")
+            .GetProperty("$ref").GetString().Should().Be(
+                "#/components/schemas/ConfirmListingLocationRequest");
+        AssertResponseSchemaReference(
+            root,
+            "/api/listings/{id}/location",
+            "put",
+            "200",
+            "ListingLocationStateResponse");
+        AssertResponseSchemaReference(
+            root,
+            "/api/listings/{id}/location",
+            "delete",
+            "200",
+            "ListingLocationStateResponse");
+
+        foreach (string path in new[]
+        {
+            "/api/listings/{id}/location/candidates",
+            "/api/listings/{id}/location"
+        })
+        {
+            string method = path.EndsWith(
+                "/candidates",
+                StringComparison.Ordinal)
+                ? "post"
+                : "put";
+            foreach (string status in new[]
+            {
+                "400", "401", "403", "404", "409", "429", "503"
+            })
+            {
+                AssertProblemResponse(
+                    root,
+                    path,
+                    method,
+                    status,
+                    status == "400"
+                        ? "ApiValidationProblemDetailsResponse"
+                        : "ApiProblemDetailsResponse");
+            }
+
+            GetOperation(root, path, method)
+                .GetProperty("responses")
+                .GetProperty("429")
+                .GetProperty("headers")
+                .TryGetProperty("Retry-After", out _)
+                .Should().BeTrue();
+        }
+
+        JsonElement clearResponses = GetOperation(
+                root,
+                "/api/listings/{id}/location",
+                "delete")
+            .GetProperty("responses");
+        clearResponses.TryGetProperty("429", out _).Should().BeFalse();
+        clearResponses.TryGetProperty("503", out _).Should().BeFalse();
+        GetOperation(root, "/api/listings/{id}/location", "delete")
+            .TryGetProperty("requestBody", out _).Should().BeFalse();
+
+        JsonElement searchRequest = schemas.GetProperty(
+            "SearchLocationCandidatesRequest");
+        searchRequest.GetProperty("properties").EnumerateObject()
+            .Select(property => property.Name)
+            .Should().BeEquivalentTo("languageCode");
+        if (searchRequest.TryGetProperty("required", out JsonElement searchRequired))
+        {
+            searchRequired.EnumerateArray().Select(value => value.GetString())
+                .Should().NotContain("languageCode");
+        }
+        IsNullable(searchRequest.GetProperty("properties")
+                .GetProperty("languageCode"))
+            .Should().BeTrue();
+
+        JsonElement confirmationRequest = schemas.GetProperty(
+            "ConfirmListingLocationRequest");
+        confirmationRequest.GetProperty("properties").EnumerateObject()
+            .Select(property => property.Name)
+            .Should().BeEquivalentTo("confirmationToken");
+        confirmationRequest.GetProperty("required").EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().BeEquivalentTo("confirmationToken");
+        IsNullable(confirmationRequest.GetProperty("properties")
+                .GetProperty("confirmationToken"))
+            .Should().BeFalse();
+
+        JsonElement candidate = schemas.GetProperty(
+            "ListingLocationCandidateResponse");
+        string[] candidateMembers =
+        [
+            "label",
+            "previewLatitude",
+            "previewLongitude",
+            "precision",
+            "confirmationToken"
+        ];
+        candidate.GetProperty("properties").EnumerateObject()
+            .Select(property => property.Name)
+            .Should().BeEquivalentTo(candidateMembers);
+        candidate.GetProperty("required").EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().BeEquivalentTo(candidateMembers);
+        candidate.GetProperty("properties")
+            .GetProperty("confirmationToken")
+            .GetProperty("description").GetString()
+            .Should().ContainAll("Opaque", "short-lived");
+
+        JsonElement locationState = schemas.GetProperty(
+            "ListingLocationStateResponse");
+        string[] stateMembers =
+        [
+            "latitude",
+            "longitude",
+            "locationPrecision",
+            "geocodedDisplayName",
+            "locationConfirmedAtUtc"
+        ];
+        JsonElement stateProperties = locationState.GetProperty("properties");
+        stateProperties.EnumerateObject().Select(property => property.Name)
+            .Should().BeEquivalentTo(stateMembers);
+        foreach (string member in stateMembers.Where(member =>
+                     member != "locationPrecision"))
+        {
+            IsNullable(stateProperties.GetProperty(member)).Should().BeTrue(
+                $"{member} is nullable in the management location state");
+        }
+        JsonElement[] precisionAlternatives = stateProperties
+            .GetProperty("locationPrecision")
+            .GetProperty("oneOf")
+            .EnumerateArray()
+            .ToArray();
+        precisionAlternatives.Should().HaveCount(2);
+        precisionAlternatives[0].GetProperty("$ref").GetString()
+            .Should().Be("#/components/schemas/LocationPrecision");
+        IsNullable(precisionAlternatives[1]).Should().BeTrue();
+        if (locationState.TryGetProperty("required", out JsonElement required))
+        {
+            required.EnumerateArray().Select(value => value.GetString())
+                .Should().NotContain(stateMembers);
+        }
+
+        string geocodingSchemas = string.Join(
+            '\n',
+            new[] { searchRequest, confirmationRequest, candidate, locationState }
+                .Select(schema => schema.GetRawText()));
+        foreach (string forbidden in new[]
+        {
+            "providerKey",
+            "resultReference",
+            "fingerprint",
+            "rawResponse",
+            "apiKey"
+        })
+        {
+            geocodingSchemas.Should().NotContain(forbidden);
+        }
+        confirmationRequest.GetRawText().Should()
+            .NotContain("latitude")
+            .And.NotContain("longitude")
+            .And.NotContain("precision");
+    }
+
+    [Fact]
     public void OpenApiDocument_UpdateListingContract_IsCompleteAndTruthful()
     {
         using JsonDocument document = GetDocument();
