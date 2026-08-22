@@ -220,9 +220,17 @@ internal static class DisposablePostgreSqlContainerVerifier
         string containerName)
     {
         VerifyNullOrEmptyArray(hostConfiguration, "Binds", containerName);
-        VerifyNullOrEmptyArray(hostConfiguration, "Mounts", containerName);
+        VerifyNullOrEmptyArray(
+            hostConfiguration,
+            "Mounts",
+            containerName,
+            allowMissing: true);
         VerifyNullOrEmptyArray(hostConfiguration, "VolumesFrom", containerName);
-        VerifyNullOrEmptyObject(hostConfiguration, "Tmpfs", containerName);
+        VerifyNullOrEmptyObject(
+            hostConfiguration,
+            "Tmpfs",
+            containerName,
+            allowMissing: true);
 
         if (!hostConfiguration.TryGetProperty("VolumeDriver", out var volumeDriver) ||
             volumeDriver.ValueKind != JsonValueKind.String ||
@@ -281,10 +289,21 @@ internal static class DisposablePostgreSqlContainerVerifier
     private static void VerifyNullOrEmptyArray(
         JsonElement owner,
         string propertyName,
-        string containerName)
+        string containerName,
+        bool allowMissing = false)
     {
-        if (!owner.TryGetProperty(propertyName, out var value) ||
-            (value.ValueKind != JsonValueKind.Null && value.ValueKind != JsonValueKind.Array))
+        if (!owner.TryGetProperty(propertyName, out var value))
+        {
+            if (allowMissing)
+            {
+                return;
+            }
+
+            throw new BaselinePlanValidationException(
+                $"Docker inspection omitted valid '{propertyName}' storage metadata.");
+        }
+
+        if (value.ValueKind != JsonValueKind.Null && value.ValueKind != JsonValueKind.Array)
         {
             throw new BaselinePlanValidationException(
                 $"Docker inspection omitted valid '{propertyName}' storage metadata.");
@@ -301,10 +320,21 @@ internal static class DisposablePostgreSqlContainerVerifier
     private static void VerifyNullOrEmptyObject(
         JsonElement owner,
         string propertyName,
-        string containerName)
+        string containerName,
+        bool allowMissing = false)
     {
-        if (!owner.TryGetProperty(propertyName, out var value) ||
-            (value.ValueKind != JsonValueKind.Null && value.ValueKind != JsonValueKind.Object))
+        if (!owner.TryGetProperty(propertyName, out var value))
+        {
+            if (allowMissing)
+            {
+                return;
+            }
+
+            throw new BaselinePlanValidationException(
+                $"Docker inspection omitted valid '{propertyName}' storage metadata.");
+        }
+
+        if (value.ValueKind != JsonValueKind.Null && value.ValueKind != JsonValueKind.Object)
         {
             throw new BaselinePlanValidationException(
                 $"Docker inspection omitted valid '{propertyName}' storage metadata.");

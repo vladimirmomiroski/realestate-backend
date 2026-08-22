@@ -83,6 +83,13 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     }
 
     [Fact]
+    public async Task OmittedDockerNullStorageFieldsWithAnonymousDataVolume_IsAccepted()
+    {
+        await VerifyWithInspectionAsync(
+            Inspection(includeDockerOmittedNullStorageMetadata: false));
+    }
+
+    [Fact]
     public async Task StoppedContainer_IsRejected()
     {
         Func<Task> act = () => VerifyWithInspectionAsync(
@@ -355,7 +362,8 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
         string[]? hostBinds = null,
         object[]? hostMounts = null,
         object[]? runtimeMounts = null,
-        bool includeStorageMetadata = true)
+        bool includeStorageMetadata = true,
+        bool includeDockerOmittedNullStorageMetadata = true)
     {
         var ports = new Dictionary<string, object?>();
 
@@ -385,15 +393,22 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
 
         if (includeStorageMetadata)
         {
-            container["HostConfig"] = new
+            var hostConfiguration = new Dictionary<string, object?>
             {
-                AutoRemove = autoRemove,
-                Binds = hostBinds,
-                Mounts = hostMounts,
-                VolumesFrom = (string[]?)null,
-                Tmpfs = (Dictionary<string, string>?)null,
-                VolumeDriver = string.Empty
+                ["AutoRemove"] = autoRemove,
+                ["Binds"] = hostBinds,
+                ["VolumesFrom"] = (string[]?)null,
+                ["VolumeDriver"] = string.Empty
             };
+
+            if (includeDockerOmittedNullStorageMetadata)
+            {
+                hostConfiguration["Mounts"] = hostMounts;
+                hostConfiguration["Tmpfs"] =
+                    (Dictionary<string, string>?)null;
+            }
+
+            container["HostConfig"] = hostConfiguration;
             container["Mounts"] = runtimeMounts ?? [RuntimeMount()];
         }
         else
