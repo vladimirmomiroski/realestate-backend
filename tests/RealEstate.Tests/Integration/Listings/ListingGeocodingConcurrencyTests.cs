@@ -23,6 +23,7 @@ using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
 using RealEstate.Tests.Integration.Agencies;
 using RealEstate.Tests.Integration.Auth;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -244,6 +245,9 @@ public sealed class ListingGeocodingConcurrencyTests
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+            _factory,
+            listingId);
         LocationConfirmationTokenPayload token =
             await CreateTokenAsync(listingId, owner.UserId);
         string connectionString = await GetConnectionStringAsync();
@@ -315,7 +319,7 @@ public sealed class ListingGeocodingConcurrencyTests
             confirmRepository.CommitCallCount.Should().Be(0);
             Listing persisted = await ReadListingAsync(listingId);
             persisted.Status.Should().Be(ListingStatus.Active);
-            AssertUnresolved(persisted);
+            AssertTrustedFixtureConfirmed(persisted);
         }
         finally
         {
@@ -1275,6 +1279,23 @@ public sealed class ListingGeocodingConcurrencyTests
         listing.GeocodedDisplayName.Should().Be(snapshot.DisplayName);
         listing.LocationConfirmedAtUtc.Should().Be(
             ConfirmationTime.UtcDateTime);
+    }
+
+    private static void AssertTrustedFixtureConfirmed(Listing listing)
+    {
+        listing.Latitude.Should().Be(
+            StrongLocationListingTestFixtures.ConfirmedLatitude);
+        listing.Longitude.Should().Be(
+            StrongLocationListingTestFixtures.ConfirmedLongitude);
+        listing.LocationPrecision.Should().Be(LocationPrecision.ExactAddress);
+        listing.GeocodingProviderKey.Should().Be(
+            StrongLocationListingTestFixtures.TestProviderKey);
+        listing.GeocodingResultReference.Should().Be(
+            StrongLocationListingTestFixtures.TestResultReference);
+        listing.GeocodedDisplayName.Should().Be(
+            StrongLocationListingTestFixtures.TestDisplayName);
+        listing.LocationConfirmedAtUtc.Should().Be(
+            StrongLocationListingTestFixtures.ConfirmedAtUtc);
     }
 
     private static async Task DrainStartedTasksAsync(

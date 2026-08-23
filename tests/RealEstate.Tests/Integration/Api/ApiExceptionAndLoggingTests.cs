@@ -22,6 +22,7 @@ using RealEstate.Domain.Entities;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
 using RealEstate.Tests.Integration.Listings;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Integration.Api;
 
@@ -192,6 +193,9 @@ public sealed class ApiExceptionAndLoggingTests
         string requestId = GetRequestId(response);
         _probe.PublicListingIntegrityListingId.Should().NotBeNull();
         Guid listingId = _probe.PublicListingIntegrityListingId.Value;
+        _probe.PublicListingIntegritySensitiveValue.Should().NotBeNull();
+        string sensitiveValue =
+            _probe.PublicListingIntegritySensitiveValue!;
 
         body.GetProperty("type").GetString().Should()
             .Be("urn:realestate:error:server.unexpected");
@@ -206,7 +210,8 @@ public sealed class ApiExceptionAndLoggingTests
             .Be("server.unexpected");
         body.GetProperty("traceId").GetString().Should().Be(requestId);
         responseText.Should().NotContain(listingId.ToString());
-        responseText.Should().NotContain("InvalidCity");
+        responseText.Should().NotContain("InvalidConfirmedLocation");
+        responseText.Should().NotContain(sensitiveValue);
         responseText.Should().NotContain(
             "publication integrity invariant");
 
@@ -226,7 +231,7 @@ public sealed class ApiExceptionAndLoggingTests
         error.Properties["StatusCode"].Should().Be(500);
         error.Properties["ListingId"].Should().Be(listingId);
         error.Properties["IntegrityViolationCodes"].Should()
-            .Be("InvalidCity");
+            .Be("InvalidConfirmedLocation");
         error.Properties.Keys.Should().BeEquivalentTo(
             "RequestId",
             "Method",
@@ -240,6 +245,7 @@ public sealed class ApiExceptionAndLoggingTests
             entry.Category ==
                 "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware" &&
             entry.EventId.Id == 1);
+        AssertCustomLogsExclude(sensitiveValue);
     }
 
     [Fact]
@@ -572,26 +578,16 @@ public sealed class ExceptionBoundaryTestController : ControllerBase
     public IActionResult ThrowPublicListingIntegrityFailure(
         ExceptionBoundaryTestProbe probe)
     {
-        var listing = new Listing
-        {
-            Id = Guid.NewGuid(),
-            Price = 100_000m,
-            AreaSquareMeters = 80m
-        };
-        var translation = new ListingTranslation
-        {
-            Id = Guid.NewGuid(),
-            ListingId = listing.Id,
-            LanguageCode = "en",
-            Title = "Integrity boundary listing",
-            City = "Skopje",
-            Description = "Complete before corruption.",
-            Listing = listing
-        };
-        listing.Translations.Add(translation);
-        listing.Publish();
-        translation.City = null;
+        const string SensitiveProviderPayload =
+            " raw-provider-response-must-not-leak ";
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item =>
+                typeof(Listing)
+                    .GetProperty(nameof(Listing.GeocodingProviderKey))!
+                    .SetValue(item, SensitiveProviderPayload));
         probe.PublicListingIntegrityListingId = listing.Id;
+        probe.PublicListingIntegritySensitiveValue =
+            SensitiveProviderPayload;
 
         return Ok(listing.ToPublicResponse("en"));
     }
@@ -612,6 +608,8 @@ public sealed class ExceptionBoundaryTestController : ControllerBase
 public sealed class ExceptionBoundaryTestProbe
 {
     public Guid? PublicListingIntegrityListingId { get; set; }
+
+    public string? PublicListingIntegritySensitiveValue { get; set; }
 
     public TaskCompletionSource CancellationStarted { get; } = new(
         TaskCreationOptions.RunContinuationsAsynchronously);

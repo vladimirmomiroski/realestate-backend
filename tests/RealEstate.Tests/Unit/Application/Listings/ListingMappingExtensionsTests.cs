@@ -3,6 +3,8 @@ using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Mappings;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Domain.Listings;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Unit.Application.Listings;
 
@@ -195,6 +197,10 @@ public sealed class ListingMappingExtensionsTests
     [InlineData(PublicIdentityCorruption.BlankTitle)]
     [InlineData(PublicIdentityCorruption.NullCity)]
     [InlineData(PublicIdentityCorruption.BlankCity)]
+    [InlineData(PublicIdentityCorruption.NullMunicipality)]
+    [InlineData(PublicIdentityCorruption.BlankMunicipality)]
+    [InlineData(PublicIdentityCorruption.NullAddressLine)]
+    [InlineData(PublicIdentityCorruption.BlankAddressLine)]
     [InlineData(PublicIdentityCorruption.NullDescription)]
     [InlineData(PublicIdentityCorruption.BlankDescription)]
     public void ToPublicResponse_WithCorruptActivePublicIdentity_ThrowsIntegrityFailure(
@@ -214,6 +220,25 @@ public sealed class ListingMappingExtensionsTests
             .Which;
         exception.ListingId.Should().Be(listing.Id);
         exception.Violations.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void ToPublicResponse_WithCorruptActiveRoot_ThrowsTypedIntegrityFailure()
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item => item.ClearLocation());
+
+        Action act = () => listing.ToPublicResponse("en");
+
+        PublicListingIntegrityException exception = act.Should()
+            .Throw<PublicListingIntegrityException>()
+            .Which;
+        exception.ListingId.Should().Be(listing.Id);
+        exception.Violations.Should().ContainSingle();
+        exception.Violations.Single().Should().Be(
+            new ListingPublicationReadinessViolation(
+                ListingPublicationReadinessViolationCode.MissingConfirmedLocation,
+                TranslationId: null));
     }
 
     [Fact]
@@ -538,6 +563,18 @@ public sealed class ListingMappingExtensionsTests
             case PublicIdentityCorruption.BlankCity:
                 translation.City = " ";
                 break;
+            case PublicIdentityCorruption.NullMunicipality:
+                translation.Municipality = null;
+                break;
+            case PublicIdentityCorruption.BlankMunicipality:
+                translation.Municipality = " ";
+                break;
+            case PublicIdentityCorruption.NullAddressLine:
+                translation.AddressLine = null;
+                break;
+            case PublicIdentityCorruption.BlankAddressLine:
+                translation.AddressLine = " ";
+                break;
             case PublicIdentityCorruption.NullDescription:
                 translation.Description = null;
                 break;
@@ -572,6 +609,10 @@ public sealed class ListingMappingExtensionsTests
         BlankTitle,
         NullCity,
         BlankCity,
+        NullMunicipality,
+        BlankMunicipality,
+        NullAddressLine,
+        BlankAddressLine,
         NullDescription,
         BlankDescription
     }

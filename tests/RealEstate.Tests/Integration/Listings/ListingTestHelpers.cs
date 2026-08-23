@@ -383,6 +383,20 @@ internal static class ListingTestHelpers
              """);
     }
 
+    public static async Task PrepareStrongLocationPublishableDraftAsync(
+        CustomWebApplicationFactory factory,
+        Guid listingId)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        await EnsureStrongLocationPublishableFixtureAsync(
+            dbContext,
+            listingId);
+    }
+
     private static async Task EnsureStrongLocationPublishableFixtureAsync(
         RealEstateDbContext dbContext,
         Guid listingId)

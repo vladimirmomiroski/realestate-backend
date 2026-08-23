@@ -37,6 +37,9 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_setupClient);
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+            _factory,
+            listingId);
         PublicationPersistenceSnapshot before =
             await ReadPersistenceSnapshotAsync(listingId);
         string connectionString = await GetConnectionStringAsync();

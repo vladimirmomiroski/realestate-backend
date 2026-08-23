@@ -11,6 +11,7 @@ using RealEstate.Application.Listings.Repositories;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Unit.Application.Listings;
 
@@ -227,6 +228,8 @@ public sealed class SearchLocationCandidatesHandlerTests
     public async Task ActiveListingIsRejectedBeforeProvider()
     {
         var context = new TestContext();
+        StrongLocationListingTestFixtures
+            .AttachTrustedTestOnlyConfirmedLocation(context.Listing);
         context.Listing.Publish().IsReady.Should().BeTrue();
 
         ServiceResult<IReadOnlyList<ListingLocationCandidateResponse>> result =
