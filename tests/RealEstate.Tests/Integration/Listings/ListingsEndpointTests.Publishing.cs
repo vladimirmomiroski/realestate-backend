@@ -641,15 +641,10 @@ public sealed partial class ListingsEndpointTests
 
     private async Task SetListingStatusAsync(Guid listingId, ListingStatus status)
     {
-        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
-
-        var dbContext =
-            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
-
-        await dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $@"UPDATE ""Listings""
-               SET ""Status"" = {status.ToString()}
-               WHERE ""Id"" = {listingId}");
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            status);
     }
 
     private async Task MakeListingPublicationContentIncompleteAsync(Guid listingId)

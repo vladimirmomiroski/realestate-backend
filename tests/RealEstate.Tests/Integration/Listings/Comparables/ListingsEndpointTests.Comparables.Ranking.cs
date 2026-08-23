@@ -299,10 +299,11 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task GetComparables_MissingMunicipalityDoesNotEarnTierZeroOrOne(
-    bool missingOnSource)
+    [InlineData("Centar", "Karpos")]
+    [InlineData("Karpos", "Centar")]
+    public async Task GetComparables_DifferentMunicipalityDoesNotEarnTierZeroOrOne(
+        string sourceMunicipality,
+        string candidateMunicipality)
     {
         // Arrange
         string currency =
@@ -311,11 +312,6 @@ public sealed partial class ListingsEndpointTests
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(
                 _httpClient);
-
-        string? sourceMunicipality =
-            missingOnSource
-                ? null
-                : "Centar";
 
         Guid sourceId =
             await CreateActiveComparableAsync(
@@ -326,13 +322,13 @@ public sealed partial class ListingsEndpointTests
                 municipality: sourceMunicipality,
                 neighborhood: "Center");
 
-        Guid missingMunicipalityCandidateId =
+        Guid differentMunicipalityCandidateId =
             await CreateActiveComparableAsync(
                 owner,
                 currency,
                 price: 120_000m,
                 areaSquareMeters: 120m,
-                municipality: null,
+                municipality: candidateMunicipality,
                 neighborhood: "Center");
 
         Guid sameCorrectTierControlId =
@@ -341,7 +337,7 @@ public sealed partial class ListingsEndpointTests
                 currency,
                 price: 101_000m,
                 areaSquareMeters: 101m,
-                municipality: "Karpos",
+                municipality: "Aerodrom",
                 neighborhood: "Vlae");
 
         _httpClient.ClearAuthorization();
@@ -357,7 +353,7 @@ public sealed partial class ListingsEndpointTests
         // Assert
         returnedIds.Should().Equal(
             sameCorrectTierControlId,
-            missingMunicipalityCandidateId);
+            differentMunicipalityCandidateId);
     }
 
     [Theory]

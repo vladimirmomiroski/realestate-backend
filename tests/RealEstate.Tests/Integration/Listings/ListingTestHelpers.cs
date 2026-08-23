@@ -6,6 +6,7 @@ using RealEstate.Tests.Integration.Auth;
 using System.Net.Http.Json;
 using System.Text.Json;
 using RealEstate.Domain.Entities;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -209,7 +210,7 @@ internal static class ListingTestHelpers
 
         if (status == ListingStatus.Active)
         {
-            await EnsureFixtureTranslationsArePublicationReadyAsync(
+            await EnsureStrongLocationPublishableFixtureAsync(
                 dbContext,
                 listingId);
         }
@@ -236,7 +237,7 @@ internal static class ListingTestHelpers
 
         if (status == ListingStatus.Active)
         {
-            await EnsureFixtureTranslationsArePublicationReadyAsync(
+            await EnsureStrongLocationPublishableFixtureAsync(
                 dbContext,
                 listingId);
         }
@@ -335,12 +336,6 @@ internal static class ListingTestHelpers
         {
             translation.ListingId = listingId;
 
-            if (originalStatus == ListingStatus.Active)
-            {
-                translation.City ??= "Integration fixture city";
-                translation.Description ??=
-                    "Integration fixture description";
-            }
         }
 
         if (translations.Length > 0)
@@ -353,6 +348,10 @@ internal static class ListingTestHelpers
 
         if (originalStatus == ListingStatus.Active)
         {
+            await EnsureStrongLocationPublishableFixtureAsync(
+                dbContext,
+                listingId);
+
             await dbContext.Database.ExecuteSqlInterpolatedAsync(
                 $"""
                  UPDATE "Listings"
@@ -384,19 +383,63 @@ internal static class ListingTestHelpers
              """);
     }
 
-    private static Task EnsureFixtureTranslationsArePublicationReadyAsync(
+    private static async Task EnsureStrongLocationPublishableFixtureAsync(
         RealEstateDbContext dbContext,
         Guid listingId)
     {
-        return dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-             UPDATE "ListingTranslations"
-             SET "City" = COALESCE("City", 'Integration fixture city'),
-                 "Description" = COALESCE(
-                     "Description",
-                     'Integration fixture description')
-             WHERE "ListingId" = {listingId}
-             """);
+        Listing listing = await dbContext.Listings
+            .Include(item => item.Translations)
+            .SingleAsync(item => item.Id == listingId);
+
+        if (listing.Status == ListingStatus.Active)
+        {
+            if (!IsStrongLocationPublishableFixture(listing))
+            {
+                throw new InvalidOperationException(
+                    "An existing Active fixture must already contain complete strong-location truth.");
+            }
+
+            return;
+        }
+
+        if (listing.Translations.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "A valid Active fixture requires at least one translation.");
+        }
+
+        foreach (ListingTranslation translation in listing.Translations)
+        {
+            translation.City ??= "Integration fixture city";
+            translation.Municipality ??= "Integration fixture municipality";
+            translation.AddressLine ??= "Integration fixture address";
+            translation.Description ??=
+                "Integration fixture description";
+        }
+
+        StrongLocationListingTestFixtures
+            .AttachTrustedTestOnlyConfirmedLocation(listing);
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static bool IsStrongLocationPublishableFixture(Listing listing)
+    {
+        return listing.Translations.Count > 0 &&
+               listing.Translations.All(translation =>
+                   !string.IsNullOrWhiteSpace(translation.LanguageCode) &&
+                   !string.IsNullOrWhiteSpace(translation.Title) &&
+                   !string.IsNullOrWhiteSpace(translation.City) &&
+                   !string.IsNullOrWhiteSpace(translation.Municipality) &&
+                   !string.IsNullOrWhiteSpace(translation.AddressLine) &&
+                   !string.IsNullOrWhiteSpace(translation.Description)) &&
+               listing.Latitude.HasValue &&
+               listing.Longitude.HasValue &&
+               listing.LocationPrecision.HasValue &&
+               !string.IsNullOrWhiteSpace(listing.GeocodingProviderKey) &&
+               !string.IsNullOrWhiteSpace(
+                   listing.GeocodingResultReference) &&
+               listing.LocationConfirmedAtUtc.HasValue;
     }
 
     private static async Task<Guid> PostListingAndReturnIdAsync(

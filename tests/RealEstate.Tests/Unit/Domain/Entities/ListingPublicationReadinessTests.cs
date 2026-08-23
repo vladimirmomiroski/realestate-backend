@@ -2,6 +2,7 @@ using FluentAssertions;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Domain.Listings;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Unit.Domain.Entities;
 
@@ -218,7 +219,8 @@ public sealed class ListingPublicationReadinessTests
     [Fact]
     public void Publish_WhenReadyDraft_ActivatesListing()
     {
-        Listing listing = CreateListing(CreateValidTranslation("en"));
+        Listing listing = StrongLocationListingTestFixtures
+            .CreatePublishableConfirmedDraft();
 
         ListingPublicationReadinessResult result = listing.Publish();
 
@@ -243,8 +245,8 @@ public sealed class ListingPublicationReadinessTests
     [Fact]
     public void Publish_WhenValidActive_IsIdempotent()
     {
-        Listing listing = CreateListing(CreateValidTranslation("en"));
-        listing.Publish();
+        Listing listing =
+            StrongLocationListingTestFixtures.CreateValidActive();
 
         ListingPublicationReadinessResult result = listing.Publish();
 
@@ -335,13 +337,9 @@ public sealed class ListingPublicationReadinessTests
     private static Listing CreateMalformedActiveListing(
         Action<ListingTranslation> corruptTranslation)
     {
-        ListingTranslation translation = CreateValidTranslation("en");
-        Listing listing = CreateListing(translation);
-        listing.Publish().IsReady.Should().BeTrue();
-
-        corruptTranslation(translation);
-
-        return listing;
+        return StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(listing =>
+                corruptTranslation(listing.Translations.First()));
     }
 
     private static Listing CreateListingInStatus(ListingStatus status)

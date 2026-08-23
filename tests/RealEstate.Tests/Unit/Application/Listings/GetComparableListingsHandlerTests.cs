@@ -7,6 +7,7 @@ using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Tests.Listings;
 using RealEstate.Domain.Listings;
 
 namespace RealEstate.Tests.Unit.Application.Listings;
@@ -140,25 +141,16 @@ public sealed class GetComparableListingsHandlerTests
         string city,
         string description)
     {
-        var listing = new Listing
-        {
-            Id = Guid.NewGuid(),
-            ListingType = ListingType.Sale,
-            PropertyType = PropertyType.Apartment,
-            Price = 100_000m,
-            Currency = "EUR",
-            AreaSquareMeters = 80m
-        };
-        listing.Translations.Add(new ListingTranslation
-        {
-            Id = Guid.NewGuid(),
-            ListingId = listing.Id,
-            LanguageCode = languageCode,
-            Title = title,
-            City = city,
-            Description = description,
-            Listing = listing
-        });
+        Listing listing = StrongLocationListingTestFixtures
+            .CreatePublishableConfirmedDraft();
+        ListingTranslation translation = listing.Translations.First();
+        translation.LanguageCode = languageCode;
+        translation.Title = title;
+        translation.City = city;
+        translation.Description = description;
+        listing.Translations = [translation];
+        StrongLocationListingTestFixtures
+            .AttachTrustedTestOnlyConfirmedLocation(listing);
         listing.Publish().IsReady.Should().BeTrue();
 
         return listing;
