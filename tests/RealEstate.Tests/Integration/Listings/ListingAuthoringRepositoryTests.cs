@@ -161,6 +161,9 @@ public sealed class ListingAuthoringRepositoryTests
     {
         Guid listingId =
             await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+            _factory,
+            listingId);
 
         await using (AsyncServiceScope serviceScope =
             _factory.Services.CreateAsyncScope())
@@ -196,6 +199,9 @@ public sealed class ListingAuthoringRepositoryTests
     {
         Guid listingId =
             await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+            _factory,
+            listingId);
 
         await using AsyncServiceScope firstServiceScope =
             _factory.Services.CreateAsyncScope();

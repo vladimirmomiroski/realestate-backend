@@ -42,7 +42,7 @@ public sealed class PublishListingHandlerTests
     {
         var context = new TestContext();
         context.Listing.Publish().IsReady.Should().BeTrue();
-        context.Listing.Translations.Single().City = null;
+        context.Listing.ClearLocation();
 
         ServiceResult<PublicListingResponse> result = await context.HandleAsync();
 
@@ -55,10 +55,11 @@ public sealed class PublishListingHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReadyPersonalDraftButNonOwner_AuthorizesBeforePublish()
+    public async Task Handle_IncompletePersonalDraftButNonOwner_AuthorizesBeforeReadiness()
     {
         var context = new TestContext();
         context.Listing.AssignCreator(Guid.NewGuid());
+        context.Listing.ClearLocation();
 
         ServiceResult<PublicListingResponse> result = await context.HandleAsync();
 
@@ -71,7 +72,7 @@ public sealed class PublishListingHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReadyAgencyDraftButNonMember_AuthorizesBeforePublish()
+    public async Task Handle_IncompleteAgencyDraftButNonMember_AuthorizesBeforeReadiness()
     {
         var context = new TestContext();
         var agency = new Agency(
@@ -86,6 +87,7 @@ public sealed class PublishListingHandlerTests
             municipality: null);
         agency.Approve();
         context.Listing.AssignAgency(agency.Id);
+        context.Listing.ClearLocation();
         context.AgencyRepository.AgencyResult = agency;
         context.AgencyRepository.MemberAccessResult = null;
 
@@ -104,6 +106,27 @@ public sealed class PublishListingHandlerTests
             "agency.get",
             "agency.member.get",
             "listing.scope.dispose");
+    }
+
+    [Fact]
+    public async Task Handle_InvalidConfirmedLocation_ReturnsFixedSanitizedConflict()
+    {
+        const string ProviderPayload = " private-provider-payload ";
+        var context = new TestContext();
+        typeof(Listing)
+            .GetProperty(nameof(Listing.GeocodingProviderKey))!
+            .SetValue(context.Listing, ProviderPayload);
+
+        ServiceResult<PublicListingResponse> result = await context.HandleAsync();
+
+        result.Status.Should().Be(ServiceResultStatus.Conflict);
+        result.ErrorCode.Should().Be(ErrorCodes.ConflictListingNotReady);
+        result.Error.Should().Be(
+            "The listing is not ready for publication.");
+        result.Error.Should().NotContain(ProviderPayload);
+        context.Listing.Status.Should().Be(ListingStatus.Draft);
+        context.WriteScope.SaveChangesCallCount.Should().Be(0);
+        context.WriteScope.CommitCallCount.Should().Be(0);
     }
 
     [Fact]

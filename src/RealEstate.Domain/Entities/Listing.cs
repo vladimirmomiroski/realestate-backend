@@ -222,12 +222,39 @@ public class Listing : IAuditableEntity
                     translation.Id));
             }
 
+            if (!IsTrimmedNonBlank(translation.Municipality))
+            {
+                violations.Add(new ListingPublicationReadinessViolation(
+                    ListingPublicationReadinessViolationCode.InvalidMunicipality,
+                    translation.Id));
+            }
+
+            if (!IsTrimmedNonBlank(translation.AddressLine))
+            {
+                violations.Add(new ListingPublicationReadinessViolation(
+                    ListingPublicationReadinessViolationCode.InvalidAddressLine,
+                    translation.Id));
+            }
+
             if (!IsTrimmedNonBlank(translation.Description))
             {
                 violations.Add(new ListingPublicationReadinessViolation(
                     ListingPublicationReadinessViolationCode.InvalidDescription,
                     translation.Id));
             }
+        }
+
+        if (IsUnresolvedLocation() || IsLegacyUnverifiedLocation())
+        {
+            violations.Add(new ListingPublicationReadinessViolation(
+                ListingPublicationReadinessViolationCode.MissingConfirmedLocation,
+                TranslationId: null));
+        }
+        else if (!HasValidConfirmedLocation())
+        {
+            violations.Add(new ListingPublicationReadinessViolation(
+                ListingPublicationReadinessViolationCode.InvalidConfirmedLocation,
+                TranslationId: null));
         }
 
         return violations.Count == 0
@@ -303,6 +330,59 @@ public class Listing : IAuditableEntity
         return value is not null &&
                value.Length > 0 &&
                value == ListingTranslationRules.NormalizeRequiredText(value);
+    }
+
+    private bool IsUnresolvedLocation()
+    {
+        return Latitude is null &&
+               Longitude is null &&
+               LocationPrecision is null &&
+               GeocodingProviderKey is null &&
+               GeocodingResultReference is null &&
+               GeocodedDisplayName is null &&
+               LocationConfirmedAtUtc is null;
+    }
+
+    private bool IsLegacyUnverifiedLocation()
+    {
+        return Latitude.HasValue &&
+               Longitude.HasValue &&
+               LocationPrecision is null &&
+               GeocodingProviderKey is null &&
+               GeocodingResultReference is null &&
+               GeocodedDisplayName is null &&
+               LocationConfirmedAtUtc is null;
+    }
+
+    private bool HasValidConfirmedLocation()
+    {
+        return Latitude is >= ListingLocationRules.MinimumLatitude and
+                   <= ListingLocationRules.MaximumLatitude &&
+               Longitude is >= ListingLocationRules.MinimumLongitude and
+                   <= ListingLocationRules.MaximumLongitude &&
+               LocationPrecision.HasValue &&
+               Enum.IsDefined(LocationPrecision.Value) &&
+               IsCanonicalRequiredText(
+                   GeocodingProviderKey,
+                   ListingLocationRules.GeocodingProviderKeyMaxLength) &&
+               IsCanonicalRequiredText(
+                   GeocodingResultReference,
+                   ListingLocationRules.GeocodingResultReferenceMaxLength) &&
+               (GeocodedDisplayName is null ||
+                IsCanonicalRequiredText(
+                    GeocodedDisplayName,
+                    ListingLocationRules.GeocodedDisplayNameMaxLength)) &&
+               LocationConfirmedAtUtc.HasValue;
+    }
+
+    private static bool IsCanonicalRequiredText(
+        string? value,
+        int maximumLength)
+    {
+        return value is not null &&
+               value.Length > 0 &&
+               value == ListingTranslationRules.NormalizeRequiredText(value) &&
+               value.EnumerateRunes().Count() <= maximumLength;
     }
 
     private static void ValidateCanonicalRequiredText(

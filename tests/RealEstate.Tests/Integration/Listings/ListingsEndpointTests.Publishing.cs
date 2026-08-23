@@ -64,6 +64,7 @@ public sealed partial class ListingsEndpointTests
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await PrepareListingForPublishAsync(listingId);
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
@@ -93,6 +94,7 @@ public sealed partial class ListingsEndpointTests
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await PrepareListingForPublishAsync(listingId);
         await MakeListingPublicationContentIncompleteAsync(listingId);
         PublicationSnapshot before = await GetPublicationSnapshotAsync(listingId);
         _httpClient.AuthorizeAs(owner.AccessToken);
@@ -121,6 +123,83 @@ public sealed partial class ListingsEndpointTests
                 "ListingTranslations",
                 "constraint");
             (await GetPublicationSnapshotAsync(listingId)).Should().BeEquivalentTo(before);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Theory]
+    [InlineData("Municipality")]
+    [InlineData("AddressLine")]
+    public async Task PublishListing_ShouldReturnListingNotReady_WhenRequiredLocationTranslationFieldIsInvalid(
+        string fieldName)
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await PrepareListingForPublishAsync(listingId);
+        await MakeRequiredLocationTranslationFieldInvalidAsync(
+            listingId,
+            fieldName);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            JsonElement problem = await AssertFailureAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictListingNotReady,
+                $"/api/listings/{listingId}/publish");
+            problem.GetProperty("detail").GetString().Should().Be(
+                "The listing is not ready for publication.");
+            problem.ToString().Should().NotContain(fieldName);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PublishListing_ShouldReturnListingNotReady_WhenConfirmedRootIsMissing(
+        bool useLegacyCoordinates)
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+
+        if (useLegacyCoordinates)
+        {
+            await ListingTestHelpers.SetLegacyCoordinatesAsync(
+                _factory,
+                listingId,
+                41.9981m,
+                21.4254m);
+        }
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            JsonElement problem = await AssertFailureAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictListingNotReady,
+                $"/api/listings/{listingId}/publish");
+            problem.GetProperty("detail").GetString().Should().Be(
+                "The listing is not ready for publication.");
         }
         finally
         {
@@ -306,6 +385,7 @@ public sealed partial class ListingsEndpointTests
         // Arrange
         (Guid listingId, _, AuthenticatedTestUser owner) =
             await CreateAgencyListingWithOwnerAsync();
+        await PrepareListingForPublishAsync(listingId);
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
@@ -332,6 +412,7 @@ public sealed partial class ListingsEndpointTests
         // Arrange
         (Guid listingId, Guid agencyId, _) =
             await CreateAgencyListingWithOwnerAsync();
+        await PrepareListingForPublishAsync(listingId);
 
         AuthenticatedTestUser agent =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -369,6 +450,7 @@ public sealed partial class ListingsEndpointTests
     {
         (Guid listingId, _, AuthenticatedTestUser owner) =
             await CreateAgencyListingWithOwnerAsync();
+        await PrepareListingForPublishAsync(listingId);
         await MakeListingPublicationContentIncompleteAsync(listingId);
         _httpClient.AuthorizeAs(owner.AccessToken);
 
@@ -656,6 +738,50 @@ public sealed partial class ListingsEndpointTests
             $@"UPDATE ""ListingTranslations""
                SET ""Description"" = NULL
                WHERE ""ListingId"" = {listingId}");
+    }
+
+    private Task PrepareListingForPublishAsync(Guid listingId)
+    {
+        return ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+            _factory,
+            listingId);
+    }
+
+    private async Task MakeRequiredLocationTranslationFieldInvalidAsync(
+        Guid listingId,
+        string fieldName)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        if (fieldName == "Municipality")
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "ListingTranslations"
+                 SET "Municipality" = NULL
+                 WHERE "ListingId" = {listingId}
+                 """);
+            return;
+        }
+
+        if (fieldName == "AddressLine")
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "ListingTranslations"
+                 SET "AddressLine" = NULL
+                 WHERE "ListingId" = {listingId}
+                 """);
+            return;
+        }
+
+        throw new ArgumentOutOfRangeException(
+            nameof(fieldName),
+            fieldName,
+            null);
     }
 
     private async Task<PublicationSnapshot> GetPublicationSnapshotAsync(Guid listingId)

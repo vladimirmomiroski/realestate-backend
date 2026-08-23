@@ -314,7 +314,7 @@ public sealed class ListingUpdateConcurrencyTests
     }
 
     [Fact]
-    public async Task UpdateFirst_PublishWaitsAndObservesCommittedUpdate()
+    public async Task UpdateFirst_PublishWaitsThenReturnsListingNotReadyForClearedLocation()
     {
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
@@ -393,16 +393,13 @@ public sealed class ListingUpdateConcurrencyTests
                 await publishTask.WaitAsync(TestTimeout);
 
             updateResult.Status.Should().Be(ServiceResultStatus.Success);
-            publishResult.Status.Should().Be(ServiceResultStatus.Success);
-            publishResult.Value!.Status.Should().Be(ListingStatus.Active);
-            publishResult.Value.Price.Should().Be(333_000m);
-            publishResult.Value.LanguageCode.Should().Be("de");
-            publishResult.Value.Title.Should().Be(
-                "Vor Veröffentlichung gespeichert");
+            publishResult.Status.Should().Be(ServiceResultStatus.Conflict);
+            publishResult.ErrorCode.Should().Be(
+                ErrorCodes.ConflictListingNotReady);
 
             ListingAuthoringResponse persisted =
                 await ReadAuthoringResponseAsync(listingId);
-            persisted.Status.Should().Be(ListingStatus.Active);
+            persisted.Status.Should().Be(ListingStatus.Draft);
             persisted.Price.Should().Be(333_000m);
             persisted.Translations.Select(translation => translation.LanguageCode)
                 .Should().Equal("de", "en");
@@ -432,6 +429,9 @@ public sealed class ListingUpdateConcurrencyTests
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+            _factory,
+            listingId);
         Guid imageId = await AddImageAsync(listingId);
         ListingAuthoringResponse before =
             await ReadAuthoringResponseAsync(listingId);

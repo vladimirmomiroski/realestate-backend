@@ -19,6 +19,22 @@ public sealed class ListingPublicationReadinessTests
             "\u3000"
         };
 
+    public static TheoryData<string> AllBoundaryWhitespace
+    {
+        get
+        {
+            var data = new TheoryData<string>();
+
+            foreach (char character in
+                     ListingTranslationRules.BoundaryWhitespaceCharacters)
+            {
+                data.Add(character.ToString());
+            }
+
+            return data;
+        }
+    }
+
     public static TheoryData<string?> InvalidLanguageCodes =>
         new()
         {
@@ -87,6 +103,34 @@ public sealed class ListingPublicationReadinessTests
         AssertSingleViolation(
             result,
             ListingPublicationReadinessViolationCode.InvalidCity,
+            invalid.Id);
+    }
+
+    [Theory]
+    [InlineData(ListingPublicationReadinessViolationCode.InvalidMunicipality)]
+    [InlineData(ListingPublicationReadinessViolationCode.InvalidAddressLine)]
+    public void EvaluatePublicationReadiness_WhenOneTranslationHasInvalidRequiredLocationText_IsNotReady(
+        ListingPublicationReadinessViolationCode expectedCode)
+    {
+        ListingTranslation invalid = CreateValidTranslation("mk");
+
+        if (expectedCode ==
+            ListingPublicationReadinessViolationCode.InvalidMunicipality)
+        {
+            invalid.Municipality = null;
+        }
+        else
+        {
+            invalid.AddressLine = null;
+        }
+
+        Listing listing = CreateListing(
+            CreateValidTranslation("en"),
+            invalid);
+
+        AssertSingleViolation(
+            listing.EvaluatePublicationReadiness(),
+            expectedCode,
             invalid.Id);
     }
 
@@ -166,6 +210,58 @@ public sealed class ListingPublicationReadinessTests
     }
 
     [Fact]
+    public void EvaluatePublicationReadiness_WithNullMunicipality_IsNotReady()
+    {
+        AssertInvalidRequiredField(
+            translation => translation.Municipality = null,
+            ListingPublicationReadinessViolationCode.InvalidMunicipality);
+    }
+
+    [Fact]
+    public void EvaluatePublicationReadiness_WithEmptyMunicipality_IsNotReady()
+    {
+        AssertInvalidRequiredField(
+            translation => translation.Municipality = string.Empty,
+            ListingPublicationReadinessViolationCode.InvalidMunicipality);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllBoundaryWhitespace))]
+    public void EvaluatePublicationReadiness_WithWhitespaceOnlyMunicipality_IsNotReady(
+        string whitespace)
+    {
+        AssertInvalidRequiredField(
+            translation => translation.Municipality = whitespace,
+            ListingPublicationReadinessViolationCode.InvalidMunicipality);
+    }
+
+    [Fact]
+    public void EvaluatePublicationReadiness_WithNullAddressLine_IsNotReady()
+    {
+        AssertInvalidRequiredField(
+            translation => translation.AddressLine = null,
+            ListingPublicationReadinessViolationCode.InvalidAddressLine);
+    }
+
+    [Fact]
+    public void EvaluatePublicationReadiness_WithEmptyAddressLine_IsNotReady()
+    {
+        AssertInvalidRequiredField(
+            translation => translation.AddressLine = string.Empty,
+            ListingPublicationReadinessViolationCode.InvalidAddressLine);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllBoundaryWhitespace))]
+    public void EvaluatePublicationReadiness_WithWhitespaceOnlyAddressLine_IsNotReady(
+        string whitespace)
+    {
+        AssertInvalidRequiredField(
+            translation => translation.AddressLine = whitespace,
+            ListingPublicationReadinessViolationCode.InvalidAddressLine);
+    }
+
+    [Fact]
     public void EvaluatePublicationReadiness_WithNullDescription_IsNotReady()
     {
         AssertInvalidRequiredField(
@@ -194,6 +290,8 @@ public sealed class ListingPublicationReadinessTests
     [Theory]
     [InlineData(" title ", ListingPublicationReadinessViolationCode.InvalidTitle)]
     [InlineData(" city ", ListingPublicationReadinessViolationCode.InvalidCity)]
+    [InlineData(" municipality ", ListingPublicationReadinessViolationCode.InvalidMunicipality)]
+    [InlineData(" address ", ListingPublicationReadinessViolationCode.InvalidAddressLine)]
     [InlineData(" description ", ListingPublicationReadinessViolationCode.InvalidDescription)]
     public void EvaluatePublicationReadiness_WithUntrimmedRequiredContent_IsNotReady(
         string value,
@@ -205,6 +303,10 @@ public sealed class ListingPublicationReadinessTests
                 translation => translation.Title = value,
             ListingPublicationReadinessViolationCode.InvalidCity =>
                 translation => translation.City = value,
+            ListingPublicationReadinessViolationCode.InvalidMunicipality =>
+                translation => translation.Municipality = value,
+            ListingPublicationReadinessViolationCode.InvalidAddressLine =>
+                translation => translation.AddressLine = value,
             ListingPublicationReadinessViolationCode.InvalidDescription =>
                 translation => translation.Description = value,
             _ => throw new ArgumentOutOfRangeException(
@@ -214,6 +316,171 @@ public sealed class ListingPublicationReadinessTests
         };
 
         AssertInvalidRequiredField(corrupt, expectedCode);
+    }
+
+    [Fact]
+    public void EvaluatePublicationReadiness_WithUnresolvedRoot_ReportsMissingConfirmedLocation()
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item => item.ClearLocation());
+
+        AssertSingleViolation(
+            listing.EvaluatePublicationReadiness(),
+            ListingPublicationReadinessViolationCode.MissingConfirmedLocation,
+            translationId: null);
+    }
+
+    [Fact]
+    public void EvaluatePublicationReadiness_WithLegacyUnverifiedRoot_ReportsMissingConfirmedLocation()
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item =>
+            {
+                item.ClearLocation();
+                SetListingProperty(
+                    item,
+                    nameof(Listing.Latitude),
+                    StrongLocationListingTestFixtures.ConfirmedLatitude);
+                SetListingProperty(
+                    item,
+                    nameof(Listing.Longitude),
+                    StrongLocationListingTestFixtures.ConfirmedLongitude);
+            });
+
+        AssertSingleViolation(
+            listing.EvaluatePublicationReadiness(),
+            ListingPublicationReadinessViolationCode.MissingConfirmedLocation,
+            translationId: null);
+    }
+
+    [Theory]
+    [InlineData(PartialRootCorruption.LatitudeOnly)]
+    [InlineData(PartialRootCorruption.LongitudeOnly)]
+    [InlineData(PartialRootCorruption.MissingLatitude)]
+    [InlineData(PartialRootCorruption.MissingLongitude)]
+    [InlineData(PartialRootCorruption.MissingPrecision)]
+    [InlineData(PartialRootCorruption.MissingProviderKey)]
+    [InlineData(PartialRootCorruption.MissingResultReference)]
+    [InlineData(PartialRootCorruption.MissingConfirmationTime)]
+    [InlineData(PartialRootCorruption.MetadataWithoutCoordinates)]
+    public void EvaluatePublicationReadiness_WithPartialRoot_ReportsInvalidConfirmedLocation(
+        PartialRootCorruption corruption)
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item =>
+                CorruptPartialRoot(item, corruption));
+
+        AssertSingleViolation(
+            listing.EvaluatePublicationReadiness(),
+            ListingPublicationReadinessViolationCode.InvalidConfirmedLocation,
+            translationId: null);
+    }
+
+    [Theory]
+    [InlineData(InvalidConfirmedRootCorruption.LatitudeBelowRange)]
+    [InlineData(InvalidConfirmedRootCorruption.LatitudeAboveRange)]
+    [InlineData(InvalidConfirmedRootCorruption.LongitudeBelowRange)]
+    [InlineData(InvalidConfirmedRootCorruption.LongitudeAboveRange)]
+    [InlineData(InvalidConfirmedRootCorruption.UndefinedPrecision)]
+    [InlineData(InvalidConfirmedRootCorruption.EmptyProviderKey)]
+    [InlineData(InvalidConfirmedRootCorruption.UntrimmedProviderKey)]
+    [InlineData(InvalidConfirmedRootCorruption.ProviderKeyTooLong)]
+    [InlineData(InvalidConfirmedRootCorruption.EmptyResultReference)]
+    [InlineData(InvalidConfirmedRootCorruption.UntrimmedResultReference)]
+    [InlineData(InvalidConfirmedRootCorruption.ResultReferenceTooLong)]
+    [InlineData(InvalidConfirmedRootCorruption.EmptyDisplayName)]
+    [InlineData(InvalidConfirmedRootCorruption.UntrimmedDisplayName)]
+    [InlineData(InvalidConfirmedRootCorruption.DisplayNameTooLong)]
+    public void EvaluatePublicationReadiness_WithInvalidConfirmedRoot_ReportsInvalidConfirmedLocation(
+        InvalidConfirmedRootCorruption corruption)
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item =>
+                CorruptConfirmedRoot(item, corruption));
+
+        AssertSingleViolation(
+            listing.EvaluatePublicationReadiness(),
+            ListingPublicationReadinessViolationCode.InvalidConfirmedLocation,
+            translationId: null);
+    }
+
+    [Theory]
+    [InlineData(-90, -180)]
+    [InlineData(90, 180)]
+    public void EvaluatePublicationReadiness_WithInclusiveCoordinateBoundaries_IsReady(
+        decimal latitude,
+        decimal longitude)
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreatePublishableConfirmedDraft();
+        listing.ConfirmLocation(
+            latitude,
+            longitude,
+            LocationPrecision.Approximate,
+            StrongLocationListingTestFixtures.TestProviderKey,
+            StrongLocationListingTestFixtures.TestResultReference,
+            geocodedDisplayName: null,
+            StrongLocationListingTestFixtures.ConfirmedAtUtc);
+
+        listing.EvaluatePublicationReadiness().IsReady.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(LocationPrecision.ExactAddress)]
+    [InlineData(LocationPrecision.Street)]
+    [InlineData(LocationPrecision.Neighborhood)]
+    [InlineData(LocationPrecision.Municipality)]
+    [InlineData(LocationPrecision.City)]
+    [InlineData(LocationPrecision.Approximate)]
+    public void EvaluatePublicationReadiness_WithDefinedPrecision_IsReady(
+        LocationPrecision precision)
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreatePublishableConfirmedDraft();
+        listing.ConfirmLocation(
+            StrongLocationListingTestFixtures.ConfirmedLatitude,
+            StrongLocationListingTestFixtures.ConfirmedLongitude,
+            precision,
+            StrongLocationListingTestFixtures.TestProviderKey,
+            StrongLocationListingTestFixtures.TestResultReference,
+            geocodedDisplayName: null,
+            StrongLocationListingTestFixtures.ConfirmedAtUtc);
+
+        listing.EvaluatePublicationReadiness().IsReady.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EvaluatePublicationReadiness_WithMultipleFailures_ReturnsDeterministicSanitizedCodes()
+    {
+        const string ProviderPayload = " private-provider-payload ";
+        Listing listing = StrongLocationListingTestFixtures
+            .CreatePublishableConfirmedDraft();
+        ListingTranslation first = listing.Translations.First();
+        ListingTranslation second = listing.Translations.Skip(1).First();
+        first.Municipality = null;
+        second.AddressLine = null;
+        SetListingProperty(
+            listing,
+            nameof(Listing.GeocodingProviderKey),
+            ProviderPayload);
+
+        ListingPublicationReadinessResult result =
+            listing.EvaluatePublicationReadiness();
+
+        result.Violations.Should().Equal(
+            new ListingPublicationReadinessViolation(
+                ListingPublicationReadinessViolationCode.InvalidMunicipality,
+                first.Id),
+            new ListingPublicationReadinessViolation(
+                ListingPublicationReadinessViolationCode.InvalidAddressLine,
+                second.Id),
+            new ListingPublicationReadinessViolation(
+                ListingPublicationReadinessViolationCode.InvalidConfirmedLocation,
+                TranslationId: null));
+        result.Violations.Select(violation => violation.ToString())
+            .Should().NotContain(value => value.Contains(
+                ProviderPayload,
+                StringComparison.Ordinal));
     }
 
     [Fact]
@@ -269,6 +536,21 @@ public sealed class ListingPublicationReadinessTests
         listing.Status.Should().Be(ListingStatus.Active);
     }
 
+    [Fact]
+    public void Publish_WhenActiveRootIsMalformed_ReturnsReadinessFailureAndRemainsActive()
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item => item.ClearLocation());
+
+        ListingPublicationReadinessResult result = listing.Publish();
+
+        AssertSingleViolation(
+            result,
+            ListingPublicationReadinessViolationCode.MissingConfirmedLocation,
+            translationId: null);
+        listing.Status.Should().Be(ListingStatus.Active);
+    }
+
     [Theory]
     [InlineData(ListingStatus.Archived)]
     [InlineData(ListingStatus.Reserved)]
@@ -290,8 +572,8 @@ public sealed class ListingPublicationReadinessTests
     [Fact]
     public void Unpublish_WhenMalformedActive_ReturnsListingToDraft()
     {
-        Listing listing = CreateMalformedActiveListing(
-            translation => translation.City = null);
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item => item.ClearLocation());
 
         listing.Unpublish();
 
@@ -301,8 +583,8 @@ public sealed class ListingPublicationReadinessTests
     [Fact]
     public void Archive_WhenMalformedActive_ArchivesListing()
     {
-        Listing listing = CreateMalformedActiveListing(
-            translation => translation.Description = null);
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item => item.ClearLocation());
 
         listing.Archive();
 
@@ -368,7 +650,7 @@ public sealed class ListingPublicationReadinessTests
     private static Listing CreateListing(
         params ListingTranslation[] translations)
     {
-        return new Listing
+        var listing = new Listing
         {
             Id = Guid.NewGuid(),
             ListingType = ListingType.Sale,
@@ -378,6 +660,14 @@ public sealed class ListingPublicationReadinessTests
             AreaSquareMeters = 60m,
             Translations = translations.ToList()
         };
+
+        if (translations.Length > 0)
+        {
+            StrongLocationListingTestFixtures
+                .AttachTrustedTestOnlyConfirmedLocation(listing);
+        }
+
+        return listing;
     }
 
     private static ListingTranslation CreateValidTranslation(
@@ -389,7 +679,224 @@ public sealed class ListingPublicationReadinessTests
             LanguageCode = languageCode,
             Title = "Ready title",
             City = "Skopje",
+            Municipality = "Centar",
+            AddressLine = "Macedonia Street 1",
             Description = "Ready description"
         };
+    }
+
+    private static void CorruptPartialRoot(
+        Listing listing,
+        PartialRootCorruption corruption)
+    {
+        switch (corruption)
+        {
+            case PartialRootCorruption.LatitudeOnly:
+                listing.ClearLocation();
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Latitude),
+                    StrongLocationListingTestFixtures.ConfirmedLatitude);
+                break;
+            case PartialRootCorruption.LongitudeOnly:
+                listing.ClearLocation();
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Longitude),
+                    StrongLocationListingTestFixtures.ConfirmedLongitude);
+                break;
+            case PartialRootCorruption.MissingLatitude:
+                SetListingProperty<decimal?>(
+                    listing,
+                    nameof(Listing.Latitude),
+                    null);
+                break;
+            case PartialRootCorruption.MissingLongitude:
+                SetListingProperty<decimal?>(
+                    listing,
+                    nameof(Listing.Longitude),
+                    null);
+                break;
+            case PartialRootCorruption.MissingPrecision:
+                SetListingProperty<LocationPrecision?>(
+                    listing,
+                    nameof(Listing.LocationPrecision),
+                    null);
+                break;
+            case PartialRootCorruption.MissingProviderKey:
+                SetListingProperty<string?>(
+                    listing,
+                    nameof(Listing.GeocodingProviderKey),
+                    null);
+                break;
+            case PartialRootCorruption.MissingResultReference:
+                SetListingProperty<string?>(
+                    listing,
+                    nameof(Listing.GeocodingResultReference),
+                    null);
+                break;
+            case PartialRootCorruption.MissingConfirmationTime:
+                SetListingProperty<DateTime?>(
+                    listing,
+                    nameof(Listing.LocationConfirmedAtUtc),
+                    null);
+                break;
+            case PartialRootCorruption.MetadataWithoutCoordinates:
+                listing.ClearLocation();
+                SetListingProperty<LocationPrecision?>(
+                    listing,
+                    nameof(Listing.LocationPrecision),
+                    LocationPrecision.City);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(corruption),
+                    corruption,
+                    null);
+        }
+    }
+
+    private static void CorruptConfirmedRoot(
+        Listing listing,
+        InvalidConfirmedRootCorruption corruption)
+    {
+        switch (corruption)
+        {
+            case InvalidConfirmedRootCorruption.LatitudeBelowRange:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Latitude),
+                    ListingLocationRules.MinimumLatitude - 0.000001m);
+                break;
+            case InvalidConfirmedRootCorruption.LatitudeAboveRange:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Latitude),
+                    ListingLocationRules.MaximumLatitude + 0.000001m);
+                break;
+            case InvalidConfirmedRootCorruption.LongitudeBelowRange:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Longitude),
+                    ListingLocationRules.MinimumLongitude - 0.000001m);
+                break;
+            case InvalidConfirmedRootCorruption.LongitudeAboveRange:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Longitude),
+                    ListingLocationRules.MaximumLongitude + 0.000001m);
+                break;
+            case InvalidConfirmedRootCorruption.UndefinedPrecision:
+                SetListingProperty<LocationPrecision?>(
+                    listing,
+                    nameof(Listing.LocationPrecision),
+                    (LocationPrecision)int.MaxValue);
+                break;
+            case InvalidConfirmedRootCorruption.EmptyProviderKey:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingProviderKey),
+                    string.Empty);
+                break;
+            case InvalidConfirmedRootCorruption.UntrimmedProviderKey:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingProviderKey),
+                    " provider ");
+                break;
+            case InvalidConfirmedRootCorruption.ProviderKeyTooLong:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingProviderKey),
+                    new string(
+                        'p',
+                        ListingLocationRules.GeocodingProviderKeyMaxLength + 1));
+                break;
+            case InvalidConfirmedRootCorruption.EmptyResultReference:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingResultReference),
+                    string.Empty);
+                break;
+            case InvalidConfirmedRootCorruption.UntrimmedResultReference:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingResultReference),
+                    " reference ");
+                break;
+            case InvalidConfirmedRootCorruption.ResultReferenceTooLong:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingResultReference),
+                    new string(
+                        'r',
+                        ListingLocationRules.GeocodingResultReferenceMaxLength + 1));
+                break;
+            case InvalidConfirmedRootCorruption.EmptyDisplayName:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodedDisplayName),
+                    string.Empty);
+                break;
+            case InvalidConfirmedRootCorruption.UntrimmedDisplayName:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodedDisplayName),
+                    " display ");
+                break;
+            case InvalidConfirmedRootCorruption.DisplayNameTooLong:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodedDisplayName),
+                    new string(
+                        'd',
+                        ListingLocationRules.GeocodedDisplayNameMaxLength + 1));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(corruption),
+                    corruption,
+                    null);
+        }
+    }
+
+    private static void SetListingProperty<T>(
+        Listing listing,
+        string propertyName,
+        T value)
+    {
+        typeof(Listing).GetProperty(propertyName)!
+            .SetValue(listing, value);
+    }
+
+    public enum PartialRootCorruption
+    {
+        LatitudeOnly,
+        LongitudeOnly,
+        MissingLatitude,
+        MissingLongitude,
+        MissingPrecision,
+        MissingProviderKey,
+        MissingResultReference,
+        MissingConfirmationTime,
+        MetadataWithoutCoordinates
+    }
+
+    public enum InvalidConfirmedRootCorruption
+    {
+        LatitudeBelowRange,
+        LatitudeAboveRange,
+        LongitudeBelowRange,
+        LongitudeAboveRange,
+        UndefinedPrecision,
+        EmptyProviderKey,
+        UntrimmedProviderKey,
+        ProviderKeyTooLong,
+        EmptyResultReference,
+        UntrimmedResultReference,
+        ResultReferenceTooLong,
+        EmptyDisplayName,
+        UntrimmedDisplayName,
+        DisplayNameTooLong
     }
 }

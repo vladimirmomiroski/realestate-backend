@@ -8,7 +8,11 @@ public enum ListingPublicationReadinessViolationCode
     InvalidLanguageCode,
     InvalidTitle,
     InvalidCity,
-    InvalidDescription
+    InvalidMunicipality,
+    InvalidAddressLine,
+    InvalidDescription,
+    MissingConfirmedLocation,
+    InvalidConfirmedLocation
 }
 
 public sealed record ListingPublicationReadinessViolation(

@@ -12,6 +12,7 @@ using RealEstate.Application.Listings.Repositories;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Unit.Application.Listings;
 
@@ -174,6 +175,8 @@ public sealed class ConfirmListingLocationHandlerTests
     public async Task NonDraftFailsBeforeTokenAndProvider()
     {
         var context = new TestContext();
+        StrongLocationListingTestFixtures
+            .AttachTrustedTestOnlyConfirmedLocation(context.ReadListing);
         context.ReadListing.Publish().IsReady.Should().BeTrue();
 
         ServiceResult<ListingLocationStateResponse> result =
@@ -291,7 +294,10 @@ public sealed class ConfirmListingLocationHandlerTests
     public async Task ListingBecomesNonDraftDuringProviderGapRejectsUnderLock()
     {
         var context = new TestContext();
+        StrongLocationListingTestFixtures
+            .AttachTrustedTestOnlyConfirmedLocation(context.LockedListing);
         context.LockedListing.Publish().IsReady.Should().BeTrue();
+        context.LockedListing.ClearLocation();
 
         ServiceResult<ListingLocationStateResponse> result =
             await context.HandleAsync();
