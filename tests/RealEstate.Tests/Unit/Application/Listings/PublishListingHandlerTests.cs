@@ -10,6 +10,7 @@ using RealEstate.Application.Listings.Repositories;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Unit.Application.Listings;
 
@@ -181,26 +182,14 @@ public sealed class PublishListingHandlerTests
 
         private static Listing CreateReadyDraft(Guid creatorId)
         {
-            var listing = new Listing
-            {
-                Id = Guid.NewGuid(),
-                ListingType = ListingType.Sale,
-                PropertyType = PropertyType.Apartment,
-                Price = 100_000m,
-                Currency = "EUR",
-                AreaSquareMeters = 75m
-            };
+            Listing listing = StrongLocationListingTestFixtures
+                .CreatePublishableConfirmedDraft();
+            ListingTranslation translation = listing.Translations
+                .Single(item => item.LanguageCode == "en");
+            translation.Title = "Ready listing";
+            translation.Description = "Complete publication content.";
+            listing.Translations = [translation];
             listing.AssignCreator(creatorId);
-            listing.Translations.Add(new ListingTranslation
-            {
-                Id = Guid.NewGuid(),
-                ListingId = listing.Id,
-                LanguageCode = "en",
-                Title = "Ready listing",
-                City = "Skopje",
-                Description = "Complete publication content.",
-                Listing = listing
-            });
             return listing;
         }
     }

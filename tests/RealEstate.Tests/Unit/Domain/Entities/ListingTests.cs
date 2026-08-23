@@ -2,6 +2,7 @@
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Domain.Listings;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Unit.Domain.Entities;
 
@@ -196,32 +197,16 @@ public sealed class ListingTests
 
     private static Listing CreateListing(ListingStatus status)
     {
-        var listing = new Listing
-        {
-            ListingType = ListingType.Sale,
-            PropertyType = PropertyType.Apartment,
-            Price = 100_000,
-            AreaSquareMeters = 50,
-            Currency = "EUR",
-            Translations =
-            [
-                new ListingTranslation
-                {
-                    Id = Guid.NewGuid(),
-                    LanguageCode = "en",
-                    Title = "Ready title",
-                    City = "Skopje",
-                    Description = "Ready description"
-                }
-            ]
-        };
+        Listing listing = StrongLocationListingTestFixtures
+            .CreatePublishableConfirmedDraft();
 
         switch (status)
         {
             case ListingStatus.Draft:
                 break;
             case ListingStatus.Active:
-                listing.Publish();
+                listing = StrongLocationListingTestFixtures
+                    .CreateValidActive();
                 break;
             case ListingStatus.Archived:
                 listing.Archive();

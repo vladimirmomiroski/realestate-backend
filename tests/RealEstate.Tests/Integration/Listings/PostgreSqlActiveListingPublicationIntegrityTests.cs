@@ -9,6 +9,7 @@ using Npgsql;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -222,6 +223,29 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
             () => InsertListingAsync(listingId, ListingStatus.Active));
 
         (await ListingExistsAsync(listingId)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DirectDatabaseActivationRejectionSetup_CannotCommitActiveState()
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateDirectDatabaseActivationRejectionSetup();
+
+        await using (AsyncServiceScope scope =
+                     _factory.Services.CreateAsyncScope())
+        {
+            RealEstateDbContext dbContext = scope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+            dbContext.Listings.Add(listing);
+            await dbContext.SaveChangesAsync();
+        }
+
+        await AssertIntegrityRejectedAsync(
+            () => SetListingStatusAsync(
+                listing.Id,
+                ListingStatus.Active));
+        (await ReadListingStatusAsync(listing.Id))
+            .Should().Be(ListingStatus.Draft);
     }
 
     [Fact]
