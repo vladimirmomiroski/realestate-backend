@@ -74,6 +74,13 @@ It is a live source-controlled issue register, not a project history, completed-
   - Smallest safe direction: Relocate/validate the secret in Chapter 13 or an explicit deployment-hardening checkpoint, with safe local/test configuration and startup-failure tests.
   - Classification: Production-deployment blocker; not a blocker for the current local frontend foundation.
 
+- **CH13-J2-DEPLOY-01: Active-location target-zero gate awaits first deployment**
+  - Area: Chapter 13 J.2 deployment compatibility gate.
+  - Current result: The reusable J.2 compatibility-gate implementation is complete and green. The backend has never been deployed, so no real staging/production target currently exists for the target-zero check.
+  - Smallest safe direction: J.3/J.4 development may continue. During the first real staging/production deployment preparation, run `docs/operations/chapter-13j2-active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0` before applying stronger J.3/J.4 enforcement.
+  - Safety boundary: If incompatible rows exist, remediate only through the supported `Active -> unpublish -> resolve -> publish` lifecycle/location workflow, or leave the row non-Active; do not use raw SQL repair/backfill.
+  - Classification: J.3/J.4 deployment remains gated until target-zero evidence is obtained.
+
 - **CH13-PERF-01: Post-Chapter-13 operational review — Active translation guard write amplification**
   - Area: Chapter 13F PostgreSQL translation-parent serialization and long-lived write amplification.
   - Risk: The Chapter 13F translation guard intentionally performs a logical no-op parent `Listing` UPDATE during Draft translation mutation. Under sustained authoring workloads, the resulting MVCC/index churn may increase dead tuples, heap/index size, autovacuum work, buffers, and latency even though the serialization operation is logically value-preserving.
