@@ -29,6 +29,13 @@ public sealed partial class ListingsEndpointTests
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
         await SetListingStatusAsync(listingId, startingStatus);
 
+        if (operation == "publish")
+        {
+            await ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+                _factory,
+                listingId);
+        }
+
         Guid imageId = await AddLifecycleImageAsync(listingId);
 
         _httpClient.AuthorizeAs(owner.AccessToken);
