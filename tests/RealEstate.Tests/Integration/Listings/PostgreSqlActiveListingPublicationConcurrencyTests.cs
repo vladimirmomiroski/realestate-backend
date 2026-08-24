@@ -303,10 +303,16 @@ public sealed class PostgreSqlActiveListingPublicationConcurrencyTests
             """
             INSERT INTO public."Listings"
                 ("Id", "ListingType", "PropertyType", "Status", "Price",
-                 "Currency", "AreaSquareMeters", "CreatedAtUtc")
+                 "Currency", "AreaSquareMeters", "Latitude", "Longitude",
+                 "LocationPrecision", "GeocodingProviderKey",
+                 "GeocodingResultReference", "LocationConfirmedAtUtc",
+                 "CreatedAtUtc")
             VALUES
                 (@listingId, 'Sale', 'Apartment', 'Draft', 100000,
-                 'EUR', 80, @createdAtUtc);
+                 'EUR', 80, 41.9981, 21.4254, 'ExactAddress',
+                 'integrity-concurrency-test',
+                 'integrity-concurrency-reference',
+                 TIMESTAMPTZ '2026-08-24 12:00:00+00', @createdAtUtc);
             """;
         listingCommand.Parameters.AddWithValue("listingId", listingId);
         listingCommand.Parameters.AddWithValue("createdAtUtc", DateTime.UtcNow);
@@ -318,10 +324,10 @@ public sealed class PostgreSqlActiveListingPublicationConcurrencyTests
             """
             INSERT INTO public."ListingTranslations"
                 ("Id", "ListingId", "LanguageCode", "Title", "City",
-                 "Description")
+                 "Municipality", "AddressLine", "Description")
             VALUES
                 (@translationId, @listingId, 'en', 'Ready title', 'Skopje',
-                 'Ready description');
+                 'Centar', 'Concurrency address', 'Ready description');
             """;
         translationCommand.Parameters.AddWithValue(
             "translationId",
