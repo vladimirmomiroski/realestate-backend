@@ -20,6 +20,8 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         "20260809124123_EnforceListingTranslationRowIntegrity";
     private const string CurrentMigration =
         "20260811091318_EnforceActiveListingPublicationIntegrity";
+    private const string StrongLocationMigration =
+        "20260824141614_EnforceStrongActiveLocationIntegrity";
     private const string IntegrityViolationMessage =
         "Active listing publication integrity violation.";
     private const string ActiveFreezeMessage =
@@ -337,6 +339,8 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
                  {
                      ("Title", "Changed title"),
                      ("City", "Ohrid"),
+                     ("Municipality", "Karpos"),
+                     ("AddressLine", "Changed address"),
                      ("Description", "Changed description"),
                      ("LanguageCode", "de")
                  })
@@ -790,9 +794,11 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         return dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              INSERT INTO "ListingTranslations"
-                 ("Id", "ListingId", "LanguageCode", "Title", "City", "Description")
+                 ("Id", "ListingId", "LanguageCode", "Title", "City",
+                  "Municipality", "AddressLine", "Description")
              VALUES
-                 ({translationId}, {listingId}, {languageCode}, {title}, {city}, {description})
+                 ({translationId}, {listingId}, {languageCode}, {title}, {city},
+                  'Centar', 'Integrity test address', {description})
              """);
     }
 
@@ -807,12 +813,22 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         await SetListingStatusAsync(dbContext, listingId, status);
     }
 
-    private static Task SetListingStatusAsync(
+    private static async Task SetListingStatusAsync(
         RealEstateDbContext dbContext,
         Guid listingId,
         ListingStatus status)
     {
-        return dbContext.Database.ExecuteSqlInterpolatedAsync(
+        if (status == ListingStatus.Active &&
+            await ReadMigrationAppliedAsync(
+                dbContext,
+                StrongLocationMigration))
+        {
+            await PrepareStrongLocationActivePremiseAsync(
+                dbContext,
+                [listingId]);
+        }
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              UPDATE "Listings"
              SET "Status" = {status.ToString()}
@@ -845,6 +861,15 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
         RealEstateDbContext dbContext = scope.ServiceProvider
             .GetRequiredService<RealEstateDbContext>();
+
+        if (await ReadMigrationAppliedAsync(
+                dbContext,
+                StrongLocationMigration))
+        {
+            await PrepareStrongLocationActivePremiseAsync(
+                dbContext,
+                listingIds);
+        }
 
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
@@ -881,6 +906,10 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
                 "UPDATE \"ListingTranslations\" SET \"Title\" = @value WHERE \"Id\" = @id;",
             "City" =>
                 "UPDATE \"ListingTranslations\" SET \"City\" = @value WHERE \"Id\" = @id;",
+            "Municipality" =>
+                "UPDATE \"ListingTranslations\" SET \"Municipality\" = @value WHERE \"Id\" = @id;",
+            "AddressLine" =>
+                "UPDATE \"ListingTranslations\" SET \"AddressLine\" = @value WHERE \"Id\" = @id;",
             "Description" =>
                 "UPDATE \"ListingTranslations\" SET \"Description\" = @value WHERE \"Id\" = @id;",
             "LanguageCode" =>
@@ -1232,6 +1261,41 @@ public sealed class PostgreSqlActiveListingPublicationIntegrityTests
         command.Parameters.Add(parameter);
 
         return (bool)(await command.ExecuteScalarAsync())!;
+    }
+
+    private static async Task PrepareStrongLocationActivePremiseAsync(
+        RealEstateDbContext dbContext,
+        Guid[] listingIds)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE "ListingTranslations"
+             SET "Municipality" = COALESCE("Municipality", 'Centar'),
+                 "AddressLine" = COALESCE(
+                     "AddressLine",
+                     'Integrity test address')
+             WHERE "ListingId" = ANY({listingIds})
+               AND EXISTS (
+                   SELECT 1
+                   FROM "Listings" AS listing
+                   WHERE listing."Id" = "ListingTranslations"."ListingId"
+                     AND listing."Status" = 'Draft'
+               )
+             """);
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE "Listings"
+             SET "Latitude" = 41.9981,
+                 "Longitude" = 21.4254,
+                 "LocationPrecision" = 'ExactAddress',
+                 "GeocodingProviderKey" = 'integrity-test',
+                 "GeocodingResultReference" = 'integrity-test-reference',
+                 "GeocodedDisplayName" = NULL,
+                 "LocationConfirmedAtUtc" =
+                     TIMESTAMPTZ '2026-08-24 12:00:00+00'
+             WHERE "Id" = ANY({listingIds})
+             """);
     }
 
     private static void AddGuidParameter(
