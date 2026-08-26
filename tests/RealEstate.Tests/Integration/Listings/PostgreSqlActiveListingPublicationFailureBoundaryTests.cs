@@ -8,12 +8,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Npgsql;
+using RealEstate.Api.Errors;
 using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
+using RealEstate.Tests.Integration.Api;
 using RealEstate.Tests.Integration.Auth;
 
 namespace RealEstate.Tests.Integration.Listings;
@@ -21,6 +25,13 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
     : IClassFixture<CustomWebApplicationFactory>
 {
+    private const string CompletionCategory =
+        "RealEstate.Api.Errors.ApiRequestCompletionLoggingMiddleware";
+    private const string ExceptionCategory =
+        "RealEstate.Api.Errors.ApiExceptionHandler";
+    private const string IntegrityViolationMessage =
+        "Active listing publication integrity violation.";
+
     private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _setupClient;
 
@@ -43,13 +54,16 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
         PublicationPersistenceSnapshot before =
             await ReadPersistenceSnapshotAsync(listingId);
         string connectionString = await GetConnectionStringAsync();
+        var logs = new CapturingLoggerProvider();
 
         await using var failureFactory =
             new TriggerFailureWebApplicationFactory(
                 connectionString,
-                listingId);
+                listingId,
+                logs);
         using HttpClient client = failureFactory.CreateClient();
         client.AuthorizeAs(owner.AccessToken);
+        logs.Clear();
 
         try
         {
@@ -95,7 +109,56 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
                 "Active listing translations are immutable; unpublish before editing.",
                 "ListingTranslations",
                 "UPDATE public",
-                "PostgresException");
+                "PostgresException",
+                "InvalidMunicipality",
+                "listing_not_ready");
+            responseText.Should().NotContain(before.ProviderKey);
+            responseText.Should().NotContain(before.ResultReference);
+
+            CapturedLogEntry completion = logs.Entries
+                .Where(entry =>
+                    entry.Category == CompletionCategory &&
+                    entry.EventId ==
+                        ApiRequestCompletionLoggingMiddleware.CompletionEvent)
+                .Should().ContainSingle().Subject;
+            CapturedLogEntry error = logs.Entries
+                .Where(entry =>
+                    entry.Category == ExceptionCategory &&
+                    entry.EventId == ApiExceptionHandler.HandledExceptionEvent)
+                .Should().ContainSingle().Subject;
+
+            completion.Properties["StatusCode"].Should().Be(500);
+            completion.Properties["RequestId"].Should().Be(requestId);
+            error.Level.Should().Be(LogLevel.Error);
+            error.Properties["RequestId"].Should().Be(requestId);
+            error.Properties["Method"].Should().Be("PUT");
+            error.Properties["Route"].Should()
+                .Be("api/listings/{id:guid}/publish");
+            error.Properties["StatusCode"].Should().Be(500);
+            error.Properties.Keys.Should().BeEquivalentTo(
+                "RequestId",
+                "Method",
+                "Route",
+                "StatusCode",
+                "{OriginalFormat}");
+            error.ScopeProperties["RequestId"].Should().Be(requestId);
+
+            error.Exception.Should().NotBeNull();
+            PostgresException postgresException = FindPostgresException(
+                error.Exception!);
+            postgresException.SqlState.Should().Be(
+                PostgresErrorCodes.CheckViolation);
+            postgresException.ConstraintName.Should().BeNull();
+            postgresException.MessageText.Should()
+                .Be(IntegrityViolationMessage);
+            logs.Entries.Should().NotContain(entry =>
+                entry.Category ==
+                    "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware" &&
+                entry.EventId.Id == 1);
+            AssertCustomLogsExclude(
+                logs,
+                before.ProviderKey,
+                before.ResultReference);
         }
         finally
         {
@@ -148,7 +211,14 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
                 listing.CreatedAtUtc,
                 listing.ModifiedAtUtc,
                 listing.CreatedByUserId,
-                listing.AgencyId
+                listing.AgencyId,
+                listing.Latitude,
+                listing.Longitude,
+                listing.LocationPrecision,
+                listing.GeocodingProviderKey,
+                listing.GeocodingResultReference,
+                listing.GeocodedDisplayName,
+                listing.LocationConfirmedAtUtc
             })
             .SingleAsync();
         TranslationPersistenceSnapshot[] translations = await dbContext.Listings
@@ -162,6 +232,8 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
                 translation.LanguageCode,
                 translation.Title,
                 translation.City,
+                translation.Municipality,
+                translation.AddressLine,
                 translation.Description))
             .ToArrayAsync();
 
@@ -172,12 +244,70 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
             root.ModifiedAtUtc,
             root.CreatedByUserId,
             root.AgencyId,
+            root.Latitude,
+            root.Longitude,
+            root.LocationPrecision,
+            root.GeocodingProviderKey!,
+            root.GeocodingResultReference!,
+            root.GeocodedDisplayName,
+            root.LocationConfirmedAtUtc,
             translations);
+    }
+
+    private static PostgresException FindPostgresException(
+        Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is PostgresException postgresException)
+            {
+                return postgresException;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "The logged persistence failure did not contain PostgreSQL diagnostics.");
+    }
+
+    private static void AssertCustomLogsExclude(
+        CapturingLoggerProvider logs,
+        params string[] sensitiveValues)
+    {
+        CapturedLogEntry[] customEntries = logs.Entries
+            .Where(entry =>
+                entry.Category == CompletionCategory ||
+                entry.Category == ExceptionCategory)
+            .ToArray();
+
+        foreach (string sensitiveValue in sensitiveValues)
+        {
+            customEntries.Should().NotContain(entry =>
+                entry.Message.Contains(
+                    sensitiveValue,
+                    StringComparison.Ordinal) ||
+                entry.Properties.Values.Any(value =>
+                    ContainsSensitiveValue(value, sensitiveValue)) ||
+                entry.ScopeProperties.Values.Any(value =>
+                    ContainsSensitiveValue(value, sensitiveValue)) ||
+                ContainsSensitiveValue(entry.Exception, sensitiveValue));
+        }
+    }
+
+    private static bool ContainsSensitiveValue(
+        object? value,
+        string sensitiveValue)
+    {
+        return value?.ToString()?.Contains(
+            sensitiveValue,
+            StringComparison.Ordinal) == true;
     }
 
     private sealed class TriggerFailureWebApplicationFactory(
         string connectionString,
-        Guid targetListingId)
+        Guid targetListingId,
+        CapturingLoggerProvider logs)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -194,6 +324,8 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
                             ["ConnectionStrings:DefaultConnection"] =
                                 connectionString
                         }));
+            builder.ConfigureLogging(logging =>
+                logging.AddProvider(logs));
 
             builder.ConfigureTestServices(services =>
             {
@@ -271,7 +403,7 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
                 await dbContext.Database.ExecuteSqlInterpolatedAsync(
                     $"""
                      UPDATE public."ListingTranslations"
-                     SET "Description" = NULL
+                     SET "Municipality" = NULL
                      WHERE "ListingId" = {Listing.Id}
                        AND "LanguageCode" = 'en'
                      """,
@@ -294,6 +426,13 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
         DateTime? ModifiedAtUtc,
         Guid? CreatedByUserId,
         Guid? AgencyId,
+        decimal? Latitude,
+        decimal? Longitude,
+        LocationPrecision? Precision,
+        string ProviderKey,
+        string ResultReference,
+        string? DisplayName,
+        DateTime? ConfirmedAtUtc,
         IReadOnlyList<TranslationPersistenceSnapshot> Translations);
 
     private sealed record TranslationPersistenceSnapshot(
@@ -302,5 +441,7 @@ public sealed class PostgreSqlActiveListingPublicationFailureBoundaryTests
         string LanguageCode,
         string Title,
         string? City,
+        string? Municipality,
+        string? AddressLine,
         string? Description);
 }
