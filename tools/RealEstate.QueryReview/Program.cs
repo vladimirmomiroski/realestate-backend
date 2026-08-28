@@ -186,8 +186,11 @@ internal static class Program
                 QueryReviewCommand.Doctor => RunDoctor(),
                 QueryReviewCommand.ProfileCreate => await CreateProfileAsync(
                     dbContext,
-                    npgsqlConnection),
-                QueryReviewCommand.ProfileVerify => await VerifyProfileAsync(npgsqlConnection),
+                    npgsqlConnection,
+                    options.ConnectionString!),
+                QueryReviewCommand.ProfileVerify => await VerifyProfileAsync(
+                    npgsqlConnection,
+                    options.ConnectionString!),
                 QueryReviewCommand.CaptureSql => await CaptureSqlAsync(
                     options,
                     identity.Database,
@@ -343,7 +346,8 @@ internal static class Program
 
     private static async Task<int> CreateProfileAsync(
         RealEstateDbContext dbContext,
-        NpgsqlConnection connection)
+        NpgsqlConnection connection,
+        string connectionString)
     {
         Console.WriteLine("Applying existing committed EF migrations...");
 
@@ -369,11 +373,25 @@ internal static class Program
         var profileStopwatch = Stopwatch.StartNew();
         var beforeNormalizationVerification = await DeterministicProfileSeeder.CreateAsync(connection);
         beforeNormalizationVerification.EnsureValid();
+        var beforeNormalizationStrongActiveVerification =
+            await ProfileInvariants.VerifyStrongActiveAsync(connection);
+        beforeNormalizationStrongActiveVerification.EnsureValid();
+        var beforeNormalizationCoordinateOwnershipVerification =
+            await ProfileInvariants.VerifyCoordinateOwnershipAsync(connection);
+        beforeNormalizationCoordinateOwnershipVerification.EnsureValid();
 
         Console.WriteLine(
             $"Logical profile before physical normalization: SUCCESS " +
             $"({beforeNormalizationVerification.Invariants.Count}/" +
             $"{beforeNormalizationVerification.Invariants.Count} invariants).");
+        Console.WriteLine(
+            $"J.7 strong-Active integrity before physical normalization: SUCCESS " +
+            $"({beforeNormalizationStrongActiveVerification.Invariants.Count}/" +
+            $"{beforeNormalizationStrongActiveVerification.Invariants.Count} checks).");
+        Console.WriteLine(
+            $"J.7 coordinate/root ownership before physical normalization: SUCCESS " +
+            $"({beforeNormalizationCoordinateOwnershipVerification.Invariants.Count}/" +
+            $"{beforeNormalizationCoordinateOwnershipVerification.Invariants.Count} checks).");
         Console.WriteLine(
             "Normalizing the disposable Listings heap with " +
             "VACUUM FULL (ANALYZE)...");
@@ -382,6 +400,14 @@ internal static class Program
             connection);
         var verification = await ProfileInvariants.VerifyAsync(connection);
         verification.EnsureValid();
+        var strongActiveVerification =
+            await ProfileInvariants.VerifyStrongActiveAsync(connection);
+        strongActiveVerification.EnsureValid();
+        var coordinateOwnershipVerification =
+            await ProfileInvariants.VerifyCoordinateOwnershipAsync(connection);
+        coordinateOwnershipVerification.EnsureValid();
+        int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
+            connectionString);
         profileStopwatch.Stop();
 
         Console.WriteLine(
@@ -393,20 +419,48 @@ internal static class Program
         Console.WriteLine(
             $"Logical profile after physical normalization: SUCCESS " +
             $"({verification.Invariants.Count}/{verification.Invariants.Count} invariants).");
+        Console.WriteLine(
+            $"J.7 strong-Active integrity after physical normalization: SUCCESS " +
+            $"({strongActiveVerification.Invariants.Count}/" +
+            $"{strongActiveVerification.Invariants.Count} checks).");
+        Console.WriteLine(
+            $"J.7 coordinate/root ownership after physical normalization: SUCCESS " +
+            $"({coordinateOwnershipVerification.Invariants.Count}/" +
+            $"{coordinateOwnershipVerification.Invariants.Count} checks).");
+        Console.WriteLine(
+            $"Locked discovery/result identities: SUCCESS " +
+            $"({lockedResultIdentityCount}/{lockedResultIdentityCount} shapes).");
         PrintInvariantTotals(verification);
+        PrintStrongActiveInvariantTotals(strongActiveVerification);
+        PrintCoordinateOwnershipInvariantTotals(coordinateOwnershipVerification);
         Console.WriteLine($"Profile creation duration: {profileStopwatch.Elapsed}.");
         Console.WriteLine("Profile create result: SUCCESS. All exact invariants passed.");
         return 0;
     }
 
-    private static async Task<int> VerifyProfileAsync(NpgsqlConnection connection)
+    private static async Task<int> VerifyProfileAsync(
+        NpgsqlConnection connection,
+        string connectionString)
     {
         Console.WriteLine("Running read-only deterministic profile verification...");
 
         var verification = await ProfileInvariants.VerifyAsync(connection);
         verification.EnsureValid();
+        var strongActiveVerification =
+            await ProfileInvariants.VerifyStrongActiveAsync(connection);
+        strongActiveVerification.EnsureValid();
+        var coordinateOwnershipVerification =
+            await ProfileInvariants.VerifyCoordinateOwnershipAsync(connection);
+        coordinateOwnershipVerification.EnsureValid();
+        int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
+            connectionString);
 
         PrintInvariantTotals(verification);
+        PrintStrongActiveInvariantTotals(strongActiveVerification);
+        PrintCoordinateOwnershipInvariantTotals(coordinateOwnershipVerification);
+        Console.WriteLine(
+            $"Locked discovery/result identities: SUCCESS " +
+            $"({lockedResultIdentityCount}/{lockedResultIdentityCount} shapes).");
         Console.WriteLine("Profile verify result: SUCCESS. All exact invariants passed.");
         return 0;
     }
@@ -598,6 +652,48 @@ internal static class Program
         {
             Console.WriteLine($"  {invariant.Name}: {invariant.Actual:N0}");
         }
+    }
+
+    private static void PrintStrongActiveInvariantTotals(
+        ProfileVerificationResult verification)
+    {
+        Console.WriteLine(
+            $"J.7 strong-Active integrity checks ({verification.Invariants.Count}):");
+
+        foreach (var invariant in verification.Invariants)
+        {
+            Console.WriteLine(
+                $"  {invariant.Name}: expected {invariant.Expected:N0}, " +
+                $"actual {invariant.Actual:N0}");
+        }
+    }
+
+    private static void PrintCoordinateOwnershipInvariantTotals(
+        ProfileVerificationResult verification)
+    {
+        Console.WriteLine(
+            $"J.7 coordinate/root ownership checks ({verification.Invariants.Count}):");
+
+        foreach (var invariant in verification.Invariants)
+        {
+            Console.WriteLine(
+                $"  {invariant.Name}: expected {invariant.Expected:N0}, " +
+                $"actual {invariant.Actual:N0}");
+        }
+    }
+
+    private static async Task<int> VerifyLockedResultIdentitiesAsync(
+        string connectionString)
+    {
+        var options = new DbContextOptionsBuilder<RealEstateDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+
+        await using var dbContext = new RealEstateDbContext(options);
+        IReadOnlyList<QueryShapeResult> results =
+            await QueryShapeDefinitions.VerifyLockedResultIdentitiesAsync(dbContext);
+
+        return results.Count;
     }
 
     private static async Task<DatabaseIdentity> ReadDatabaseIdentityAsync(

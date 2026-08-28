@@ -76,6 +76,27 @@ internal static class QueryShapeDefinitions
         ProductionCommandCaptureInterceptor interceptor,
         CancellationToken cancellationToken = default)
     {
+        return await ExecuteCoreAsync(
+            dbContext,
+            interceptor,
+            cancellationToken);
+    }
+
+    public static async Task<IReadOnlyList<QueryShapeResult>> VerifyLockedResultIdentitiesAsync(
+        RealEstateDbContext dbContext,
+        CancellationToken cancellationToken = default)
+    {
+        return await ExecuteCoreAsync(
+            dbContext,
+            interceptor: null,
+            cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<QueryShapeResult>> ExecuteCoreAsync(
+        RealEstateDbContext dbContext,
+        ProductionCommandCaptureInterceptor? interceptor,
+        CancellationToken cancellationToken)
+    {
         var listingRepository = new ListingRepository(dbContext);
         var agencyRepository = new AgencyRepository(dbContext);
         var results = new List<QueryShapeResult>();
@@ -130,7 +151,7 @@ internal static class QueryShapeDefinitions
             expectedItemCount: 20,
             cancellationToken));
 
-        using (interceptor.BeginShape(AgencyShapeId))
+        using (interceptor?.BeginShape(AgencyShapeId))
         {
             var agencyExists = await agencyRepository.ExistsAsync(
                 AgencyOneId,
@@ -217,7 +238,7 @@ internal static class QueryShapeDefinitions
             expectedItemCount: 20,
             cancellationToken));
 
-        using (interceptor.BeginShape(ComparableShapeId))
+        using (interceptor?.BeginShape(ComparableShapeId))
         {
             ComparableListingsReadResult comparableResult =
                 await listingRepository.GetComparableListingsReadOnlyAsync(
@@ -251,7 +272,11 @@ internal static class QueryShapeDefinitions
                 actualIds));
         }
 
-        ValidateCapturedCommands(interceptor.Commands);
+        if (interceptor is not null)
+        {
+            ValidateCapturedCommands(interceptor.Commands);
+        }
+
         return results;
     }
 
@@ -282,13 +307,13 @@ internal static class QueryShapeDefinitions
     private static async Task<QueryShapeResult> ExecutePagedAsync(
         string shapeId,
         ListingRepository repository,
-        ProductionCommandCaptureInterceptor interceptor,
+        ProductionCommandCaptureInterceptor? interceptor,
         GetListingsQuery query,
         int expectedTotalCount,
         int expectedItemCount,
         CancellationToken cancellationToken)
     {
-        using (interceptor.BeginShape(shapeId))
+        using (interceptor?.BeginShape(shapeId))
         {
             PagedResult<Listing> result = await repository.GetFilteredReadOnlyAsync(
                 query,

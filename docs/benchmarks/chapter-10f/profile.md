@@ -1,6 +1,8 @@
 # Chapter 10F deterministic benchmark profile
 
-Profile version: `chapter-10f-v1`
+Current profile version: `chapter-10f-v2`
+
+`chapter-10f-v2` is the Chapter 13J.7-compatible successor to the original Chapter 10F profile. It changes only deterministic coordinate/root ownership as described below. The committed Chapter 10F benchmark evidence remains the historical `chapter-10f-v1` run and is not rewritten or relabeled.
 
 - C# seed: `1042001`. The current profile uses formulas rather than random sampling; the seed is recorded for later tool-local components.
 - PostgreSQL seed: `SELECT setseed(0.1042001);`, executed inside the creation transaction.
@@ -27,7 +29,7 @@ Creation uses set-based PostgreSQL statements only inside the opt-in query-revie
 | Area | `40 + (i mod 200)` square metres except the comparable cohort |
 | Price | `50000 + 2500 * (i mod 120)` except the comparable cohort |
 | CreatedAtUtc | Base timestamp plus `i mod 1000` minutes; all comparable rows use `2026-02-01T00:00:00Z` |
-| Coordinates | Both null when `i mod 5 = 0`; otherwise deterministic valid six-decimal latitude/longitude; 20,000 null pairs and 80,000 value pairs |
+| Coordinates/root ownership | Chapter 13J.7 supersedes only the historical per-sequence coordinate ownership formula: 1-70,000 have trusted test-only confirmed roots; 70,001-87,500 are unresolved; 87,501-100,000 retain the historical `i mod 5` coordinate formula. Global totals remain 20,000 null pairs, 80,000 value pairs, and zero partial pairs. |
 | Translations | Exactly two per listing and 200,000 total; 100,000 `mk`, 90,000 `en`, 5,000 `de`, 5,000 `sq` |
 | Translation bands | 5,001-10,000 replace `en` with `de`; 10,001-15,000 replace `en` with `sq`; all retain `mk` |
 | Details | Exactly one matching detail row per listing: 50,000 apartment and 50,000 house rows |
@@ -38,6 +40,16 @@ The controlled comparable cohort changes the natural type/property/currency dist
 - odd IDs 3,033-3,061 change Rent to Sale (15 rows);
 - Apartment-formula IDs 3,101-3,129 change to House (15 rows);
 - ten base-EUR IDs in 3,202-3,229 change to USD, and ten in 3,232-3,259 change to MKD.
+
+### Chapter 13J.7 coordinate/root ownership supersession
+
+The stronger J.4 invariant requires every Active listing to have complete confirmed location truth. The fixed Active IDs 1-70,000 contain exactly 14,000 rows that the historical `i mod 5` formula left unresolved. Because Active identities and discovery results are frozen, Chapter 13J.7 owner-approves this one profile-data supersession:
+
+- sequences 1-70,000 retain the existing deterministic coordinate formula where already paired and receive the same deterministic pair where previously unresolved; every row has precision `Approximate`, provider key `query-review-trusted-test-only`, result reference `query-review-trusted-test-only:<12-hex-sequence>`, NULL display name, and confirmation time `2026-01-01T00:00:00Z`;
+- sequences 70,001-87,500 have all seven root snapshot fields NULL, deterministically displacing exactly 14,000 previously paired roots from non-Active rows;
+- sequences 87,501-100,000 retain the historical non-Active formula: multiples of five have all seven root fields NULL, while other rows retain the existing deterministic coordinate pair and unverified NULL precision/provenance/display/confirmation fields.
+
+The resulting coordinate totals remain exactly 80,000 paired, 20,000 null, and zero partial. No listing, translation, status, text, discovery cohort, query input, or expected public result identity changes. These values are trusted QueryReview fixture data only and define no production repair or backfill behavior.
 
 ## Location and text cohorts
 
