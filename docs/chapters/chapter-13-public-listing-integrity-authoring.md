@@ -437,6 +437,8 @@ insert all profile listings as Draft
 
 The final 100,000-listing/200,000-translation distribution and result semantics remain unchanged. Deterministic test/profile seeders may attach explicitly named trusted test resolution metadata set-wise; they do not call a live geocoder and do not normalize fake metadata into production paths.
 
+Chapter 13J.7 narrowly supersedes the historical Chapter 10F per-sequence coordinate/root ownership formula and no other deterministic profile identity or discovery semantic. The old formula left every fifth listing unresolved, including exactly 14,000 of the fixed Active IDs 1-70,000, and therefore cannot coexist with the stronger Active invariant. All 70,000 intended Active rows receive explicit trusted test-only confirmed roots set-wise. Exactly 14,000 previously paired roots are deterministically displaced from non-Active rows 70,001-87,500, leaving that cohort unresolved while preserving the established aggregate of 80,000 coordinate pairs, 20,000 null pairs, and zero partial pairs. Rows 87,501-100,000 retain their earlier coordinate ownership formula. Listing, translation, status, text, discovery cohort, query-input, and expected public-result identities remain unchanged. This is QueryReview profile fixture truth only; it establishes no production data-repair or backfill rule.
+
 ## 9. Public vs Management DTO Strategy
 
 Chapter 13 separates contracts by truth level rather than globally tightening the shared DTO.
@@ -1497,8 +1499,8 @@ Execution rules for every remaining task:
 ### Task 13J.7 — Query-Review Profile Compatibility with Strong Active Truth
 
 - **Exact goal:** Keep the deterministic 100,000-listing/200,000-translation/70,000-Active profile valid under the stronger trigger without changing its discovery identities or using a live geocoder.
-- **Implementation scope:** Adapt only query-review seed preconditions/order/data: populate required AddressLine/Municipality and explicit trusted test precision/provenance/coordinates set-wise; retain Draft-first children-next and one set-based final Active transition; extend integrity/profile assertions only where necessary to prove zero malformed Active and enabled trigger catalog.
-- **Explicit exclusions:** No production repository/query, candidate/provider call, permanent SQL baseline export, profile scale/result redistribution, per-listing loop, or benchmark-framework redesign.
+- **Implementation scope:** Adapt only query-review seed preconditions/order/data: populate required AddressLine/Municipality and explicit trusted test precision/provenance/coordinates set-wise; retain Draft-first children-next and one set-based final Active transition; extend integrity/profile assertions only where necessary to prove zero malformed Active, the owner-approved coordinate/root ownership supersession, and enabled trigger catalog. The sole superseded profile-data formula is the historical per-sequence coordinate/root ownership described in section 8.3; all discovery identities and result distributions remain fixed.
+- **Explicit exclusions:** No production repository/query, candidate/provider call, permanent SQL baseline export, profile scale/discovery-result redistribution, per-listing loop, or benchmark-framework redesign. The trusted profile roots and displaced non-Active coordinate ownership create no production backfill rule.
 - **Migration impact:** None; consumes the 13J.4 migration.
 - **Test/evidence required:** Profile create and read-only verify; 61/61 established invariants plus explicitly reported new integrity checks without weakening/removing existing metrics; exact listing/translation/status totals and locked result IDs; zero malformed Active; trigger enabled/catalog state; set-based command audit and setup elapsed time without invented threshold.
 - **Dependencies:** 13J.4–13J.6.

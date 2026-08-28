@@ -101,6 +101,31 @@ internal static class ProfileInvariants
             ["images.secondary"] = 10_000
         };
 
+    private static readonly IReadOnlyDictionary<string, long> StrongActiveExpected =
+        new Dictionary<string, long>(StringComparer.Ordinal)
+        {
+            ["strong_active.missing_translations"] = 0,
+            ["strong_active.invalid_municipality_translations"] = 0,
+            ["strong_active.invalid_address_line_translations"] = 0,
+            ["strong_active.root_unresolved"] = 0,
+            ["strong_active.root_legacy_unverified"] = 0,
+            ["strong_active.root_partial"] = 0,
+            ["strong_active.root_invalid_confirmed"] = 0,
+            ["strong_active.enabled_listing_triggers"] = 2
+        };
+
+    private static readonly IReadOnlyDictionary<string, long> CoordinateOwnershipExpected =
+        new Dictionary<string, long>(StringComparer.Ordinal)
+        {
+            ["coordinate_ownership.active_not_trusted_confirmed"] = 0,
+            ["coordinate_ownership.displaced_band_not_unresolved"] = 0,
+            ["coordinate_ownership.retained_null_band_not_unresolved"] = 0,
+            ["coordinate_ownership.retained_pair_band_not_legacy_formula"] = 0,
+            ["coordinate_ownership.global_paired"] = 80_000,
+            ["coordinate_ownership.global_null_pair"] = 20_000,
+            ["coordinate_ownership.global_partial"] = 0
+        };
+
     public static async Task<ProfileVerificationResult> VerifyAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction = null,
@@ -132,6 +157,94 @@ internal static class ProfileInvariants
         }
 
         var invariants = Expected
+            .Select(expected => new ProfileInvariant(
+                expected.Key,
+                expected.Value,
+                actual[expected.Key]))
+            .ToArray();
+
+        return new ProfileVerificationResult(invariants);
+    }
+
+    public static async Task<ProfileVerificationResult> VerifyStrongActiveAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 300;
+        command.CommandText = StrongActiveVerificationSql;
+
+        var actual = new Dictionary<string, long>(StringComparer.Ordinal);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            actual.Add(reader.GetString(0), reader.GetInt64(1));
+        }
+
+        var missing = StrongActiveExpected.Keys
+            .Except(actual.Keys, StringComparer.Ordinal)
+            .ToArray();
+        var unexpected = actual.Keys
+            .Except(StrongActiveExpected.Keys, StringComparer.Ordinal)
+            .ToArray();
+
+        if (missing.Length > 0 || unexpected.Length > 0)
+        {
+            throw new ProfileInvariantException(
+                "The J.7 strong-Active query returned an unexpected metric set. " +
+                $"Missing: [{string.Join(", ", missing)}]. " +
+                $"Unexpected: [{string.Join(", ", unexpected)}].");
+        }
+
+        var invariants = StrongActiveExpected
+            .Select(expected => new ProfileInvariant(
+                expected.Key,
+                expected.Value,
+                actual[expected.Key]))
+            .ToArray();
+
+        return new ProfileVerificationResult(invariants);
+    }
+
+    public static async Task<ProfileVerificationResult> VerifyCoordinateOwnershipAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 300;
+        command.CommandText = CoordinateOwnershipVerificationSql;
+
+        var actual = new Dictionary<string, long>(StringComparer.Ordinal);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            actual.Add(reader.GetString(0), reader.GetInt64(1));
+        }
+
+        var missing = CoordinateOwnershipExpected.Keys
+            .Except(actual.Keys, StringComparer.Ordinal)
+            .ToArray();
+        var unexpected = actual.Keys
+            .Except(CoordinateOwnershipExpected.Keys, StringComparer.Ordinal)
+            .ToArray();
+
+        if (missing.Length > 0 || unexpected.Length > 0)
+        {
+            throw new ProfileInvariantException(
+                "The J.7 coordinate-ownership query returned an unexpected metric set. " +
+                $"Missing: [{string.Join(", ", missing)}]. " +
+                $"Unexpected: [{string.Join(", ", unexpected)}].");
+        }
+
+        var invariants = CoordinateOwnershipExpected
             .Select(expected => new ProfileInvariant(
                 expected.Key,
                 expected.Value,
@@ -308,6 +421,262 @@ internal static class ProfileInvariants
         UNION ALL SELECT 'images.total', count(*)::bigint FROM "ListingImages"
         UNION ALL SELECT 'images.primary', count(*)::bigint FROM "ListingImages" WHERE "IsPrimary"
         UNION ALL SELECT 'images.secondary', count(*)::bigint FROM "ListingImages" WHERE NOT "IsPrimary"
+        ORDER BY 1;
+        """;
+
+    private const string StrongActiveVerificationSql = """
+        WITH settings AS MATERIALIZED
+        (
+            SELECT
+                chr(9) || chr(10) || chr(11) || chr(12) || chr(13) ||
+                chr(32) || chr(133) || chr(160) || chr(5760) ||
+                chr(8192) || chr(8193) || chr(8194) || chr(8195) ||
+                chr(8196) || chr(8197) || chr(8198) || chr(8199) ||
+                chr(8200) || chr(8201) || chr(8202) || chr(8232) ||
+                chr(8233) || chr(8239) || chr(8287) || chr(12288)
+                    AS boundary_whitespace
+        ),
+        active_listings AS MATERIALIZED
+        (
+            SELECT listing.*
+            FROM "Listings" AS listing
+            WHERE listing."Status" = 'Active'
+        ),
+        root_states AS
+        (
+            SELECT listing."Id",
+                   CASE
+                       WHEN
+                           listing."Latitude" IS NULL AND
+                           listing."Longitude" IS NULL AND
+                           listing."LocationPrecision" IS NULL AND
+                           listing."GeocodingProviderKey" IS NULL AND
+                           listing."GeocodingResultReference" IS NULL AND
+                           listing."GeocodedDisplayName" IS NULL AND
+                           listing."LocationConfirmedAtUtc" IS NULL
+                       THEN 'unresolved'
+                       WHEN
+                           listing."Latitude" IS NOT NULL AND
+                           listing."Longitude" IS NOT NULL AND
+                           listing."LocationPrecision" IS NULL AND
+                           listing."GeocodingProviderKey" IS NULL AND
+                           listing."GeocodingResultReference" IS NULL AND
+                           listing."GeocodedDisplayName" IS NULL AND
+                           listing."LocationConfirmedAtUtc" IS NULL
+                       THEN 'legacy_unverified'
+                       WHEN
+                           listing."Latitude" IS NOT NULL AND
+                           listing."Longitude" IS NOT NULL AND
+                           listing."LocationPrecision" IS NOT NULL AND
+                           listing."GeocodingProviderKey" IS NOT NULL AND
+                           listing."GeocodingResultReference" IS NOT NULL AND
+                           listing."LocationConfirmedAtUtc" IS NOT NULL
+                       THEN CASE
+                           WHEN
+                               listing."Latitude" BETWEEN -90 AND 90 AND
+                               listing."Longitude" BETWEEN -180 AND 180 AND
+                               listing."LocationPrecision" IN
+                               (
+                                   'ExactAddress',
+                                   'Street',
+                                   'Neighborhood',
+                                   'Municipality',
+                                   'City',
+                                   'Approximate'
+                               ) AND
+                               char_length(listing."GeocodingProviderKey") <= 64 AND
+                               listing."GeocodingProviderKey" <> '' AND
+                               listing."GeocodingProviderKey" = btrim(
+                                   listing."GeocodingProviderKey",
+                                   settings.boundary_whitespace) AND
+                               char_length(listing."GeocodingResultReference") <= 512 AND
+                               listing."GeocodingResultReference" <> '' AND
+                               listing."GeocodingResultReference" = btrim(
+                                   listing."GeocodingResultReference",
+                                   settings.boundary_whitespace) AND
+                               (
+                                   listing."GeocodedDisplayName" IS NULL OR
+                                   (
+                                       char_length(listing."GeocodedDisplayName") <= 500 AND
+                                       listing."GeocodedDisplayName" <> '' AND
+                                       listing."GeocodedDisplayName" = btrim(
+                                           listing."GeocodedDisplayName",
+                                           settings.boundary_whitespace)
+                                   )
+                               )
+                           THEN 'valid_confirmed'
+                           ELSE 'invalid_confirmed'
+                       END
+                       ELSE 'partial'
+                   END AS root_state
+            FROM active_listings AS listing
+            CROSS JOIN settings
+        ),
+        enabled_listing_triggers AS
+        (
+            SELECT trigger.tgname
+            FROM pg_catalog.pg_trigger AS trigger
+            INNER JOIN pg_catalog.pg_class AS relation
+                ON relation.oid = trigger.tgrelid
+            INNER JOIN pg_catalog.pg_namespace AS schema
+                ON schema.oid = relation.relnamespace
+            WHERE schema.nspname = 'public'
+              AND relation.relname = 'Listings'
+              AND NOT trigger.tgisinternal
+              AND trigger.tgenabled IN ('O', 'A')
+              AND trigger.tgname IN
+              (
+                  'TR_Listings_ActivePublicationIntegrity_Insert',
+                  'TR_Listings_ActivePublicationIntegrity_Update'
+              )
+        )
+        SELECT 'strong_active.missing_translations', count(*)::bigint
+        FROM active_listings AS listing
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM "ListingTranslations" AS translation
+            WHERE translation."ListingId" = listing."Id"
+        )
+        UNION ALL
+        SELECT 'strong_active.invalid_municipality_translations', count(*)::bigint
+        FROM "ListingTranslations" AS translation
+        INNER JOIN active_listings AS listing
+            ON listing."Id" = translation."ListingId"
+        CROSS JOIN settings
+        WHERE translation."Municipality" IS NULL
+           OR translation."Municipality" = ''
+           OR translation."Municipality" <>
+               btrim(translation."Municipality", settings.boundary_whitespace)
+        UNION ALL
+        SELECT 'strong_active.invalid_address_line_translations', count(*)::bigint
+        FROM "ListingTranslations" AS translation
+        INNER JOIN active_listings AS listing
+            ON listing."Id" = translation."ListingId"
+        CROSS JOIN settings
+        WHERE translation."AddressLine" IS NULL
+           OR translation."AddressLine" = ''
+           OR translation."AddressLine" <>
+               btrim(translation."AddressLine", settings.boundary_whitespace)
+        UNION ALL
+        SELECT 'strong_active.root_unresolved', count(*)::bigint
+        FROM root_states
+        WHERE root_state = 'unresolved'
+        UNION ALL
+        SELECT 'strong_active.root_legacy_unverified', count(*)::bigint
+        FROM root_states
+        WHERE root_state = 'legacy_unverified'
+        UNION ALL
+        SELECT 'strong_active.root_partial', count(*)::bigint
+        FROM root_states
+        WHERE root_state = 'partial'
+        UNION ALL
+        SELECT 'strong_active.root_invalid_confirmed', count(*)::bigint
+        FROM root_states
+        WHERE root_state = 'invalid_confirmed'
+        UNION ALL
+        SELECT 'strong_active.enabled_listing_triggers', count(*)::bigint
+        FROM enabled_listing_triggers
+        ORDER BY 1;
+        """;
+
+    private const string CoordinateOwnershipVerificationSql = """
+        WITH profile_listings AS MATERIALIZED
+        (
+            SELECT sequence.i AS sequence,
+                   listing.*
+            FROM generate_series(1, 100000) AS sequence(i)
+            INNER JOIN "Listings" AS listing
+                ON listing."Id" =
+                    ('40000000-0000-0000-0000-' ||
+                     lpad(to_hex(sequence.i), 12, '0'))::uuid
+        ),
+        coordinate_totals AS MATERIALIZED
+        (
+            SELECT
+                count(*) FILTER
+                    (WHERE "Latitude" IS NOT NULL AND "Longitude" IS NOT NULL)
+                    AS paired,
+                count(*) FILTER
+                    (WHERE "Latitude" IS NULL AND "Longitude" IS NULL)
+                    AS null_pair,
+                count(*) FILTER
+                    (WHERE ("Latitude" IS NULL) <> ("Longitude" IS NULL))
+                    AS partial
+            FROM profile_listings
+        )
+        SELECT 'coordinate_ownership.active_not_trusted_confirmed', count(*)::bigint
+        FROM profile_listings
+        WHERE sequence BETWEEN 1 AND 70000
+          AND (
+              "Status" <> 'Active'
+              OR "Latitude" IS DISTINCT FROM
+                  41.000000 + mod(sequence, 1000) * 0.000001
+              OR "Longitude" IS DISTINCT FROM
+                  21.000000 + mod(sequence, 1000) * 0.000001
+              OR "LocationPrecision" IS DISTINCT FROM 'Approximate'
+              OR "GeocodingProviderKey" IS DISTINCT FROM
+                  'query-review-trusted-test-only'
+              OR "GeocodingResultReference" IS DISTINCT FROM
+                  format(
+                      'query-review-trusted-test-only:%s',
+                      lpad(to_hex(sequence), 12, '0'))
+              OR "GeocodedDisplayName" IS NOT NULL
+              OR "LocationConfirmedAtUtc" IS DISTINCT FROM
+                  '2026-01-01T00:00:00Z'::timestamptz
+          )
+        UNION ALL
+        SELECT 'coordinate_ownership.displaced_band_not_unresolved', count(*)::bigint
+        FROM profile_listings
+        WHERE sequence BETWEEN 70001 AND 87500
+          AND (
+              "Latitude" IS NOT NULL
+              OR "Longitude" IS NOT NULL
+              OR "LocationPrecision" IS NOT NULL
+              OR "GeocodingProviderKey" IS NOT NULL
+              OR "GeocodingResultReference" IS NOT NULL
+              OR "GeocodedDisplayName" IS NOT NULL
+              OR "LocationConfirmedAtUtc" IS NOT NULL
+          )
+        UNION ALL
+        SELECT 'coordinate_ownership.retained_null_band_not_unresolved', count(*)::bigint
+        FROM profile_listings
+        WHERE sequence BETWEEN 87501 AND 100000
+          AND mod(sequence, 5) = 0
+          AND (
+              "Latitude" IS NOT NULL
+              OR "Longitude" IS NOT NULL
+              OR "LocationPrecision" IS NOT NULL
+              OR "GeocodingProviderKey" IS NOT NULL
+              OR "GeocodingResultReference" IS NOT NULL
+              OR "GeocodedDisplayName" IS NOT NULL
+              OR "LocationConfirmedAtUtc" IS NOT NULL
+          )
+        UNION ALL
+        SELECT 'coordinate_ownership.retained_pair_band_not_legacy_formula', count(*)::bigint
+        FROM profile_listings
+        WHERE sequence BETWEEN 87501 AND 100000
+          AND mod(sequence, 5) <> 0
+          AND (
+              "Latitude" IS DISTINCT FROM
+                  41.000000 + mod(sequence, 1000) * 0.000001
+              OR "Longitude" IS DISTINCT FROM
+                  21.000000 + mod(sequence, 1000) * 0.000001
+              OR "LocationPrecision" IS NOT NULL
+              OR "GeocodingProviderKey" IS NOT NULL
+              OR "GeocodingResultReference" IS NOT NULL
+              OR "GeocodedDisplayName" IS NOT NULL
+              OR "LocationConfirmedAtUtc" IS NOT NULL
+          )
+        UNION ALL
+        SELECT 'coordinate_ownership.global_paired', paired::bigint
+        FROM coordinate_totals
+        UNION ALL
+        SELECT 'coordinate_ownership.global_null_pair', null_pair::bigint
+        FROM coordinate_totals
+        UNION ALL
+        SELECT 'coordinate_ownership.global_partial', partial::bigint
+        FROM coordinate_totals
         ORDER BY 1;
         """;
 }
