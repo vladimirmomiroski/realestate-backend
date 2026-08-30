@@ -655,8 +655,16 @@ public sealed partial class ListingsEndpointTests
             .Be("Integration test apartment");
         body.GetProperty("city").GetString().Should()
             .Be("Skopje");
+        body.GetProperty("municipality").GetString().Should()
+            .Be("Centar");
+        body.GetProperty("addressLine").GetString().Should()
+            .Be("Center");
         body.GetProperty("description").GetString().Should()
             .Be("Test listing created from integration tests.");
+        body.GetProperty("latitude").GetDecimal().Should().Be(41.9981m);
+        body.GetProperty("longitude").GetDecimal().Should().Be(21.4254m);
+        body.GetProperty("locationPrecision").GetString().Should()
+            .Be("ExactAddress");
     }
 
     private async Task<Guid> CreateAgencyAsAsync(AuthenticatedTestUser user)

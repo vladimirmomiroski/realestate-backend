@@ -97,6 +97,18 @@ public sealed partial class AgenciesEndpointTests
         returnedListingId.Should().NotBe(secondAgencyListingId);
 
         items[0].GetProperty("agencyId").GetGuid().Should().Be(firstAgencyId);
+        items[0].GetProperty("languageCode").GetString().Should().Be("en");
+        items[0].GetProperty("title").GetString().Should()
+            .Be("Integration test apartment");
+        items[0].GetProperty("city").GetString().Should().Be("Skopje");
+        items[0].GetProperty("municipality").GetString().Should().Be("Centar");
+        items[0].GetProperty("addressLine").GetString().Should().Be("Center");
+        items[0].GetProperty("description").GetString().Should()
+            .Be("Test listing created from integration tests.");
+        items[0].GetProperty("latitude").GetDecimal().Should().Be(41.9981m);
+        items[0].GetProperty("longitude").GetDecimal().Should().Be(21.4254m);
+        items[0].GetProperty("locationPrecision").GetString().Should()
+            .Be("ExactAddress");
     }
 
     [Theory]

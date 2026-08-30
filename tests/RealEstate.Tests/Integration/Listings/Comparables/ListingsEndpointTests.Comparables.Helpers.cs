@@ -295,6 +295,11 @@ public sealed partial class ListingsEndpointTests
             .Should()
             .Be(municipality);
 
+        item.GetProperty("addressLine")
+            .GetString()
+            .Should()
+            .Be("Comparable address");
+
         item.GetProperty("neighborhood")
             .GetString()
             .Should()

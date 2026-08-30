@@ -31,6 +31,11 @@ public sealed partial class ListingsEndpointTests
         json.GetProperty("description").GetString().Should()
             .Be("Тест оглас креиран од integration tests.");
         json.GetProperty("municipality").GetString().Should().Be("Центар");
+        json.GetProperty("addressLine").GetString().Should().Be("Центар");
+        json.GetProperty("latitude").GetDecimal().Should().Be(41.9981m);
+        json.GetProperty("longitude").GetDecimal().Should().Be(21.4254m);
+        json.GetProperty("locationPrecision").GetString().Should()
+            .Be("ExactAddress");
 
         json.GetProperty("apartmentDetails").ValueKind.Should().Be(JsonValueKind.Object);
         json.GetProperty("houseDetails").ValueKind.Should().Be(JsonValueKind.Null);

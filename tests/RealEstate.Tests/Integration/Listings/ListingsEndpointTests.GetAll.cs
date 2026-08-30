@@ -43,7 +43,20 @@ public sealed partial class ListingsEndpointTests
 
         items.ValueKind.Should().Be(JsonValueKind.Array);
         items.GetArrayLength().Should().Be(1);
-        items[0].GetProperty("id").GetGuid().Should().Be(listingId);
+        JsonElement item = items[0];
+        item.GetProperty("id").GetGuid().Should().Be(listingId);
+        item.GetProperty("languageCode").GetString().Should().Be("en");
+        item.GetProperty("title").GetString().Should()
+            .Be("Integration test apartment");
+        item.GetProperty("city").GetString().Should().Be("Skopje");
+        item.GetProperty("municipality").GetString().Should().Be("Centar");
+        item.GetProperty("addressLine").GetString().Should().Be("Center");
+        item.GetProperty("description").GetString().Should()
+            .Be("Test listing created from integration tests.");
+        item.GetProperty("latitude").GetDecimal().Should().Be(41.9981m);
+        item.GetProperty("longitude").GetDecimal().Should().Be(21.4254m);
+        item.GetProperty("locationPrecision").GetString().Should()
+            .Be("ExactAddress");
 
         json.GetProperty("page").GetInt32().Should().Be(1);
         json.GetProperty("pageSize").GetInt32().Should().Be(20);
