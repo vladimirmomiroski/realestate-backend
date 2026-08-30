@@ -46,9 +46,11 @@ public sealed class PublicListingResponse
 
     public Orientation Orientation { get; set; }
 
-    public decimal? Latitude { get; set; }
+    public decimal Latitude { get; set; }
 
-    public decimal? Longitude { get; set; }
+    public decimal Longitude { get; set; }
+
+    public LocationPrecision LocationPrecision { get; set; }
 
     public required string LanguageCode { get; set; }
 
@@ -56,11 +58,11 @@ public sealed class PublicListingResponse
 
     public required string Description { get; set; }
 
-    public string? AddressLine { get; set; }
+    public required string AddressLine { get; set; }
 
     public required string City { get; set; }
 
-    public string? Municipality { get; set; }
+    public required string Municipality { get; set; }
 
     public string? Neighborhood { get; set; }
 

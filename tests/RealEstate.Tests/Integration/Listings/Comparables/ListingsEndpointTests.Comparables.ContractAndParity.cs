@@ -401,6 +401,11 @@ public sealed partial class ListingsEndpointTests
             .Should()
             .Be(22.100001m);
 
+        agencyItem.GetProperty("locationPrecision")
+            .GetString()
+            .Should()
+            .Be("ExactAddress");
+
         personalItem.GetProperty("latitude")
             .GetDecimal()
             .Should()
@@ -410,6 +415,11 @@ public sealed partial class ListingsEndpointTests
             .GetDecimal()
             .Should()
             .Be(21.400001m);
+
+        personalItem.GetProperty("locationPrecision")
+            .GetString()
+            .Should()
+            .Be("ExactAddress");
 
         foreach (JsonElement item in json.EnumerateArray())
         {

@@ -114,11 +114,18 @@ public static class ListingMappingExtensions
             translation.LanguageCode is not string selectedLanguageCode ||
             translation.Title is not string selectedTitle ||
             translation.City is not string selectedCity ||
+            translation.Municipality is not string selectedMunicipality ||
+            translation.AddressLine is not string selectedAddressLine ||
             translation.Description is not string selectedDescription ||
+            listing.Latitude is not decimal selectedLatitude ||
+            listing.Longitude is not decimal selectedLongitude ||
+            listing.LocationPrecision is not { } selectedLocationPrecision ||
             !ListingTranslationRules.IsCanonicalLanguageCode(
                 selectedLanguageCode) ||
             !IsMeaningfulPublicText(selectedTitle) ||
             !IsMeaningfulPublicText(selectedCity) ||
+            !IsMeaningfulPublicText(selectedMunicipality) ||
+            !IsMeaningfulPublicText(selectedAddressLine) ||
             !IsMeaningfulPublicText(selectedDescription))
         {
             throw new PublicListingIntegrityException(
@@ -176,14 +183,15 @@ public static class ListingMappingExtensions
             Condition = listing.Condition,
             YearRenovated = listing.YearRenovated,
             Orientation = listing.Orientation,
-            Latitude = listing.Latitude,
-            Longitude = listing.Longitude,
+            Latitude = selectedLatitude,
+            Longitude = selectedLongitude,
+            LocationPrecision = selectedLocationPrecision,
             LanguageCode = selectedLanguageCode,
             Title = selectedTitle,
             Description = selectedDescription,
-            AddressLine = translation.AddressLine,
+            AddressLine = selectedAddressLine,
             City = selectedCity,
-            Municipality = translation.Municipality,
+            Municipality = selectedMunicipality,
             Neighborhood = translation.Neighborhood,
             PrimaryImageUrl = primaryImageUrl,
             Images = orderedImages

@@ -169,7 +169,81 @@ public sealed class ListingMappingExtensionsTests
         response.LanguageCode.Should().Be("en");
         response.Title.Should().Be("Exact public title");
         response.City.Should().Be("Exact public city");
+        response.Municipality.Should().Be("Exact public municipality");
+        response.AddressLine.Should().Be("Exact public address");
         response.Description.Should().Be("Exact public description");
+        response.Latitude.Should().Be(41.9981m);
+        response.Longitude.Should().Be(21.4254m);
+        response.LocationPrecision.Should().Be(
+            LocationPrecision.ExactAddress);
+    }
+
+    [Fact]
+    public void ToPublicResponse_WhenRequestedLanguageIsMissing_MapsMacedonianTranslationAsCoherentGroup()
+    {
+        Listing listing = CreateBaseListing();
+        listing.Translations =
+        [
+            CreateTranslation(
+                "en",
+                "English title",
+                city: "English city",
+                municipality: "English municipality",
+                addressLine: "English address",
+                description: "English description"),
+            CreateTranslation(
+                "mk",
+                "Macedonian title",
+                city: "Macedonian city",
+                municipality: "Macedonian municipality",
+                addressLine: "Macedonian address",
+                description: "Macedonian description")
+        ];
+
+        PublicListingResponse response = listing.ToPublicResponse("de");
+
+        AssertStrictTranslatedIdentity(
+            response,
+            "mk",
+            "Macedonian title",
+            "Macedonian city",
+            "Macedonian municipality",
+            "Macedonian address",
+            "Macedonian description");
+    }
+
+    [Fact]
+    public void ToPublicResponse_WhenRequestedAndMacedonianAreMissing_MapsBytewiseFallbackAsCoherentGroup()
+    {
+        Listing listing = CreateBaseListing();
+        listing.Translations =
+        [
+            CreateTranslation(
+                "sq",
+                "Albanian title",
+                city: "Albanian city",
+                municipality: "Albanian municipality",
+                addressLine: "Albanian address",
+                description: "Albanian description"),
+            CreateTranslation(
+                "de",
+                "German title",
+                city: "German city",
+                municipality: "German municipality",
+                addressLine: "German address",
+                description: "German description")
+        ];
+
+        PublicListingResponse response = listing.ToPublicResponse("fr");
+
+        AssertStrictTranslatedIdentity(
+            response,
+            "de",
+            "German title",
+            "German city",
+            "German municipality",
+            "German address",
+            "German description");
     }
 
     [Fact]
@@ -197,10 +271,6 @@ public sealed class ListingMappingExtensionsTests
     [InlineData(PublicIdentityCorruption.BlankTitle)]
     [InlineData(PublicIdentityCorruption.NullCity)]
     [InlineData(PublicIdentityCorruption.BlankCity)]
-    [InlineData(PublicIdentityCorruption.NullMunicipality)]
-    [InlineData(PublicIdentityCorruption.BlankMunicipality)]
-    [InlineData(PublicIdentityCorruption.NullAddressLine)]
-    [InlineData(PublicIdentityCorruption.BlankAddressLine)]
     [InlineData(PublicIdentityCorruption.NullDescription)]
     [InlineData(PublicIdentityCorruption.BlankDescription)]
     public void ToPublicResponse_WithCorruptActivePublicIdentity_ThrowsIntegrityFailure(
@@ -222,6 +292,39 @@ public sealed class ListingMappingExtensionsTests
         exception.Violations.Should().NotBeEmpty();
     }
 
+    [Theory]
+    [InlineData(
+        PublicIdentityCorruption.NullMunicipality,
+        ListingPublicationReadinessViolationCode.InvalidMunicipality)]
+    [InlineData(
+        PublicIdentityCorruption.BlankMunicipality,
+        ListingPublicationReadinessViolationCode.InvalidMunicipality)]
+    [InlineData(
+        PublicIdentityCorruption.NullAddressLine,
+        ListingPublicationReadinessViolationCode.InvalidAddressLine)]
+    [InlineData(
+        PublicIdentityCorruption.BlankAddressLine,
+        ListingPublicationReadinessViolationCode.InvalidAddressLine)]
+    public void ToPublicResponse_WithCorruptActivePublicLocationTranslation_ThrowsDeterministicIntegrityViolation(
+        PublicIdentityCorruption corruption,
+        ListingPublicationReadinessViolationCode expectedCode)
+    {
+        Listing listing = CreateBaseListing();
+        ListingTranslation translation = listing.Translations.Single();
+        CorruptPublicIdentity(translation, corruption);
+
+        Action act = () => listing.ToPublicResponse("mk");
+
+        PublicListingIntegrityException exception = act.Should()
+            .Throw<PublicListingIntegrityException>()
+            .Which;
+        exception.ListingId.Should().Be(listing.Id);
+        exception.Violations.Should().Equal(
+            new ListingPublicationReadinessViolation(
+                expectedCode,
+                translation.Id));
+    }
+
     [Fact]
     public void ToPublicResponse_WithCorruptActiveRoot_ThrowsTypedIntegrityFailure()
     {
@@ -238,6 +341,72 @@ public sealed class ListingMappingExtensionsTests
         exception.Violations.Single().Should().Be(
             new ListingPublicationReadinessViolation(
                 ListingPublicationReadinessViolationCode.MissingConfirmedLocation,
+                TranslationId: null));
+    }
+
+    [Theory]
+    [InlineData(
+        PublicRootCorruption.Unresolved,
+        ListingPublicationReadinessViolationCode.MissingConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.LegacyUnverified,
+        ListingPublicationReadinessViolationCode.MissingConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.LatitudeOnly,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.LongitudeOnly,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.MissingLatitude,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.MissingLongitude,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.LatitudeOutOfRange,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.LongitudeOutOfRange,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.MissingPrecision,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.UndefinedPrecision,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.MissingProviderKey,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.BlankProviderKey,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.MissingResultReference,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.BlankResultReference,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    [InlineData(
+        PublicRootCorruption.MissingConfirmationTime,
+        ListingPublicationReadinessViolationCode.InvalidConfirmedLocation)]
+    public void ToPublicResponse_WithCorruptActiveRootFamily_ThrowsDeterministicIntegrityViolation(
+        PublicRootCorruption corruption,
+        ListingPublicationReadinessViolationCode expectedCode)
+    {
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item =>
+                CorruptPublicRoot(item, corruption));
+
+        Action act = () => listing.ToPublicResponse("en");
+
+        PublicListingIntegrityException exception = act.Should()
+            .Throw<PublicListingIntegrityException>()
+            .Which;
+        exception.ListingId.Should().Be(listing.Id);
+        exception.Violations.Should().Equal(
+            new ListingPublicationReadinessViolation(
+                expectedCode,
                 TranslationId: null));
     }
 
@@ -504,19 +673,43 @@ public sealed class ListingMappingExtensionsTests
         return listing;
     }
 
-    private static ListingTranslation CreateTranslation(string languageCode, string title)
+    private static ListingTranslation CreateTranslation(
+        string languageCode,
+        string title,
+        string city = "Skopje",
+        string municipality = "Centar",
+        string addressLine = "Address 1",
+        string description = "Description",
+        string? neighborhood = "Center")
     {
         return new ListingTranslation
         {
             Id = Guid.NewGuid(),
             LanguageCode = languageCode,
             Title = title,
-            Description = "Description",
-            AddressLine = "Address 1",
-            City = "Skopje",
-            Municipality = "Centar",
-            Neighborhood = "Center"
+            Description = description,
+            AddressLine = addressLine,
+            City = city,
+            Municipality = municipality,
+            Neighborhood = neighborhood
         };
+    }
+
+    private static void AssertStrictTranslatedIdentity(
+        PublicListingResponse response,
+        string languageCode,
+        string title,
+        string city,
+        string municipality,
+        string addressLine,
+        string description)
+    {
+        response.LanguageCode.Should().Be(languageCode);
+        response.Title.Should().Be(title);
+        response.City.Should().Be(city);
+        response.Municipality.Should().Be(municipality);
+        response.AddressLine.Should().Be(addressLine);
+        response.Description.Should().Be(description);
     }
 
     private static ListingImage CreateImage(
@@ -601,6 +794,131 @@ public sealed class ListingMappingExtensionsTests
         property.SetValue(translation, null);
     }
 
+    private static void CorruptPublicRoot(
+        Listing listing,
+        PublicRootCorruption corruption)
+    {
+        switch (corruption)
+        {
+            case PublicRootCorruption.Unresolved:
+                listing.ClearLocation();
+                break;
+            case PublicRootCorruption.LegacyUnverified:
+                listing.ClearLocation();
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Latitude),
+                    StrongLocationListingTestFixtures.ConfirmedLatitude);
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Longitude),
+                    StrongLocationListingTestFixtures.ConfirmedLongitude);
+                break;
+            case PublicRootCorruption.LatitudeOnly:
+                listing.ClearLocation();
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Latitude),
+                    StrongLocationListingTestFixtures.ConfirmedLatitude);
+                break;
+            case PublicRootCorruption.LongitudeOnly:
+                listing.ClearLocation();
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Longitude),
+                    StrongLocationListingTestFixtures.ConfirmedLongitude);
+                break;
+            case PublicRootCorruption.MissingLatitude:
+                SetListingProperty<decimal?>(
+                    listing,
+                    nameof(Listing.Latitude),
+                    null);
+                break;
+            case PublicRootCorruption.MissingLongitude:
+                SetListingProperty<decimal?>(
+                    listing,
+                    nameof(Listing.Longitude),
+                    null);
+                break;
+            case PublicRootCorruption.LatitudeOutOfRange:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Latitude),
+                    ListingLocationRules.MinimumLatitude - 0.000001m);
+                break;
+            case PublicRootCorruption.LongitudeOutOfRange:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.Longitude),
+                    ListingLocationRules.MaximumLongitude + 0.000001m);
+                break;
+            case PublicRootCorruption.MissingPrecision:
+                SetListingProperty<LocationPrecision?>(
+                    listing,
+                    nameof(Listing.LocationPrecision),
+                    null);
+                break;
+            case PublicRootCorruption.UndefinedPrecision:
+                SetListingProperty<LocationPrecision?>(
+                    listing,
+                    nameof(Listing.LocationPrecision),
+                    (LocationPrecision)int.MaxValue);
+                break;
+            case PublicRootCorruption.MissingProviderKey:
+                SetListingProperty<string?>(
+                    listing,
+                    nameof(Listing.GeocodingProviderKey),
+                    null);
+                break;
+            case PublicRootCorruption.BlankProviderKey:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingProviderKey),
+                    " ");
+                break;
+            case PublicRootCorruption.MissingResultReference:
+                SetListingProperty<string?>(
+                    listing,
+                    nameof(Listing.GeocodingResultReference),
+                    null);
+                break;
+            case PublicRootCorruption.BlankResultReference:
+                SetListingProperty(
+                    listing,
+                    nameof(Listing.GeocodingResultReference),
+                    " ");
+                break;
+            case PublicRootCorruption.MissingConfirmationTime:
+                SetListingProperty<DateTime?>(
+                    listing,
+                    nameof(Listing.LocationConfirmedAtUtc),
+                    null);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(corruption),
+                    corruption,
+                    null);
+        }
+    }
+
+    private static void SetListingProperty<T>(
+        Listing listing,
+        string propertyName,
+        T value)
+    {
+        System.Reflection.PropertyInfo? property =
+            typeof(Listing).GetProperty(propertyName);
+
+        if (property is null)
+        {
+            throw new InvalidOperationException(
+                $"Listing property '{propertyName}' was not found.");
+        }
+
+        property.SetValue(listing, value);
+    }
+
     public enum PublicIdentityCorruption
     {
         NullLanguageCode,
@@ -615,5 +933,24 @@ public sealed class ListingMappingExtensionsTests
         BlankAddressLine,
         NullDescription,
         BlankDescription
+    }
+
+    public enum PublicRootCorruption
+    {
+        Unresolved,
+        LegacyUnverified,
+        LatitudeOnly,
+        LongitudeOnly,
+        MissingLatitude,
+        MissingLongitude,
+        LatitudeOutOfRange,
+        LongitudeOutOfRange,
+        MissingPrecision,
+        UndefinedPrecision,
+        MissingProviderKey,
+        BlankProviderKey,
+        MissingResultReference,
+        BlankResultReference,
+        MissingConfirmationTime
     }
 }
