@@ -395,7 +395,7 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
-    public void OpenApiDocument_Chapter13GListingResponses_AreSeparatedAndTruthful()
+    public void OpenApiDocument_Chapter13K2ListingResponses_AreSeparatedAndTruthful()
     {
         using JsonDocument document = GetDocument();
         JsonElement root = document.RootElement;
@@ -478,11 +478,28 @@ public sealed class OpenApiDocumentTests
             "languageCode",
             "title",
             "city",
+            "municipality",
+            "addressLine",
             "description"
         })
         {
             AssertRequiredNonNullableString(publicSchema, propertyName);
         }
+
+        foreach (string coordinate in new[] { "latitude", "longitude" })
+        {
+            AssertRequiredNonNullableNumber(publicSchema, coordinate);
+        }
+
+        AssertRequiredNonNullableReference(
+            publicSchema,
+            "locationPrecision",
+            "#/components/schemas/LocationPrecision");
+        AssertNullableString(publicSchema, "neighborhood");
+        publicSchema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().NotContain("neighborhood");
 
         JsonElement privateSchema = schemas.GetProperty("ListingResponse");
         foreach (string propertyName in new[]
@@ -490,7 +507,10 @@ public sealed class OpenApiDocumentTests
             "languageCode",
             "title",
             "city",
-            "description"
+            "municipality",
+            "addressLine",
+            "description",
+            "neighborhood"
         })
         {
             AssertNullableString(privateSchema, propertyName);
@@ -502,8 +522,19 @@ public sealed class OpenApiDocumentTests
             authoringTranslationSchema,
             "languageCode");
         AssertRequiredNonNullableString(authoringTranslationSchema, "title");
-        AssertNullableString(authoringTranslationSchema, "city");
-        AssertNullableString(authoringTranslationSchema, "description");
+        foreach (string nullableProperty in new[]
+        {
+            "city",
+            "municipality",
+            "addressLine",
+            "description",
+            "neighborhood"
+        })
+        {
+            AssertNullableString(
+                authoringTranslationSchema,
+                nullableProperty);
+        }
 
         schemas.EnumerateObject()
             .Select(schema => schema.Name)
@@ -512,11 +543,16 @@ public sealed class OpenApiDocumentTests
                 schemaName.Contains("ServiceResult", StringComparison.Ordinal) ||
                 schemaName.Contains(
                     "PublicListingIntegrityException",
-                    StringComparison.Ordinal));
+                    StringComparison.Ordinal) ||
+                schemaName.Contains(
+                    "ListingPublicationReadiness",
+                    StringComparison.Ordinal) ||
+                schemaName.Contains("Provider", StringComparison.Ordinal) ||
+                schemaName.Contains("Credential", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void OpenApiDocument_Chapter13H5PrivateLocationReadContract_IsNullableAndPrivate()
+    public void OpenApiDocument_Chapter13K2LocationReadContracts_AreStrictPublicAndNullablePrivate()
     {
         using JsonDocument document = GetDocument();
         JsonElement schemas = document.RootElement
@@ -580,8 +616,11 @@ public sealed class OpenApiDocumentTests
             }
         }
 
-        schemas.GetProperty("LocationPrecision")
-            .GetProperty("enum")
+        JsonElement locationPrecisionSchema =
+            schemas.GetProperty("LocationPrecision");
+        locationPrecisionSchema.GetProperty("type").GetString()
+            .Should().Be("string");
+        locationPrecisionSchema.GetProperty("enum")
             .EnumerateArray()
             .Select(value => value.GetString())
             .Should().BeEquivalentTo(
@@ -595,21 +634,27 @@ public sealed class OpenApiDocumentTests
             .NotContain("geocodingProviderKey")
             .And.NotContain("geocodingResultReference");
 
-        JsonElement publicProperties = schemas
-            .GetProperty("PublicListingResponse")
-            .GetProperty("properties");
-        publicProperties.TryGetProperty("latitude", out _).Should().BeTrue();
-        publicProperties.TryGetProperty("longitude", out _).Should().BeTrue();
-        foreach (string privateOnly in new[]
+        JsonElement publicSchema = schemas
+            .GetProperty("PublicListingResponse");
+        foreach (string coordinate in new[] { "latitude", "longitude" })
         {
+            AssertRequiredNonNullableNumber(publicSchema, coordinate);
+        }
+        AssertRequiredNonNullableReference(
+            publicSchema,
             "locationPrecision",
+            "#/components/schemas/LocationPrecision");
+
+        JsonElement publicProperties = publicSchema.GetProperty("properties");
+        foreach (string internalMember in new[]
+        {
             "geocodedDisplayName",
             "locationConfirmedAtUtc",
             "geocodingProviderKey",
             "geocodingResultReference"
         })
         {
-            publicProperties.TryGetProperty(privateOnly, out _)
+            publicProperties.TryGetProperty(internalMember, out _)
                 .Should().BeFalse();
         }
 
@@ -667,15 +712,10 @@ public sealed class OpenApiDocumentTests
             .Should()
             .Contain(["currency", "translations", "images"]);
 
-        JsonElement translations = authoringSchema
-            .GetProperty("properties")
-            .GetProperty("translations");
-        translations.GetProperty("type").GetString().Should().Be("array");
-        translations.GetProperty("items")
-            .GetProperty("$ref")
-            .GetString()
-            .Should()
-            .Be("#/components/schemas/ListingAuthoringTranslationResponse");
+        AssertRequiredNonNullableArray(
+            authoringSchema,
+            "translations",
+            "#/components/schemas/ListingAuthoringTranslationResponse");
 
         JsonElement translationSchema = schemas
             .GetProperty("ListingAuthoringTranslationResponse");
@@ -684,18 +724,17 @@ public sealed class OpenApiDocumentTests
             .Select(value => value.GetString())
             .Should()
             .Contain(["languageCode", "title"]);
-        JsonElement translationProperties =
-            translationSchema.GetProperty("properties");
-        translationProperties.GetProperty("city")
-            .GetProperty("nullable")
-            .GetBoolean()
-            .Should()
-            .BeTrue();
-        translationProperties.GetProperty("description")
-            .GetProperty("nullable")
-            .GetBoolean()
-            .Should()
-            .BeTrue();
+        foreach (string nullableProperty in new[]
+        {
+            "city",
+            "municipality",
+            "addressLine",
+            "description",
+            "neighborhood"
+        })
+        {
+            AssertNullableString(translationSchema, nullableProperty);
+        }
     }
 
     [Fact]
@@ -861,6 +900,14 @@ public sealed class OpenApiDocumentTests
         candidate.GetProperty("required").EnumerateArray()
             .Select(value => value.GetString())
             .Should().BeEquivalentTo(candidateMembers);
+        AssertRequiredNonNullableString(candidate, "label");
+        AssertRequiredNonNullableNumber(candidate, "previewLatitude");
+        AssertRequiredNonNullableNumber(candidate, "previewLongitude");
+        AssertRequiredNonNullableReference(
+            candidate,
+            "precision",
+            "#/components/schemas/LocationPrecision");
+        AssertRequiredNonNullableString(candidate, "confirmationToken");
         candidate.GetProperty("properties")
             .GetProperty("confirmationToken")
             .GetProperty("description").GetString()
@@ -989,6 +1036,22 @@ public sealed class OpenApiDocumentTests
                 "translations"
             ]);
 
+        AssertRequiredNonNullableReference(
+            updateSchema,
+            "listingType",
+            "#/components/schemas/ListingType");
+        AssertRequiredNonNullableReference(
+            updateSchema,
+            "propertyType",
+            "#/components/schemas/PropertyType");
+        AssertRequiredNonNullableNumber(updateSchema, "price");
+        AssertRequiredNonNullableString(updateSchema, "currency");
+        AssertRequiredNonNullableNumber(updateSchema, "areaSquareMeters");
+        AssertRequiredNonNullableArray(
+            updateSchema,
+            "translations",
+            "#/components/schemas/UpdateListingTranslationRequest");
+
         string[] writableMembers =
         [
             "listingType",
@@ -1102,6 +1165,10 @@ public sealed class OpenApiDocumentTests
             .Select(value => value.GetString())
             .Should()
             .BeEquivalentTo("languageCode", "title");
+        AssertRequiredNonNullableString(
+            translationSchema,
+            "languageCode");
+        AssertRequiredNonNullableString(translationSchema, "title");
         translationSchema.GetProperty("properties")
             .EnumerateObject()
             .Select(property => property.Name)
@@ -1164,15 +1231,47 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
-    public void OpenApiDocument_CreateTranslationRulesAndCurrentTaxonomy_AreAccurate()
+    public void OpenApiDocument_CreateContractAndTranslationRules_MatchRuntimeTruth()
     {
         using JsonDocument document = GetDocument();
         JsonElement schemas = document.RootElement
             .GetProperty("components")
             .GetProperty("schemas");
-        JsonElement createProperties = schemas
-            .GetProperty("CreateListingRequest")
+        JsonElement createSchema = schemas
+            .GetProperty("CreateListingRequest");
+        JsonElement createProperties = createSchema
             .GetProperty("properties");
+        createSchema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().BeEquivalentTo(
+            [
+                "listingType",
+                "propertyType",
+                "price",
+                "areaSquareMeters",
+                "translations"
+            ]);
+        AssertRequiredNonNullableReference(
+            createSchema,
+            "listingType",
+            "#/components/schemas/ListingType");
+        AssertRequiredNonNullableReference(
+            createSchema,
+            "propertyType",
+            "#/components/schemas/PropertyType");
+        AssertRequiredNonNullableNumber(createSchema, "price");
+        AssertRequiredNonNullableNumber(createSchema, "areaSquareMeters");
+        AssertRequiredNonNullableArray(
+            createSchema,
+            "translations",
+            "#/components/schemas/CreateListingTranslationRequest");
+        AssertOptionalNonNullableString(createSchema, "currency");
+        createProperties.GetProperty("currency")
+            .GetProperty("default").GetString().Should().Be("EUR");
+        createProperties.GetProperty("currency")
+            .GetProperty("description").GetString()
+            .Should().ContainAll("Optional", "omission", "EUR", "null");
         foreach (string readOnlyLocationMember in new[]
         {
             "latitude",
@@ -1188,8 +1287,17 @@ public sealed class OpenApiDocumentTests
                 .Should().BeFalse();
         }
 
-        JsonElement properties = schemas
-            .GetProperty("CreateListingTranslationRequest")
+        JsonElement createTranslationSchema = schemas
+            .GetProperty("CreateListingTranslationRequest");
+        createTranslationSchema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().BeEquivalentTo("languageCode", "title");
+        AssertRequiredNonNullableString(
+            createTranslationSchema,
+            "languageCode");
+        AssertRequiredNonNullableString(createTranslationSchema, "title");
+        JsonElement properties = createTranslationSchema
             .GetProperty("properties");
 
         AssertNormalizedStringRule(
@@ -1526,6 +1634,80 @@ public sealed class OpenApiDocumentTests
             .GetProperty(propertyName);
         property.GetProperty("type").GetString().Should().Be("string");
         IsNullable(property).Should().BeTrue();
+    }
+
+    private static void AssertRequiredNonNullableNumber(
+        JsonElement schema,
+        string propertyName)
+    {
+        schema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .Contain(propertyName);
+
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("type").GetString().Should().Be("number");
+        IsNullable(property).Should().BeFalse();
+    }
+
+    private static void AssertRequiredNonNullableReference(
+        JsonElement schema,
+        string propertyName,
+        string expectedReference)
+    {
+        schema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .Contain(propertyName);
+
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("$ref").GetString().Should().Be(expectedReference);
+        IsNullable(property).Should().BeFalse();
+    }
+
+    private static void AssertRequiredNonNullableArray(
+        JsonElement schema,
+        string propertyName,
+        string expectedItemReference)
+    {
+        schema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .Contain(propertyName);
+
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("type").GetString().Should().Be("array");
+        IsNullable(property).Should().BeFalse();
+        property.GetProperty("items")
+            .GetProperty("$ref")
+            .GetString()
+            .Should().Be(expectedItemReference);
+    }
+
+    private static void AssertOptionalNonNullableString(
+        JsonElement schema,
+        string propertyName)
+    {
+        schema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should()
+            .NotContain(propertyName);
+
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("type").GetString().Should().Be("string");
+        IsNullable(property).Should().BeFalse();
     }
 
     private static bool IsNullable(JsonElement schema)

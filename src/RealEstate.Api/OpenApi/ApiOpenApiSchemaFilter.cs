@@ -54,7 +54,14 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
                 "languageCode",
                 "title",
                 "city",
+                "municipality",
+                "addressLine",
                 "description");
+            ApplyRequiredNonNullableProperties(
+                mutableSchema,
+                "latitude",
+                "longitude",
+                "locationPrecision");
         }
 
         if (context.Type == typeof(ListingAuthoringTranslationResponse))
@@ -63,6 +70,13 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
                 mutableSchema,
                 "languageCode",
                 "title");
+        }
+
+        if (context.Type == typeof(ListingAuthoringResponse))
+        {
+            ApplyRequiredNonNullableProperties(
+                mutableSchema,
+                "translations");
         }
 
         if (context.Type == typeof(ListingResponse) ||
@@ -100,6 +114,11 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
                 mutableSchema,
                 "confirmationToken",
                 "Opaque short-lived location-confirmation token. Coordinates and provider provenance are not accepted.");
+        }
+
+        if (context.Type == typeof(CreateListingRequest))
+        {
+            ApplyCreateListingSchema(mutableSchema);
         }
 
         if (context.Type == typeof(CreateListingTranslationRequest))
@@ -238,11 +257,41 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         OpenApiSchema schema,
         params string[] propertyNames)
     {
+        ApplyRequiredNonNullableProperties(schema, propertyNames);
+    }
+
+    private static void ApplyRequiredNonNullableProperties(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
         schema.Required ??= new HashSet<string>(StringComparer.Ordinal);
 
         foreach (string propertyName in propertyNames)
         {
             schema.Required.Add(propertyName);
+        }
+
+        ApplyNonNullableProperties(schema, propertyNames);
+    }
+
+    private static void ApplyOptionalNonNullableProperties(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
+        foreach (string propertyName in propertyNames)
+        {
+            schema.Required?.Remove(propertyName);
+        }
+
+        ApplyNonNullableProperties(schema, propertyNames);
+    }
+
+    private static void ApplyNonNullableProperties(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
+        foreach (string propertyName in propertyNames)
+        {
 
             if (schema.Properties is not null &&
                 schema.Properties.TryGetValue(
@@ -256,9 +305,36 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         }
     }
 
+    private static void ApplyCreateListingSchema(OpenApiSchema schema)
+    {
+        ApplyRequiredNonNullableProperties(
+            schema,
+            "listingType",
+            "propertyType",
+            "price",
+            "areaSquareMeters",
+            "translations");
+        ApplyOptionalNonNullableProperties(schema, "currency");
+
+        if (schema.Properties is not null &&
+            schema.Properties.TryGetValue(
+                "currency",
+                out IOpenApiSchema? currencyValue) &&
+            currencyValue is OpenApiSchema currency)
+        {
+            currency.Default = JsonValue.Create("EUR");
+            currency.Description =
+                "Optional; omission defaults to EUR. Explicit null or an invalid value is rejected.";
+        }
+    }
+
     private static void ApplyCreateListingTranslationSchema(
         OpenApiSchema schema)
     {
+        ApplyRequiredNonNullableStrings(
+            schema,
+            "languageCode",
+            "title");
         SetStringRule(
             schema,
             "languageCode",
@@ -299,6 +375,15 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
 
     private static void ApplyUpdateListingSchema(OpenApiSchema schema)
     {
+        ApplyRequiredNonNullableProperties(
+            schema,
+            "listingType",
+            "propertyType",
+            "price",
+            "currency",
+            "areaSquareMeters",
+            "translations");
+
         schema.Description =
             "Full replacement of the current editable Draft listing content. " +
             "For optional nullable members, omission and explicit null both clear the stored value.";
