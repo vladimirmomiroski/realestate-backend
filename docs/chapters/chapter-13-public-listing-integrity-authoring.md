@@ -2,13 +2,13 @@
 
 ## Chapter status
 
-This document is the authoritative architecture and implementation plan for Chapter 13. It is a planning artifact, not implementation evidence.
+This document is the authoritative architecture, implementation record, and durable closeout for Chapter 13. Detailed execution evidence remains in the referenced canonical evidence artifacts.
 
-Checkpoints 13A–13G are **COMPLETED** and remain the verified foundation. Chapter 13 was reopened before closeout because the product requirement for a map-ready public location was finalized only after the original Active/public invariant had been implemented. The abandoned attempt to implement the first replanned 13H as one large slice is not completed work and contributes no source or verification baseline. The repository has returned to the clean completed-13G state.
+Chapter 13 is **COMPLETE**. Checkpoints 13A–13G and the reopened 13H.1–13H.7, 13I.1–13I.12, 13J.1–13J.7, 13K.1–13K.3, and 13L.1–13L.2 sequence are completed. L.1 was the final technical verification gate; its corrected evidence passed repository-owner review before L.2 recorded this durable documentation and backend-only frontend handoff. No deferred feature is included in this completion claim.
 
-The approved location architecture remains locked, but the remaining execution plan is now split into the small tasks in Section 19: 13H.1–13H.7, 13I.1–13I.12, 13J.1–13J.7, 13K.1–13K.3, and 13L.1–13L.2. Chapter 13 is not complete, and the frontend handoff remains paused, until 13L.2 records durable closeout after every preceding task has passed implementation evidence and narrow source audit.
+The chapter was reopened before closeout because the product requirement for a map-ready public location was finalized only after the original Active/public invariant had been implemented. The abandoned attempt to implement the first replanned 13H as one large slice is not completed work and contributes no source or verification baseline. The later granular H–L sequence supersedes that abandoned attempt.
 
-Primary architecture evidence: `docs/planning/chapter-13-location-model-replan-implementation.md`. Remaining-task decomposition evidence: `docs/planning/chapter-13-remaining-work-granular-resplit.md`.
+Historical replanning rationale is retained in `docs/planning/chapter-13-location-model-replan-implementation.md` and `docs/planning/chapter-13-remaining-work-granular-resplit.md`. Durable acceptance evidence is the tracked 13L.1 record and 13K.3 SQL-freeze proof referenced in Section 21.
 
 The filename follows the repository's established lowercase, hyphenated `chapter-NN-description.md` convention and names both responsibilities that must move together: trustworthy public publication state and the supported authoring path needed to reach it.
 
@@ -48,7 +48,7 @@ The following are not open during implementation:
 
 ### 2.1 Why Chapter 13 was reopened
 
-The original 13A–13G sequence correctly made LanguageCode, Title, City, and Description truthful for Active rows and strict public responses. It did not settle the product decision that every public listing also needs Municipality, AddressLine, and a trustworthy map pin. Current source still accepts caller-supplied decimal coordinates and records no provider, candidate identity, precision, or confirmation time. Non-null coordinates alone would therefore overstate trust: any in-range numbers can currently be persisted.
+The original 13A–13G sequence correctly made LanguageCode, Title, City, and Description truthful for Active rows and strict public responses. It did not settle the product decision that every public listing also needs Municipality, AddressLine, and a trustworthy map pin. At the reopening point, source still accepted caller-supplied decimal coordinates and recorded no provider, candidate identity, precision, or confirmation time. Non-null coordinates alone would therefore have overstated trust: any in-range numbers could then be persisted. The completed 13H–13K work replaced that historical state with backend-mediated confirmation and a canonical root snapshot.
 
 This is an extension, not a rewrite. The existing authoring, locking, readiness, PostgreSQL aggregate-integrity, strict-mapper, corruption-boundary, and OpenAPI-separation architecture remains authoritative. New work adds the missing location state and strengthens the same invariants through new forward migrations and bounded checkpoints.
 
@@ -78,8 +78,8 @@ The following matrix describes the clean repository **before** the newly require
 | `FurnishingStatus` / Listing | non-null enum; `varchar(50) NOT NULL`, default `Unknown` | same create behavior / defined on PUT | always stored / no readiness role | non-null enum / non-null enum | display only |
 | `Condition` / Listing | non-null enum; `varchar(50) NOT NULL`, default `Unknown` | same create behavior / defined on PUT | always stored / no readiness role | non-null enum / non-null enum | display only |
 | `Orientation` / Listing | non-null enum; `varchar(50) NOT NULL`, default `Unknown` | same create behavior / defined on PUT | always stored / no readiness role | non-null enum / non-null enum | display only |
-| `Latitude` / Listing | `decimal?`; `numeric(9,6) NULL` | caller may submit; paired and `-90..90` / caller may replace or clear; same rules | optional / optional under current 13G truth | nullable / nullable | no current search/filter/comparable use; current map coordinate has no provenance |
-| `Longitude` / Listing | `decimal?`; `numeric(9,6) NULL` | caller may submit; paired and `-180..180` / caller may replace or clear; same rules | optional / optional under current 13G truth | nullable / nullable | no current search/filter/comparable use; current map coordinate has no provenance |
+| `Latitude` / Listing | `decimal?`; `numeric(9,6) NULL` | historical 13G: caller could submit; paired and `-90..90` / caller could replace or clear; same rules | optional / optional under then-current 13G truth | nullable / nullable | no then-current search/filter/comparable use; the old map coordinate had no provenance |
+| `Longitude` / Listing | `decimal?`; `numeric(9,6) NULL` | historical 13G: caller could submit; paired and `-180..180` / caller could replace or clear; same rules | optional / optional under then-current 13G truth | nullable / nullable | no then-current search/filter/comparable use; the old map coordinate had no provenance |
 | `AgencyId` / Listing | `Guid?`; `uuid NULL`, `ON DELETE SET NULL` | optional, authorized agency association / immutable in full replacement | optional personal/agency ownership / no readiness role | nullable / nullable | public/private agency filters and authorization; no map role |
 | `CreatedByUserId` / Listing | `Guid?`; `uuid NULL`, restricted FK | assigned internally from principal / not editable | nullable at DB for compatibility / ownership only | omitted / nullable | private authorization; no public search/map role |
 | `Status` / Listing | `ListingStatus`; `varchar(50) NOT NULL`, Draft default | not writable; create produces Draft / lifecycle-only | Draft allowed / Active currently requires four translated identity fields | non-null / non-null | Active-only public eligibility and lifecycle |
@@ -721,9 +721,11 @@ Chapter 14 remains property model/taxonomy expansion. Chapter 15 remains integra
 
 ## 19. Ordered Checkpoint Plan
 
-The checkpoint history is intentionally preserved. 13A–13G describe what was implemented and audited under the then-current four-field location decision. They are frozen foundations, not work to repeat. The remaining work uses decimal task identifiers so architectural groupings remain recognizable without forcing independent risks into one commit.
+The checkpoint history is intentionally preserved. 13A–13G describe what was implemented and audited under the then-current four-field location decision. They are frozen foundations, not work to repeat. The completed reopened sequence uses decimal task identifiers so architectural groupings remain recognizable without forcing independent risks into one commit.
 
-Execution rules for every remaining task:
+Execution status: **13A through 13L.2 completed**. The task descriptions below remain the historical scope boundaries used during implementation and review; future-tense wording inside those descriptions is not unfinished work.
+
+Execution rules used for every reopened task:
 
 - one primary concern and normally one commit;
 - implementation evidence and a narrow source audit precede the next task;
@@ -1587,3 +1589,21 @@ Chapter 13 is complete only when all of the following are true:
 - PostGIS/spatial discovery, canonical geography IDs, public pin privacy, taxonomy, global cleanup, and provisional Chapter 16 security/config remain deferred.
 
 Chapter 13 does not close merely because coordinates are non-null, a provider returned a candidate, or Swagger flags changed. It closes when the backend proves that localized public location text and the confirmed physical map snapshot agree with Domain, PostgreSQL, strict mapping, serialized OpenAPI, query/performance evidence, and every public response.
+
+## 21. Durable Closeout Record
+
+The owner-approved [13L.1 cumulative verification record](chapter-13l1-cumulative-chapter-13-verification-gate.md) proves the final implementation tree cumulatively. It records 980 successful executions across six focused commands representing 970 distinct focused cases, two connected same-listing controlled-provider Draft-to-public smokes, 2,022/2,022 complete-suite tests, 11/11 serialized OpenAPI tests, a clean 20-migration chain with no pending model changes, and Release builds with zero warnings and zero errors.
+
+The final query contract is anchored by the accepted 13H.6 post-location baseline and the [13K.3 SQL-freeze proof](../benchmarks/chapter-10f/chapter-13k3-final-generated-sql-freeze-proof.md): 33/33 generated commands exact with zero mismatches, missing commands, or extra commands; the current `chapter-10f-v2` profile at 61/61; J.7 strong-Active, coordinate/root-ownership, and locked-identity gates at 8/8, 7/7, and 8/8; and 198/198 accepted plans with no spill or temp-block anomaly. Q1's trigram index was valid, ready, live, and used, and its established latency/no-spill gate passed. The accepted H.6 baseline remained immutable.
+
+The five Chapter 13 migrations, within 20 repository migrations, are:
+
+1. `20260809124123_EnforceListingTranslationRowIntegrity`;
+2. `20260811091318_EnforceActiveListingPublicationIntegrity`;
+3. `20260812172728_EnforceOptionalLocalizedLocationRowIntegrity`;
+4. `20260813100457_AddCanonicalGeocodedLocationSnapshot`;
+5. `20260824141614_EnforceStrongActiveLocationIntegrity`.
+
+Fresh, repeat, relevant Down/re-Up, catalog, and pending-model verification is green. No migration fabricates coordinates or provenance. The backend has never been deployed, so `CH13-J2-DEPLOY-01` remains a first-deployment target-zero gate rather than a Chapter 13 implementation blocker.
+
+Frontend code and type generation remain untouched. The [Chapter 13 Backend-to-Frontend Handoff](../backend-frontend-handoff.md) durably records this chapter's frontend-facing contract, but it is not the final whole-backend handoff: Chapter 14 is next, Chapter 15 follows, and the full backend-to-frontend reconciliation occurs after both before frontend integration. PostGIS, spatial discovery, canonical geography IDs, public-pin privacy/obfuscation, taxonomy expansion owned by Chapter 14, global cleanup, and provisional Chapter 16 security/configuration hardening remain outside completed Chapter 13. `CH13-PERF-01` also remains an open post-Chapter-13 operational review item.

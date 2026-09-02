@@ -1450,7 +1450,7 @@ Chapter 12 — API Consistency, Observability, and Frontend Readiness
 
 Then begin frontend development
 
-Chapter 13 — Authentication and Account Security Phase 2
+Chapter 13 — Authentication and Account Security Phase 2 (historical label; superseded below)
 
 Chapter 14 — Background Jobs and Notifications
 
@@ -1458,3 +1458,5 @@ Chapter 15 — Agency Workspace Phase 3
 ```
 
 Chapters 13–15 are later plans. Their order and scope may change after frontend work and real workflow feedback.
+
+Supersession note: this roadmap is historical. Current Chapter 13 is Public Listing Integrity and Authoring and is documented in `chapter-13-public-listing-integrity-authoring.md`; the security/account scope was provisionally renumbered to Chapter 16, Chapter 14 is property/taxonomy expansion, Chapter 15 is integration through discovery/API/performance/hardening, and the older background-job/agency-workspace labels are currently unnumbered.

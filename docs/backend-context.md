@@ -88,19 +88,23 @@ Chapter 9 and its 9L documentation cleanup are complete.
 Chapter 10 — Search and Discovery Phase 2 is complete.
 Chapter 11 — Data Integrity and Targeted Hardening is complete.
 Chapter 12 — API Consistency, Observability, and Frontend Readiness is complete.
-No Chapter 12 implementation task remains.
-The next product phase is frontend foundation and implementation.
+Chapter 13 — Public Listing Integrity and Authoring is complete through 13L.2.
+The owner-approved 13L.1 record is the cumulative technical gate for the completed backend tree.
+Chapter 14 is the next backend chapter; Chapter 15 follows it. The verified Chapter 13 contract and handoff are durable input for a full backend-to-frontend reconciliation after both chapters, not authorization to begin frontend implementation now.
 ```
 
 Current test state:
 
 ```text
-1001 passed
+2022 passed
 0 failed
 0 skipped
-query-review build: 0 warnings, 0 errors
 solution build: 0 warnings, 0 errors
-15 migrations
+focused Chapter 13 verification: 980 successful executions / 970 distinct cases
+serialized OpenAPI: 11/11
+generated SQL freeze: 33/33 exact, 0 mismatches, 0 missing, 0 extra
+QueryReview profile: 61/61; plans: 198/198
+20 migrations (five owned by Chapter 13)
 pending model: clean
 ```
 
@@ -116,6 +120,7 @@ GET /api/health/readiness and GET /api/health/database are PostgreSQL readiness 
 CORS binds Cors:AllowedOrigins and fails closed when no origins are configured.
 Uploaded-media URLs remain API-relative /uploads/... paths, and the tracked wwwroot placeholder supports clean checkout.
 OpenAPI is structurally tested; Bearer requirements are operation-derived and Swagger middleware remains Development-only.
+Draft authoring, provider-mediated location confirmation, strict public location responses, and their nullability boundaries are represented in the generated OpenAPI.
 ```
 
 ## 4. Tech stack
@@ -126,7 +131,8 @@ ASP.NET Core
 C#
 Clean Architecture
 Entity Framework Core
-PostgreSQL
+PostgreSQL 18.4 (tracked Docker runtime/development service)
+PostgreSQL 16 (Testcontainers and QueryReview verification baseline)
 Docker / Docker Compose
 Swagger / Swashbuckle
 JWT Bearer Authentication
@@ -136,7 +142,7 @@ Microsoft.AspNetCore.Mvc.Testing
 Testcontainers PostgreSQL
 ```
 
-Integration tests run against a real temporary PostgreSQL container, not EF InMemory.
+The tracked `docker-compose.yml` runtime/development service uses `postgres:18.4`. Integration tests and the disposable QueryReview verifier intentionally use `postgres:16-alpine`; accepted Chapter 10/13 SQL, plan, migration, and profile evidence therefore remains the PostgreSQL 16 verification baseline. Integration tests use a real temporary PostgreSQL container, not EF InMemory.
 
 ## 5. Solution structure
 
@@ -474,6 +480,10 @@ These expose allowed non-public statuses to authorized users.
 
 ### Publishing rules
 
+Publication truth is now a strong aggregate invariant. Every translation on an Active listing has canonical, meaningful `LanguageCode`, `Title`, `City`, `Municipality`, `AddressLine`, and `Description`; `Neighborhood` remains optional. The Listing root must also contain a complete valid backend-confirmed `Latitude`/`Longitude` pair, provider-neutral `LocationPrecision`, internal provider provenance, and `LocationConfirmedAtUtc`.
+
+Drafts may remain incomplete. Authorized publish checks access before readiness and returns `409 conflict.listing_not_ready` for an incomplete Draft. The supported correction path for published data is `Active -> unpublish -> resolve/edit -> publish`; there is no raw-SQL repair policy.
+
 Personal publish:
 
 ```text
@@ -492,6 +502,26 @@ Agency.Status == Active
 active agency membership
 role Owner or Agent
 ```
+
+### Draft authoring and location confirmation
+
+`GET /api/listings/{id}/management` returns `ListingAuthoringResponse` with the complete translation set and truthful nullable Draft location state. `PUT /api/listings/{id}` is a full replacement of editable Draft content; omitted stored translations are removed and retained canonical languages preserve server-owned translation IDs.
+
+Create and PUT do not accept trusted coordinates, precision, provenance, or confirmation time. Location search and confirmation are backend-mediated:
+
+```http
+POST   /api/listings/{id}/location/candidates
+PUT    /api/listings/{id}/location
+DELETE /api/listings/{id}/location
+```
+
+Candidate search uses canonical translated `City`, `Municipality`, `AddressLine`, and optional `Neighborhood`, returning provider-neutral label, preview coordinates, precision, and an opaque confirmation token. Confirmation accepts only that token, re-resolves through the configured provider before entering the parent-locked write transaction, and persists the canonical Listing-root snapshot. A location-text identity change clears an existing snapshot and makes an earlier token stale. Clear is Draft-only and idempotently returns the fully unresolved nullable state.
+
+### Public, private, and management response truth
+
+Public list, public detail, public agency listings, returned comparable candidates, and successful publish use strict `PublicListingResponse`. Its public identity/map group is required and non-null: `LanguageCode`, `Title`, `City`, `Municipality`, `AddressLine`, `Description`, `Latitude`, `Longitude`, and `LocationPrecision`.
+
+Create, `/my`, agency dashboard, unpublish, and archive retain nullable/Draft-capable `ListingResponse`. Management GET/PUT uses `ListingAuthoringResponse`, returns all translations, and preserves nullable Draft text and location state. Impossible malformed materialized Active state throws `PublicListingIntegrityException` internally and reaches the single Chapter 12 unexpected-exception boundary as sanitized `500 server.unexpected`; it is not hidden as 404 or filtered out.
 
 ### Unpublish/archive rules
 
@@ -583,11 +613,13 @@ house type
 yard-area range
 ```
 
-The effective translation is selected deterministically by requested language, then `mk`, then PostgreSQL `C` language ordering and translation UUID. Structured location and `q` predicates use that one effective row; `%`, `_`, and `\` are escaped as literal characters.
+The effective translation is selected deterministically by case-insensitive requested language, then `mk`, then PostgreSQL `C` bytewise language ordering and translation UUID. Structured location, the literal `q` predicate, display, and comparable semantics use that one effective row; `%`, `_`, and `\` are escaped as literal characters.
 
-Comparable listings use an Active source and Active candidates, same listing/property type and currency, positive price/area, effective-language/city eligibility, and the locked six-key deterministic order. Coordinates are validated as an all-or-nothing pair and by latitude/longitude range.
+`q` remains restricted to Title, City, Municipality, and Neighborhood. It does not search Description, AddressLine, coordinates, or LocationPrecision.
 
-All four paged listing HTTP surfaces return the unified `PagedResponse<ListingResponse>` contract with `items`, `page`, `pageSize`, `totalCount`, `totalPages`, `hasNextPage`, and `hasPreviousPage`. `PagedResult<T>` is internal repository data only. Offset pagination is retained; private listing paths use deterministic `CreatedAtUtc DESC, Id DESC` ordering.
+Comparable listings use an Active source and Active candidates, same listing/property type and currency, positive price/area, effective-language/city eligibility, and the locked six-key deterministic order. AddressLine, coordinates, and precision are not comparable inputs or ranking factors.
+
+All four paged listing HTTP surfaces use the unified seven-member `PagedResponse<T>` contract with `items`, `page`, `pageSize`, `totalCount`, `totalPages`, `hasNextPage`, and `hasPreviousPage`. Public search and public agency lists carry `PublicListingResponse`; `/my` and agency dashboard carry `ListingResponse`. `PagedResult<T>` is internal repository data only. Offset pagination is retained; private listing paths use deterministic `CreatedAtUtc DESC, Id DESC` ordering.
 
 Final query-shape work completed:
 
@@ -1004,7 +1036,7 @@ Validation failures add field/root errors; all canonical failures expose code an
 Documented responses expose X-Request-ID, and 401 responses document WWW-Authenticate.
 Bearer security metadata is derived per operation from AllowAnonymous/Authorize metadata.
 Swagger middleware and UI remain Development-only.
-The generated OpenAPI document is structurally tested for security, errors, pagination, string enums, multipart uploads, relative media paths, and health.
+The generated OpenAPI document is structurally tested for security, errors, pagination, string enums, multipart uploads, relative media paths, health, the strict nine-field public location contract, private/management nullability, truthful Create/PUT requiredness, and provider-neutral geocoding schemas.
 ```
 
 ### Health
@@ -1041,6 +1073,12 @@ GET  /api/listings
 GET  /api/listings/{id}
 GET  /api/listings/{id}/comparables
 GET  /api/listings/my
+GET  /api/listings/{id}/management
+
+PUT    /api/listings/{id}
+POST   /api/listings/{id}/location/candidates
+PUT    /api/listings/{id}/location
+DELETE /api/listings/{id}/location
 
 PUT /api/listings/{id}/publish
 PUT /api/listings/{id}/unpublish
@@ -1113,7 +1151,19 @@ pg_trgm extension
 IX_ListingTranslations_Q_Trigram four-column GIN index
 ```
 
-Chapters 11 and 12 added no schema or migration. The repository remains at 15 committed migrations. The authoritative zero-to-latest PostgreSQL verification, repeat update, and catalog inspection passed, and the Chapter 12 closeout independently confirmed no pending model changes.
+Chapter 13 added five forward migrations, bringing the repository to 20 committed migrations:
+
+```text
+20260809124123_EnforceListingTranslationRowIntegrity
+20260811091318_EnforceActiveListingPublicationIntegrity
+20260812172728_EnforceOptionalLocalizedLocationRowIntegrity
+20260813100457_AddCanonicalGeocodedLocationSnapshot
+20260824141614_EnforceStrongActiveLocationIntegrity
+```
+
+Together they enforce translation-row truth, Active publication truth, optional localized-location row integrity, the canonical Listing-root geocoded snapshot, and strong Active translation/location integrity. The owner-approved L.1 gate verified the fresh 20-migration chain, repository-defined repeat lifecycle, relevant Down/re-Up paths, exact catalog objects, no fabricated coordinate/provenance backfill, and no pending EF model changes.
+
+The backend has never been deployed. Before the first staging/production deployment, run `docs/operations/chapter-13j2-active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0`; remediation is only through supported lifecycle/location workflows or by keeping rows non-Active.
 
 Enums are stored as strings in PostgreSQL through EF Core conversions.
 
@@ -1198,7 +1248,16 @@ unified PagedResponse<T> pagination across all four listing-page endpoints
 effective invitation-expiry presentation and no-write read behavior
 liveness and PostgreSQL readiness, including timeout and client-abort behavior
 fail-closed configurable CORS and isolated clean-checkout upload-to-static delivery
+complete Draft authoring replacement and translation-ID reconciliation
+canonical location invalidation, controlled-provider search/confirmation/clear, token, resilience, rate, authorization, and parent-lock races
+strong Domain and PostgreSQL Active translation/location integrity
+strict nine-field public mapping across list/detail/agency/comparables/publish with nullable private and Draft-capable management separation
+serialized OpenAPI agreement for public, private, management, Create/PUT, geocoding, errors, security, media, and enums
 ```
+
+Final Chapter 13 verification is recorded in `docs/chapters/chapter-13l1-cumulative-chapter-13-verification-gate.md`: 2,022 complete-suite tests passed with none failed or skipped; six focused commands produced 980 successful executions covering 970 distinct cases; connected personal and Active-Owner agency controlled-provider Draft-to-public smokes passed; and the focused OpenAPI suite passed 11/11. Release builds completed with zero warnings and zero errors.
+
+The final query freeze is recorded in `docs/benchmarks/chapter-10f/chapter-13k3-final-generated-sql-freeze-proof.md`: 33/33 commands exact against immutable H.6 post-location run `chapter-10f-v1-baseline-20260814T112202Z-2925368b`, `chapter-10f-v2` profile 61/61, J.7 supplemental gates 8/8, 7/7, and 8/8, and 198/198 accepted plans with no spill/temp-block anomaly.
 
 ## 21. Development workflow
 
@@ -1293,8 +1352,16 @@ Cursor pagination remains deferred until scale or product evidence justifies a b
 ```text
 C12-CONFIG-01 remains unresolved.
 The base appsettings.json local JWT placeholder can flow to non-Development hosts.
-Production secret relocation and startup validation belong to Chapter 13 or explicit deployment hardening.
-Chapter 12 frontend readiness does not certify production secret configuration.
+Production secret relocation and startup validation are provisionally assigned to Chapter 16 or an explicit deployment-hardening checkpoint.
+Chapter 13 completion and frontend readiness do not certify production secret configuration.
+```
+
+### Chapter 13 retained operational and deployment gates
+
+```text
+CH13-PERF-01 remains open: measure long-lived Active translation-guard parent-update amplification under realistic operational workloads without weakening the proven serialization invariant.
+CH13-J2-DEPLOY-01 remains open: before first staging/production deployment, run the authorized target-zero compatibility check and require IncompatibleCount = 0.
+Neither item is an unfinished Chapter 13 feature, and neither authorizes raw SQL data repair.
 ```
 
 ### Search/query growth
@@ -1317,8 +1384,12 @@ Cloud/object storage is deferred until deployment needs justify it.
 ### Current completed milestone and next work
 
 ```text
-Completed: Chapter 12 — API Consistency, Observability, and Frontend Readiness
-Next product phase: Frontend foundation and implementation
+Completed: Chapter 13 — Public Listing Integrity and Authoring
+Final technical gate: owner-approved 13L.1 cumulative verification
+Durable closeout: 13L.2 documentation and Chapter 13 backend-to-frontend handoff
+Next backend chapter: Chapter 14 — property model and taxonomy expansion
+Then: Chapter 15 — integration through discovery, API, performance, and hardening
+After Chapters 14 and 15: full backend-to-frontend handoff/reconciliation, documentation consolidation review, then frontend integration
 ```
 
 Chapter 10 completion includes:
@@ -1352,27 +1423,43 @@ operation-accurate, structurally tested OpenAPI and safe developer request sampl
 1001/1001 passing tests, clean builds, 15 migrations, and no pending model changes
 ```
 
+Chapter 13 completion includes:
+
+```text
+canonical translation truth and complete Draft authoring replacement
+backend-mediated provider-neutral candidate, token-confirmation, and clear workflow
+one canonical Listing-root confirmed location snapshot with truthful precision and internal provenance
+strong Domain and PostgreSQL Active translation/location integrity
+strict PublicListingResponse across five public surface families with private/management separation
+serialized OpenAPI agreement without writable trusted coordinates or provenance
+parent-lock concurrency and stale-selection protection
+2022/2022 complete-suite tests, 20 migrations, no pending model changes, and clean Release builds
+33/33 final generated SQL, 61/61 profile, and 198/198 accepted plans
+```
+
 ### Completed backend chapters before frontend
 
 ```text
 Chapter 11 — Data Integrity and Targeted Hardening
 
 Chapter 12 — API Consistency, Observability, and Frontend Readiness
+
+Chapter 13 — Public Listing Integrity and Authoring
 ```
 
-Frontend foundation and implementation is now the next product phase.
+The Chapter 13 contract is ready for later frontend consumption and is preserved in `docs/backend-frontend-handoff.md` and generated OpenAPI. Chapter 14 is next, Chapter 15 follows, and only after both will the project produce/reconcile the full backend-to-frontend handoff before frontend integration. Chapter 13 made no frontend change and generated no frontend types.
 
 ### Later planned backend chapters
 
 ```text
-Chapter 13 — Authentication and Account Security Phase 2
+Chapter 14 — property model and taxonomy expansion
 
-Chapter 14 — Background Jobs and Notifications
+Chapter 15 — integration through discovery, API, performance, and hardening
 
-Chapter 15 — Agency Workspace Phase 3
+Chapter 16 — provisional authentication/security/configuration hardening; exact scope must be replanned when reached
 ```
 
-The order and scope of Chapters 13–15 may change after frontend development and real workflow feedback.
+Background jobs/notifications, richer agency workspace features, spatial discovery, and other deferred product work remain unnumbered unless a later authoritative plan assigns them. Do not revive the historical security/configuration meaning of Chapter 13.
 
 ## 24. Chapter focus summaries
 
@@ -1427,42 +1514,22 @@ operation-derived Bearer metadata and structurally tested OpenAPI
 safe, current developer HTTP samples
 ```
 
-### Chapter 13 — Authentication and Account Security Phase 2
+### Chapter 13 — Public Listing Integrity and Authoring
 
-Deferred until later:
-
-```text
-refresh tokens
-logout/revocation
-password reset
-email verification
-change password
-login protection
-```
-
-### Chapter 14 — Background Jobs and Notifications
-
-Deferred until there is real asynchronous work:
+Completed capabilities:
 
 ```text
-invitation email delivery
-saved-search alerts
-scheduled cleanup
-retry handling
-outbox/background processing
+canonical translation and Draft replacement contracts
+provider-mediated confirmed Listing-root location snapshots
+truthful nullable Draft location state and token-based stale-selection protection
+strong Active publication readiness and PostgreSQL mutation enforcement
+strict nine-field public identity/map contract across five surface families
+separate nullable private and Draft-capable management contracts
+generated OpenAPI agreement and frozen Chapter 10 discovery/comparable SQL
+five Chapter 13 migrations, 20 total, and cumulative L.1 verification
 ```
 
-### Chapter 15 — Agency Workspace Phase 3
-
-Possible later product features:
-
-```text
-listing assignment to agents
-internal notes
-agency activity history
-agent-specific work views
-ownership/responsibility workflows
-```
+The historical authentication/account-security work once labeled Chapter 13 was not implemented here. It is provisionally Chapter 16 and remains deferred alongside production JWT/configuration hardening. Chapter 14 and Chapter 15 retain only the high-level scopes established by the authoritative Chapter 13 plan; their exact task plans must be read from the current authoritative documents when work begins.
 
 ## 25. Next-task policy
 
@@ -1482,7 +1549,9 @@ Use read-only review for important features.
 Current next task:
 
 ```text
-Begin frontend foundation and implementation against the completed Chapter 12 contract.
+Begin Chapter 14 — property model and taxonomy expansion, using its authoritative plan when established.
+Complete Chapter 15 afterward.
+After both chapters, reconcile the full backend-to-frontend handoff and documentation before frontend integration.
 ```
 
-After frontend development begins, backend defects discovered through real integration may be handled on focused bugfix branches with regression tests. They must not silently expand a completed chapter or an unrelated current chapter.
+After frontend development begins, backend defects discovered through real integration may be handled on focused bugfix branches with regression tests. They must not silently expand completed Chapter 13 or an unrelated later chapter.
