@@ -35,14 +35,14 @@ It is a live source-controlled issue register, not a project history, completed-
 - **CH11-DB-01: Listing creator relationship remains nullable**
   - Area: Listing relational model and deployed-data compatibility.
   - Risk: PostgreSQL permits a listing without `CreatedByUserId`; making it required without an authorized data audit/backfill may be unsafe.
-  - Evidence: `Listing.CreatedByUserId` remains nullable and `ListingConfiguration` retains the optional Restrict relationship. The model is clean at 15 migrations.
+  - Evidence: `Listing.CreatedByUserId` remains nullable and `ListingConfiguration` retains the optional Restrict relationship. The model is clean at 20 migrations after Chapter 13.
   - Smallest safe direction: Perform an authorized data audit and backfill decision before a focused migration.
   - Classification: Accepted owner decision.
 
 - **CH11-DB-02: Request validation is not duplicated broadly as database checks**
   - Area: Listing numeric, range, and coordinate integrity.
   - Risk: Direct database writes are not guarded by every request-validator rule; blanket constraints could reject legacy data or prematurely encode policy.
-  - Evidence: Validators enforce the business ranges, while the current EF model and 15 migrations have no comprehensive matching check-constraint family.
+  - Evidence: Validators enforce the business ranges, while the current EF model and 20 migrations do not duplicate every request-level range as a comprehensive check-constraint family. Chapter 13 added only its explicitly approved translation and confirmed-location integrity constraints.
   - Smallest safe direction: Audit deployed data and approve each constraint family before a focused migration.
   - Classification: Accepted owner decision.
 
@@ -71,15 +71,15 @@ It is a live source-controlled issue register, not a project history, completed-
   - Area: Production authentication configuration.
   - Risk: The local JWT placeholder in base `appsettings.json` is not a production-grade secret and could be used if deployment configuration fails to override it.
   - Evidence: Chapter 12 intentionally left JWT secret loading unchanged; its frontend-readiness result covers Bearer API integration, not production secret provisioning or startup validation.
-  - Smallest safe direction: Relocate/validate the secret in Chapter 13 or an explicit deployment-hardening checkpoint, with safe local/test configuration and startup-failure tests.
-  - Classification: Production-deployment blocker; not a blocker for the current local frontend foundation.
+  - Smallest safe direction: Relocate/validate the secret in provisional Chapter 16 or an explicit deployment-hardening checkpoint, with safe local/test configuration and startup-failure tests.
+  - Classification: Production-deployment blocker; not implemented by completed Chapter 13 and not a blocker for local frontend integration.
 
 - **CH13-J2-DEPLOY-01: Active-location target-zero gate awaits first deployment**
   - Area: Chapter 13 J.2 deployment compatibility gate.
   - Current result: The reusable J.2 compatibility-gate implementation is complete and green. The backend has never been deployed, so no real staging/production target currently exists for the target-zero check.
-  - Smallest safe direction: J.3/J.4 development may continue. During the first real staging/production deployment preparation, run `docs/operations/chapter-13j2-active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0` before applying stronger J.3/J.4 enforcement.
+  - Smallest safe direction: During the first real staging/production deployment preparation, run `docs/operations/chapter-13j2-active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0` before applying the completed J.3/J.4 enforcement as a coordinated deployment unit.
   - Safety boundary: If incompatible rows exist, remediate only through the supported `Active -> unpublish -> resolve -> publish` lifecycle/location workflow, or leave the row non-Active; do not use raw SQL repair/backfill.
-  - Classification: J.3/J.4 deployment remains gated until target-zero evidence is obtained.
+  - Classification: Chapter 13 development is complete; first staging/production deployment of J.3/J.4 remains gated until target-zero evidence is obtained.
 
 - **CH13-PERF-01: Post-Chapter-13 operational review — Active translation guard write amplification**
   - Area: Chapter 13F PostgreSQL translation-parent serialization and long-lived write amplification.
@@ -87,5 +87,5 @@ It is a live source-controlled issue register, not a project history, completed-
   - Evidence: Chapter 13H.6's deterministic bulk profile observed 100,000 trigger-driven logical no-op parent updates followed by 94,000 final-status updates: 194,000 `Listings` updates in total, of which only 30 were HOT and 193,970 were non-HOT. The `Listings` heap grew from approximately 2,440 pages after insertion to 7,179 pages after the staged lifecycle. All five H.3 metadata columns were null in the profile, and compacting the same logical dataset restored the expected plans and performance, proving the growth was not caused by H.1–H.5 field width or production query semantics.
   - Smallest safe direction: After Chapter 13, reproduce realistic long-lived translation-authoring workloads and measure `n_tup_upd`, HOT-update ratio, dead/live tuples, heap growth, index growth, autovacuum behavior, planner changes, buffers, and latency. Determine whether normal PostgreSQL autovacuum/maintenance is sufficient. If it is not, investigate an alternative serialization mechanism that preserves the exact Chapter 13F concurrency/integrity guarantees, then rerun the complete Chapter 13F integrity/concurrency suite before adopting it.
   - Safety boundary: Do not remove or bypass the logical no-op parent UPDATE merely because it appears redundant; it participates in the established Chapter 13F serialization design. Do not weaken Chapter 13F serialization or concurrency guarantees to address this item.
-  - Handoff lifecycle: H.7 carries this observation forward now. Chapter 13L.2 must review and preserve, update, or remove this existing durable item based on final closure evidence; it must not recreate it from memory. The transient H.6 A1 environment-timing variance is intentionally not a durable handoff item.
+  - Handoff lifecycle: Chapter 13L.2 reviewed and preserved this item. The owner-approved L.1/K.3 gates prove current correctness and accepted profile performance, but do not answer the long-lived operational amplification question. The transient H.6 A1 environment-timing variance is intentionally not a durable handoff item.
   - Classification: Nonblocking operational/performance follow-up; not a Chapter 13 correctness defect and not caused by the canonical-location work.
