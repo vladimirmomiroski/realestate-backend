@@ -3,9 +3,15 @@ using Microsoft.OpenApi;
 using RealEstate.Api.Errors;
 using RealEstate.Application.Agencies.Dtos;
 using RealEstate.Application.Common;
+using RealEstate.Application.Listings.Commands.CreateListing;
+using RealEstate.Application.Listings.Commands.UpdateListing;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Users.Dtos;
+using RealEstate.Domain.Listings;
 using Swashbuckle.AspNetCore.SwaggerGen;
+
+using RealEstate.Application.Listings.Commands.ConfirmListingLocation;
+using RealEstate.Application.Listings.Queries.SearchLocationCandidates;
 
 namespace RealEstate.Api.OpenApi;
 
@@ -35,9 +41,115 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
 
         if (context.Type.IsGenericType &&
             context.Type.GetGenericTypeDefinition() == typeof(PagedResponse<>) &&
-            context.Type.GenericTypeArguments[0] == typeof(ListingResponse))
+            (context.Type.GenericTypeArguments[0] == typeof(ListingResponse) ||
+             context.Type.GenericTypeArguments[0] == typeof(PublicListingResponse)))
         {
             ApplyPaginationSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(PublicListingResponse))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "languageCode",
+                "title",
+                "city",
+                "municipality",
+                "addressLine",
+                "description");
+            ApplyRequiredNonNullableProperties(
+                mutableSchema,
+                "latitude",
+                "longitude",
+                "locationPrecision");
+        }
+
+        if (context.Type == typeof(ListingAuthoringTranslationResponse))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "languageCode",
+                "title");
+        }
+
+        if (context.Type == typeof(ListingAuthoringResponse))
+        {
+            ApplyRequiredNonNullableProperties(
+                mutableSchema,
+                "translations");
+        }
+
+        if (context.Type == typeof(ListingResponse) ||
+            context.Type == typeof(ListingAuthoringResponse) ||
+            context.Type == typeof(ListingLocationStateResponse))
+        {
+            WrapNullableReference(
+                mutableSchema,
+                "locationPrecision",
+                "Nullable provider-neutral precision of a confirmed location snapshot.");
+        }
+
+        if (context.Type == typeof(ListingLocationCandidateResponse))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "label",
+                "confirmationToken");
+
+            mutableSchema.Required ??= new HashSet<string>(StringComparer.Ordinal);
+            mutableSchema.Required.UnionWith(
+                ["previewLatitude", "previewLongitude", "precision"]);
+            SetDescription(
+                mutableSchema,
+                "confirmationToken",
+                "Opaque short-lived token required to confirm this candidate.");
+        }
+
+        if (context.Type == typeof(ConfirmListingLocationRequest))
+        {
+            ApplyRequiredNonNullableStrings(
+                mutableSchema,
+                "confirmationToken");
+            SetDescription(
+                mutableSchema,
+                "confirmationToken",
+                "Opaque short-lived location-confirmation token. Coordinates and provider provenance are not accepted.");
+        }
+
+        if (context.Type == typeof(CreateListingRequest))
+        {
+            ApplyCreateListingSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(CreateListingTranslationRequest))
+        {
+            ApplyCreateListingTranslationSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(UpdateListingRequest))
+        {
+            ApplyUpdateListingSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(UpdateListingTranslationRequest))
+        {
+            ApplyUpdateListingTranslationSchema(mutableSchema);
+        }
+
+        if (context.Type == typeof(UpdateListingApartmentDetailsRequest))
+        {
+            WrapReferenceWithDescription(
+                mutableSchema,
+                "apartmentType",
+                "Optional; omission resets the stored value to Unknown.");
+        }
+
+        if (context.Type == typeof(UpdateListingHouseDetailsRequest))
+        {
+            WrapReferenceWithDescription(
+                mutableSchema,
+                "houseType",
+                "Optional; omission resets the stored value to Unknown.");
         }
 
         ApplyRelativeMediaDescriptions(mutableSchema, context.Type);
@@ -141,6 +253,212 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         schema.Required.Add("items");
     }
 
+    private static void ApplyRequiredNonNullableStrings(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
+        ApplyRequiredNonNullableProperties(schema, propertyNames);
+    }
+
+    private static void ApplyRequiredNonNullableProperties(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
+        schema.Required ??= new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (string propertyName in propertyNames)
+        {
+            schema.Required.Add(propertyName);
+        }
+
+        ApplyNonNullableProperties(schema, propertyNames);
+    }
+
+    private static void ApplyOptionalNonNullableProperties(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
+        foreach (string propertyName in propertyNames)
+        {
+            schema.Required?.Remove(propertyName);
+        }
+
+        ApplyNonNullableProperties(schema, propertyNames);
+    }
+
+    private static void ApplyNonNullableProperties(
+        OpenApiSchema schema,
+        params string[] propertyNames)
+    {
+        foreach (string propertyName in propertyNames)
+        {
+
+            if (schema.Properties is not null &&
+                schema.Properties.TryGetValue(
+                    propertyName,
+                    out IOpenApiSchema? propertyValue) &&
+                propertyValue is OpenApiSchema property &&
+                property.Type.HasValue)
+            {
+                property.Type &= ~JsonSchemaType.Null;
+            }
+        }
+    }
+
+    private static void ApplyCreateListingSchema(OpenApiSchema schema)
+    {
+        ApplyRequiredNonNullableProperties(
+            schema,
+            "listingType",
+            "propertyType",
+            "price",
+            "areaSquareMeters",
+            "translations");
+        ApplyOptionalNonNullableProperties(schema, "currency");
+
+        if (schema.Properties is not null &&
+            schema.Properties.TryGetValue(
+                "currency",
+                out IOpenApiSchema? currencyValue) &&
+            currencyValue is OpenApiSchema currency)
+        {
+            currency.Default = JsonValue.Create("EUR");
+            currency.Description =
+                "Optional; omission defaults to EUR. Explicit null or an invalid value is rejected.";
+        }
+    }
+
+    private static void ApplyCreateListingTranslationSchema(
+        OpenApiSchema schema)
+    {
+        ApplyRequiredNonNullableStrings(
+            schema,
+            "languageCode",
+            "title");
+        SetStringRule(
+            schema,
+            "languageCode",
+            ListingTranslationRules.LanguageCodeMaxLength,
+            "Boundary-trimmed and lowercased before validation. " +
+            $"Canonical value must match {ListingTranslationRules.LanguageCodePattern} and contain at most {ListingTranslationRules.LanguageCodeMaxLength} characters.",
+            ListingTranslationRules.LanguageCodePattern);
+        SetStringRule(
+            schema,
+            "title",
+            ListingTranslationRules.TitleMaxLength,
+            $"Required, boundary-trimmed, nonblank; maximum {ListingTranslationRules.TitleMaxLength} characters after normalization.");
+        SetStringRule(
+            schema,
+            "description",
+            ListingTranslationRules.DescriptionMaxLength,
+            $"Optional; boundary whitespace normalizes to null; maximum {ListingTranslationRules.DescriptionMaxLength} characters after normalization.");
+        SetStringRule(
+            schema,
+            "addressLine",
+            ListingTranslationRules.AddressLineMaxLength,
+            $"Optional; boundary whitespace normalizes to null; maximum {ListingTranslationRules.AddressLineMaxLength} characters after normalization.");
+
+        foreach (string propertyName in new[]
+        {
+            "city",
+            "municipality",
+            "neighborhood"
+        })
+        {
+            SetStringRule(
+                schema,
+                propertyName,
+                ListingTranslationRules.LocationMaxLength,
+                $"Optional; boundary whitespace normalizes to null; maximum {ListingTranslationRules.LocationMaxLength} characters after normalization.");
+        }
+    }
+
+    private static void ApplyUpdateListingSchema(OpenApiSchema schema)
+    {
+        ApplyRequiredNonNullableProperties(
+            schema,
+            "listingType",
+            "propertyType",
+            "price",
+            "currency",
+            "areaSquareMeters",
+            "translations");
+
+        schema.Description =
+            "Full replacement of the current editable Draft listing content. " +
+            "For optional nullable members, omission and explicit null both clear the stored value.";
+
+        foreach (string propertyName in new[]
+        {
+            "rooms",
+            "bathrooms",
+            "balconyCount",
+            "parkingSpaces",
+            "hasBasement",
+            "isExchangePossible",
+            "yearRenovated",
+            "yearBuilt"
+        })
+        {
+            SetDescription(
+                schema,
+                propertyName,
+                "Optional and nullable; omission or explicit null clears the stored value.");
+        }
+
+        foreach (string propertyName in new[]
+        {
+            "heatingType",
+            "furnishingStatus",
+            "condition",
+            "orientation"
+        })
+        {
+            WrapReferenceWithDescription(
+                schema,
+                propertyName,
+                "Optional; omission resets the stored value to Unknown.");
+        }
+
+        WrapNullableReference(
+            schema,
+            "apartmentDetails",
+            "Required when propertyType is Apartment and forbidden when propertyType is House. Omission or null clears this subtype payload during a valid House replacement.");
+        WrapNullableReference(
+            schema,
+            "houseDetails",
+            "Required when propertyType is House and forbidden when propertyType is Apartment. Omission or null clears this subtype payload during a valid Apartment replacement.");
+        SetDescription(
+            schema,
+            "translations",
+            "Complete authoritative translation set. Omitted stored languages are deleted; retained canonical languages preserve their server-owned translation IDs.");
+    }
+
+    private static void ApplyUpdateListingTranslationSchema(
+        OpenApiSchema schema)
+    {
+        schema.Description =
+            "One member of the complete authoritative replacement translation set. " +
+            "The client does not submit translation IDs.";
+
+        ApplyCreateListingTranslationSchema(schema);
+
+        foreach (string propertyName in new[]
+        {
+            "description",
+            "addressLine",
+            "city",
+            "municipality",
+            "neighborhood"
+        })
+        {
+            SetDescription(
+                schema,
+                propertyName,
+                "Optional and nullable; omission, explicit null, or boundary-whitespace-only input clears the stored value.");
+        }
+    }
+
     private static void ApplyRelativeMediaDescriptions(
         OpenApiSchema schema,
         Type type)
@@ -153,7 +471,8 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         {
             SetDescription(schema, "logoUrl", RelativeMediaPathDescription);
         }
-        else if (type == typeof(ListingResponse))
+        else if (type == typeof(ListingResponse) ||
+                 type == typeof(PublicListingResponse))
         {
             SetDescription(schema, "primaryImageUrl", RelativeMediaPathDescription);
         }
@@ -174,5 +493,74 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
         {
             property.Description = description;
         }
+    }
+
+    private static void WrapNullableReference(
+        OpenApiSchema schema,
+        string propertyName,
+        string description)
+    {
+        if (schema.Properties is null ||
+            !schema.Properties.TryGetValue(
+                propertyName,
+                out IOpenApiSchema? property))
+        {
+            return;
+        }
+
+        schema.Properties[propertyName] = new OpenApiSchema
+        {
+            Description = description,
+            OneOf =
+            [
+                property,
+                new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Object | JsonSchemaType.Null,
+                    Enum = [null!]
+                }
+            ]
+        };
+    }
+
+    private static void WrapReferenceWithDescription(
+        OpenApiSchema schema,
+        string propertyName,
+        string description)
+    {
+        if (schema.Properties is null ||
+            !schema.Properties.TryGetValue(
+                propertyName,
+                out IOpenApiSchema? property))
+        {
+            return;
+        }
+
+        schema.Properties[propertyName] = new OpenApiSchema
+        {
+            Description = description,
+            AllOf = [property]
+        };
+    }
+
+    private static void SetStringRule(
+        OpenApiSchema schema,
+        string propertyName,
+        int normalizedMaxLength,
+        string description,
+        string? canonicalPattern = null)
+    {
+        if (schema.Properties is null ||
+            !schema.Properties.TryGetValue(
+                propertyName,
+                out IOpenApiSchema? propertyValue) ||
+            propertyValue is not OpenApiSchema property)
+        {
+            return;
+        }
+
+        property.MaxLength = normalizedMaxLength;
+        property.Description = description;
+        property.Pattern = canonicalPattern;
     }
 }

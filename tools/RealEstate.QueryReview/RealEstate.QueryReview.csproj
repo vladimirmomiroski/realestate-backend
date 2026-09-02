@@ -13,4 +13,8 @@
     <ProjectReference Include="..\..\src\RealEstate.Infrastructure\RealEstate.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="RealEstate.Tests" />
+  </ItemGroup>
+
 </Project>

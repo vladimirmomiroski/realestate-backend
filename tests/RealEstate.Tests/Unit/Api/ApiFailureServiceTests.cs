@@ -102,6 +102,69 @@ public sealed class ApiFailureServiceTests
         httpContext.Response.Body.Length.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(
+        StatusCodes.Status503ServiceUnavailable,
+        ErrorCodes.DependencyGeocodingUnavailable,
+        "Geocoding unavailable",
+        "Location search and confirmation are temporarily unavailable.")]
+    [InlineData(
+        StatusCodes.Status429TooManyRequests,
+        ErrorCodes.RateLimitGeocodingExceeded,
+        "Too many geocoding requests",
+        "Too many location requests were made. Try again later.")]
+    public async Task GeocodingFailures_UseCanonicalSanitizedProblemDetails(
+        int expectedStatus,
+        string expectedCode,
+        string expectedTitle,
+        string expectedDetail)
+    {
+        ApiFailureService service = CreateService();
+        DefaultHttpContext httpContext = CreateHttpContext();
+        ApiFailureDescriptor descriptor = ApiFailureDescriptor.ForCode(
+            expectedCode);
+
+        bool written = await service.TryWriteAsync(
+            httpContext,
+            service.Create(httpContext, descriptor));
+
+        written.Should().BeTrue();
+        httpContext.Response.StatusCode.Should().Be(expectedStatus);
+        httpContext.Response.ContentType.Should().Be(ApiFailureService.ContentType);
+
+        JsonElement body = ReadResponseBody(httpContext);
+        body.EnumerateObject().Select(property => property.Name)
+            .Should().BeEquivalentTo(
+                "type",
+                "title",
+                "status",
+                "detail",
+                "instance",
+                "code",
+                "traceId");
+        body.GetProperty("type").GetString()
+            .Should().Be($"urn:realestate:error:{expectedCode}");
+        body.GetProperty("title").GetString().Should().Be(expectedTitle);
+        body.GetProperty("status").GetInt32().Should().Be(expectedStatus);
+        body.GetProperty("detail").GetString().Should().Be(expectedDetail);
+        body.GetProperty("instance").GetString().Should().Be("/api/resource");
+        body.GetProperty("code").GetString().Should().Be(expectedCode);
+        body.GetProperty("traceId").GetString().Should().Be("server-trace-id");
+
+        string json = body.GetRawText();
+        foreach (string forbidden in new[]
+        {
+            "geoapify",
+            "api key",
+            "provider reference",
+            "confirmation token",
+            "address query"
+        })
+        {
+            json.Should().NotContainEquivalentOf(forbidden);
+        }
+    }
+
     private static ApiFailureService CreateService()
     {
         return new ApiFailureService(Options.Create(new JsonOptions()));

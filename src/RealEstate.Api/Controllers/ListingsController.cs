@@ -8,6 +8,7 @@ using RealEstate.Application.Listings.Commands.SetPrimaryListingImage;
 using RealEstate.Application.Listings.Commands.UploadListingImage;
 using RealEstate.Application.Listings.Dtos;
 using RealEstate.Application.Listings.Queries.GetListingById;
+using RealEstate.Application.Listings.Queries.GetListingManagement;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -15,8 +16,15 @@ using RealEstate.Application.Listings.Queries.GetMyListings;
 using RealEstate.Application.Listings.Commands.PublishListing;
 using RealEstate.Application.Listings.Commands.UnpublishListing;
 using RealEstate.Application.Listings.Commands.ArchiveListing;
+using RealEstate.Application.Listings.Commands.UpdateListing;
 using RealEstate.Application.Listings.Queries.GetComparableListings;
 using RealEstate.Api.Errors;
+
+using Microsoft.AspNetCore.RateLimiting;
+using RealEstate.Api.RateLimiting;
+using RealEstate.Application.Listings.Commands.ClearListingLocation;
+using RealEstate.Application.Listings.Commands.ConfirmListingLocation;
+using RealEstate.Application.Listings.Queries.SearchLocationCandidates;
 
 namespace RealEstate.Api.Controllers;
 
@@ -26,10 +34,12 @@ public sealed class ListingsController : ControllerBase
 {
 
     private const string GetListingByIdRouteName = "GetListingById";
+    private const string GetListingManagementRouteName = "GetListingManagement";
 
     private readonly CreateListingHandler _createListingHandler;
     private readonly GetListingsHandler _getListingsHandler;
     private readonly GetListingByIdHandler _getListingByIdHandler;
+    private readonly GetListingManagementHandler _getListingManagementHandler;
     private readonly UploadListingImageHandler _uploadListingImageHandler;
     private readonly DeleteListingImageHandler _deleteListingImageHandler;
     private readonly SetPrimaryListingImageHandler _setPrimaryListingImageHandler;
@@ -38,13 +48,18 @@ public sealed class ListingsController : ControllerBase
     private readonly PublishListingHandler _publishListingHandler;
     private readonly UnpublishListingHandler _unpublishListingHandler;
     private readonly ArchiveListingHandler _archiveListingHandler;
+    private readonly UpdateListingHandler _updateListingHandler;
     private readonly GetComparableListingsHandler _getComparableListingsHandler;
+    private readonly SearchLocationCandidatesHandler _searchLocationCandidatesHandler;
+    private readonly ConfirmListingLocationHandler _confirmListingLocationHandler;
+    private readonly ClearListingLocationHandler _clearListingLocationHandler;
     private readonly ApiFailureService _failureService;
 
     public ListingsController(
         CreateListingHandler createListingHandler,
         GetListingsHandler getListingsHandler,
         GetListingByIdHandler getListingByIdHandler,
+        GetListingManagementHandler getListingManagementHandler,
         GetComparableListingsHandler getComparableListingsHandler,
         UploadListingImageHandler uploadListingImageHandler,
         DeleteListingImageHandler deleteListingImageHandler,
@@ -54,12 +69,17 @@ public sealed class ListingsController : ControllerBase
         PublishListingHandler publishListingHandler,
         UnpublishListingHandler unpublishListingHandler,
         ArchiveListingHandler archiveListingHandler,
+        UpdateListingHandler updateListingHandler,
+        SearchLocationCandidatesHandler searchLocationCandidatesHandler,
+        ConfirmListingLocationHandler confirmListingLocationHandler,
+        ClearListingLocationHandler clearListingLocationHandler,
         ApiFailureService failureService
         )
     {
         _createListingHandler = createListingHandler;
         _getListingsHandler = getListingsHandler;
         _getListingByIdHandler = getListingByIdHandler;
+        _getListingManagementHandler = getListingManagementHandler;
         _getComparableListingsHandler = getComparableListingsHandler;
         _uploadListingImageHandler = uploadListingImageHandler;
         _deleteListingImageHandler = deleteListingImageHandler;
@@ -69,8 +89,148 @@ public sealed class ListingsController : ControllerBase
         _publishListingHandler = publishListingHandler;
         _unpublishListingHandler = unpublishListingHandler;
         _archiveListingHandler = archiveListingHandler;
+        _updateListingHandler = updateListingHandler;
+        _searchLocationCandidatesHandler = searchLocationCandidatesHandler;
+        _confirmListingLocationHandler = confirmListingLocationHandler;
+        _clearListingLocationHandler = clearListingLocationHandler;
         _failureService = failureService;
         
+    }
+
+    [Authorize]
+    [EnableRateLimiting(GeocodingRateLimitPolicy.Name)]
+    [HttpPost("{id:guid}/location/candidates")]
+    [Consumes("application/json")]
+    [ProducesResponseType(
+        typeof(IReadOnlyList<ListingLocationCandidateResponse>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> SearchLocationCandidates(
+        Guid id,
+        [FromBody] SearchLocationCandidatesRequest request,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<IReadOnlyList<ListingLocationCandidateResponse>> result =
+            await _searchLocationCandidatesHandler.HandleAsync(
+                new SearchLocationCandidatesQuery(
+                    id,
+                    request.LanguageCode),
+                cancellationToken);
+
+        return MapLocationResult(result, "location-candidate search");
+    }
+
+    [Authorize]
+    [EnableRateLimiting(GeocodingRateLimitPolicy.Name)]
+    [HttpPut("{id:guid}/location")]
+    [Consumes("application/json")]
+    [ProducesResponseType(
+        typeof(ListingLocationStateResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> ConfirmLocation(
+        Guid id,
+        [FromBody] ConfirmListingLocationRequest request,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<ListingLocationStateResponse> result =
+            await _confirmListingLocationHandler.HandleAsync(
+                new ConfirmListingLocationCommand(
+                    id,
+                    request.ConfirmationToken),
+                cancellationToken);
+
+        return MapLocationResult(result, "location confirmation");
+    }
+
+    [Authorize]
+    [HttpDelete("{id:guid}/location")]
+    [ProducesResponseType(
+        typeof(ListingLocationStateResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ClearLocation(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<ListingLocationStateResponse> result =
+            await _clearListingLocationHandler.HandleAsync(
+                new ClearListingLocationCommand(id),
+                cancellationToken);
+
+        return MapLocationResult(result, "location clear");
+    }
+
+    private IActionResult MapLocationResult<T>(
+        ServiceResult<T> result,
+        string operation)
+    {
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    $"A successful {operation} result must provide a value.")),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            ServiceResultStatus.DependencyUnavailable =>
+                CreateFailureResult(result),
+            ServiceResultStatus.RateLimited => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                $"The {operation} result was not mapped.")
+        };
+    }
+
+    [Authorize]
+    [HttpPut("{id:guid}")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ListingAuthoringResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateListing(
+        Guid id,
+        [FromBody] UpdateListingRequest request,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<ListingAuthoringResponse> result =
+            await _updateListingHandler.HandleAsync(
+                id,
+                request,
+                cancellationToken);
+
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful update-listing result must provide a value.")),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The update-listing result was not mapped.")
+        };
     }
 
     [Authorize]
@@ -94,8 +254,8 @@ public sealed class ListingsController : ControllerBase
                         "A successful create-listing result must provide a value.");
 
                 return CreatedAtRoute(
-                    GetListingByIdRouteName,
-                    new { id = response.Id, lang = response.LanguageCode ?? "mk" },
+                    GetListingManagementRouteName,
+                    new { id = response.Id },
                     response);
 
             case ServiceResultStatus.ValidationError:
@@ -110,9 +270,37 @@ public sealed class ListingsController : ControllerBase
         }
     }
 
+    [Authorize]
+    [HttpGet("{id:guid}/management", Name = GetListingManagementRouteName)]
+    [ProducesResponseType(typeof(ListingAuthoringResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetListingManagement(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        ServiceResult<ListingAuthoringResponse> result =
+            await _getListingManagementHandler.HandleAsync(
+                new GetListingManagementQuery(id),
+                cancellationToken);
+
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful listing-management result must provide a value.")),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The listing-management result was not mapped.")
+        };
+    }
+
     [HttpGet]
     [ProducesResponseType(
-    typeof(PagedResponse<ListingResponse>),
+    typeof(PagedResponse<PublicListingResponse>),
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetListings(
@@ -176,7 +364,7 @@ public sealed class ListingsController : ControllerBase
             PageSize = pageSize
         };
 
-        ServiceResult<PagedResponse<ListingResponse>> result =
+        ServiceResult<PagedResponse<PublicListingResponse>> result =
             await _getListingsHandler.HandleAsync(
                 query,
                 cancellationToken);
@@ -222,14 +410,18 @@ public sealed class ListingsController : ControllerBase
     }
 
     [HttpGet("{id:guid}", Name = GetListingByIdRouteName)]
-    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PublicListingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetListingById(
         Guid id,
         [FromQuery] string lang = "mk",
         CancellationToken cancellationToken = default)
     {
-        var result = await _getListingByIdHandler.HandleAsync(id, lang, cancellationToken);
+        ServiceResult<PublicListingResponse> result =
+            await _getListingByIdHandler.HandleAsync(
+                id,
+                lang,
+                cancellationToken);
 
         return result.Status switch
         {
@@ -244,7 +436,7 @@ public sealed class ListingsController : ControllerBase
 
     [HttpGet("{id:guid}/comparables")]
     [ProducesResponseType(
-    typeof(IReadOnlyList<ListingResponse>),
+    typeof(IReadOnlyList<PublicListingResponse>),
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -262,7 +454,7 @@ public sealed class ListingsController : ControllerBase
             Limit = limit
         };
 
-        ServiceResult<IReadOnlyList<ListingResponse>> result =
+        ServiceResult<IReadOnlyList<PublicListingResponse>> result =
             await _getComparableListingsHandler.HandleAsync(
                 query,
                 cancellationToken);
@@ -281,7 +473,7 @@ public sealed class ListingsController : ControllerBase
 
     [Authorize]
     [HttpPut("{id:guid}/publish")]
-    [ProducesResponseType(typeof(ListingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PublicListingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -292,11 +484,23 @@ public sealed class ListingsController : ControllerBase
     [FromQuery] string? lang,
     CancellationToken cancellationToken)
     {
-        var result = await _publishListingHandler.HandleAsync(
-            new PublishListingCommand(id, lang),
-            cancellationToken);
+        ServiceResult<PublicListingResponse> result =
+            await _publishListingHandler.HandleAsync(
+                new PublishListingCommand(id, lang),
+                cancellationToken);
 
-        return MapLifecycleResult(result, "publish-listing");
+        return result.Status switch
+        {
+            ServiceResultStatus.Success => Ok(
+                result.Value ?? throw new InvalidOperationException(
+                    "A successful publish-listing result must provide a value.")),
+            ServiceResultStatus.Unauthorized => CreateFailureResult(result),
+            ServiceResultStatus.Forbidden => CreateFailureResult(result),
+            ServiceResultStatus.NotFound => CreateFailureResult(result),
+            ServiceResultStatus.Conflict => CreateFailureResult(result),
+            _ => throw new InvalidOperationException(
+                "The publish-listing result was not mapped.")
+        };
     }
 
     [Authorize]

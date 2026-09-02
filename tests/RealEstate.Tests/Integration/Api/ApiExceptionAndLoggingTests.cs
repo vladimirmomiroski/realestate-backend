@@ -17,10 +17,12 @@ using Microsoft.Extensions.Logging;
 using RealEstate.Api.Errors;
 using RealEstate.Application.Common.Files;
 using RealEstate.Application.Common.Storage;
+using RealEstate.Application.Listings.Mappings;
 using RealEstate.Domain.Entities;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
 using RealEstate.Tests.Integration.Listings;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Integration.Api;
 
@@ -170,6 +172,80 @@ public sealed class ApiExceptionAndLoggingTests
             entry.EventId.Id == 1);
 
         AssertCustomLogsExclude(QuerySecret, HeaderSecret);
+    }
+
+    [Fact]
+    public async Task PublicListingIntegrityFailure_ReturnsSanitized500AndLogsDiagnosticsOnce()
+    {
+        _logs.Clear();
+
+        using HttpResponseMessage response = await _client.GetAsync(
+            "/api/exception-boundary-test/public-listing-integrity-failure");
+
+        response.StatusCode.Should()
+            .Be(HttpStatusCode.InternalServerError);
+        response.Content.Headers.ContentType?.ToString().Should()
+            .Be(ApiFailureService.ContentType);
+
+        string responseText = await response.Content.ReadAsStringAsync();
+        using JsonDocument document = JsonDocument.Parse(responseText);
+        JsonElement body = document.RootElement;
+        string requestId = GetRequestId(response);
+        _probe.PublicListingIntegrityListingId.Should().NotBeNull();
+        Guid listingId = _probe.PublicListingIntegrityListingId.Value;
+        _probe.PublicListingIntegritySensitiveValue.Should().NotBeNull();
+        string sensitiveValue =
+            _probe.PublicListingIntegritySensitiveValue!;
+
+        body.GetProperty("type").GetString().Should()
+            .Be("urn:realestate:error:server.unexpected");
+        body.GetProperty("title").GetString().Should()
+            .Be("Unexpected server error");
+        body.GetProperty("status").GetInt32().Should().Be(500);
+        body.GetProperty("detail").GetString().Should()
+            .Be("An unexpected error occurred.");
+        body.GetProperty("instance").GetString().Should().Be(
+            "/api/exception-boundary-test/public-listing-integrity-failure");
+        body.GetProperty("code").GetString().Should()
+            .Be("server.unexpected");
+        body.GetProperty("traceId").GetString().Should().Be(requestId);
+        responseText.Should().NotContain(listingId.ToString());
+        responseText.Should().NotContain("InvalidConfirmedLocation");
+        responseText.Should().NotContain(sensitiveValue);
+        responseText.Should().NotContain(
+            "publication integrity invariant");
+
+        CapturedLogEntry completion = GetSingleCompletion();
+        CapturedLogEntry error = GetSingleHandledException();
+        const string RouteTemplate =
+            "api/exception-boundary-test/public-listing-integrity-failure";
+
+        completion.Properties["Route"].Should().Be(RouteTemplate);
+        completion.Properties["StatusCode"].Should().Be(500);
+        error.Level.Should().Be(LogLevel.Error);
+        error.Exception.Should()
+            .BeOfType<PublicListingIntegrityException>();
+        error.Properties["RequestId"].Should().Be(requestId);
+        error.Properties["Method"].Should().Be("GET");
+        error.Properties["Route"].Should().Be(RouteTemplate);
+        error.Properties["StatusCode"].Should().Be(500);
+        error.Properties["ListingId"].Should().Be(listingId);
+        error.Properties["IntegrityViolationCodes"].Should()
+            .Be("InvalidConfirmedLocation");
+        error.Properties.Keys.Should().BeEquivalentTo(
+            "RequestId",
+            "Method",
+            "Route",
+            "StatusCode",
+            "ListingId",
+            "IntegrityViolationCodes",
+            "{OriginalFormat}");
+        error.ScopeProperties["RequestId"].Should().Be(requestId);
+        _logs.Entries.Should().NotContain(entry =>
+            entry.Category ==
+                "Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware" &&
+            entry.EventId.Id == 1);
+        AssertCustomLogsExclude(sensitiveValue);
     }
 
     [Fact]
@@ -498,6 +574,24 @@ public sealed class ExceptionBoundaryTestController : ControllerBase
         }
     }
 
+    [HttpGet("public-listing-integrity-failure")]
+    public IActionResult ThrowPublicListingIntegrityFailure(
+        ExceptionBoundaryTestProbe probe)
+    {
+        const string SensitiveProviderPayload =
+            " raw-provider-response-must-not-leak ";
+        Listing listing = StrongLocationListingTestFixtures
+            .CreateCorruptActiveForUnitTest(item =>
+                typeof(Listing)
+                    .GetProperty(nameof(Listing.GeocodingProviderKey))!
+                    .SetValue(item, SensitiveProviderPayload));
+        probe.PublicListingIntegrityListingId = listing.Id;
+        probe.PublicListingIntegritySensitiveValue =
+            SensitiveProviderPayload;
+
+        return Ok(listing.ToPublicResponse("en"));
+    }
+
     [HttpGet("response-started")]
     public async Task ThrowAfterResponseStarts()
     {
@@ -513,6 +607,10 @@ public sealed class ExceptionBoundaryTestController : ControllerBase
 
 public sealed class ExceptionBoundaryTestProbe
 {
+    public Guid? PublicListingIntegrityListingId { get; set; }
+
+    public string? PublicListingIntegritySensitiveValue { get; set; }
+
     public TaskCompletionSource CancellationStarted { get; } = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
 

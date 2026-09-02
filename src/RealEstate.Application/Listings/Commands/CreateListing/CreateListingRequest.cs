@@ -40,10 +40,6 @@ public sealed class CreateListingRequest
 
     public int? YearBuilt { get; set; }
 
-    public decimal? Latitude { get; set; }
-
-    public decimal? Longitude { get; set; }
-
     public CreateListingApartmentDetailsRequest? ApartmentDetails { get; set; }
 
     public CreateListingHouseDetailsRequest? HouseDetails { get; set; }

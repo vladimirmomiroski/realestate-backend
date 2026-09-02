@@ -121,46 +121,6 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task GetComparables_WithActiveSourceWithoutTranslation_ReturnsEmptyArray()
-    {
-        // Arrange
-        string currency =
-            CreateUniqueCurrency();
-
-        Guid sourceListingId =
-            await ListingTestHelpers.CreateListingAsync(
-                _httpClient,
-                currency: currency);
-
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            sourceListingId,
-            ListingStatus.Active);
-
-        await ListingTestHelpers.ReplaceListingTranslationsAsync(
-            _factory,
-            sourceListingId);
-
-        // Act
-        HttpResponseMessage response =
-            await _httpClient.GetAsync(
-                $"/api/listings/{sourceListingId}/comparables?lang=en");
-
-        JsonElement json =
-            await response.Content
-                .ReadFromJsonAsync<JsonElement>();
-
-        // Assert
-        response.StatusCode.Should().Be(
-            HttpStatusCode.OK);
-
-        json.ValueKind.Should().Be(
-            JsonValueKind.Array);
-
-        json.GetArrayLength().Should().Be(0);
-    }
-
-    [Fact]
     public async Task GetComparables_WithEligibleCandidate_ReturnsCandidateAndExcludesSource()
     {
         // Arrange
@@ -397,48 +357,6 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public async Task GetComparables_WithActiveSourceAndBlankCity_ReturnsEmptyArray(
-    string? city)
-    {
-        // Arrange
-        string currency =
-            CreateUniqueCurrency();
-
-        Guid sourceListingId =
-            await ListingTestHelpers.CreateListingAsync(
-                _httpClient,
-                price: 100_000m,
-                currency: currency,
-                areaSquareMeters: 100m);
-
-        await ListingTestHelpers.ReplaceListingTranslationsAsync(
-            _factory,
-            sourceListingId,
-            CreateComparableTranslation(
-                "en",
-                city));
-
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            sourceListingId,
-            ListingStatus.Active);
-
-        // Act
-        HttpResponseMessage response =
-            await _httpClient.GetAsync(
-                $"/api/listings/{sourceListingId}/comparables?lang=en");
-
-        Guid[] returnedIds =
-            await ReadComparableIdsAsync(response);
-
-        // Assert
-        returnedIds.Should().BeEmpty();
-    }
-
-    [Theory]
     [InlineData(0, 100)]
     [InlineData(-1, 100)]
     [InlineData(100_000, 0)]
@@ -481,75 +399,4 @@ public sealed partial class ListingsEndpointTests
         returnedIds.Should().BeEmpty();
     }
 
-    [Theory]
-    [InlineData(true, null)]
-    [InlineData(false, null)]
-    [InlineData(false, "")]
-    [InlineData(false, "   ")]
-    public async Task GetComparables_ExcludesCandidateWithoutTranslationOrNonblankCity(
-    bool removeTranslations,
-    string? invalidCity)
-    {
-        // Arrange
-        string currency =
-            CreateUniqueCurrency();
-
-        AuthenticatedTestUser owner =
-            await AuthTestHelpers.RegisterAndLoginAsync(
-                _httpClient);
-
-        Guid sourceId =
-            await CreateActiveComparableAsync(
-                owner,
-                currency,
-                price: 100_000m,
-                areaSquareMeters: 100m);
-
-        Guid controlCandidateId =
-            await CreateActiveComparableAsync(
-                owner,
-                currency,
-                price: 100_000m,
-                areaSquareMeters: 100m);
-
-        Guid invalidCandidateId =
-            await CreateActiveComparableAsync(
-                owner,
-                currency,
-                price: 100_000m,
-                areaSquareMeters: 100m);
-
-        if (removeTranslations)
-        {
-            await ListingTestHelpers.ReplaceListingTranslationsAsync(
-                _factory,
-                invalidCandidateId);
-        }
-        else
-        {
-            await ListingTestHelpers.ReplaceListingTranslationsAsync(
-                _factory,
-                invalidCandidateId,
-                CreateComparableTranslation(
-                    "en",
-                    invalidCity));
-        }
-
-        _httpClient.ClearAuthorization();
-
-        // Act
-        HttpResponseMessage response =
-            await _httpClient.GetAsync(
-                $"/api/listings/{sourceId}/comparables?lang=en&limit=12");
-
-        Guid[] returnedIds =
-            await ReadComparableIdsAsync(response);
-
-        // Assert
-        returnedIds.Should().Equal(
-            controlCandidateId);
-
-        returnedIds.Should().NotContain(
-            invalidCandidateId);
-    }
 }

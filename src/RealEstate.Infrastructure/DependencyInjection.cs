@@ -8,6 +8,7 @@ using RealEstate.Application.Common.Storage;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Infrastructure.Health;
+using RealEstate.Infrastructure.Geocoding.Geoapify;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
 using RealEstate.Infrastructure.Security;
@@ -19,7 +20,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        string environmentName,
+        Action<Microsoft.AspNetCore.DataProtection.IDataProtectionBuilder>?
+            configureDataProtectionKeyEncryptionAtRest = null)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException(
@@ -33,6 +37,9 @@ public static class DependencyInjection
             DatabaseReadinessProbe>();
 
         services.AddScoped<IListingRepository, ListingRepository>();
+        services.AddScoped<
+            IListingAuthoringRepository,
+            ListingAuthoringRepository>();
 
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
@@ -44,6 +51,13 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        services.AddLocationConfirmationDataProtection(
+            configuration,
+            environmentName,
+            configureDataProtectionKeyEncryptionAtRest);
+
+        services.AddGeoapifyGeocoding(configuration);
 
         return services;
     }

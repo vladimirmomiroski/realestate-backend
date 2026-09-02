@@ -5,6 +5,7 @@ using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Domain.Listings;
 using System.Data;
 using System.Data.Common;
 
@@ -141,17 +142,41 @@ public sealed class ListingRepository : IListingRepository
         {
             return new ComparableListingsReadResult(
                 false,
-                Array.Empty<Listing>());
+                Array.Empty<Listing>(),
+                Array.Empty<ListingPublicationReadinessViolation>());
         }
 
-        if (source.Price <= 0 ||
-            source.AreaSquareMeters <= 0 ||
-            source.LanguageCode is null ||
-            string.IsNullOrWhiteSpace(source.City))
+        if (source.LanguageCode is null)
         {
             return new ComparableListingsReadResult(
                 true,
-                Array.Empty<Listing>());
+                Array.Empty<Listing>(),
+                [
+                    new ListingPublicationReadinessViolation(
+                        ListingPublicationReadinessViolationCode.MissingTranslation,
+                        TranslationId: null)
+                ]);
+        }
+
+        if (string.IsNullOrWhiteSpace(source.City))
+        {
+            return new ComparableListingsReadResult(
+                true,
+                Array.Empty<Listing>(),
+                [
+                    new ListingPublicationReadinessViolation(
+                        ListingPublicationReadinessViolationCode.InvalidCity,
+                        TranslationId: null)
+                ]);
+        }
+
+        if (source.Price <= 0 ||
+            source.AreaSquareMeters <= 0)
+        {
+            return new ComparableListingsReadResult(
+                true,
+                Array.Empty<Listing>(),
+                Array.Empty<ListingPublicationReadinessViolation>());
         }
 
         string cityPattern =
@@ -339,7 +364,8 @@ public sealed class ListingRepository : IListingRepository
 
         return new ComparableListingsReadResult(
             true,
-            listings);
+            listings,
+            Array.Empty<ListingPublicationReadinessViolation>());
     }
 
     public async Task<Listing?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken)

@@ -33,10 +33,18 @@ public static class ErrorCodes
     public const string ConflictAgencySlugAlreadyExists =
         "conflict.agency_slug_already_exists";
     public const string ConflictResourceState = "conflict.resource_state";
+    public const string ConflictListingNotReady =
+        "conflict.listing_not_ready";
     public const string ConflictResourceCapacity =
         "conflict.resource_capacity";
     public const string ConflictResourceSetChanged =
         "conflict.resource_set_changed";
+
+    public const string DependencyGeocodingUnavailable =
+        "dependency.geocoding_unavailable";
+
+    public const string RateLimitGeocodingExceeded =
+        "rate_limit.geocoding_exceeded";
 
     public const string ServerUnexpected = "server.unexpected";
 
@@ -58,8 +66,11 @@ public static class ErrorCodes
         ConflictEmailAlreadyExists,
         ConflictAgencySlugAlreadyExists,
         ConflictResourceState,
+        ConflictListingNotReady,
         ConflictResourceCapacity,
         ConflictResourceSetChanged,
+        DependencyGeocodingUnavailable,
+        RateLimitGeocodingExceeded,
         ServerUnexpected
     }.ToFrozenSet(StringComparer.Ordinal);
 

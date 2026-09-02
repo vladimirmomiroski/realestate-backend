@@ -62,6 +62,12 @@ internal sealed record ApiFailureDescriptor(
         "Conflict",
         "The request conflicts with the current resource state.");
 
+    public static readonly ApiFailureDescriptor ListingNotReadyConflict = new(
+        StatusCodes.Status409Conflict,
+        ErrorCodes.ConflictListingNotReady,
+        "Conflict",
+        "The listing is not ready for publication.");
+
     public static readonly ApiFailureDescriptor ResourceCapacityConflict = new(
         StatusCodes.Status409Conflict,
         ErrorCodes.ConflictResourceCapacity,
@@ -91,6 +97,18 @@ internal sealed record ApiFailureDescriptor(
         ErrorCodes.RequestMediaTypeNotSupported,
         "Unsupported media type",
         "The request media type is not supported.");
+
+    public static readonly ApiFailureDescriptor GeocodingRateLimitExceeded = new(
+        StatusCodes.Status429TooManyRequests,
+        ErrorCodes.RateLimitGeocodingExceeded,
+        "Too many geocoding requests",
+        "Too many location requests were made. Try again later.");
+
+    public static readonly ApiFailureDescriptor GeocodingUnavailable = new(
+        StatusCodes.Status503ServiceUnavailable,
+        ErrorCodes.DependencyGeocodingUnavailable,
+        "Geocoding unavailable",
+        "Location search and confirmation are temporarily unavailable.");
 
     public static readonly ApiFailureDescriptor Unexpected = new(
         StatusCodes.Status500InternalServerError,
@@ -135,8 +153,13 @@ internal sealed record ApiFailureDescriptor(
             ErrorCodes.ConflictAgencySlugAlreadyExists =>
                 AgencySlugAlreadyExists,
             ErrorCodes.ConflictResourceState => ResourceStateConflict,
+            ErrorCodes.ConflictListingNotReady => ListingNotReadyConflict,
             ErrorCodes.ConflictResourceCapacity => ResourceCapacityConflict,
             ErrorCodes.ConflictResourceSetChanged => ResourceSetChangedConflict,
+            ErrorCodes.DependencyGeocodingUnavailable =>
+                GeocodingUnavailable,
+            ErrorCodes.RateLimitGeocodingExceeded =>
+                GeocodingRateLimitExceeded,
             ErrorCodes.ServerUnexpected => Unexpected,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(errorCode),

@@ -522,11 +522,11 @@ public sealed partial class AgenciesEndpointTests
             _factory,
             listingId,
             CreateCustomListingTranslation(
-                "\U00010000",
+                "sq",
                 "Supplementary Dashboard Title",
                 city: "Supplementary Dashboard City"),
             CreateCustomListingTranslation(
-                "\uE000",
+                "de",
                 "Private Use Dashboard Title",
                 city: "Private Use Dashboard City"));
 
@@ -543,7 +543,7 @@ public sealed partial class AgenciesEndpointTests
             HttpResponseMessage response =
                 await _httpClient.GetAsync(
                     $"/api/agencies/{agencyId}/dashboard/listings" +
-                    "?lang=de" +
+                    "?lang=fr" +
                     "&page=1" +
                     "&pageSize=1");
 
@@ -569,7 +569,7 @@ public sealed partial class AgenciesEndpointTests
                 .Should().Be(ListingStatus.Reserved);
 
             item.GetProperty("languageCode").GetString()
-                .Should().Be("\uE000");
+                .Should().Be("de");
 
             item.GetProperty("title").GetString()
                 .Should().Be("Private Use Dashboard Title");

@@ -97,17 +97,6 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    public async Task CreateListing_WithCoordinateDependency_ReturnsRequestValidation()
-    {
-        JsonObject request = CreateRequestNode();
-        request["longitude"] = null;
-
-        HttpResponseMessage response = await PostListingAsNewUserAsync(request);
-
-        await AssertValidationAsync(response, "/api/listings", "request");
-    }
-
-    [Fact]
     public async Task CreateListing_WithMissingNestedTranslationTitle_ReturnsJsonFacingKey()
     {
         JsonObject request = CreateRequestNode();
@@ -719,6 +708,9 @@ public sealed partial class ListingsEndpointTests
             ErrorCodes.ConflictResourceState => (
                 "Conflict",
                 "The request conflicts with the current resource state."),
+            ErrorCodes.ConflictListingNotReady => (
+                "Conflict",
+                "The listing is not ready for publication."),
             _ => throw new ArgumentOutOfRangeException(nameof(code), code, null)
         };
 

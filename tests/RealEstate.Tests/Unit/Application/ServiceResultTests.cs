@@ -75,6 +75,32 @@ public sealed class ServiceResultTests
     }
 
     [Fact]
+    public void GeocodingDependencyUnavailable_CarriesClosedTypedMetadata()
+    {
+        ServiceResult<string> result = ServiceResult<string>
+            .DependencyUnavailable(
+                "Internal provider diagnostics are not public.",
+                ErrorCodes.DependencyGeocodingUnavailable);
+
+        result.Status.Should().Be(ServiceResultStatus.DependencyUnavailable);
+        result.Value.Should().BeNull();
+        result.ErrorCode.Should().Be(
+            ErrorCodes.DependencyGeocodingUnavailable);
+    }
+
+    [Fact]
+    public void GeocodingRateLimited_CarriesClosedTypedMetadata()
+    {
+        ServiceResult<string> result = ServiceResult<string>.RateLimited(
+            "Internal provider diagnostics are not public.",
+            ErrorCodes.RateLimitGeocodingExceeded);
+
+        result.Status.Should().Be(ServiceResultStatus.RateLimited);
+        result.Value.Should().BeNull();
+        result.ErrorCode.Should().Be(ErrorCodes.RateLimitGeocodingExceeded);
+    }
+
+    [Fact]
     public void CodedFactory_RejectsCodeOutsideClosedCatalogue()
     {
         Action act = () => ServiceResult<string>.Conflict(
@@ -107,8 +133,11 @@ public sealed class ServiceResultTests
                 "conflict.email_already_exists",
                 "conflict.agency_slug_already_exists",
                 "conflict.resource_state",
+                "conflict.listing_not_ready",
                 "conflict.resource_capacity",
                 "conflict.resource_set_changed",
+                "dependency.geocoding_unavailable",
+                "rate_limit.geocoding_exceeded",
                 "server.unexpected"
             });
     }

@@ -6,6 +6,7 @@ using RealEstate.Tests.Integration.Auth;
 using System.Net.Http.Json;
 using System.Text.Json;
 using RealEstate.Domain.Entities;
+using RealEstate.Tests.Listings;
 
 namespace RealEstate.Tests.Integration.Listings;
 
@@ -85,9 +86,7 @@ internal static class ListingTestHelpers
         Guid? agencyId = null,
         string currency = "EUR",
         decimal areaSquareMeters = 58m,
-        decimal? rooms = 2m,
-        decimal? latitude = 41.9981m,
-        decimal? longitude = 21.4254m)
+        decimal? rooms = 2m)
     {
         return new
         {
@@ -117,8 +116,6 @@ internal static class ListingTestHelpers
             orientation = "SouthEast",
             yearRenovated = 2022,
             yearBuilt = 2015,
-            latitude,
-            longitude,
             translations = new[]
             {
                 new
@@ -167,8 +164,6 @@ internal static class ListingTestHelpers
             furnishingStatus = "SemiFurnished",
             condition = "Good",
             orientation = "South",
-            latitude = 41.9981m,
-            longitude = 21.4254m,
             apartmentDetails = (object?)null,
             houseDetails = new
             {
@@ -213,6 +208,13 @@ internal static class ListingTestHelpers
         RealEstateDbContext dbContext =
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
 
+        if (status == ListingStatus.Active)
+        {
+            await EnsureStrongLocationPublishableFixtureAsync(
+                dbContext,
+                listingId);
+        }
+
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
              UPDATE "Listings"
@@ -232,6 +234,13 @@ internal static class ListingTestHelpers
 
         RealEstateDbContext dbContext =
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        if (status == ListingStatus.Active)
+        {
+            await EnsureStrongLocationPublishableFixtureAsync(
+                dbContext,
+                listingId);
+        }
 
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
@@ -301,6 +310,23 @@ internal static class ListingTestHelpers
         RealEstateDbContext dbContext =
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
 
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync();
+        ListingStatus originalStatus = await dbContext.Listings
+            .Where(listing => listing.Id == listingId)
+            .Select(listing => listing.Status)
+            .SingleAsync();
+
+        if (originalStatus == ListingStatus.Active)
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "Listings"
+                 SET "Status" = 'Draft'
+                 WHERE "Id" = {listingId}
+                 """);
+        }
+
         await dbContext.Set<ListingTranslation>()
             .Where(translation =>
                 translation.ListingId == listingId)
@@ -309,6 +335,7 @@ internal static class ListingTestHelpers
         foreach (ListingTranslation translation in translations)
         {
             translation.ListingId = listingId;
+
         }
 
         if (translations.Length > 0)
@@ -318,6 +345,115 @@ internal static class ListingTestHelpers
 
             await dbContext.SaveChangesAsync();
         }
+
+        if (originalStatus == ListingStatus.Active)
+        {
+            await EnsureStrongLocationPublishableFixtureAsync(
+                dbContext,
+                listingId);
+
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "Listings"
+                 SET "Status" = 'Active'
+                 WHERE "Id" = {listingId}
+                 """);
+        }
+
+        await transaction.CommitAsync();
+    }
+
+    public static async Task SetLegacyCoordinatesAsync(
+        CustomWebApplicationFactory factory,
+        Guid listingId,
+        decimal latitude,
+        decimal longitude)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             UPDATE "Listings"
+             SET "Latitude" = {latitude},
+                 "Longitude" = {longitude}
+             WHERE "Id" = {listingId}
+             """);
+    }
+
+    public static async Task PrepareStrongLocationPublishableDraftAsync(
+        CustomWebApplicationFactory factory,
+        Guid listingId)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        await EnsureStrongLocationPublishableFixtureAsync(
+            dbContext,
+            listingId);
+    }
+
+    private static async Task EnsureStrongLocationPublishableFixtureAsync(
+        RealEstateDbContext dbContext,
+        Guid listingId)
+    {
+        Listing listing = await dbContext.Listings
+            .Include(item => item.Translations)
+            .SingleAsync(item => item.Id == listingId);
+
+        if (listing.Status == ListingStatus.Active)
+        {
+            if (!IsStrongLocationPublishableFixture(listing))
+            {
+                throw new InvalidOperationException(
+                    "An existing Active fixture must already contain complete strong-location truth.");
+            }
+
+            return;
+        }
+
+        if (listing.Translations.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "A valid Active fixture requires at least one translation.");
+        }
+
+        foreach (ListingTranslation translation in listing.Translations)
+        {
+            translation.City ??= "Integration fixture city";
+            translation.Municipality ??= "Integration fixture municipality";
+            translation.AddressLine ??= "Integration fixture address";
+            translation.Description ??=
+                "Integration fixture description";
+        }
+
+        StrongLocationListingTestFixtures
+            .AttachTrustedTestOnlyConfirmedLocation(listing);
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static bool IsStrongLocationPublishableFixture(Listing listing)
+    {
+        return listing.Translations.Count > 0 &&
+               listing.Translations.All(translation =>
+                   !string.IsNullOrWhiteSpace(translation.LanguageCode) &&
+                   !string.IsNullOrWhiteSpace(translation.Title) &&
+                   !string.IsNullOrWhiteSpace(translation.City) &&
+                   !string.IsNullOrWhiteSpace(translation.Municipality) &&
+                   !string.IsNullOrWhiteSpace(translation.AddressLine) &&
+                   !string.IsNullOrWhiteSpace(translation.Description)) &&
+               listing.Latitude.HasValue &&
+               listing.Longitude.HasValue &&
+               listing.LocationPrecision.HasValue &&
+               !string.IsNullOrWhiteSpace(listing.GeocodingProviderKey) &&
+               !string.IsNullOrWhiteSpace(
+                   listing.GeocodingResultReference) &&
+               listing.LocationConfirmedAtUtc.HasValue;
     }
 
     private static async Task<Guid> PostListingAndReturnIdAsync(

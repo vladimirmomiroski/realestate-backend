@@ -50,6 +50,12 @@ public sealed class ListingResponse
 
     public decimal? Longitude { get; set; }
 
+    public LocationPrecision? LocationPrecision { get; set; }
+
+    public string? GeocodedDisplayName { get; set; }
+
+    public DateTime? LocationConfirmedAtUtc { get; set; }
+
     public string? LanguageCode { get; set; }
 
     public string? Title { get; set; }

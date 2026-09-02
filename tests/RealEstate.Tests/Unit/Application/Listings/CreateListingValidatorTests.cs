@@ -35,6 +35,31 @@ public sealed class CreateListingValidatorTests
     }
 
     [Fact]
+    public void CreateContract_DoesNotExposeCoordinateAuthoring()
+    {
+        typeof(CreateListingRequest).GetProperties()
+            .Select(property => property.Name)
+            .Should().NotContain(
+            [
+                "Latitude",
+                "Longitude",
+                "LocationPrecision",
+                "GeocodingProviderKey",
+                "GeocodingResultReference",
+                "GeocodedDisplayName",
+                "LocationConfirmedAtUtc"
+            ]);
+
+        typeof(CreateListingValidator).GetFields()
+            .Select(field => field.Name)
+            .Should().NotContain([
+                "CoordinatePairError",
+                "LatitudeOutOfRangeError",
+                "LongitudeOutOfRangeError"
+            ]);
+    }
+
+    [Fact]
     public void Validate_ShouldReturnError_WhenPriceIsZero()
     {
         // Arrange
@@ -234,129 +259,6 @@ public sealed class CreateListingValidatorTests
 
         // Assert
         result.Should().Be("Year renovated cannot be earlier than year built.");
-    }
-
-    [Fact]
-    public void Validate_ShouldReturnNull_WhenBothCoordinatesAreNull()
-    {
-        // Arrange
-        CreateListingRequest request =
-            CreateValidApartmentRequest();
-
-        request.Latitude = null;
-        request.Longitude = null;
-
-        // Act
-        string? result =
-            _validator.Validate(request);
-
-        // Assert
-        result.Should().BeNull();
-    }
-
-    [Theory]
-    [InlineData(-90, -180)]
-    [InlineData(90, 180)]
-    [InlineData(0, 0)]
-    public void Validate_ShouldReturnNull_WhenCoordinatesAreWithinRange(
-    int latitude,
-    int longitude)
-    {
-        // Arrange
-        CreateListingRequest request =
-            CreateValidApartmentRequest();
-
-        request.Latitude = latitude;
-        request.Longitude = longitude;
-
-        // Act
-        string? result =
-            _validator.Validate(request);
-
-        // Assert
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public void Validate_ShouldReturnError_WhenOnlyLatitudeIsProvided()
-    {
-        // Arrange
-        CreateListingRequest request =
-            CreateValidApartmentRequest();
-
-        request.Latitude = 41.9981m;
-        request.Longitude = null;
-
-        // Act
-        string? result =
-            _validator.Validate(request);
-
-        // Assert
-        result.Should().Be(
-            CreateListingValidator.CoordinatePairError);
-    }
-
-    [Fact]
-    public void Validate_ShouldReturnError_WhenOnlyLongitudeIsProvided()
-    {
-        // Arrange
-        CreateListingRequest request =
-            CreateValidApartmentRequest();
-
-        request.Latitude = null;
-        request.Longitude = 21.4254m;
-
-        // Act
-        string? result =
-            _validator.Validate(request);
-
-        // Assert
-        result.Should().Be(
-            CreateListingValidator.CoordinatePairError);
-    }
-
-    [Theory]
-    [InlineData(-91)]
-    [InlineData(91)]
-    public void Validate_ShouldReturnError_WhenLatitudeIsOutsideRange(
-    int latitude)
-    {
-        // Arrange
-        CreateListingRequest request =
-            CreateValidApartmentRequest();
-
-        request.Latitude = latitude;
-        request.Longitude = 21.4254m;
-
-        // Act
-        string? result =
-            _validator.Validate(request);
-
-        // Assert
-        result.Should().Be(
-            CreateListingValidator.LatitudeOutOfRangeError);
-    }
-
-    [Theory]
-    [InlineData(-181)]
-    [InlineData(181)]
-    public void Validate_ShouldReturnError_WhenLongitudeIsOutsideRange(
-    int longitude)
-    {
-        // Arrange
-        CreateListingRequest request =
-            CreateValidApartmentRequest();
-
-        request.Latitude = 41.9981m;
-        request.Longitude = longitude;
-
-        // Act
-        string? result =
-            _validator.Validate(request);
-
-        // Assert
-        result.Should().Be(
-            CreateListingValidator.LongitudeOutOfRangeError);
     }
 
     [Theory]

@@ -1,39 +1,139 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Listings;
 
 namespace RealEstate.Infrastructure.Persistence.Configurations;
 
 public class ListingTranslationConfiguration : IEntityTypeConfiguration<ListingTranslation>
 {
+    public const string LanguageCodeConstraintName =
+        "CK_ListingTranslations_LanguageCode_Canonical";
+
+    public const string TitleConstraintName =
+        "CK_ListingTranslations_Title_TrimmedNonBlank";
+
+    public const string CityConstraintName =
+        "CK_ListingTranslations_City_TrimmedNonBlank";
+
+    public const string DescriptionConstraintName =
+        "CK_ListingTranslations_Description_TrimmedNonBlank";
+
+    public const string AddressLineConstraintName =
+        "CK_ListingTranslations_AddressLine_TrimmedNonBlank";
+
+    public const string MunicipalityConstraintName =
+        "CK_ListingTranslations_Municipality_TrimmedNonBlank";
+
+    public const string NeighborhoodConstraintName =
+        "CK_ListingTranslations_Neighborhood_TrimmedNonBlank";
+
+    private const string PostgreSqlLanguageCodePattern =
+        "^[a-z]{2,3}(-[a-z0-9]{2,8})*$";
+
+    private static readonly string PostgreSqlBoundaryWhitespaceExpression =
+        string.Join(
+            " || ",
+            ListingTranslationRules.BoundaryWhitespaceCharacters
+                .Select(character => $"chr({(int)character})"));
+
     public void Configure(EntityTypeBuilder<ListingTranslation> builder)
     {
-        builder.ToTable("ListingTranslations");
+        builder.ToTable(
+            "ListingTranslations",
+            tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint(
+                    LanguageCodeConstraintName,
+                    $"""
+                    "LanguageCode" <> ''
+                    AND "LanguageCode" = btrim("LanguageCode", {PostgreSqlBoundaryWhitespaceExpression})
+                    AND "LanguageCode" = lower("LanguageCode")
+                    AND "LanguageCode" ~ '{PostgreSqlLanguageCodePattern}'
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    TitleConstraintName,
+                    $"""
+                    "Title" <> ''
+                    AND "Title" = btrim("Title", {PostgreSqlBoundaryWhitespaceExpression})
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    CityConstraintName,
+                    $"""
+                    "City" IS NULL
+                    OR (
+                        "City" <> ''
+                        AND "City" = btrim("City", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    DescriptionConstraintName,
+                    $"""
+                    "Description" IS NULL
+                    OR (
+                        "Description" <> ''
+                        AND "Description" = btrim("Description", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    AddressLineConstraintName,
+                    $"""
+                    "AddressLine" IS NULL
+                    OR (
+                        "AddressLine" <> ''
+                        AND "AddressLine" = btrim("AddressLine", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    MunicipalityConstraintName,
+                    $"""
+                    "Municipality" IS NULL
+                    OR (
+                        "Municipality" <> ''
+                        AND "Municipality" = btrim("Municipality", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+
+                tableBuilder.HasCheckConstraint(
+                    NeighborhoodConstraintName,
+                    $"""
+                    "Neighborhood" IS NULL
+                    OR (
+                        "Neighborhood" <> ''
+                        AND "Neighborhood" = btrim("Neighborhood", {PostgreSqlBoundaryWhitespaceExpression})
+                    )
+                    """);
+            });
 
         builder.HasKey(translation => translation.Id);
 
         builder.Property(translation => translation.LanguageCode)
-            .HasMaxLength(10)
+            .HasMaxLength(ListingTranslationRules.LanguageCodeMaxLength)
             .IsRequired();
 
         builder.Property(translation => translation.Title)
-            .HasMaxLength(200)
+            .HasMaxLength(ListingTranslationRules.TitleMaxLength)
             .IsRequired();
 
         builder.Property(translation => translation.Description)
-            .HasMaxLength(3000);
+            .HasMaxLength(ListingTranslationRules.DescriptionMaxLength);
 
         builder.Property(translation => translation.AddressLine)
-            .HasMaxLength(300);
+            .HasMaxLength(ListingTranslationRules.AddressLineMaxLength);
 
         builder.Property(translation => translation.City)
-            .HasMaxLength(100);
+            .HasMaxLength(ListingTranslationRules.LocationMaxLength);
 
         builder.Property(translation => translation.Municipality)
-            .HasMaxLength(100);
+            .HasMaxLength(ListingTranslationRules.LocationMaxLength);
 
         builder.Property(translation => translation.Neighborhood)
-            .HasMaxLength(100);
+            .HasMaxLength(ListingTranslationRules.LocationMaxLength);
 
         builder.HasIndex(translation => new
         {

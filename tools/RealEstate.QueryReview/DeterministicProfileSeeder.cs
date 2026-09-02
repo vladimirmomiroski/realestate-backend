@@ -2,12 +2,18 @@ using Npgsql;
 
 namespace RealEstate.QueryReview;
 
+internal sealed record ListingPhysicalProfile(long HeapBytes, long HeapPages);
+
+internal sealed record ListingPhysicalNormalizationResult(
+    ListingPhysicalProfile Before,
+    ListingPhysicalProfile After);
+
 internal static class DeterministicProfileSeeder
 {
     public const int CSharpSeed = 1_042_001;
     public const double PostgreSqlSeed = 0.1042001;
     public const int ListingCount = 100_000;
-    public const string ProfileVersion = "chapter-10f-v1";
+    public const string ProfileVersion = "chapter-10f-v2";
     public const string ComparableSourceId = "40000000-0000-0000-0000-000000000bb9";
 
     public static async Task<ProfileVerificationResult> CreateAsync(
@@ -16,6 +22,10 @@ internal static class DeterministicProfileSeeder
     {
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
+        await EnsurePublicationIntegritySchemaAsync(
+            connection,
+            transaction,
+            cancellationToken);
         await EnsureProfileTablesAreEmptyAsync(connection, transaction, cancellationToken);
         await ExecuteAsync(connection, transaction, "SELECT setseed(0.1042001);", cancellationToken);
         await ExecuteAsync(connection, transaction, SeedUsersAndAgenciesSql, cancellationToken);
@@ -23,16 +33,149 @@ internal static class DeterministicProfileSeeder
         await ExecuteAsync(connection, transaction, SeedTranslationsSql, cancellationToken);
         await ExecuteAsync(connection, transaction, SeedDetailsSql, cancellationToken);
         await ExecuteAsync(connection, transaction, SeedImagesSql, cancellationToken);
+        await ExecuteAsync(
+            connection,
+            transaction,
+            AttachTrustedTestOnlyConfirmedLocationsSql,
+            cancellationToken);
+        await EnsureIntendedActiveAggregatesReadyAsync(
+            connection,
+            transaction,
+            cancellationToken);
+        await ExecuteAsync(connection, transaction, ApplyIntendedStatusesSql, cancellationToken);
+        await EnsureFinalActiveAggregatesValidAsync(
+            connection,
+            transaction,
+            cancellationToken);
 
         var verification = await ProfileInvariants.VerifyAsync(
             connection,
             transaction,
             cancellationToken);
+        var strongActiveVerification = await ProfileInvariants.VerifyStrongActiveAsync(
+            connection,
+            transaction,
+            cancellationToken);
+        var coordinateOwnershipVerification =
+            await ProfileInvariants.VerifyCoordinateOwnershipAsync(
+                connection,
+                transaction,
+                cancellationToken);
 
         verification.EnsureValid();
+        strongActiveVerification.EnsureValid();
+        coordinateOwnershipVerification.EnsureValid();
         await transaction.CommitAsync(cancellationToken);
 
         return verification;
+    }
+
+    public static async Task<ListingPhysicalNormalizationResult> NormalizePhysicalProfileAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await ReadListingPhysicalProfileAsync(connection, cancellationToken);
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandTimeout = 600;
+            command.CommandText = "VACUUM (FULL, ANALYZE) public.\"Listings\";";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var after = await ReadListingPhysicalProfileAsync(connection, cancellationToken);
+        return new ListingPhysicalNormalizationResult(before, after);
+    }
+
+    private static async Task<ListingPhysicalProfile> ReadListingPhysicalProfileAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT pg_relation_size('public."Listings"'::regclass),
+                   ceil(pg_relation_size('public."Listings"'::regclass) / 8192.0)::bigint;
+            """;
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new ProfileInvariantException(
+                "PostgreSQL returned no Listings physical-profile measurement.");
+        }
+
+        return new ListingPhysicalProfile(reader.GetInt64(0), reader.GetInt64(1));
+    }
+
+    private static async Task EnsurePublicationIntegritySchemaAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = PublicationIntegritySchemaSql;
+
+        var isInstalledAndEnabled =
+            (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+
+        if (!isInstalledAndEnabled)
+        {
+            throw new ProfileInvariantException(
+                "The query-review profile requires the Chapter 13 translation checks and " +
+                "enabled J.4 Active-integrity triggers.");
+        }
+    }
+
+    private static Task EnsureIntendedActiveAggregatesReadyAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        return EnsureNoAggregateViolationsAsync(
+            connection,
+            transaction,
+            IntendedActiveAggregateValidationSql,
+            "Intended Active query-review aggregates are not publication-ready",
+            cancellationToken);
+    }
+
+    private static Task EnsureFinalActiveAggregatesValidAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        return EnsureNoAggregateViolationsAsync(
+            connection,
+            transaction,
+            FinalActiveAggregateValidationSql,
+            "Final Active query-review aggregates violate publication integrity",
+            cancellationToken);
+    }
+
+    private static async Task EnsureNoAggregateViolationsAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string sql,
+        string failurePrefix,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandTimeout = 300;
+        command.CommandText = sql;
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        string? diagnostics = result as string;
+
+        if (diagnostics is not null)
+        {
+            throw new ProfileInvariantException(
+                $"{failurePrefix}: {diagnostics}.");
+        }
     }
 
     private static async Task EnsureProfileTablesAreEmptyAsync(
@@ -79,6 +222,244 @@ internal static class DeterministicProfileSeeder
         command.CommandText = sql;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    private const string PublicationIntegritySchemaSql = """
+        WITH expected_triggers("Name", "TableName") AS
+        (
+            VALUES
+                ('TR_Listings_ActivePublicationIntegrity_Insert', 'Listings'),
+                ('TR_Listings_ActivePublicationIntegrity_Update', 'Listings'),
+                ('TR_ListingTranslations_ActiveFreeze_Insert', 'ListingTranslations'),
+                ('TR_ListingTranslations_ActiveFreeze_Update', 'ListingTranslations'),
+                ('TR_ListingTranslations_ActiveFreeze_Delete', 'ListingTranslations')
+        ),
+        installed_triggers AS
+        (
+            SELECT trigger.tgenabled
+            FROM pg_catalog.pg_trigger AS trigger
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = trigger.tgrelid
+            JOIN pg_catalog.pg_namespace AS schema
+              ON schema.oid = relation.relnamespace
+            JOIN expected_triggers AS expected
+              ON expected."Name" = trigger.tgname
+             AND expected."TableName" = relation.relname
+            WHERE schema.nspname = 'public'
+              AND NOT trigger.tgisinternal
+        ),
+        expected_constraints("Name") AS
+        (
+            VALUES
+                ('CK_ListingTranslations_City_TrimmedNonBlank'),
+                ('CK_ListingTranslations_Description_TrimmedNonBlank'),
+                ('CK_ListingTranslations_LanguageCode_Canonical'),
+                ('CK_ListingTranslations_Title_TrimmedNonBlank'),
+                ('CK_ListingTranslations_AddressLine_TrimmedNonBlank'),
+                ('CK_ListingTranslations_Municipality_TrimmedNonBlank')
+        ),
+        installed_constraints AS
+        (
+            SELECT db_constraint.convalidated
+            FROM pg_catalog.pg_constraint AS db_constraint
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = db_constraint.conrelid
+            JOIN pg_catalog.pg_namespace AS schema
+              ON schema.oid = relation.relnamespace
+            JOIN expected_constraints AS expected
+              ON expected."Name" = db_constraint.conname
+            WHERE schema.nspname = 'public'
+              AND relation.relname = 'ListingTranslations'
+              AND db_constraint.contype = 'c'
+        )
+        SELECT
+            (SELECT count(*) = 5
+                    AND bool_and(tgenabled IN ('O', 'A'))
+             FROM installed_triggers)
+            AND
+            (SELECT count(*) = 6
+                    AND bool_and(convalidated)
+             FROM installed_constraints);
+        """;
+
+    private const string IntendedActiveAggregateValidationSql = """
+        WITH settings AS MATERIALIZED
+        (
+            SELECT
+                chr(9) || chr(10) || chr(11) || chr(12) || chr(13) ||
+                chr(32) || chr(133) || chr(160) || chr(5760) ||
+                chr(8192) || chr(8193) || chr(8194) || chr(8195) ||
+                chr(8196) || chr(8197) || chr(8198) || chr(8199) ||
+                chr(8200) || chr(8201) || chr(8202) || chr(8232) ||
+                chr(8233) || chr(8239) || chr(8287) || chr(12288)
+                    AS boundary_whitespace
+        ),
+        invalid AS
+        (
+            SELECT staged."ListingId"
+            FROM pg_temp."QueryReviewIntendedListingStatuses" AS staged
+            INNER JOIN public."Listings" AS listing
+              ON listing."Id" = staged."ListingId"
+            CROSS JOIN settings
+            WHERE staged."IntendedStatus" = 'Active'
+              AND (
+                  NOT EXISTS (
+                      SELECT 1
+                      FROM public."ListingTranslations" AS translation
+                      WHERE translation."ListingId" = listing."Id"
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM public."ListingTranslations" AS translation
+                      WHERE translation."ListingId" = listing."Id"
+                        AND (
+                            translation."City" IS NULL
+                            OR translation."Municipality" IS NULL
+                            OR translation."AddressLine" IS NULL
+                            OR translation."Description" IS NULL
+                            OR translation."Municipality" = ''
+                            OR translation."Municipality" <>
+                                btrim(
+                                    translation."Municipality",
+                                    settings.boundary_whitespace)
+                            OR translation."AddressLine" = ''
+                            OR translation."AddressLine" <>
+                                btrim(
+                                    translation."AddressLine",
+                                    settings.boundary_whitespace)
+                        )
+                  )
+                  OR listing."Latitude" IS NULL
+                  OR listing."Longitude" IS NULL
+                  OR listing."Latitude" NOT BETWEEN -90 AND 90
+                  OR listing."Longitude" NOT BETWEEN -180 AND 180
+                  OR listing."LocationPrecision" IS NULL
+                  OR listing."LocationPrecision" NOT IN (
+                      'ExactAddress', 'Street', 'Neighborhood',
+                      'Municipality', 'City', 'Approximate')
+                  OR listing."GeocodingProviderKey" IS NULL
+                  OR listing."GeocodingProviderKey" = ''
+                  OR char_length(listing."GeocodingProviderKey") > 64
+                  OR listing."GeocodingProviderKey" <>
+                      btrim(
+                          listing."GeocodingProviderKey",
+                          settings.boundary_whitespace)
+                  OR listing."GeocodingResultReference" IS NULL
+                  OR listing."GeocodingResultReference" = ''
+                  OR char_length(listing."GeocodingResultReference") > 512
+                  OR listing."GeocodingResultReference" <>
+                      btrim(
+                          listing."GeocodingResultReference",
+                          settings.boundary_whitespace)
+                  OR (
+                      listing."GeocodedDisplayName" IS NOT NULL
+                      AND (
+                          listing."GeocodedDisplayName" = ''
+                          OR char_length(listing."GeocodedDisplayName") > 500
+                          OR listing."GeocodedDisplayName" <>
+                              btrim(
+                                  listing."GeocodedDisplayName",
+                                  settings.boundary_whitespace)
+                      )
+                  )
+                  OR listing."LocationConfirmedAtUtc" IS NULL
+              )
+            ORDER BY staged."ListingId"
+            LIMIT 10
+        )
+        SELECT string_agg(
+            "ListingId"::text,
+            '; ' ORDER BY "ListingId")
+        FROM invalid;
+        """;
+
+    private const string FinalActiveAggregateValidationSql = """
+        WITH settings AS MATERIALIZED
+        (
+            SELECT
+                chr(9) || chr(10) || chr(11) || chr(12) || chr(13) ||
+                chr(32) || chr(133) || chr(160) || chr(5760) ||
+                chr(8192) || chr(8193) || chr(8194) || chr(8195) ||
+                chr(8196) || chr(8197) || chr(8198) || chr(8199) ||
+                chr(8200) || chr(8201) || chr(8202) || chr(8232) ||
+                chr(8233) || chr(8239) || chr(8287) || chr(12288)
+                    AS boundary_whitespace
+        ),
+        invalid AS
+        (
+            SELECT listing."Id" AS "ListingId"
+            FROM public."Listings" AS listing
+            CROSS JOIN settings
+            WHERE listing."Status" = 'Active'
+              AND (
+                  NOT EXISTS (
+                      SELECT 1
+                      FROM public."ListingTranslations" AS translation
+                      WHERE translation."ListingId" = listing."Id"
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM public."ListingTranslations" AS translation
+                      WHERE translation."ListingId" = listing."Id"
+                        AND (
+                            translation."City" IS NULL
+                            OR translation."Municipality" IS NULL
+                            OR translation."AddressLine" IS NULL
+                            OR translation."Description" IS NULL
+                            OR translation."Municipality" = ''
+                            OR translation."Municipality" <>
+                                btrim(
+                                    translation."Municipality",
+                                    settings.boundary_whitespace)
+                            OR translation."AddressLine" = ''
+                            OR translation."AddressLine" <>
+                                btrim(
+                                    translation."AddressLine",
+                                    settings.boundary_whitespace)
+                        )
+                  )
+                  OR listing."Latitude" IS NULL
+                  OR listing."Longitude" IS NULL
+                  OR listing."Latitude" NOT BETWEEN -90 AND 90
+                  OR listing."Longitude" NOT BETWEEN -180 AND 180
+                  OR listing."LocationPrecision" IS NULL
+                  OR listing."LocationPrecision" NOT IN (
+                      'ExactAddress', 'Street', 'Neighborhood',
+                      'Municipality', 'City', 'Approximate')
+                  OR listing."GeocodingProviderKey" IS NULL
+                  OR listing."GeocodingProviderKey" = ''
+                  OR char_length(listing."GeocodingProviderKey") > 64
+                  OR listing."GeocodingProviderKey" <>
+                      btrim(
+                          listing."GeocodingProviderKey",
+                          settings.boundary_whitespace)
+                  OR listing."GeocodingResultReference" IS NULL
+                  OR listing."GeocodingResultReference" = ''
+                  OR char_length(listing."GeocodingResultReference") > 512
+                  OR listing."GeocodingResultReference" <>
+                      btrim(
+                          listing."GeocodingResultReference",
+                          settings.boundary_whitespace)
+                  OR (
+                      listing."GeocodedDisplayName" IS NOT NULL
+                      AND (
+                          listing."GeocodedDisplayName" = ''
+                          OR char_length(listing."GeocodedDisplayName") > 500
+                          OR listing."GeocodedDisplayName" <>
+                              btrim(
+                                  listing."GeocodedDisplayName",
+                                  settings.boundary_whitespace)
+                      )
+                  )
+                  OR listing."LocationConfirmedAtUtc" IS NULL
+              )
+            ORDER BY listing."Id"
+            LIMIT 10
+        )
+        SELECT string_agg(
+            "ListingId"::text,
+            '; ' ORDER BY "ListingId")
+        FROM invalid;
+        """;
 
     private const string SeedUsersAndAgenciesSql = """
         INSERT INTO "Users"
@@ -144,38 +525,52 @@ internal static class DeterministicProfileSeeder
         """;
 
     private const string SeedListingsSql = """
+        CREATE TEMP TABLE "QueryReviewIntendedListingStatuses"
+        ON COMMIT DROP
+        AS
+        SELECT i AS "Sequence",
+               ('40000000-0000-0000-0000-' ||
+                lpad(to_hex(i), 12, '0'))::uuid AS "ListingId",
+               CASE
+                   WHEN i BETWEEN 1 AND 70000 THEN 'Active'
+                   WHEN i BETWEEN 70001 AND 76000 THEN 'Draft'
+                   WHEN i BETWEEN 76001 AND 82000 THEN 'Archived'
+                   WHEN i BETWEEN 82001 AND 88000 THEN 'Reserved'
+                   WHEN i BETWEEN 88001 AND 94000 THEN 'Sold'
+                   ELSE 'Rented'
+               END AS "IntendedStatus"
+        FROM generate_series(1, 100000) AS series(i);
+
         WITH source AS
         (
-            SELECT i,
+            SELECT staged."Sequence" AS i,
+                   staged."ListingId" AS listing_id,
                    CASE
-                       WHEN i BETWEEN 1 AND 70000 THEN 'Active'
-                       WHEN i BETWEEN 70001 AND 76000 THEN 'Draft'
-                       WHEN i BETWEEN 76001 AND 82000 THEN 'Archived'
-                       WHEN i BETWEEN 82001 AND 88000 THEN 'Reserved'
-                       WHEN i BETWEEN 88001 AND 94000 THEN 'Sold'
-                       ELSE 'Rented'
-                   END AS status,
-                   CASE
-                       WHEN i BETWEEN 3001 AND 3031 THEN 'Rent'
-                       WHEN i BETWEEN 3033 AND 3061 AND mod(i, 2) = 1 THEN 'Sale'
-                       WHEN mod(i, 2) = 0 THEN 'Sale'
+                       WHEN staged."Sequence" BETWEEN 3001 AND 3031 THEN 'Rent'
+                       WHEN staged."Sequence" BETWEEN 3033 AND 3061
+                            AND mod(staged."Sequence", 2) = 1 THEN 'Sale'
+                       WHEN mod(staged."Sequence", 2) = 0 THEN 'Sale'
                        ELSE 'Rent'
                    END AS listing_type,
                    CASE
-                       WHEN i BETWEEN 3001 AND 3031 THEN 'Apartment'
-                       WHEN i BETWEEN 3101 AND 3129 AND mod(i, 4) IN (1, 2) THEN 'House'
-                       WHEN mod(((i - 1) / 2), 2) = 0 THEN 'Apartment'
+                       WHEN staged."Sequence" BETWEEN 3001 AND 3031 THEN 'Apartment'
+                       WHEN staged."Sequence" BETWEEN 3101 AND 3129
+                            AND mod(staged."Sequence", 4) IN (1, 2) THEN 'House'
+                       WHEN mod(((staged."Sequence" - 1) / 2), 2) = 0
+                           THEN 'Apartment'
                        ELSE 'House'
                    END AS property_type,
                    CASE
-                       WHEN i BETWEEN 3001 AND 3031 THEN 'EUR'
-                       WHEN i BETWEEN 3202 AND 3229 AND mod(i, 3) = 1 THEN 'USD'
-                       WHEN i BETWEEN 3232 AND 3259 AND mod(i, 3) = 1 THEN 'MKD'
-                       WHEN mod(i, 3) = 1 THEN 'EUR'
-                       WHEN mod(i, 3) = 2 THEN 'USD'
+                       WHEN staged."Sequence" BETWEEN 3001 AND 3031 THEN 'EUR'
+                       WHEN staged."Sequence" BETWEEN 3202 AND 3229
+                            AND mod(staged."Sequence", 3) = 1 THEN 'USD'
+                       WHEN staged."Sequence" BETWEEN 3232 AND 3259
+                            AND mod(staged."Sequence", 3) = 1 THEN 'MKD'
+                       WHEN mod(staged."Sequence", 3) = 1 THEN 'EUR'
+                       WHEN mod(staged."Sequence", 3) = 2 THEN 'USD'
                        ELSE 'MKD'
                    END AS currency
-            FROM generate_series(1, 100000) AS series(i)
+            FROM pg_temp."QueryReviewIntendedListingStatuses" AS staged
         )
         INSERT INTO "Listings"
         (
@@ -185,7 +580,7 @@ internal static class DeterministicProfileSeeder
             "FurnishingStatus", "Condition", "YearRenovated", "Orientation", "YearBuilt",
             "Latitude", "Longitude", "CreatedAtUtc", "ModifiedAtUtc"
         )
-        SELECT ('40000000-0000-0000-0000-' || lpad(to_hex(i), 12, '0'))::uuid,
+        SELECT listing_id,
                CASE
                    WHEN mod(i, 2) = 0
                        THEN '10000000-0000-0000-0000-000000000065'::uuid
@@ -199,7 +594,7 @@ internal static class DeterministicProfileSeeder
                END,
                listing_type,
                property_type,
-               status,
+               'Draft',
                CASE
                    WHEN i = 3001 THEN 200000
                    WHEN i BETWEEN 3002 AND 3031 THEN
@@ -255,6 +650,63 @@ internal static class DeterministicProfileSeeder
                END,
                NULL
         FROM source;
+        """;
+
+    private const string ApplyIntendedStatusesSql = """
+        UPDATE public."Listings" AS listing
+        SET "Status" = staged."IntendedStatus"
+        FROM pg_temp."QueryReviewIntendedListingStatuses" AS staged
+        WHERE listing."Id" = staged."ListingId"
+          AND listing."Status" IS DISTINCT FROM staged."IntendedStatus";
+        """;
+
+    private const string AttachTrustedTestOnlyConfirmedLocationsSql = """
+        UPDATE public."Listings" AS listing
+        SET "Latitude" = CASE
+                WHEN staged."IntendedStatus" = 'Active' THEN
+                    coalesce(
+                        listing."Latitude",
+                        41.000000 + mod(staged."Sequence", 1000) * 0.000001)
+                ELSE NULL
+            END,
+            "Longitude" = CASE
+                WHEN staged."IntendedStatus" = 'Active' THEN
+                    coalesce(
+                        listing."Longitude",
+                        21.000000 + mod(staged."Sequence", 1000) * 0.000001)
+                ELSE NULL
+            END,
+            "LocationPrecision" = CASE
+                WHEN staged."IntendedStatus" = 'Active' THEN 'Approximate'
+                ELSE NULL
+            END,
+            "GeocodingProviderKey" = CASE
+                WHEN staged."IntendedStatus" = 'Active'
+                    THEN 'query-review-trusted-test-only'
+                ELSE NULL
+            END,
+            "GeocodingResultReference" = CASE
+                WHEN staged."IntendedStatus" = 'Active' THEN
+                    format(
+                        'query-review-trusted-test-only:%s',
+                        lpad(to_hex(staged."Sequence"), 12, '0'))
+                ELSE NULL
+            END,
+            "GeocodedDisplayName" = NULL,
+            "LocationConfirmedAtUtc" = CASE
+                WHEN staged."IntendedStatus" = 'Active'
+                    THEN '2026-01-01T00:00:00Z'::timestamptz
+                ELSE NULL
+            END
+        FROM pg_temp."QueryReviewIntendedListingStatuses" AS staged
+        WHERE listing."Id" = staged."ListingId"
+          AND (
+              staged."IntendedStatus" = 'Active'
+              OR (
+                  staged."Sequence" BETWEEN 70001 AND 87500
+                  AND mod(staged."Sequence", 5) <> 0
+              )
+          );
         """;
 
     private const string SeedTranslationsSql = """

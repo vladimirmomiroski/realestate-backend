@@ -97,6 +97,18 @@ public sealed partial class AgenciesEndpointTests
         returnedListingId.Should().NotBe(secondAgencyListingId);
 
         items[0].GetProperty("agencyId").GetGuid().Should().Be(firstAgencyId);
+        items[0].GetProperty("languageCode").GetString().Should().Be("en");
+        items[0].GetProperty("title").GetString().Should()
+            .Be("Integration test apartment");
+        items[0].GetProperty("city").GetString().Should().Be("Skopje");
+        items[0].GetProperty("municipality").GetString().Should().Be("Centar");
+        items[0].GetProperty("addressLine").GetString().Should().Be("Center");
+        items[0].GetProperty("description").GetString().Should()
+            .Be("Test listing created from integration tests.");
+        items[0].GetProperty("latitude").GetDecimal().Should().Be(41.9981m);
+        items[0].GetProperty("longitude").GetDecimal().Should().Be(21.4254m);
+        items[0].GetProperty("locationPrecision").GetString().Should()
+            .Be("ExactAddress");
     }
 
     [Theory]
@@ -413,11 +425,11 @@ public sealed partial class AgenciesEndpointTests
             _factory,
             listingId,
             CreateCustomListingTranslation(
-                "\U00010000",
+                "sq",
                 "Supplementary Title",
                 city: "Supplementary City"),
             CreateCustomListingTranslation(
-                "\uE000",
+                "de",
                 "Private Use Title",
                 city: "Private Use City"));
 
@@ -432,7 +444,7 @@ public sealed partial class AgenciesEndpointTests
         HttpResponseMessage response =
             await _httpClient.GetAsync(
                 $"/api/agencies/{agencyId}/listings" +
-                "?lang=de" +
+                "?lang=fr" +
                 $"&currency={currency}" +
                 "&page=1" +
                 "&pageSize=20");
@@ -454,11 +466,13 @@ public sealed partial class AgenciesEndpointTests
         item.GetProperty("id").GetGuid().Should().Be(listingId);
         item.GetProperty("agencyId").GetGuid().Should().Be(agencyId);
         item.GetProperty("languageCode").GetString()
-            .Should().Be("\uE000");
+            .Should().Be("de");
         item.GetProperty("title").GetString()
             .Should().Be("Private Use Title");
         item.GetProperty("city").GetString()
             .Should().Be("Private Use City");
+        item.GetProperty("description").GetString()
+            .Should().Be("Private Use Title description");
     }
 
     [Fact]

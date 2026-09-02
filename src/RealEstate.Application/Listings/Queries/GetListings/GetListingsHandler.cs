@@ -19,7 +19,7 @@ public sealed class GetListingsHandler
         _validator = validator;
     }
 
-    public async Task<ServiceResult<PagedResponse<ListingResponse>>> HandleAsync(
+    public async Task<ServiceResult<PagedResponse<PublicListingResponse>>> HandleAsync(
         GetListingsQuery query,
         CancellationToken cancellationToken)
     {
@@ -59,7 +59,7 @@ public sealed class GetListingsHandler
 
         if (validationError is not null)
         {
-            return ServiceResult<PagedResponse<ListingResponse>>
+            return ServiceResult<PagedResponse<PublicListingResponse>>
                 .ValidationError(
                     validationError.Error,
                     validationError.Key,
@@ -70,7 +70,7 @@ public sealed class GetListingsHandler
                 query.Sort,
                 out ListingSortOption sortOption))
         {
-            return ServiceResult<PagedResponse<ListingResponse>>
+            return ServiceResult<PagedResponse<PublicListingResponse>>
                 .ValidationError(
                     GetListingsValidator.InvalidSortError,
                     "sort",
@@ -84,12 +84,12 @@ public sealed class GetListingsHandler
                 query,
                 cancellationToken);
 
-        PagedResponse<ListingResponse> response =
-            PagedResponse<ListingResponse>.From(
+        PagedResponse<PublicListingResponse> response =
+            PagedResponse<PublicListingResponse>.From(
                 pagedListings,
-                listing => listing.ToResponse(query.LanguageCode));
+                listing => listing.ToPublicResponse(query.LanguageCode));
 
-        return ServiceResult<PagedResponse<ListingResponse>>
+        return ServiceResult<PagedResponse<PublicListingResponse>>
             .Success(response);
     }
 

@@ -12,7 +12,7 @@
 | Builds | The query-review project and the complete solution build with **0 warnings and 0 errors**. |
 | Implemented domains | Authentication/users, user avatars, listings and multilingual discovery, listing images, agencies, memberships, invitations, agency dashboards, and platform-admin agency transitions. |
 | Completed outcome | The backend now exposes stable success DTOs, one documented failure contract, deliberate conflict semantics, diagnosable requests, truthful health/readiness, one pagination contract, reliable local media delivery, structurally tested OpenAPI, and environment-driven frontend configuration. |
-| Next product phase | Frontend foundation and implementation. Chapter 12 establishes the supported frontend integration baseline; it does not certify every production deployment, account-security, media-durability, or monitoring concern. |
+| Historical next-phase decision at Chapter 12 closeout | Frontend foundation and implementation was the then-current plan. The owner later sequenced completed Chapter 13, then Chapters 14 and 15, then a full backend-to-frontend handoff/reconciliation before frontend integration. Chapter 12 still establishes its supported frontend integration baseline; it does not certify every production deployment, account-security, media-durability, or monitoring concern. |
 
 ## 2. Original problem statement
 
@@ -36,7 +36,7 @@ Default host logging was configured, but production code had no deliberate struc
 
 ### Configuration gaps
 
-The four development frontend origins were hard-coded in `Program.cs`; static files executed before CORS. Only `src/RealEstate.Api/wwroot/.gitkeep` was tracked, while runtime storage targeted `wwwroot/uploads`; ignored local directories could therefore hide clean-checkout static-media failure. The base `appsettings.json` JWT placeholder remains a verified deployment-safety gap, but account/security configuration is assigned to Chapter 13 or deployment work and is explicitly retained rather than made a Chapter 12 frontend blocker.
+The four development frontend origins were hard-coded in `Program.cs`; static files executed before CORS. Only `src/RealEstate.Api/wwroot/.gitkeep` was tracked, while runtime storage targeted `wwwroot/uploads`; ignored local directories could therefore hide clean-checkout static-media failure. The base `appsettings.json` JWT placeholder remains a verified deployment-safety gap. The historical Chapter 13 assignment was later superseded: account/security configuration is provisionally Chapter 16 or explicit deployment work and remains outside the Chapter 12 frontend contract.
 
 ### Presentation-only inconsistencies
 
@@ -236,21 +236,21 @@ Tests and OpenAPI change in the same checkpoint as runtime behavior. Before Chap
 | Cursor pagination | Deferred despite Chapter 10's direct Chapter 12 assignment. Offset pagination is implemented, deterministic after 12K, and adequate without scale/UX evidence. Cursor design is sort-specific and breaking. | Later search/scaling chapter after frontend evidence. |
 | Broad optimistic concurrency and in-flight authorization freshness (`CH11-STATE-01`) | Retained. Chapter 12 maps known outcomes and validates the request principal; it does not add tokens or a global freshness framework. | Owner-approved per-aggregate work. |
 | Required listing creator and blanket database checks (`CH11-DB-01`, `CH11-DB-02`) | Retained. Both require deployed-data audit, policy, and migrations; neither is an API-contract dependency. | Separate owner-approved data/migration checkpoints. |
-| Durable post-commit file deletion (`CH11-FILE-01`) | Retained. Generic 500/log/trace makes failure diagnosable but cannot make cross-resource deletion recoverable. | Chapter 14 or separate media reconciliation/outbox work. |
+| Durable post-commit file deletion (`CH11-FILE-01`) | Retained. Generic 500/log/trace makes failure diagnosable but cannot make cross-resource deletion recoverable. | Separate future media reconciliation/outbox work. |
 | Storage readiness probe | Rejected for Chapter 12. A truthful local write probe has side effects and the service can serve non-media APIs while storage is impaired. | Reassess with deployment/object-storage architecture. |
 | Cloud/object storage, CDN, absolute media URLs, cache policy | Local storage and relative URLs remain accepted for frontend development. | Deployment/media chapter. |
 | File signatures, malware scanning, image transformation | No verified product requirement; do not hide security/media platform work inside response cleanup. | Later media/security work. |
-| Background invitation expiry or write-on-read | Effective presentation solves the frontend inconsistency without mutation. | Chapter 14 if persisted expiry processing becomes necessary. |
-| Invitation email delivery/notification jobs | Not an API-consistency prerequisite. | Chapter 14. |
-| Refresh tokens, logout/revocation, password reset, email verification, disabled-login blocking, key rotation | Existing auth lifecycle is preserved. | Chapter 13. |
-| Base JWT placeholder and production secret validation | Verified deployment blocker, but not required for the current Bearer-header frontend integration contract. It is not silently certified by Chapter 12. | Chapter 13 or explicit deployment-hardening checkpoint before production launch. |
+| Background invitation expiry or write-on-read | Effective presentation solves the frontend inconsistency without mutation. | Future background-job work if persisted expiry processing becomes necessary. |
+| Invitation email delivery/notification jobs | Not an API-consistency prerequisite. | Future background-job work; currently unnumbered. |
+| Refresh tokens, logout/revocation, password reset, email verification, disabled-login blocking, key rotation | Existing auth lifecycle is preserved. | Provisional Chapter 16; exact security scope must be replanned when reached. |
+| Base JWT placeholder and production secret validation | Verified deployment blocker, but not required for the current Bearer-header frontend integration contract. It is not silently certified by Chapter 12. | Provisional Chapter 16 or explicit deployment-hardening checkpoint before production launch. |
 | Vendor logging, metrics, traces, dashboards, alerts, audit trail | Chapter 12 provides structured logs and IDs only. No deployment target or vendor is chosen. | Deployment/operations work. |
 | Client-supplied correlation ID | Server ID is sufficient and avoids trust/length/character policy now. | Later distributed-tracing requirement. |
 | Transaction-cleanup exception preservation | The handoff issue predates the global boundary; once cleanup replaces an exception, middleware cannot recover it. Do not expand 12B into transaction refactoring. | Related future transaction hardening. |
 | Avatar/logo/listing cross-media compensation redesign | Chapter 12 governs public failure translation and preserves existing Chapter 11 guarantees; it does not redesign every cleanup ordering edge. | Focused media hardening if evidence warrants. |
 | Concurrency-test task draining and test-only raw SQL cleanup | Low-priority test hygiene unrelated to the Chapter 12 contract. | Related test maintenance. |
 | Success envelopes, API versioning, HAL/JSON:API, generic repository, UnitOfWork, MediatR, AutoMapper, FluentValidation | Rejected as unnecessary architecture/contract churn. | None without a new approved requirement. |
-| Frontend implementation | Explicit non-goal. | Starts after Chapter 12. |
+| Frontend implementation | Explicit non-goal. | The historical immediate-after-Chapter-12 plan was superseded; current sequencing completes Chapters 14 and 15 and a full backend handoff/reconciliation first. |
 | Full production-launch certification | TLS/reverse proxy, `AllowedHosts`, secrets manager, rate limiting, account security, durable media, and monitoring remain outside this chapter. | Deployment and later chapters. |
 
 Public agency visibility, role permissions, listing visibility, invitation credentials, search semantics, and other established business decisions remain unchanged unless a checkpoint explicitly names the presentation/status change.
@@ -1046,7 +1046,7 @@ Chapter 12P reconciled the live handoff from 11 issues to 8. Four issues were re
 | `CH11-API-01` | Removed | 12D and 12J prove exact normalized-email and agency-slug race translation while retaining database constraints. |
 | `CH11-API-02` | Removed | 12A–12I establish the canonical failure contract; 12O structurally verifies its OpenAPI schemas and headers. |
 | `CH11-API-03` | Removed | 12K unifies HTTP pagination on `PagedResponse<T>` and 12O proves one generated listing pagination schema. |
-| `C12-CONFIG-01` | Added and retained | Base JWT placeholder relocation/validation remains Chapter 13 or deployment-hardening work and is not certified by the frontend-readiness closeout. |
+| `C12-CONFIG-01` | Added and retained | Base JWT placeholder relocation/validation remains provisional Chapter 16 or deployment-hardening work and is not certified by the frontend-readiness closeout. |
 
 The retained entries remain substantive. Chapter 12 completion does not imply their resolution.
 
@@ -1070,7 +1070,7 @@ The retained entries remain substantive. Chapter 12 completion does not imply th
 
 Cursor pagination, refresh/revocation/password recovery, background notifications/expiry, cloud storage/CDN, durable media deletion, media scanning/transformation, client-supplied distributed correlation, metrics/exporters/alerts, broader concurrency tokens, and production deployment certification.
 
-Frontend foundation and implementation may now begin. It must branch on HTTP status and `code`, not English `detail`, and must treat a `traceId`/`X-Request-ID` as a support identifier rather than a security credential.
+At Chapter 12 closeout, frontend foundation and implementation was allowed to begin under the then-current roadmap. That sequencing was later superseded: current work completes Chapters 14 and 15 and then the full backend handoff/reconciliation before frontend integration. When frontend integration begins, it must branch on HTTP status and `code`, not English `detail`, and must treat a `traceId`/`X-Request-ID` as a support identifier rather than a security credential.
 
 ## 12. Observability boundary
 
@@ -1203,14 +1203,14 @@ Chapter 12 is complete. The following gates are satisfied:
 13. `docs/backend-context.md` documents the supported frontend contract and next phase, and stale/conflicting statements are corrected.
 14. Final diff/Git checks are clean, no secret/upload/generated artifact is tracked, documentation agrees, and no unrelated work is present.
 
-The backend context now marks Chapter 12 complete and frontend foundation and implementation as the next product phase.
+At Chapter 12 closeout, the backend context marked Chapter 12 complete and frontend foundation/implementation as the then-next phase. That historical sequencing was later superseded; current `backend-context.md` makes Chapter 14 next, Chapter 15 subsequent, and the full backend handoff/reconciliation the gate before frontend integration.
 
 ## 16. Completed documentation closeout
 
 12P updates exactly these permanent tracked documents, based on actual results:
 
 - `docs/chapters/chapter-12-api-consistency-observability-frontend-readiness.md`: status, completed checkpoint record, actual test/migration/model/OpenAPI/config evidence, final contract, and retained deferrals.
-- `docs/backend-context.md`: Chapter 12 completion/lasting API, auth, pagination, invitation, observability, health, CORS/media/config rules; correct the stale earlier statement about listing-image status checks; make frontend development next/current.
+- `docs/backend-context.md`: Chapter 12 completion/lasting API, auth, pagination, invitation, observability, health, CORS/media/config rules; correct the stale earlier statement about listing-image status checks. The original instruction to make frontend development next/current is historical and superseded by the owner-approved Chapter 14 -> Chapter 15 -> full backend handoff sequence.
 - `docs/backend-quality-handoff.md`: remove only the four proven resolved entries identified in section 10; retain the transaction, test-hygiene, DB, broad-state, and durable-file items with accurate post-Chapter 12 wording; add/retain `C12-CONFIG-01` for the base JWT placeholder until Chapter 13/deployment hardening resolves it.
 
 `RealEstate.Api.http` is updated in 12O as implementation evidence, not deferred to closeout. README expansion is not required by this chapter because the tested OpenAPI, request sample, backend context, and chapter document own the relevant contract. Closeout performs no production/test fix.

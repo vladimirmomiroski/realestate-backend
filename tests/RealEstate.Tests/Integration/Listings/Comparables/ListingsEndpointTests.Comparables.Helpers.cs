@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
@@ -19,7 +20,9 @@ public sealed partial class ListingsEndpointTests
     AuthenticatedTestUser owner,
     object request,
     string title,
-    DateTime createdAtUtc)
+    DateTime createdAtUtc,
+    decimal? latitude = null,
+    decimal? longitude = null)
     {
         Guid listingId;
 
@@ -58,6 +61,14 @@ public sealed partial class ListingsEndpointTests
                 neighborhood: "Center",
                 title: title));
 
+        if (latitude.HasValue || longitude.HasValue)
+        {
+            await SetComparableCoordinatesAsync(
+                listingId,
+                latitude,
+                longitude);
+        }
+
         await ListingTestHelpers
             .SetListingStatusAndCreatedAtUtcAsync(
                 _factory,
@@ -66,6 +77,24 @@ public sealed partial class ListingsEndpointTests
                 createdAtUtc);
 
         return listingId;
+    }
+
+    private async Task SetComparableCoordinatesAsync(
+        Guid listingId,
+        decimal? latitude,
+        decimal? longitude)
+    {
+        if (!latitude.HasValue || !longitude.HasValue)
+        {
+            throw new ArgumentException(
+                "Comparable legacy coordinates must be supplied as a pair.");
+        }
+
+        await ListingTestHelpers.SetLegacyCoordinatesAsync(
+            _factory,
+            listingId,
+            latitude.Value,
+            longitude.Value);
     }
 
     private async Task<Guid> CreateComparableAgencyWithOwnerAsync(
@@ -146,8 +175,8 @@ public sealed partial class ListingsEndpointTests
     decimal price,
     decimal areaSquareMeters,
     string city = "Skopje",
-    string municipality = "Centar",
-    string neighborhood = "Center",
+    string? municipality = "Centar",
+    string? neighborhood = "Center",
     DateTime? createdAtUtc = null)
     {
         Guid listingId =
@@ -238,7 +267,8 @@ public sealed partial class ListingsEndpointTests
         string title,
         string city,
         string municipality,
-        string neighborhood)
+        string neighborhood,
+        string description = "Comparable test description")
     {
         item.GetProperty("languageCode")
             .GetString()
@@ -250,6 +280,11 @@ public sealed partial class ListingsEndpointTests
             .Should()
             .Be(title);
 
+        item.GetProperty("description")
+            .GetString()
+            .Should()
+            .Be(description);
+
         item.GetProperty("city")
             .GetString()
             .Should()
@@ -259,6 +294,11 @@ public sealed partial class ListingsEndpointTests
             .GetString()
             .Should()
             .Be(municipality);
+
+        item.GetProperty("addressLine")
+            .GetString()
+            .Should()
+            .Be("Comparable address");
 
         item.GetProperty("neighborhood")
             .GetString()

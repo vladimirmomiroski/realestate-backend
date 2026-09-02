@@ -299,10 +299,11 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task GetComparables_BlankMunicipalityDoesNotEarnTierZeroOrOne(
-    bool blankOnSource)
+    [InlineData("Centar", "Karpos")]
+    [InlineData("Karpos", "Centar")]
+    public async Task GetComparables_DifferentMunicipalityDoesNotEarnTierZeroOrOne(
+        string sourceMunicipality,
+        string candidateMunicipality)
     {
         // Arrange
         string currency =
@@ -311,11 +312,6 @@ public sealed partial class ListingsEndpointTests
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(
                 _httpClient);
-
-        string sourceMunicipality =
-            blankOnSource
-                ? "   "
-                : "Centar";
 
         Guid sourceId =
             await CreateActiveComparableAsync(
@@ -326,13 +322,13 @@ public sealed partial class ListingsEndpointTests
                 municipality: sourceMunicipality,
                 neighborhood: "Center");
 
-        Guid blankMunicipalityCandidateId =
+        Guid differentMunicipalityCandidateId =
             await CreateActiveComparableAsync(
                 owner,
                 currency,
                 price: 120_000m,
                 areaSquareMeters: 120m,
-                municipality: "   ",
+                municipality: candidateMunicipality,
                 neighborhood: "Center");
 
         Guid sameCorrectTierControlId =
@@ -341,7 +337,7 @@ public sealed partial class ListingsEndpointTests
                 currency,
                 price: 101_000m,
                 areaSquareMeters: 101m,
-                municipality: "Karpos",
+                municipality: "Aerodrom",
                 neighborhood: "Vlae");
 
         _httpClient.ClearAuthorization();
@@ -357,14 +353,14 @@ public sealed partial class ListingsEndpointTests
         // Assert
         returnedIds.Should().Equal(
             sameCorrectTierControlId,
-            blankMunicipalityCandidateId);
+            differentMunicipalityCandidateId);
     }
 
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task GetComparables_BlankNeighborhoodDoesNotEarnTierZero(
-    bool blankOnSource)
+    public async Task GetComparables_MissingNeighborhoodDoesNotEarnTierZero(
+    bool missingOnSource)
     {
         // Arrange
         string currency =
@@ -374,9 +370,9 @@ public sealed partial class ListingsEndpointTests
             await AuthTestHelpers.RegisterAndLoginAsync(
                 _httpClient);
 
-        string sourceNeighborhood =
-            blankOnSource
-                ? "   "
+        string? sourceNeighborhood =
+            missingOnSource
+                ? null
                 : "Center";
 
         Guid sourceId =
@@ -388,14 +384,14 @@ public sealed partial class ListingsEndpointTests
                 municipality: "Centar",
                 neighborhood: sourceNeighborhood);
 
-        Guid blankNeighborhoodCandidateId =
+        Guid missingNeighborhoodCandidateId =
             await CreateActiveComparableAsync(
                 owner,
                 currency,
                 price: 120_000m,
                 areaSquareMeters: 120m,
                 municipality: "Centar",
-                neighborhood: "   ");
+                neighborhood: null);
 
         Guid sameCorrectTierControlId =
             await CreateActiveComparableAsync(
@@ -419,7 +415,7 @@ public sealed partial class ListingsEndpointTests
         // Assert
         returnedIds.Should().Equal(
             sameCorrectTierControlId,
-            blankNeighborhoodCandidateId);
+            missingNeighborhoodCandidateId);
     }
 
     [Fact]

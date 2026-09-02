@@ -266,6 +266,18 @@ namespace RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("Unknown");
 
+                    b.Property<string>("GeocodedDisplayName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("GeocodingProviderKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("GeocodingResultReference")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
                     b.Property<bool?>("HasBasement")
                         .HasColumnType("boolean");
 
@@ -287,6 +299,13 @@ namespace RealEstate.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("LocationConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LocationPrecision")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<decimal?>("Longitude")
                         .HasPrecision(9, 6)
@@ -335,7 +354,24 @@ namespace RealEstate.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
-                    b.ToTable("Listings", (string)null);
+                    b.ToTable("Listings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Listings_Location_CoordinatePair", "(\n    \"Latitude\" IS NULL\n    AND \"Longitude\" IS NULL\n)\nOR (\n    \"Latitude\" IS NOT NULL\n    AND \"Longitude\" IS NOT NULL\n)");
+
+                            t.HasCheckConstraint("CK_Listings_Location_DisplayNameTrimmedNonBlank", "\"GeocodedDisplayName\" IS NULL\nOR (\n    \"GeocodedDisplayName\" <> ''\n    AND \"GeocodedDisplayName\" = btrim(\"GeocodedDisplayName\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\n)");
+
+                            t.HasCheckConstraint("CK_Listings_Location_LatitudeRange", "\"Latitude\" IS NULL OR \"Latitude\" BETWEEN -90 AND 90");
+
+                            t.HasCheckConstraint("CK_Listings_Location_LongitudeRange", "\"Longitude\" IS NULL OR \"Longitude\" BETWEEN -180 AND 180");
+
+                            t.HasCheckConstraint("CK_Listings_Location_PrecisionDefined", "\"LocationPrecision\" IS NULL\nOR \"LocationPrecision\" IN (\n    'ExactAddress',\n    'Street',\n    'Neighborhood',\n    'Municipality',\n    'City',\n    'Approximate')");
+
+                            t.HasCheckConstraint("CK_Listings_Location_ProviderKeyTrimmedNonBlank", "\"GeocodingProviderKey\" IS NULL\nOR (\n    \"GeocodingProviderKey\" <> ''\n    AND \"GeocodingProviderKey\" = btrim(\"GeocodingProviderKey\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\n)");
+
+                            t.HasCheckConstraint("CK_Listings_Location_ResultReferenceTrimmedNonBlank", "\"GeocodingResultReference\" IS NULL\nOR (\n    \"GeocodingResultReference\" <> ''\n    AND \"GeocodingResultReference\" = btrim(\"GeocodingResultReference\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\n)");
+
+                            t.HasCheckConstraint("CK_Listings_Location_SnapshotState", "(\n    \"Latitude\" IS NULL\n    AND \"Longitude\" IS NULL\n    AND \"LocationPrecision\" IS NULL\n    AND \"GeocodingProviderKey\" IS NULL\n    AND \"GeocodingResultReference\" IS NULL\n    AND \"GeocodedDisplayName\" IS NULL\n    AND \"LocationConfirmedAtUtc\" IS NULL\n)\nOR (\n    \"Latitude\" IS NOT NULL\n    AND \"Longitude\" IS NOT NULL\n    AND (\n        (\n            \"LocationPrecision\" IS NULL\n            AND \"GeocodingProviderKey\" IS NULL\n            AND \"GeocodingResultReference\" IS NULL\n            AND \"GeocodedDisplayName\" IS NULL\n            AND \"LocationConfirmedAtUtc\" IS NULL\n        )\n        OR (\n            \"LocationPrecision\" IS NOT NULL\n            AND \"GeocodingProviderKey\" IS NOT NULL\n            AND \"GeocodingResultReference\" IS NOT NULL\n            AND \"LocationConfirmedAtUtc\" IS NOT NULL\n        )\n    )\n)");
+                        });
                 });
 
             modelBuilder.Entity("RealEstate.Domain.Entities.ListingApartmentDetails", b =>
@@ -493,7 +529,22 @@ namespace RealEstate.Infrastructure.Persistence.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Title", "City", "Municipality", "Neighborhood"), "gin");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Title", "City", "Municipality", "Neighborhood"), new[] { "gin_trgm_ops", "gin_trgm_ops", "gin_trgm_ops", "gin_trgm_ops" });
 
-                    b.ToTable("ListingTranslations", (string)null);
+                    b.ToTable("ListingTranslations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ListingTranslations_AddressLine_TrimmedNonBlank", "\"AddressLine\" IS NULL\r\nOR (\r\n    \"AddressLine\" <> ''\r\n    AND \"AddressLine\" = btrim(\"AddressLine\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\r\n)");
+
+                            t.HasCheckConstraint("CK_ListingTranslations_City_TrimmedNonBlank", "\"City\" IS NULL\r\nOR (\r\n    \"City\" <> ''\r\n    AND \"City\" = btrim(\"City\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\r\n)");
+
+                            t.HasCheckConstraint("CK_ListingTranslations_Description_TrimmedNonBlank", "\"Description\" IS NULL\r\nOR (\r\n    \"Description\" <> ''\r\n    AND \"Description\" = btrim(\"Description\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\r\n)");
+
+                            t.HasCheckConstraint("CK_ListingTranslations_LanguageCode_Canonical", "\"LanguageCode\" <> ''\r\nAND \"LanguageCode\" = btrim(\"LanguageCode\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\r\nAND \"LanguageCode\" = lower(\"LanguageCode\")\r\nAND \"LanguageCode\" ~ '^[a-z]{2,3}(-[a-z0-9]{2,8})*$'");
+
+                            t.HasCheckConstraint("CK_ListingTranslations_Municipality_TrimmedNonBlank", "\"Municipality\" IS NULL\r\nOR (\r\n    \"Municipality\" <> ''\r\n    AND \"Municipality\" = btrim(\"Municipality\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\r\n)");
+
+                            t.HasCheckConstraint("CK_ListingTranslations_Neighborhood_TrimmedNonBlank", "\"Neighborhood\" IS NULL\r\nOR (\r\n    \"Neighborhood\" <> ''\r\n    AND \"Neighborhood\" = btrim(\"Neighborhood\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))\r\n)");
+
+                            t.HasCheckConstraint("CK_ListingTranslations_Title_TrimmedNonBlank", "\"Title\" <> ''\r\nAND \"Title\" = btrim(\"Title\", chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32) || chr(133) || chr(160) || chr(5760) || chr(8192) || chr(8193) || chr(8194) || chr(8195) || chr(8196) || chr(8197) || chr(8198) || chr(8199) || chr(8200) || chr(8201) || chr(8202) || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288))");
+                        });
                 });
 
             modelBuilder.Entity("RealEstate.Domain.Entities.User", b =>

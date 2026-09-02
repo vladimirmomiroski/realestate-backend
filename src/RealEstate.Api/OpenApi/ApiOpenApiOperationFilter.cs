@@ -16,7 +16,7 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
     private const int MaximumImageSizeBytes = 5 * 1024 * 1024;
 
     private static readonly string[] CanonicalProblemStatuses =
-        ["401", "403", "404", "409", "500"];
+        ["401", "403", "404", "409", "429", "500", "503"];
 
     public void Apply(
         OpenApiOperation operation,
@@ -39,6 +39,7 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
 
         EnsureResponse(operation, "500", "Internal Server Error");
         ApplyCanonicalFailures(operation, context);
+        ApplyPublishDocumentation(operation, context);
         ApplyPaginationDocumentation(operation);
         ApplyMultipartDocumentation(operation);
         ApplyHealthDocumentation(operation, context);
@@ -134,6 +135,28 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
         };
     }
 
+    private static void ApplyPublishDocumentation(
+        OpenApiOperation operation,
+        OperationFilterContext context)
+    {
+        if (context.ApiDescription.ActionDescriptor is not ControllerActionDescriptor controller ||
+            !controller.ActionName.Equals("PublishListing", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        OpenApiResponses responses = GetResponses(operation);
+
+        if (responses.TryGetValue("409", out IOpenApiResponse? response) &&
+            response is OpenApiResponse conflict)
+        {
+            conflict.Description =
+                "Conflict. `conflict.resource_state`: The request conflicts with " +
+                "the current resource state. `conflict.listing_not_ready`: " +
+                "The listing is not ready for publication.";
+        }
+    }
+
     private static void ApplyResponseHeaders(OpenApiOperation operation)
     {
         OpenApiResponses responses = GetResponses(operation);
@@ -163,6 +186,21 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
                     Schema = new OpenApiSchema
                     {
                         Type = JsonSchemaType.String
+                    }
+                };
+            }
+
+            if (status == "429")
+            {
+                response.Headers["Retry-After"] = new OpenApiHeader
+                {
+                    Description =
+                        "Application rate-limit delay in seconds when the limiter " +
+                        "provides a deterministic replenishment interval.",
+                    Schema = new OpenApiSchema
+                    {
+                        Type = JsonSchemaType.Integer,
+                        Minimum = "0"
                     }
                 };
             }
@@ -328,7 +366,9 @@ public sealed class ApiOpenApiOperationFilter : IOperationFilter
             "403" => "Forbidden",
             "404" => "Not Found",
             "409" => "Conflict",
+            "429" => "Too Many Requests",
             "500" => "Internal Server Error",
+            "503" => "Service Unavailable",
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }

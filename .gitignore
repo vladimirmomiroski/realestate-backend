@@ -486,3 +486,7 @@ $RECYCLE.BIN/
 
 # Local uploaded listing images
 src/RealEstate.Api/wwwroot/uploads/
+
+# Planning
+
+docs/planning/

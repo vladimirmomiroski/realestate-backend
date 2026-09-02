@@ -24,7 +24,7 @@ public sealed class GetAgencyListingsHandler
         _getListingsValidator = getListingsValidator;
     }
 
-    public async Task<ServiceResult<PagedResponse<ListingResponse>>> HandleAsync(
+    public async Task<ServiceResult<PagedResponse<PublicListingResponse>>> HandleAsync(
         GetAgencyListingsQuery query,
         CancellationToken cancellationToken)
     {
@@ -43,7 +43,7 @@ public sealed class GetAgencyListingsHandler
 
         if (validationFailure is not null)
         {
-            return ServiceResult<PagedResponse<ListingResponse>>
+            return ServiceResult<PagedResponse<PublicListingResponse>>
                 .ValidationError(
                     validationFailure.Error,
                     validationFailure.Key,
@@ -54,7 +54,7 @@ public sealed class GetAgencyListingsHandler
                 listingsQuery.Sort,
                 out ListingSortOption sortOption))
         {
-            return ServiceResult<PagedResponse<ListingResponse>>
+            return ServiceResult<PagedResponse<PublicListingResponse>>
                 .ValidationError(
                     GetListingsValidator.InvalidSortError,
                     "sort",
@@ -69,7 +69,7 @@ public sealed class GetAgencyListingsHandler
 
         if (!agencyExists)
         {
-            return ServiceResult<PagedResponse<ListingResponse>>.NotFound(
+            return ServiceResult<PagedResponse<PublicListingResponse>>.NotFound(
                 "Agency was not found.",
                 ErrorCodes.ResourceNotFound);
         }
@@ -79,13 +79,13 @@ public sealed class GetAgencyListingsHandler
                 listingsQuery,
                 cancellationToken);
 
-        PagedResponse<ListingResponse> response =
-            PagedResponse<ListingResponse>.From(
+        PagedResponse<PublicListingResponse> response =
+            PagedResponse<PublicListingResponse>.From(
                 listings,
                 listing =>
-                    listing.ToResponse(listingsQuery.LanguageCode));
+                    listing.ToPublicResponse(listingsQuery.LanguageCode));
 
-        return ServiceResult<PagedResponse<ListingResponse>>
+        return ServiceResult<PagedResponse<PublicListingResponse>>
             .Success(response);
     }
 

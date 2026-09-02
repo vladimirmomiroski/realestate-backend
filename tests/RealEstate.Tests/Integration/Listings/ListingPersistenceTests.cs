@@ -42,6 +42,8 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
             dbContext.Listings.Add(listing);
 
             await dbContext.SaveChangesAsync();
+            listing.Publish();
+            await dbContext.SaveChangesAsync();
 
             listingId = listing.Id;
             agencyId = agency.Id;
@@ -62,6 +64,17 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
             savedListing.Agency!.Id.Should().Be(agencyId);
             savedListing.Agency.Name.Should().StartWith("Dom Real Estate");
             savedListing.CreatedByUserId.Should().Be(user.UserId);
+            savedListing.Latitude.Should().Be(41.9981m);
+            savedListing.Longitude.Should().Be(21.4254m);
+            savedListing.LocationPrecision.Should().Be(
+                LocationPrecision.ExactAddress);
+            savedListing.GeocodingProviderKey.Should().Be("persistence-test");
+            savedListing.GeocodingResultReference.Should().Be(
+                "opaque-result-reference");
+            savedListing.GeocodedDisplayName.Should().Be(
+                "Skopje test location");
+            savedListing.LocationConfirmedAtUtc.Should().Be(
+                new DateTime(2026, 8, 13, 10, 0, 0, DateTimeKind.Utc));
         }
     }
 
@@ -88,7 +101,6 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
             Id = listingId,
             ListingType = ListingType.Sale,
             PropertyType = PropertyType.Apartment,
-            Status = ListingStatus.Active,
             Price = 120_000m,
             Currency = "EUR",
             AreaSquareMeters = 60m,
@@ -104,8 +116,6 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
             FurnishingStatus = FurnishingStatus.Furnished,
             Condition = PropertyCondition.Good,
             Orientation = Orientation.SouthEast,
-            Latitude = 41.9981m,
-            Longitude = 21.4254m,
             ApartmentDetails = new ListingApartmentDetails
             {
                 ListingId = listingId,
@@ -130,6 +140,15 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
                 }
             }
         };
+
+        listing.ConfirmLocation(
+            41.9981m,
+            21.4254m,
+            LocationPrecision.ExactAddress,
+            "persistence-test",
+            "opaque-result-reference",
+            "Skopje test location",
+            new DateTime(2026, 8, 13, 10, 0, 0, DateTimeKind.Utc));
 
         listing.AssignCreator(userId);
 

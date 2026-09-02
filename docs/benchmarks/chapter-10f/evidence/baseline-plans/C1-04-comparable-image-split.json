@@ -8,8 +8,8 @@
       "Total Cost": 77.44,
       "Plan Rows": 4,
       "Plan Width": 183,
-      "Actual Startup Time": 0.102,
-      "Actual Total Time": 0.103,
+      "Actual Startup Time": 0.085,
+      "Actual Total Time": 0.086,
       "Actual Rows": 3,
       "Actual Loops": 1,
       "Sort Key": ["l0.\"ListingId\"", "l0.\"SortOrder\"", "l0.\"Id\""],
@@ -43,8 +43,8 @@
           "Total Cost": 77.27,
           "Plan Rows": 4,
           "Plan Width": 183,
-          "Actual Startup Time": 0.055,
-          "Actual Total Time": 0.076,
+          "Actual Startup Time": 0.044,
+          "Actual Total Time": 0.062,
           "Actual Rows": 3,
           "Actual Loops": 1,
           "Inner Unique": false,
@@ -72,8 +72,8 @@
               "Total Cost": 26.61,
               "Plan Rows": 6,
               "Plan Width": 16,
-              "Actual Startup Time": 0.037,
-              "Actual Total Time": 0.046,
+              "Actual Startup Time": 0.025,
+              "Actual Total Time": 0.033,
               "Actual Rows": 6,
               "Actual Loops": 1,
               "Index Cond": "(\"Id\" = ANY ('{40000000-0000-0000-0000-000000000bbb,40000000-0000-0000-0000-000000000bba,40000000-0000-0000-0000-000000000bbd,40000000-0000-0000-0000-000000000bbc,40000000-0000-0000-0000-000000000bbe,40000000-0000-0000-0000-000000000bbf}'::uuid[]))",
@@ -138,9 +138,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.379,
+    "Planning Time": 0.516,
     "Triggers": [
     ],
-    "Execution Time": 0.166
+    "Execution Time": 0.208
   }
 ]

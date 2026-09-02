@@ -7,6 +7,7 @@ using RealEstate.Application.Agencies.Permissions;
 using RealEstate.Application.Users.Repositories;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
+using RealEstate.Domain.Listings;
 
 namespace RealEstate.Application.Listings.Commands.CreateListing;
 
@@ -81,7 +82,6 @@ public sealed class CreateListingHandler
             Id = Guid.NewGuid(),
             ListingType = request.ListingType,
             PropertyType = request.PropertyType,
-            Status = ListingStatus.Draft,
             Price = request.Price,
             Currency = request.Currency.Trim().ToUpperInvariant(),
             AreaSquareMeters = request.AreaSquareMeters,
@@ -97,18 +97,23 @@ public sealed class CreateListingHandler
             YearRenovated = request.YearRenovated,
             Orientation = request.Orientation,
             YearBuilt = request.YearBuilt,
-            Latitude = request.Latitude,
-            Longitude = request.Longitude,
             Translations = request.Translations.Select(translation => new ListingTranslation
             {
                 Id = Guid.NewGuid(),
-                LanguageCode = NormalizeLanguageCode(translation.LanguageCode),
-                Title = translation.Title.Trim(),
-                Description = CleanNullableText(translation.Description),
-                AddressLine = CleanNullableText(translation.AddressLine),
-                City = CleanNullableText(translation.City),
-                Municipality = CleanNullableText(translation.Municipality),
-                Neighborhood = CleanNullableText(translation.Neighborhood)
+                LanguageCode = ListingTranslationRules.NormalizeLanguageCode(
+                    translation.LanguageCode),
+                Title = ListingTranslationRules.NormalizeRequiredText(
+                    translation.Title),
+                Description = ListingTranslationRules.NormalizeOptionalText(
+                    translation.Description),
+                AddressLine = ListingTranslationRules.NormalizeOptionalText(
+                    translation.AddressLine),
+                City = ListingTranslationRules.NormalizeOptionalText(
+                    translation.City),
+                Municipality = ListingTranslationRules.NormalizeOptionalText(
+                    translation.Municipality),
+                Neighborhood = ListingTranslationRules.NormalizeOptionalText(
+                    translation.Neighborhood)
             }).ToList()
         };
 
@@ -158,22 +163,12 @@ public sealed class CreateListingHandler
 
         await _listingRepository.CreateAsync(listing, cancellationToken);
 
-        var preferredLanguageCode = NormalizeLanguageCode(request.Translations.First().LanguageCode);
+        string preferredLanguageCode =
+            ListingTranslationRules.NormalizeLanguageCode(
+                request.Translations.First().LanguageCode);
 
         var response = listing.ToResponse(preferredLanguageCode);
 
         return ServiceResult<ListingResponse>.Success(response);
-    }
-
-    private static string NormalizeLanguageCode(string languageCode)
-    {
-        return languageCode.Trim().ToLowerInvariant();
-    }
-
-    private static string? CleanNullableText(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Trim();
     }
 }

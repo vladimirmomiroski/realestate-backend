@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RealEstate.Application.Common;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Tests.Integration.Auth;
@@ -63,6 +64,7 @@ public sealed partial class ListingsEndpointTests
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await PrepareListingForPublishAsync(listingId);
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
@@ -75,11 +77,129 @@ public sealed partial class ListingsEndpointTests
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            ListingStatus responseStatus = await ReadListingStatusAsync(response);
-            responseStatus.Should().Be(ListingStatus.Active);
+            await AssertStrictPublishedIdentityAsync(response);
 
             ListingStatus databaseStatus = await GetListingStatusAsync(listingId);
             databaseStatus.Should().Be(ListingStatus.Active);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task PublishListing_ShouldReturnListingNotReady_WhenPersonalDraftIsIncomplete()
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await PrepareListingForPublishAsync(listingId);
+        await MakeListingPublicationContentIncompleteAsync(listingId);
+        PublicationSnapshot before = await GetPublicationSnapshotAsync(listingId);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            JsonElement problem = await AssertFailureAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictListingNotReady,
+                $"/api/listings/{listingId}/publish");
+
+            problem.GetProperty("detail").GetString().Should()
+                .Be("The listing is not ready for publication.");
+            string publicDescriptor =
+                problem.GetProperty("title").GetString() + " " +
+                problem.GetProperty("detail").GetString();
+            publicDescriptor.Should().NotContainAny(
+                "description",
+                "translation",
+                "InvalidDescription",
+                "ListingTranslations",
+                "constraint");
+            (await GetPublicationSnapshotAsync(listingId)).Should().BeEquivalentTo(before);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Theory]
+    [InlineData("Municipality")]
+    [InlineData("AddressLine")]
+    public async Task PublishListing_ShouldReturnListingNotReady_WhenRequiredLocationTranslationFieldIsInvalid(
+        string fieldName)
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await PrepareListingForPublishAsync(listingId);
+        await MakeRequiredLocationTranslationFieldInvalidAsync(
+            listingId,
+            fieldName);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            JsonElement problem = await AssertFailureAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictListingNotReady,
+                $"/api/listings/{listingId}/publish");
+            problem.GetProperty("detail").GetString().Should().Be(
+                "The listing is not ready for publication.");
+            problem.ToString().Should().NotContain(fieldName);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PublishListing_ShouldReturnListingNotReady_WhenConfirmedRootIsMissing(
+        bool useLegacyCoordinates)
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+
+        if (useLegacyCoordinates)
+        {
+            await ListingTestHelpers.SetLegacyCoordinatesAsync(
+                _factory,
+                listingId,
+                41.9981m,
+                21.4254m);
+        }
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            JsonElement problem = await AssertFailureAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictListingNotReady,
+                $"/api/listings/{listingId}/publish");
+            problem.GetProperty("detail").GetString().Should().Be(
+                "The listing is not ready for publication.");
         }
         finally
         {
@@ -108,8 +228,7 @@ public sealed partial class ListingsEndpointTests
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            ListingStatus responseStatus = await ReadListingStatusAsync(response);
-            responseStatus.Should().Be(ListingStatus.Active);
+            await AssertStrictPublishedIdentityAsync(response);
         }
         finally
         {
@@ -137,6 +256,34 @@ public sealed partial class ListingsEndpointTests
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task PublishListing_ShouldReturnResourceStateBeforeReadiness_WhenArchivedIsIncomplete()
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        await SetListingStatusAsync(listingId, ListingStatus.Archived);
+        await MakeListingPublicationContentIncompleteAsync(listingId);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            await AssertFailureAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictResourceState,
+                $"/api/listings/{listingId}/publish");
         }
         finally
         {
@@ -173,6 +320,35 @@ public sealed partial class ListingsEndpointTests
         }
     }
 
+    [Fact]
+    public async Task PublishListing_ShouldReturnForbiddenBeforeReadiness_ForPersonalNonOwner()
+    {
+        (Guid listingId, _) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await MakeListingPublicationContentIncompleteAsync(listingId);
+        AuthenticatedTestUser otherUser =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        await SetUserStatusAsync(otherUser.UserId, UserStatus.Active);
+        _httpClient.AuthorizeAs(otherUser.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            await AssertFailureAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationForbidden,
+                $"/api/listings/{listingId}/publish");
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
     [Theory]
     [InlineData(UserStatus.PendingVerification)]
     [InlineData(UserStatus.Disabled)]
@@ -184,6 +360,7 @@ public sealed partial class ListingsEndpointTests
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
 
         await SetUserStatusAsync(owner.UserId, userStatus);
+        await MakeListingPublicationContentIncompleteAsync(listingId);
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
@@ -208,6 +385,7 @@ public sealed partial class ListingsEndpointTests
         // Arrange
         (Guid listingId, _, AuthenticatedTestUser owner) =
             await CreateAgencyListingWithOwnerAsync();
+        await PrepareListingForPublishAsync(listingId);
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
@@ -220,8 +398,7 @@ public sealed partial class ListingsEndpointTests
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            ListingStatus responseStatus = await ReadListingStatusAsync(response);
-            responseStatus.Should().Be(ListingStatus.Active);
+            await AssertStrictPublishedIdentityAsync(response);
         }
         finally
         {
@@ -235,6 +412,7 @@ public sealed partial class ListingsEndpointTests
         // Arrange
         (Guid listingId, Guid agencyId, _) =
             await CreateAgencyListingWithOwnerAsync();
+        await PrepareListingForPublishAsync(listingId);
 
         AuthenticatedTestUser agent =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
@@ -268,6 +446,56 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
+    public async Task PublishListing_ShouldReturnListingNotReady_WhenAgencyDraftIsIncomplete()
+    {
+        (Guid listingId, _, AuthenticatedTestUser owner) =
+            await CreateAgencyListingWithOwnerAsync();
+        await PrepareListingForPublishAsync(listingId);
+        await MakeListingPublicationContentIncompleteAsync(listingId);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            await AssertFailureAsync(
+                response,
+                HttpStatusCode.Conflict,
+                ErrorCodes.ConflictListingNotReady,
+                $"/api/listings/{listingId}/publish");
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task PublishListing_ShouldReturnOk_WhenAgencyListingIsAlreadyActiveAndReady()
+    {
+        (Guid listingId, _, AuthenticatedTestUser owner) =
+            await CreateAgencyListingWithOwnerAsync();
+        await SetListingStatusAsync(listingId, ListingStatus.Active);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish?lang=en",
+                null);
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await AssertStrictPublishedIdentityAsync(response);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
     public async Task PublishListing_ShouldReturnForbidden_WhenUserIsNotAgencyMember()
     {
         // Arrange
@@ -289,6 +517,34 @@ public sealed partial class ListingsEndpointTests
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task PublishListing_ShouldReturnForbiddenBeforeReadiness_ForAgencyNonMember()
+    {
+        (Guid listingId, _, _) = await CreateAgencyListingWithOwnerAsync();
+        await MakeListingPublicationContentIncompleteAsync(listingId);
+        AuthenticatedTestUser nonMember =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        await SetUserStatusAsync(nonMember.UserId, UserStatus.Active);
+        _httpClient.AuthorizeAs(nonMember.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsync(
+                $"/api/listings/{listingId}/publish",
+                null);
+
+            await AssertFailureAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationForbidden,
+                $"/api/listings/{listingId}/publish");
         }
         finally
         {
@@ -346,6 +602,7 @@ public sealed partial class ListingsEndpointTests
             await CreateAgencyListingWithOwnerAsync();
 
         await SetAgencyStatusAsync(agencyId, agencyStatus);
+        await MakeListingPublicationContentIncompleteAsync(listingId);
 
         _httpClient.AuthorizeAs(owner.AccessToken);
 
@@ -382,6 +639,32 @@ public sealed partial class ListingsEndpointTests
             agencyId);
 
         return (listingId, agencyId, owner);
+    }
+
+    private static async Task AssertStrictPublishedIdentityAsync(
+        HttpResponseMessage response)
+    {
+        JsonElement body =
+            await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        body.GetProperty("status").GetString().Should()
+            .Be("Active");
+        body.GetProperty("languageCode").GetString().Should()
+            .Be("en");
+        body.GetProperty("title").GetString().Should()
+            .Be("Integration test apartment");
+        body.GetProperty("city").GetString().Should()
+            .Be("Skopje");
+        body.GetProperty("municipality").GetString().Should()
+            .Be("Centar");
+        body.GetProperty("addressLine").GetString().Should()
+            .Be("Center");
+        body.GetProperty("description").GetString().Should()
+            .Be("Test listing created from integration tests.");
+        body.GetProperty("latitude").GetDecimal().Should().Be(41.9981m);
+        body.GetProperty("longitude").GetDecimal().Should().Be(21.4254m);
+        body.GetProperty("locationPrecision").GetString().Should()
+            .Be("ExactAddress");
     }
 
     private async Task<Guid> CreateAgencyAsAsync(AuthenticatedTestUser user)
@@ -448,15 +731,101 @@ public sealed partial class ListingsEndpointTests
 
     private async Task SetListingStatusAsync(Guid listingId, ListingStatus status)
     {
-        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            status);
+    }
 
-        var dbContext =
-            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+    private async Task MakeListingPublicationContentIncompleteAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
 
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $@"UPDATE ""Listings""
-               SET ""Status"" = {status.ToString()}
-               WHERE ""Id"" = {listingId}");
+            $@"UPDATE ""ListingTranslations""
+               SET ""Description"" = NULL
+               WHERE ""ListingId"" = {listingId}");
+    }
+
+    private Task PrepareListingForPublishAsync(Guid listingId)
+    {
+        return ListingTestHelpers.PrepareStrongLocationPublishableDraftAsync(
+            _factory,
+            listingId);
+    }
+
+    private async Task MakeRequiredLocationTranslationFieldInvalidAsync(
+        Guid listingId,
+        string fieldName)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        if (fieldName == "Municipality")
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "ListingTranslations"
+                 SET "Municipality" = NULL
+                 WHERE "ListingId" = {listingId}
+                 """);
+            return;
+        }
+
+        if (fieldName == "AddressLine")
+        {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 UPDATE "ListingTranslations"
+                 SET "AddressLine" = NULL
+                 WHERE "ListingId" = {listingId}
+                 """);
+            return;
+        }
+
+        throw new ArgumentOutOfRangeException(
+            nameof(fieldName),
+            fieldName,
+            null);
+    }
+
+    private async Task<PublicationSnapshot> GetPublicationSnapshotAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        var root = await dbContext.Listings
+            .AsNoTracking()
+            .Where(listing => listing.Id == listingId)
+            .Select(listing => new
+            {
+                listing.Status,
+                listing.CreatedAtUtc,
+                listing.ModifiedAtUtc
+            })
+            .SingleAsync();
+
+        PublicationTranslationSnapshot[] translations = await dbContext.Listings
+            .AsNoTracking()
+            .Where(listing => listing.Id == listingId)
+            .SelectMany(listing => listing.Translations)
+            .OrderBy(translation => translation.LanguageCode)
+            .Select(translation => new PublicationTranslationSnapshot(
+                translation.Id,
+                translation.LanguageCode,
+                translation.Title,
+                translation.City,
+                translation.Description))
+            .ToArrayAsync();
+
+        return new PublicationSnapshot(
+            root.Status,
+            root.CreatedAtUtc,
+            root.ModifiedAtUtc,
+            translations);
     }
 
     private async Task AddAgencyMemberAsync(
@@ -510,4 +879,17 @@ public sealed partial class ListingsEndpointTests
 
         return (ListingStatus)statusElement.GetInt32();
     }
+
+    private sealed record PublicationSnapshot(
+        ListingStatus Status,
+        DateTime CreatedAtUtc,
+        DateTime? ModifiedAtUtc,
+        IReadOnlyList<PublicationTranslationSnapshot> Translations);
+
+    private sealed record PublicationTranslationSnapshot(
+        Guid Id,
+        string LanguageCode,
+        string Title,
+        string? City,
+        string? Description);
 }
