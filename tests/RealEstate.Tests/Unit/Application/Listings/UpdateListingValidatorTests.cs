@@ -93,12 +93,23 @@ public sealed class UpdateListingValidatorTests
     [Theory]
     [InlineData(0)]
     [InlineData(999)]
-    public void ValidateWithKey_RejectsDefaultOrUndefinedPropertyType(int value)
+    public void ValidateWithKey_RejectsUnsupportedPropertyTypeFirst(int value)
     {
         UpdateListingRequest request = CreateValidApartmentRequest();
         request.PropertyType = (PropertyType)value;
+        request.Price = 0;
+        request.HouseDetails = new UpdateListingHouseDetailsRequest
+        {
+            HouseType = HouseType.Detached
+        };
 
-        AssertFailure(request, "propertyType");
+        UpdateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be("propertyType");
+        failure.Error.Should().Be(
+            UpdateListingValidator.InvalidPropertyTypeError);
     }
 
     [Fact]

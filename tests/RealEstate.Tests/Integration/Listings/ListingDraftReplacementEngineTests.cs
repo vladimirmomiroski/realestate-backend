@@ -727,6 +727,151 @@ public sealed class ListingDraftReplacementEngineTests
         }
     }
 
+    [Fact]
+    public async Task Apply_WithUnsupportedPropertyType_RejectsBeforeTrackedMutation()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await ConfirmLocationAsync(listingId);
+        Listing original = await ReadListingAsync(listingId);
+
+        await using (AsyncServiceScope serviceScope =
+            _factory.Services.CreateAsyncScope())
+        {
+            IListingAuthoringRepository repository = serviceScope.ServiceProvider
+                .GetRequiredService<IListingAuthoringRepository>();
+            ListingDraftReplacementEngine engine = serviceScope.ServiceProvider
+                .GetRequiredService<ListingDraftReplacementEngine>();
+            IListingAuthoringWriteScope? writeScope =
+                await repository.BeginWriteAsync(
+                    listingId,
+                    CancellationToken.None);
+            writeScope.Should().NotBeNull();
+
+            await using (writeScope!)
+            {
+                Listing tracked = writeScope.Listing;
+                ListingType originalListingType = tracked.ListingType;
+                PropertyType originalPropertyType = tracked.PropertyType;
+                decimal originalPrice = tracked.Price;
+                string originalCurrency = tracked.Currency;
+                decimal originalArea = tracked.AreaSquareMeters;
+                decimal? originalRooms = tracked.Rooms;
+                LocationSnapshot originalLocation = CaptureLocation(tracked);
+                var originalTranslations = tracked.Translations
+                    .OrderBy(translation => translation.LanguageCode)
+                    .Select(translation => new
+                    {
+                        translation.Id,
+                        translation.LanguageCode,
+                        translation.Title,
+                        translation.Description,
+                        translation.AddressLine,
+                        translation.City,
+                        translation.Municipality,
+                        translation.Neighborhood
+                    })
+                    .ToArray();
+                ListingApartmentDetails originalApartment =
+                    tracked.ApartmentDetails
+                    ?? throw new InvalidOperationException(
+                        "The test fixture requires apartment details.");
+                var originalApartmentDetails = new
+                {
+                    originalApartment.ApartmentType,
+                    originalApartment.Floor,
+                    originalApartment.TotalFloors,
+                    originalApartment.HasElevator
+                };
+
+                UpdateListingRequest request =
+                    CreateReplacementRequest(tracked);
+                request.ListingType = ListingType.Rent;
+                request.Price = originalPrice + 123_456m;
+                request.Currency = "USD";
+                request.AreaSquareMeters = originalArea + 50m;
+                request.Rooms = 99m;
+                request.Translations =
+                [
+                    CreateTranslation(
+                        "en",
+                        "Rejected replacement title",
+                        "Rejected replacement description",
+                        "Rejected replacement address",
+                        "Ohrid",
+                        "Ohrid",
+                        "Old Town"),
+                    CreateTranslation(
+                        "de",
+                        "Rejected German title",
+                        city: "Berlin")
+                ];
+                request.ApartmentDetails =
+                    new UpdateListingApartmentDetailsRequest
+                    {
+                        ApartmentType = ApartmentType.Penthouse,
+                        Floor = 12,
+                        TotalFloors = 15,
+                        HasElevator = false
+                    };
+                request.HouseDetails = new UpdateListingHouseDetailsRequest
+                {
+                    HouseType = HouseType.Detached,
+                    NumberOfFloors = 2,
+                    YardAreaSquareMeters = 300m
+                };
+                request.PropertyType = (PropertyType)999;
+
+                Action apply = () => engine.Apply(writeScope, request);
+
+                ArgumentOutOfRangeException exception = apply.Should()
+                    .Throw<ArgumentOutOfRangeException>()
+                    .WithMessage("Unsupported property type.*")
+                    .Which;
+                exception.ParamName.Should().Be("PropertyType");
+
+                tracked.ListingType.Should().Be(originalListingType);
+                tracked.PropertyType.Should().Be(originalPropertyType);
+                tracked.Price.Should().Be(originalPrice);
+                tracked.Currency.Should().Be(originalCurrency);
+                tracked.AreaSquareMeters.Should().Be(originalArea);
+                tracked.Rooms.Should().Be(originalRooms);
+                tracked.Translations
+                    .OrderBy(translation => translation.LanguageCode)
+                    .Select(translation => new
+                    {
+                        translation.Id,
+                        translation.LanguageCode,
+                        translation.Title,
+                        translation.Description,
+                        translation.AddressLine,
+                        translation.City,
+                        translation.Municipality,
+                        translation.Neighborhood
+                    })
+                    .Should().BeEquivalentTo(
+                        originalTranslations,
+                        options => options.WithStrictOrdering());
+                CaptureLocation(tracked).Should().Be(originalLocation);
+                tracked.ApartmentDetails.Should().NotBeNull();
+                new
+                {
+                    tracked.ApartmentDetails!.ApartmentType,
+                    tracked.ApartmentDetails.Floor,
+                    tracked.ApartmentDetails.TotalFloors,
+                    tracked.ApartmentDetails.HasElevator
+                }.Should().BeEquivalentTo(originalApartmentDetails);
+                tracked.HouseDetails.Should().BeNull();
+            }
+        }
+
+        Listing persisted = await ReadListingAsync(listingId);
+        persisted.PropertyType.Should().Be(original.PropertyType);
+        persisted.Price.Should().Be(original.Price);
+        CaptureLocation(persisted).Should().Be(CaptureLocation(original));
+        persisted.ApartmentDetails.Should().NotBeNull();
+        persisted.HouseDetails.Should().BeNull();
+    }
+
     private async Task ApplyAndCommitAsync(
         Guid listingId,
         Func<Listing, UpdateListingRequest> createRequest)

@@ -225,42 +225,47 @@ public sealed class UpdateListingValidator
             return null;
         }
 
-        if (request.HouseDetails is null)
+        if (request.PropertyType == PropertyType.House)
         {
-            return Failure(
-                "houseDetails",
-                "House details are required for house listings.");
+            if (request.HouseDetails is null)
+            {
+                return Failure(
+                    "houseDetails",
+                    "House details are required for house listings.");
+            }
+
+            if (request.ApartmentDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Apartment details are not allowed for house listings.");
+            }
+
+            if (!Enum.IsDefined(request.HouseDetails.HouseType))
+            {
+                return Failure(
+                    "houseDetails.houseType",
+                    "House type must be a defined value.");
+            }
+
+            if (request.HouseDetails.NumberOfFloors is < 0)
+            {
+                return Failure(
+                    "houseDetails.numberOfFloors",
+                    "Number of floors cannot be negative.");
+            }
+
+            if (request.HouseDetails.YardAreaSquareMeters is < 0)
+            {
+                return Failure(
+                    "houseDetails.yardAreaSquareMeters",
+                    "Yard area cannot be negative.");
+            }
+
+            return null;
         }
 
-        if (request.ApartmentDetails is not null)
-        {
-            return Failure(
-                "request",
-                "Apartment details are not allowed for house listings.");
-        }
-
-        if (!Enum.IsDefined(request.HouseDetails.HouseType))
-        {
-            return Failure(
-                "houseDetails.houseType",
-                "House type must be a defined value.");
-        }
-
-        if (request.HouseDetails.NumberOfFloors is < 0)
-        {
-            return Failure(
-                "houseDetails.numberOfFloors",
-                "Number of floors cannot be negative.");
-        }
-
-        if (request.HouseDetails.YardAreaSquareMeters is < 0)
-        {
-            return Failure(
-                "houseDetails.yardAreaSquareMeters",
-                "Yard area cannot be negative.");
-        }
-
-        return null;
+        return Failure("propertyType", InvalidPropertyTypeError);
     }
 
     private static ValidationFailure? ValidateTranslations(

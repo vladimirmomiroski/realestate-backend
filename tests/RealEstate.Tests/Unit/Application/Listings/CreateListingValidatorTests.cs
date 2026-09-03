@@ -8,6 +8,39 @@ public sealed class CreateListingValidatorTests
 {
     private readonly CreateListingValidator _validator = new();
 
+    public static TheoryData<string, int> DefinedCategoricalCases => new()
+    {
+        { "heatingType", (int)HeatingType.Central },
+        { "furnishingStatus", (int)FurnishingStatus.Furnished },
+        { "condition", (int)PropertyCondition.Good },
+        { "orientation", (int)Orientation.SouthEast },
+        { "apartmentDetails.apartmentType", (int)ApartmentType.Standard },
+        { "houseDetails.houseType", (int)HouseType.Detached }
+    };
+
+    public static TheoryData<string> UnknownCategoricalCases => new()
+    {
+        "heatingType",
+        "furnishingStatus",
+        "condition",
+        "orientation",
+        "apartmentDetails.apartmentType",
+        "houseDetails.houseType"
+    };
+
+    public static TheoryData<string, string> UndefinedCategoricalCases => new()
+    {
+        { "heatingType", "Heating type must be a defined value." },
+        { "furnishingStatus", "Furnishing status must be a defined value." },
+        { "condition", "Property condition must be a defined value." },
+        { "orientation", "Orientation must be a defined value." },
+        {
+            "apartmentDetails.apartmentType",
+            "Apartment type must be a defined value."
+        },
+        { "houseDetails.houseType", "House type must be a defined value." }
+    };
+
     [Fact]
     public void Validate_ShouldReturnNull_WhenApartmentRequestIsValid()
     {
@@ -32,6 +65,74 @@ public sealed class CreateListingValidatorTests
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Theory]
+    [MemberData(nameof(DefinedCategoricalCases))]
+    public void ValidateWithKey_ShouldAcceptDefinedCategoricalValue(
+        string field,
+        int value)
+    {
+        CreateListingRequest request = CreateRequestForCategoricalField(field);
+        SetCategoricalValue(request, field, value);
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().BeNull();
+    }
+
+    [Theory]
+    [MemberData(nameof(UnknownCategoricalCases))]
+    public void ValidateWithKey_ShouldAcceptDefinedUnknownCategoricalValue(
+        string field)
+    {
+        CreateListingRequest request = CreateRequestForCategoricalField(field);
+        SetCategoricalValue(request, field, 0);
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().BeNull();
+    }
+
+    [Theory]
+    [MemberData(nameof(UndefinedCategoricalCases))]
+    public void ValidateWithKey_ShouldRejectUndefinedCategoricalValue(
+        string field,
+        string expectedError)
+    {
+        CreateListingRequest request = CreateRequestForCategoricalField(field);
+        SetCategoricalValue(request, field, 999);
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be(field);
+        failure.Error.Should().Be(expectedError);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(999)]
+    public void ValidateWithKey_ShouldRejectUnsupportedPropertyTypeFirst(int value)
+    {
+        CreateListingRequest request = CreateValidApartmentRequest();
+        request.PropertyType = (PropertyType)value;
+        request.Price = 0;
+        request.HouseDetails = new CreateListingHouseDetailsRequest
+        {
+            HouseType = HouseType.Detached
+        };
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be("propertyType");
+        failure.Error.Should().Be(
+            CreateListingValidator.InvalidPropertyTypeError);
     }
 
     [Fact]
@@ -334,6 +435,48 @@ public sealed class CreateListingValidatorTests
                 CreateTranslation("mk", "Стан во Центар")
             }
         };
+    }
+
+    private static CreateListingRequest CreateRequestForCategoricalField(
+        string field)
+    {
+        return field == "houseDetails.houseType"
+            ? CreateValidHouseRequest()
+            : CreateValidApartmentRequest();
+    }
+
+    private static void SetCategoricalValue(
+        CreateListingRequest request,
+        string field,
+        int value)
+    {
+        switch (field)
+        {
+            case "heatingType":
+                request.HeatingType = (HeatingType)value;
+                break;
+            case "furnishingStatus":
+                request.FurnishingStatus = (FurnishingStatus)value;
+                break;
+            case "condition":
+                request.Condition = (PropertyCondition)value;
+                break;
+            case "orientation":
+                request.Orientation = (Orientation)value;
+                break;
+            case "apartmentDetails.apartmentType":
+                request.ApartmentDetails!.ApartmentType =
+                    (ApartmentType)value;
+                break;
+            case "houseDetails.houseType":
+                request.HouseDetails!.HouseType = (HouseType)value;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(field),
+                    field,
+                    "Unsupported categorical field.");
+        }
     }
 
     private static CreateListingRequest CreateValidHouseRequest()

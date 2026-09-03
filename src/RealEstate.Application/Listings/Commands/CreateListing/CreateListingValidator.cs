@@ -59,6 +59,13 @@ public sealed class CreateListingValidator
             return Failure("currency", InvalidCurrencyError);
         }
 
+        ValidationFailure? enumFailure = ValidateOptionalEnums(request);
+
+        if (enumFailure is not null)
+        {
+            return enumFailure;
+        }
+
         if (request.Translations is null || request.Translations.Count == 0)
         {
             return Failure("translations", "At least one translation is required.");
@@ -96,6 +103,52 @@ public sealed class CreateListingValidator
                 "Year renovated cannot be earlier than year built.");
         }
 
+        ValidationFailure? subtypeFailure = ValidateSubtype(request);
+
+        if (subtypeFailure is not null)
+        {
+            return subtypeFailure;
+        }
+
+        if (request.AgencyId == Guid.Empty)
+        {
+            return Failure("agencyId", "Agency id cannot be empty.");
+        }
+
+        return null;
+    }
+
+    private static ValidationFailure? ValidateOptionalEnums(
+        CreateListingRequest request)
+    {
+        if (!Enum.IsDefined(request.HeatingType))
+        {
+            return Failure("heatingType", "Heating type must be a defined value.");
+        }
+
+        if (!Enum.IsDefined(request.FurnishingStatus))
+        {
+            return Failure(
+                "furnishingStatus",
+                "Furnishing status must be a defined value.");
+        }
+
+        if (!Enum.IsDefined(request.Condition))
+        {
+            return Failure("condition", "Property condition must be a defined value.");
+        }
+
+        if (!Enum.IsDefined(request.Orientation))
+        {
+            return Failure("orientation", "Orientation must be a defined value.");
+        }
+
+        return null;
+    }
+
+    private static ValidationFailure? ValidateSubtype(
+        CreateListingRequest request)
+    {
         if (request.PropertyType == PropertyType.Apartment)
         {
             if (request.ApartmentDetails is null)
@@ -110,6 +163,13 @@ public sealed class CreateListingValidator
                 return Failure(
                     "request",
                     "House details are not allowed for apartment listings.");
+            }
+
+            if (!Enum.IsDefined(request.ApartmentDetails.ApartmentType))
+            {
+                return Failure(
+                    "apartmentDetails.apartmentType",
+                    "Apartment type must be a defined value.");
             }
 
             if (request.ApartmentDetails.Floor is < 0)
@@ -134,6 +194,8 @@ public sealed class CreateListingValidator
                     "request",
                     "Floor cannot be greater than total floors.");
             }
+
+            return null;
         }
 
         if (request.PropertyType == PropertyType.House)
@@ -152,6 +214,13 @@ public sealed class CreateListingValidator
                     "Apartment details are not allowed for house listings.");
             }
 
+            if (!Enum.IsDefined(request.HouseDetails.HouseType))
+            {
+                return Failure(
+                    "houseDetails.houseType",
+                    "House type must be a defined value.");
+            }
+
             if (request.HouseDetails.NumberOfFloors is < 0)
             {
                 return Failure(
@@ -165,14 +234,11 @@ public sealed class CreateListingValidator
                     "houseDetails.yardAreaSquareMeters",
                     "Yard area cannot be negative.");
             }
+
+            return null;
         }
 
-        if (request.AgencyId == Guid.Empty)
-        {
-            return Failure("agencyId", "Agency id cannot be empty.");
-        }
-
-        return null;
+        return Failure("propertyType", InvalidPropertyTypeError);
     }
 
     private static ValidationFailure Failure(string key, string error)
