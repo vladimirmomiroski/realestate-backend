@@ -35,6 +35,56 @@ public sealed class GetListingsValidator
             return Failure("sort", InvalidSortError);
         }
 
+        if (query.ListingType.HasValue &&
+            !Enum.IsDefined(query.ListingType.Value))
+        {
+            return Failure(
+                "listingType",
+                "Listing type must be a currently supported value.");
+        }
+
+        if (query.PropertyType.HasValue &&
+            !Enum.IsDefined(query.PropertyType.Value))
+        {
+            return Failure(
+                "propertyType",
+                "Property type must be a currently supported value.");
+        }
+
+        if (query.HeatingType.HasValue &&
+            !Enum.IsDefined(query.HeatingType.Value))
+        {
+            return Failure("heatingType", "Heating type must be a defined value.");
+        }
+
+        if (query.FurnishingStatus.HasValue &&
+            !Enum.IsDefined(query.FurnishingStatus.Value))
+        {
+            return Failure(
+                "furnishingStatus",
+                "Furnishing status must be a defined value.");
+        }
+
+        if (query.Condition.HasValue &&
+            !Enum.IsDefined(query.Condition.Value))
+        {
+            return Failure("condition", "Property condition must be a defined value.");
+        }
+
+        if (query.ApartmentType.HasValue &&
+            !Enum.IsDefined(query.ApartmentType.Value))
+        {
+            return Failure(
+                "apartmentType",
+                "Apartment type must be a defined value.");
+        }
+
+        if (query.HouseType.HasValue &&
+            !Enum.IsDefined(query.HouseType.Value))
+        {
+            return Failure("houseType", "House type must be a defined value.");
+        }
+
         if (query.Currency is not null &&
             !IsValidCurrency(query.Currency))
         {

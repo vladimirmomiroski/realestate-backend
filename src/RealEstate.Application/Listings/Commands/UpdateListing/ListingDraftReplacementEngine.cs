@@ -23,6 +23,15 @@ public sealed class ListingDraftReplacementEngine
                 "Only draft listings can be replaced.");
         }
 
+        if (request.PropertyType != PropertyType.Apartment &&
+            request.PropertyType != PropertyType.House)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request.PropertyType),
+                request.PropertyType,
+                "Unsupported property type.");
+        }
+
         bool locationTextChanged = HasLocationTextChanged(
             listing.Translations,
             request.Translations);
@@ -148,45 +157,57 @@ public sealed class ListingDraftReplacementEngine
         Listing listing,
         UpdateListingRequest request)
     {
-        if (request.PropertyType == PropertyType.Apartment)
+        switch (request.PropertyType)
         {
-            UpdateListingApartmentDetailsRequest requested =
-                request.ApartmentDetails
-                ?? throw new InvalidOperationException(
-                    "Validated apartment replacement requires apartment details.");
+            case PropertyType.Apartment:
+                UpdateListingApartmentDetailsRequest apartmentRequested =
+                    request.ApartmentDetails
+                    ?? throw new InvalidOperationException(
+                        "Validated apartment replacement requires apartment details.");
 
-            listing.HouseDetails = null;
+                listing.HouseDetails = null;
 
-            listing.ApartmentDetails ??= new ListingApartmentDetails
-            {
-                ListingId = listing.Id,
-                Listing = listing
-            };
+                listing.ApartmentDetails ??= new ListingApartmentDetails
+                {
+                    ListingId = listing.Id,
+                    Listing = listing
+                };
 
-            listing.ApartmentDetails.ApartmentType = requested.ApartmentType;
-            listing.ApartmentDetails.Floor = requested.Floor;
-            listing.ApartmentDetails.TotalFloors = requested.TotalFloors;
-            listing.ApartmentDetails.HasElevator = requested.HasElevator;
+                listing.ApartmentDetails.ApartmentType =
+                    apartmentRequested.ApartmentType;
+                listing.ApartmentDetails.Floor = apartmentRequested.Floor;
+                listing.ApartmentDetails.TotalFloors =
+                    apartmentRequested.TotalFloors;
+                listing.ApartmentDetails.HasElevator =
+                    apartmentRequested.HasElevator;
+                return;
 
-            return;
+            case PropertyType.House:
+                UpdateListingHouseDetailsRequest houseRequested =
+                    request.HouseDetails
+                    ?? throw new InvalidOperationException(
+                        "Validated house replacement requires house details.");
+
+                listing.ApartmentDetails = null;
+
+                listing.HouseDetails ??= new ListingHouseDetails
+                {
+                    ListingId = listing.Id,
+                    Listing = listing
+                };
+
+                listing.HouseDetails.HouseType = houseRequested.HouseType;
+                listing.HouseDetails.NumberOfFloors =
+                    houseRequested.NumberOfFloors;
+                listing.HouseDetails.YardAreaSquareMeters =
+                    houseRequested.YardAreaSquareMeters;
+                return;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(request.PropertyType),
+                    request.PropertyType,
+                    "Unsupported property type.");
         }
-
-        UpdateListingHouseDetailsRequest houseRequested =
-            request.HouseDetails
-            ?? throw new InvalidOperationException(
-                "Validated house replacement requires house details.");
-
-        listing.ApartmentDetails = null;
-
-        listing.HouseDetails ??= new ListingHouseDetails
-        {
-            ListingId = listing.Id,
-            Listing = listing
-        };
-
-        listing.HouseDetails.HouseType = houseRequested.HouseType;
-        listing.HouseDetails.NumberOfFloors = houseRequested.NumberOfFloors;
-        listing.HouseDetails.YardAreaSquareMeters =
-            houseRequested.YardAreaSquareMeters;
     }
 }

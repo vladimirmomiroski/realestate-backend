@@ -136,29 +136,44 @@ public sealed class CreateListingHandler
             listing.AssignAgency(request.AgencyId.Value);
         }
 
-        if (request.PropertyType == PropertyType.Apartment &&
-            request.ApartmentDetails is not null)
+        switch (request.PropertyType)
         {
-            listing.ApartmentDetails = new ListingApartmentDetails
-            {
-                ListingId = listing.Id,
-                ApartmentType = request.ApartmentDetails.ApartmentType,
-                Floor = request.ApartmentDetails.Floor,
-                TotalFloors = request.ApartmentDetails.TotalFloors,
-                HasElevator = request.ApartmentDetails.HasElevator
-            };
-        }
+            case PropertyType.Apartment:
+                CreateListingApartmentDetailsRequest apartmentDetails =
+                    request.ApartmentDetails
+                    ?? throw new InvalidOperationException(
+                        "Validated apartment creation requires apartment details.");
 
-        if (request.PropertyType == PropertyType.House &&
-            request.HouseDetails is not null)
-        {
-            listing.HouseDetails = new ListingHouseDetails
-            {
-                ListingId = listing.Id,
-                HouseType = request.HouseDetails.HouseType,
-                NumberOfFloors = request.HouseDetails.NumberOfFloors,
-                YardAreaSquareMeters = request.HouseDetails.YardAreaSquareMeters
-            };
+                listing.ApartmentDetails = new ListingApartmentDetails
+                {
+                    ListingId = listing.Id,
+                    ApartmentType = apartmentDetails.ApartmentType,
+                    Floor = apartmentDetails.Floor,
+                    TotalFloors = apartmentDetails.TotalFloors,
+                    HasElevator = apartmentDetails.HasElevator
+                };
+                break;
+
+            case PropertyType.House:
+                CreateListingHouseDetailsRequest houseDetails =
+                    request.HouseDetails
+                    ?? throw new InvalidOperationException(
+                        "Validated house creation requires house details.");
+
+                listing.HouseDetails = new ListingHouseDetails
+                {
+                    ListingId = listing.Id,
+                    HouseType = houseDetails.HouseType,
+                    NumberOfFloors = houseDetails.NumberOfFloors,
+                    YardAreaSquareMeters = houseDetails.YardAreaSquareMeters
+                };
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(request.PropertyType),
+                    request.PropertyType,
+                    "Unsupported property type.");
         }
 
         await _listingRepository.CreateAsync(listing, cancellationToken);
