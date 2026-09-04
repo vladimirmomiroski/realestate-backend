@@ -78,6 +78,7 @@ public sealed partial class ListingsEndpointTests
     {
         (Guid listingId, _) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await SeedDormantSubtypeDetailsAsync(listingId);
         AuthenticatedTestUser nonowner =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
         _httpClient.AuthorizeAs(nonowner.AccessToken);
@@ -218,6 +219,7 @@ public sealed partial class ListingsEndpointTests
     public async Task GetListingManagement_WhenUserIsNotAgencyMember_ReturnsForbidden()
     {
         (Guid listingId, _, _) = await CreateAgencyListingWithOwnerAsync();
+        await SeedDormantSubtypeDetailsAsync(listingId);
         AuthenticatedTestUser nonmember =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
         await SetUserStatusAsync(nonmember.UserId, UserStatus.Active);
@@ -333,6 +335,10 @@ public sealed partial class ListingsEndpointTests
             apartment.GetProperty("totalFloors").GetInt32().Should().Be(8);
             apartment.GetProperty("hasElevator").GetBoolean().Should().BeTrue();
             json.GetProperty("houseDetails").ValueKind.Should().Be(JsonValueKind.Null);
+            json.GetProperty("commercialDetails").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            json.GetProperty("landDetails").ValueKind
+                .Should().Be(JsonValueKind.Null);
 
             JsonElement.ArrayEnumerator translations =
                 json.GetProperty("translations").EnumerateArray();
@@ -388,6 +394,66 @@ public sealed partial class ListingsEndpointTests
             house.GetProperty("houseType").GetString().Should().Be("Detached");
             house.GetProperty("numberOfFloors").GetInt32().Should().Be(2);
             house.GetProperty("yardAreaSquareMeters").GetDecimal().Should().Be(350m);
+            json.GetProperty("commercialDetails").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            json.GetProperty("landDetails").ValueKind
+                .Should().Be(JsonValueKind.Null);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    [Trait("Name", "Chapter14ManagementReadContract")]
+    public async Task Chapter14ManagementReadContract_GetManagement_RepresentsAllSubtypeSlotsTruthfully()
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        await ListingTestHelpers.ReplaceListingTranslationsAsync(
+            _factory,
+            listingId,
+            NewTranslation(Guid.NewGuid(), "sq", "Titull", "Description", "Shkup"),
+            NewTranslation(Guid.NewGuid(), "de", "Titel", "Description", "Skopje"),
+            NewTranslation(Guid.NewGuid(), "en", "Title", "Description", "Skopje"));
+        await SeedDormantSubtypeDetailsAsync(listingId);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.GetAsync(
+                $"/api/listings/{listingId}/management");
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            JsonElement json =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            json.GetProperty("propertyType").GetString()
+                .Should().Be("Apartment");
+            json.GetProperty("apartmentDetails").ValueKind
+                .Should().Be(JsonValueKind.Object);
+            json.GetProperty("houseDetails").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            json.GetProperty("commercialDetails")
+                .GetProperty("commercialType").GetString()
+                .Should().Be("Office");
+            json.GetProperty("landDetails")
+                .GetProperty("landType").GetString()
+                .Should().Be("AgriculturalLand");
+            json.GetProperty("translations").EnumerateArray()
+                .Select(translation =>
+                    translation.GetProperty("languageCode").GetString())
+                .Should().Equal("de", "en", "sq");
+
+            json.GetProperty("latitude").ValueKind.Should().Be(JsonValueKind.Null);
+            json.GetProperty("longitude").ValueKind.Should().Be(JsonValueKind.Null);
+            json.GetProperty("locationPrecision").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            json.GetProperty("geocodedDisplayName").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            json.GetProperty("locationConfirmedAtUtc").ValueKind
+                .Should().Be(JsonValueKind.Null);
         }
         finally
         {
@@ -438,5 +504,27 @@ public sealed partial class ListingsEndpointTests
         await dbContext.SaveChangesAsync();
 
         return imageId;
+    }
+
+    private async Task SeedDormantSubtypeDetailsAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
+
+        dbContext.Set<ListingCommercialDetails>().Add(
+            new ListingCommercialDetails
+            {
+                ListingId = listingId,
+                CommercialType = CommercialType.Office
+            });
+        dbContext.Set<ListingLandDetails>().Add(
+            new ListingLandDetails
+            {
+                ListingId = listingId,
+                LandType = LandType.AgriculturalLand
+            });
+        await dbContext.SaveChangesAsync();
     }
 }

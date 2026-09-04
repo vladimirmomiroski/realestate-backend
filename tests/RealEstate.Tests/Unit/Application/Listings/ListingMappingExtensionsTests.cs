@@ -630,6 +630,46 @@ public sealed class ListingMappingExtensionsTests
         response.LocationConfirmedAtUtc.Should().BeNull();
     }
 
+    [Fact]
+    [Trait("Name", "Chapter14ManagementReadContract")]
+    public void Chapter14ManagementReadContract_ToAuthoringResponse_MapsDormantDetailsFaithfully()
+    {
+        Listing listing = CreateBaseListing();
+        listing.CommercialDetails = new ListingCommercialDetails
+        {
+            ListingId = listing.Id,
+            CommercialType = CommercialType.Office
+        };
+        listing.LandDetails = new ListingLandDetails
+        {
+            ListingId = listing.Id,
+            LandType = LandType.AgriculturalLand
+        };
+
+        ListingAuthoringResponse response = listing.ToAuthoringResponse();
+
+        response.PropertyType.Should().Be(PropertyType.Apartment);
+        response.CommercialDetails.Should().NotBeNull();
+        response.CommercialDetails!.CommercialType
+            .Should().Be(CommercialType.Office);
+        response.LandDetails.Should().NotBeNull();
+        response.LandDetails!.LandType
+            .Should().Be(LandType.AgriculturalLand);
+        response.Translations.Should().HaveCount(1);
+    }
+
+    [Fact]
+    [Trait("Name", "Chapter14ManagementReadContract")]
+    public void Chapter14ManagementReadContract_ToAuthoringResponse_MapsAbsentDormantDetailsAsNull()
+    {
+        Listing listing = CreateBaseListing();
+
+        ListingAuthoringResponse response = listing.ToAuthoringResponse();
+
+        response.CommercialDetails.Should().BeNull();
+        response.LandDetails.Should().BeNull();
+    }
+
     private static Listing CreateBaseListing()
     {
         var listing = new Listing
