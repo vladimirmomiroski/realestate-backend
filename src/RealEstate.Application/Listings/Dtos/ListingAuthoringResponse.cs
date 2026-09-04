@@ -60,6 +60,10 @@ public sealed class ListingAuthoringResponse
 
     public ListingHouseDetailsResponse? HouseDetails { get; set; }
 
+    public ListingCommercialDetailsResponse? CommercialDetails { get; set; }
+
+    public ListingLandDetailsResponse? LandDetails { get; set; }
+
     public required IReadOnlyList<ListingAuthoringTranslationResponse> Translations { get; set; }
 
     public required IReadOnlyList<ListingImageResponse> Images { get; set; }

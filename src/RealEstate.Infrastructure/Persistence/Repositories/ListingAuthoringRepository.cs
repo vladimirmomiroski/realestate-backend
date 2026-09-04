@@ -99,6 +99,8 @@ public sealed class ListingAuthoringRepository
             .Include(listing => listing.Images)
             .Include(listing => listing.ApartmentDetails)
             .Include(listing => listing.HouseDetails)
+            .Include(listing => listing.CommercialDetails)
+            .Include(listing => listing.LandDetails)
             .AsSplitQuery();
     }
 

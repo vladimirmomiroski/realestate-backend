@@ -50,12 +50,15 @@ public sealed class ListingAuthoringRepositoryTests
         listing.Images.Should().BeEmpty();
         listing.ApartmentDetails.Should().NotBeNull();
         listing.HouseDetails.Should().BeNull();
+        listing.CommercialDetails.Should().BeNull();
+        listing.LandDetails.Should().BeNull();
         dbContext.Database.CurrentTransaction.Should().BeNull();
         dbContext.ChangeTracker.Entries().Should().BeEmpty();
     }
 
     [Fact]
-    public async Task GetByIdReadOnlyAsync_WithMultipleCollections_UsesExactlyThreeCommands()
+    [Trait("Name", "Chapter14ManagementReadContract")]
+    public async Task Chapter14ManagementReadContract_ReadOnlyLoad_UsesExactlyThreeCommands()
     {
         Guid listingId =
             await ListingTestHelpers.CreateListingAsync(_httpClient);
@@ -84,6 +87,18 @@ public sealed class ListingAuthoringRepositoryTests
                 CreateImage(firstImageId, listingId, sortOrder: 2),
                 CreateImage(secondImageId, listingId, sortOrder: 0, isPrimary: true),
                 CreateImage(thirdImageId, listingId, sortOrder: 1));
+            seedDbContext.Set<ListingCommercialDetails>().Add(
+                new ListingCommercialDetails
+                {
+                    ListingId = listingId,
+                    CommercialType = CommercialType.Shop
+                });
+            seedDbContext.Set<ListingLandDetails>().Add(
+                new ListingLandDetails
+                {
+                    ListingId = listingId,
+                    LandType = LandType.BuildingPlot
+                });
 
             await seedDbContext.SaveChangesAsync();
 
@@ -111,6 +126,9 @@ public sealed class ListingAuthoringRepositoryTests
         listing.Images.Should().HaveCount(3);
         listing.ApartmentDetails.Should().NotBeNull();
         listing.HouseDetails.Should().BeNull();
+        listing.CommercialDetails!.CommercialType
+            .Should().Be(CommercialType.Shop);
+        listing.LandDetails!.LandType.Should().Be(LandType.BuildingPlot);
 
         var response = listing.ToAuthoringResponse();
         response.Translations.Select(translation => translation.LanguageCode)
@@ -130,7 +148,61 @@ public sealed class ListingAuthoringRepositoryTests
             !command.Contains("\"ListingTranslations\"", StringComparison.Ordinal) &&
             !command.Contains("\"ListingImages\"", StringComparison.Ordinal) &&
             command.Contains("\"ListingApartmentDetails\"", StringComparison.Ordinal) &&
-            command.Contains("\"ListingHouseDetails\"", StringComparison.Ordinal));
+            command.Contains("\"ListingHouseDetails\"", StringComparison.Ordinal) &&
+            command.Contains("\"ListingCommercialDetails\"", StringComparison.Ordinal) &&
+            command.Contains("\"ListingLandDetails\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    [Trait("Name", "Chapter14ManagementReadContract")]
+    public async Task Chapter14ManagementReadContract_LockedLoad_TracksDormantDetailsAfterParentLock()
+    {
+        Guid listingId =
+            await ListingTestHelpers.CreateListingAsync(_httpClient);
+        string connectionString = await SeedDormantDetailsAsync(
+            listingId,
+            CommercialType.Office,
+            LandType.AgriculturalLand);
+
+        var commandCapture = new QueryCommandCaptureInterceptor();
+        DbContextOptions<RealEstateDbContext> options =
+            new DbContextOptionsBuilder<RealEstateDbContext>()
+                .UseNpgsql(connectionString)
+                .AddInterceptors(commandCapture)
+                .Options;
+
+        await using var writeDbContext = new RealEstateDbContext(options);
+        var repository = new ListingAuthoringRepository(writeDbContext);
+        IListingAuthoringWriteScope? writeScope =
+            await repository.BeginWriteAsync(
+                listingId,
+                CancellationToken.None);
+
+        writeScope.Should().NotBeNull();
+        writeDbContext.Database.CurrentTransaction.Should().NotBeNull();
+        await using (writeScope!)
+        {
+            writeScope.Listing.CommercialDetails!.CommercialType
+                .Should().Be(CommercialType.Office);
+            writeScope.Listing.LandDetails!.LandType
+                .Should().Be(LandType.AgriculturalLand);
+            writeScope.Listing.Translations.Should().HaveCount(2);
+            writeDbContext.Entry(writeScope.Listing.CommercialDetails)
+                .State.Should().Be(EntityState.Unchanged);
+            writeDbContext.Entry(writeScope.Listing.LandDetails)
+                .State.Should().Be(EntityState.Unchanged);
+        }
+
+        IReadOnlyList<string> commands = commandCapture.Commands;
+        commands.Should().HaveCount(
+            3,
+            "the raw ADO.NET parent lock is outside EF interception, followed by one root/reference query and two collection queries");
+        commands[0].Should().Contain("\"ListingApartmentDetails\"");
+        commands[0].Should().Contain("\"ListingHouseDetails\"");
+        commands[0].Should().Contain("\"ListingCommercialDetails\"");
+        commands[0].Should().Contain("\"ListingLandDetails\"");
+        commands[1].Should().Contain("\"ListingTranslations\"");
+        commands[2].Should().Contain("\"ListingImages\"");
     }
 
     [Fact]
@@ -351,6 +423,35 @@ public sealed class ListingAuthoringRepositoryTests
             SortOrder = sortOrder,
             IsPrimary = isPrimary
         };
+    }
+
+    private async Task<string> SeedDormantDetailsAsync(
+        Guid listingId,
+        CommercialType commercialType,
+        LandType landType)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        dbContext.Set<ListingCommercialDetails>().Add(
+            new ListingCommercialDetails
+            {
+                ListingId = listingId,
+                CommercialType = commercialType
+            });
+        dbContext.Set<ListingLandDetails>().Add(
+            new ListingLandDetails
+            {
+                ListingId = listingId,
+                LandType = landType
+            });
+        await dbContext.SaveChangesAsync();
+
+        return dbContext.Database.GetConnectionString()
+            ?? throw new InvalidOperationException(
+                "The integration-test connection string is unavailable.");
     }
 
     private static async Task<int> GetBackendProcessIdAsync(

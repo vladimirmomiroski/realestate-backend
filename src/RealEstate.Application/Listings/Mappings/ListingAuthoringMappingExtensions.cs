@@ -55,6 +55,18 @@ public static class ListingAuthoringMappingExtensions
                     NumberOfFloors = listing.HouseDetails.NumberOfFloors,
                     YardAreaSquareMeters = listing.HouseDetails.YardAreaSquareMeters
                 },
+            CommercialDetails = listing.CommercialDetails is null
+                ? null
+                : new ListingCommercialDetailsResponse
+                {
+                    CommercialType = listing.CommercialDetails.CommercialType
+                },
+            LandDetails = listing.LandDetails is null
+                ? null
+                : new ListingLandDetailsResponse
+                {
+                    LandType = listing.LandDetails.LandType
+                },
             Translations = listing.Translations
                 .OrderBy(
                     translation => translation.LanguageCode,
