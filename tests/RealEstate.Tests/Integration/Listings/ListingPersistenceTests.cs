@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using RealEstate.Domain.Entities;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
@@ -17,6 +18,166 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
     {
         _factory = factory;
         _httpClient = factory.CreateClient();
+    }
+
+    [Fact]
+    public void Commercial_and_land_taxonomy_has_exact_dormant_domain_shape()
+    {
+        Enum.GetValues<CommercialType>().Should().Equal(
+            CommercialType.Unknown,
+            CommercialType.Office,
+            CommercialType.Shop,
+            CommercialType.Other);
+        Enum.GetValues<CommercialType>().Select(value => (int)value)
+            .Should().Equal(0, 1, 2, 3);
+
+        Enum.GetValues<LandType>().Should().Equal(
+            LandType.Unknown,
+            LandType.BuildingPlot,
+            LandType.AgriculturalLand,
+            LandType.Other);
+        Enum.GetValues<LandType>().Select(value => (int)value)
+            .Should().Equal(0, 1, 2, 3);
+
+        new ListingCommercialDetails().CommercialType
+            .Should().Be(CommercialType.Unknown);
+        new ListingLandDetails().LandType.Should().Be(LandType.Unknown);
+
+        var listing = new Listing();
+        listing.CommercialDetails.Should().BeNull();
+        listing.LandDetails.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Can_round_trip_dormant_commercial_and_land_enum_names()
+    {
+        Guid listingId = Guid.NewGuid();
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+            var listing = CreateDormantTaxonomyFixture(listingId);
+            listing.CommercialDetails = new ListingCommercialDetails
+            {
+                ListingId = listingId,
+                CommercialType = CommercialType.Shop
+            };
+            listing.LandDetails = new ListingLandDetails
+            {
+                ListingId = listingId,
+                LandType = LandType.AgriculturalLand
+            };
+
+            dbContext.Listings.Add(listing);
+            await dbContext.SaveChangesAsync();
+        }
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+            Listing persisted = await dbContext.Listings
+                .Include(listing => listing.CommercialDetails)
+                .Include(listing => listing.LandDetails)
+                .SingleAsync(listing => listing.Id == listingId);
+
+            persisted.PropertyType.Should().Be(PropertyType.Apartment);
+            persisted.CommercialDetails!.CommercialType
+                .Should().Be(CommercialType.Shop);
+            persisted.LandDetails!.LandType
+                .Should().Be(LandType.AgriculturalLand);
+
+            string commercialStorage = await dbContext.Database
+                .SqlQueryRaw<string>(
+                    """
+                    SELECT "CommercialType" AS "Value"
+                    FROM "ListingCommercialDetails"
+                    WHERE "ListingId" = {0}
+                    """,
+                    listingId)
+                .SingleAsync();
+            string landStorage = await dbContext.Database
+                .SqlQueryRaw<string>(
+                    """
+                    SELECT "LandType" AS "Value"
+                    FROM "ListingLandDetails"
+                    WHERE "ListingId" = {0}
+                    """,
+                    listingId)
+                .SingleAsync();
+
+            commercialStorage.Should().Be("Shop");
+            landStorage.Should().Be("AgriculturalLand");
+        }
+    }
+
+    [Fact]
+    public async Task Dormant_subtype_storage_enforces_defaults_ownership_and_cardinality()
+    {
+        Guid listingId = Guid.NewGuid();
+
+        using IServiceScope scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        dbContext.Listings.Add(CreateDormantTaxonomyFixture(listingId));
+        await dbContext.SaveChangesAsync();
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             INSERT INTO "ListingCommercialDetails" ("ListingId")
+             VALUES ({listingId})
+             """);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             INSERT INTO "ListingLandDetails" ("ListingId")
+             VALUES ({listingId})
+             """);
+
+        dbContext.ChangeTracker.Clear();
+        (await dbContext.Set<ListingCommercialDetails>()
+                .SingleAsync(details => details.ListingId == listingId))
+            .CommercialType.Should().Be(CommercialType.Unknown);
+        (await dbContext.Set<ListingLandDetails>()
+                .SingleAsync(details => details.ListingId == listingId))
+            .LandType.Should().Be(LandType.Unknown);
+
+        Func<Task> duplicateCommercial = () =>
+            dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 INSERT INTO "ListingCommercialDetails" ("ListingId")
+                 VALUES ({listingId})
+                 """);
+        PostgresException duplicateException =
+            (await duplicateCommercial.Should().ThrowAsync<PostgresException>())
+            .Which;
+        duplicateException.SqlState.Should().Be(
+            PostgresErrorCodes.UniqueViolation);
+
+        Guid orphanListingId = Guid.NewGuid();
+        Func<Task> insertOrphan = () =>
+            dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 INSERT INTO "ListingLandDetails" ("ListingId")
+                 VALUES ({orphanListingId})
+                 """);
+        PostgresException orphanException =
+            (await insertOrphan.Should().ThrowAsync<PostgresException>()).Which;
+        orphanException.SqlState.Should().Be(
+            PostgresErrorCodes.ForeignKeyViolation);
+
+        dbContext.ChangeTracker.Clear();
+        Listing listing = await dbContext.Listings
+            .SingleAsync(candidate => candidate.Id == listingId);
+        dbContext.Listings.Remove(listing);
+        await dbContext.SaveChangesAsync();
+
+        (await dbContext.Set<ListingCommercialDetails>()
+                .CountAsync(details => details.ListingId == listingId))
+            .Should().Be(0);
+        (await dbContext.Set<ListingLandDetails>()
+                .CountAsync(details => details.ListingId == listingId))
+            .Should().Be(0);
     }
 
     [Fact]
@@ -90,6 +251,19 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
             addressLine: "Partizanska 1",
             city: "Skopje",
             municipality: "Centar");
+    }
+
+    private static Listing CreateDormantTaxonomyFixture(Guid listingId)
+    {
+        return new Listing
+        {
+            Id = listingId,
+            ListingType = ListingType.Sale,
+            PropertyType = PropertyType.Apartment,
+            Price = 100_000m,
+            Currency = "EUR",
+            AreaSquareMeters = 50m
+        };
     }
 
     private static Listing CreateListing(Guid userId)

@@ -73,6 +73,10 @@ public class Listing : IAuditableEntity
 
     public ListingHouseDetails? HouseDetails { get; set; }
 
+    public ListingCommercialDetails? CommercialDetails { get; set; }
+
+    public ListingLandDetails? LandDetails { get; set; }
+
     public ICollection<ListingTranslation> Translations { get; set; } =
         new List<ListingTranslation>();
 
