@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RealEstate.Domain.Enums;
 using RealEstate.Tests.Integration.Auth;
 using System.Net;
 using System.Net.Http.Json;
@@ -251,6 +252,7 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
+    [Trait("Name", "Chapter14SharedReadContract")]
     public async Task GetComparables_PersonalAndAgencyCandidatesCompeteTogetherAndPreserveResponseShape()
     {
         // Arrange
@@ -323,6 +325,12 @@ public sealed partial class ListingsEndpointTests
                 createdAtUtc: newerTimestamp,
                 latitude: 42.100001m,
                 longitude: 22.100001m);
+
+        await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+            _factory,
+            agencyCandidateId,
+            CommercialType.Shop,
+            LandType.AgriculturalLand);
 
         _httpClient.ClearAuthorization();
 
@@ -420,6 +428,16 @@ public sealed partial class ListingsEndpointTests
             .GetString()
             .Should()
             .Be("ExactAddress");
+
+        agencyItem.GetProperty("commercialDetails")
+            .GetProperty("commercialType").GetString().Should().Be("Shop");
+        agencyItem.GetProperty("landDetails")
+            .GetProperty("landType").GetString()
+            .Should().Be("AgriculturalLand");
+        personalItem.GetProperty("commercialDetails").ValueKind
+            .Should().Be(JsonValueKind.Null);
+        personalItem.GetProperty("landDetails").ValueKind
+            .Should().Be(JsonValueKind.Null);
 
         foreach (JsonElement item in json.EnumerateArray())
         {

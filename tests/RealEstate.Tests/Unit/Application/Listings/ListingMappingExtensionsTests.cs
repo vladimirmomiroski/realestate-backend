@@ -570,6 +570,84 @@ public sealed class ListingMappingExtensionsTests
         response.ApartmentDetails.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Name", "Chapter14SharedReadContract")]
+    public void Chapter14SharedReadContract_ToResponse_MapsDormantDetailsFaithfully(
+        bool detailsArePresent)
+    {
+        Listing listing = CreateBaseListing();
+
+        if (detailsArePresent)
+        {
+            listing.CommercialDetails = new ListingCommercialDetails
+            {
+                ListingId = listing.Id,
+                CommercialType = CommercialType.Shop
+            };
+            listing.LandDetails = new ListingLandDetails
+            {
+                ListingId = listing.Id,
+                LandType = LandType.AgriculturalLand
+            };
+        }
+
+        ListingResponse response = listing.ToResponse("mk");
+
+        if (detailsArePresent)
+        {
+            response.CommercialDetails!.CommercialType
+                .Should().Be(CommercialType.Shop);
+            response.LandDetails!.LandType
+                .Should().Be(LandType.AgriculturalLand);
+        }
+        else
+        {
+            response.CommercialDetails.Should().BeNull();
+            response.LandDetails.Should().BeNull();
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Name", "Chapter14SharedReadContract")]
+    public void Chapter14SharedReadContract_ToPublicResponse_MapsDormantDetailsFaithfully(
+        bool detailsArePresent)
+    {
+        Listing listing = CreateBaseListing();
+
+        if (detailsArePresent)
+        {
+            listing.CommercialDetails = new ListingCommercialDetails
+            {
+                ListingId = listing.Id,
+                CommercialType = CommercialType.Office
+            };
+            listing.LandDetails = new ListingLandDetails
+            {
+                ListingId = listing.Id,
+                LandType = LandType.BuildingPlot
+            };
+        }
+
+        PublicListingResponse response = listing.ToPublicResponse("mk");
+
+        if (detailsArePresent)
+        {
+            response.CommercialDetails!.CommercialType
+                .Should().Be(CommercialType.Office);
+            response.LandDetails!.LandType
+                .Should().Be(LandType.BuildingPlot);
+        }
+        else
+        {
+            response.CommercialDetails.Should().BeNull();
+            response.LandDetails.Should().BeNull();
+        }
+    }
+
     [Fact]
     public void ToResponse_ShouldMapConfirmedLocationSnapshot()
     {
