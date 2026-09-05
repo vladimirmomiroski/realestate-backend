@@ -50,6 +50,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
+    [Trait("Name", "Chapter14SharedReadContract")]
     public async Task GetAgencyListings_ReturnsOnlyListingsForAgency()
     {
         AuthenticatedTestUser owner =
@@ -77,6 +78,12 @@ public sealed partial class AgenciesEndpointTests
             _factory,
             secondAgencyListingId,
             ListingStatus.Active);
+
+        await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+            _factory,
+            firstAgencyListingId,
+            CommercialType.Office,
+            LandType.AgriculturalLand);
 
         HttpResponseMessage response = await _httpClient.GetAsync(
             $"/api/agencies/{firstAgencyId}/listings?lang=en&page=1&pageSize=20");
@@ -109,6 +116,11 @@ public sealed partial class AgenciesEndpointTests
         items[0].GetProperty("longitude").GetDecimal().Should().Be(21.4254m);
         items[0].GetProperty("locationPrecision").GetString().Should()
             .Be("ExactAddress");
+        items[0].GetProperty("commercialDetails")
+            .GetProperty("commercialType").GetString().Should().Be("Office");
+        items[0].GetProperty("landDetails")
+            .GetProperty("landType").GetString()
+            .Should().Be("AgriculturalLand");
     }
 
     [Theory]

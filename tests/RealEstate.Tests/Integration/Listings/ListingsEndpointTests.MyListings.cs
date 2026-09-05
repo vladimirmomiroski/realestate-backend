@@ -20,6 +20,7 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
+    [Trait("Name", "Chapter14SharedReadContract")]
     public async Task GetMyListings_WithAccessToken_ReturnsOnlyCurrentUsersListings()
     {
         AuthenticatedTestUser firstUser =
@@ -46,6 +47,12 @@ public sealed partial class ListingsEndpointTests
                 await firstCreateResponse.Content.ReadFromJsonAsync<JsonElement>();
 
             firstUserListingId = firstCreateJson.GetProperty("id").GetGuid();
+
+            await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+                _factory,
+                firstUserListingId,
+                CommercialType.Shop,
+                LandType.BuildingPlot);
 
             _httpClient.AuthorizeAs(secondUser.AccessToken);
 
@@ -80,6 +87,13 @@ public sealed partial class ListingsEndpointTests
             listingIds.Should().NotContain(secondUserListingId);
 
             json.GetProperty("totalCount").GetInt32().Should().Be(1);
+
+            JsonElement item = json.GetProperty("items")
+                .EnumerateArray().Single();
+            item.GetProperty("commercialDetails")
+                .GetProperty("commercialType").GetString().Should().Be("Shop");
+            item.GetProperty("landDetails")
+                .GetProperty("landType").GetString().Should().Be("BuildingPlot");
         }
         finally
         {

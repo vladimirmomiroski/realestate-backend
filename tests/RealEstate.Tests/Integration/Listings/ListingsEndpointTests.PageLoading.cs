@@ -12,6 +12,7 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed partial class ListingsEndpointTests
 {
     [Fact]
+    [Trait("Name", "Chapter14SharedReadContract")]
     public async Task GetListings_PageLoading_PreservesSelectedPageAggregatesAndOrder()
     {
         // Arrange
@@ -71,6 +72,12 @@ public sealed partial class ListingsEndpointTests
             newerListingId,
             ListingStatus.Active,
             olderTimestamp.AddHours(1));
+
+        await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+            _factory,
+            newerListingId,
+            CommercialType.Office,
+            LandType.AgriculturalLand);
 
         await AddQueryShapeImagesAsync(
             CreateQueryShapeImage(
@@ -133,6 +140,11 @@ public sealed partial class ListingsEndpointTests
             .Should().Be(JsonValueKind.Object);
         item.GetProperty("houseDetails").ValueKind
             .Should().Be(JsonValueKind.Null);
+        item.GetProperty("commercialDetails")
+            .GetProperty("commercialType").GetString().Should().Be("Office");
+        item.GetProperty("landDetails")
+            .GetProperty("landType").GetString()
+            .Should().Be("AgriculturalLand");
 
         item.GetProperty("primaryImageUrl").GetString()
             .Should().Be("/uploads/qs1/newer-primary.webp");

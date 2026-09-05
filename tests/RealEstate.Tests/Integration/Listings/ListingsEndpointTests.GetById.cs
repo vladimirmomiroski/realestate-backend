@@ -9,9 +9,16 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed partial class ListingsEndpointTests
 {
     [Fact]
+    [Trait("Name", "Chapter14SharedReadContract")]
     public async Task GetListingById_WithExistingListing_ReturnsListingInRequestedLanguage()
     {
         var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+
+        await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+            _factory,
+            listingId,
+            CommercialType.Shop,
+            LandType.BuildingPlot);
 
         await ListingTestHelpers.SetListingStatusAsync(
             _factory,
@@ -39,6 +46,10 @@ public sealed partial class ListingsEndpointTests
 
         json.GetProperty("apartmentDetails").ValueKind.Should().Be(JsonValueKind.Object);
         json.GetProperty("houseDetails").ValueKind.Should().Be(JsonValueKind.Null);
+        json.GetProperty("commercialDetails")
+            .GetProperty("commercialType").GetString().Should().Be("Shop");
+        json.GetProperty("landDetails")
+            .GetProperty("landType").GetString().Should().Be("BuildingPlot");
 
         json.GetProperty("primaryImageUrl").ValueKind.Should().Be(JsonValueKind.Null);
         json.GetProperty("images").ValueKind.Should().Be(JsonValueKind.Array);

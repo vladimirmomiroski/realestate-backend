@@ -17,6 +17,7 @@ public sealed partial class ListingsEndpointTests
     [InlineData("publish", ListingStatus.Draft, ListingStatus.Active, false)]
     [InlineData("unpublish", ListingStatus.Active, ListingStatus.Draft, false)]
     [InlineData("archive", ListingStatus.Active, ListingStatus.Archived, true)]
+    [Trait("Name", "Chapter14SharedReadContract")]
     public async Task LifecycleWriter_ReturnsFullyLoadedPersistedAggregate(
         string operation,
         ListingStatus startingStatus,
@@ -35,6 +36,12 @@ public sealed partial class ListingsEndpointTests
                 _factory,
                 listingId);
         }
+
+        await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+            _factory,
+            listingId,
+            CommercialType.Shop,
+            LandType.BuildingPlot);
 
         Guid imageId = await AddLifecycleImageAsync(listingId);
 
@@ -73,6 +80,10 @@ public sealed partial class ListingsEndpointTests
             image.GetProperty("isPrimary").GetBoolean().Should().BeTrue();
             json.GetProperty("primaryImageUrl").GetString()
                 .Should().Be($"/uploads/listings/{listingId}/lifecycle.jpg");
+            json.GetProperty("commercialDetails")
+                .GetProperty("commercialType").GetString().Should().Be("Shop");
+            json.GetProperty("landDetails")
+                .GetProperty("landType").GetString().Should().Be("BuildingPlot");
 
             if (useHouse)
             {

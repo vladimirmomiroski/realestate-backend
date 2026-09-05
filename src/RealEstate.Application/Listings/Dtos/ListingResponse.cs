@@ -76,6 +76,10 @@ public sealed class ListingResponse
 
     public ListingHouseDetailsResponse? HouseDetails { get; set; }
 
+    public ListingCommercialDetailsResponse? CommercialDetails { get; set; }
+
+    public ListingLandDetailsResponse? LandDetails { get; set; }
+
     public List<ListingImageResponse> Images { get; set; } =
         new List<ListingImageResponse>();
 }

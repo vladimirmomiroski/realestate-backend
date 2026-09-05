@@ -51,6 +51,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
+    [Trait("Name", "Chapter14SharedReadContract")]
     public async Task GetAgencyDashboardListings_ShouldReturnAllStatusesForAgency()
     {
         AuthenticatedTestUser owner =
@@ -113,6 +114,12 @@ public sealed partial class AgenciesEndpointTests
                 status);
         }
 
+        await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+            _factory,
+            draftListingId,
+            CommercialType.Shop,
+            LandType.BuildingPlot);
+
         _httpClient.AuthorizeAs(owner.AccessToken);
 
         try
@@ -141,6 +148,20 @@ public sealed partial class AgenciesEndpointTests
                     ReadListingStatusFromJson);
 
             actualListings.Should().BeEquivalentTo(expectedListings);
+
+            JsonElement draft = items.EnumerateArray().Single(item =>
+                item.GetProperty("id").GetGuid() == draftListingId);
+            draft.GetProperty("commercialDetails")
+                .GetProperty("commercialType").GetString().Should().Be("Shop");
+            draft.GetProperty("landDetails")
+                .GetProperty("landType").GetString().Should().Be("BuildingPlot");
+
+            JsonElement active = items.EnumerateArray().Single(item =>
+                item.GetProperty("id").GetGuid() == activeListingId);
+            active.GetProperty("commercialDetails").ValueKind
+                .Should().Be(JsonValueKind.Null);
+            active.GetProperty("landDetails").ValueKind
+                .Should().Be(JsonValueKind.Null);
         }
         finally
         {

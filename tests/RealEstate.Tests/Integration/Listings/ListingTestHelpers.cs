@@ -397,6 +397,33 @@ internal static class ListingTestHelpers
             listingId);
     }
 
+    public static async Task SeedDormantSubtypeDetailsAsync(
+        CustomWebApplicationFactory factory,
+        Guid listingId,
+        CommercialType commercialType = CommercialType.Office,
+        LandType landType = LandType.AgriculturalLand)
+    {
+        await using AsyncServiceScope scope =
+            factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        dbContext.Set<ListingCommercialDetails>().Add(
+            new ListingCommercialDetails
+            {
+                ListingId = listingId,
+                CommercialType = commercialType
+            });
+        dbContext.Set<ListingLandDetails>().Add(
+            new ListingLandDetails
+            {
+                ListingId = listingId,
+                LandType = landType
+            });
+
+        await dbContext.SaveChangesAsync();
+    }
+
     private static async Task EnsureStrongLocationPublishableFixtureAsync(
         RealEstateDbContext dbContext,
         Guid listingId)
