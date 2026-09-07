@@ -169,6 +169,32 @@ public sealed class CreateListingHandler
                 };
                 break;
 
+            case PropertyType.Commercial:
+                CreateListingCommercialDetailsRequest commercialDetails =
+                    request.CommercialDetails
+                    ?? throw new InvalidOperationException(
+                        "Validated commercial creation requires commercial details.");
+
+                listing.CommercialDetails = new ListingCommercialDetails
+                {
+                    ListingId = listing.Id,
+                    CommercialType = commercialDetails.CommercialType
+                };
+                break;
+
+            case PropertyType.Land:
+                CreateListingLandDetailsRequest landDetails =
+                    request.LandDetails
+                    ?? throw new InvalidOperationException(
+                        "Validated land creation requires land details.");
+
+                listing.LandDetails = new ListingLandDetails
+                {
+                    ListingId = listing.Id,
+                    LandType = landDetails.LandType
+                };
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(
                     nameof(request.PropertyType),

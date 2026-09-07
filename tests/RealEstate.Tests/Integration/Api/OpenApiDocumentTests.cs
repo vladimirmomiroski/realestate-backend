@@ -1352,7 +1352,7 @@ public sealed class OpenApiDocumentTests
             .EnumerateArray()
             .Select(value => value.GetString())
             .Should()
-            .BeEquivalentTo("Apartment", "House");
+            .BeEquivalentTo("Apartment", "House", "Commercial", "Land");
     }
 
     [Fact]

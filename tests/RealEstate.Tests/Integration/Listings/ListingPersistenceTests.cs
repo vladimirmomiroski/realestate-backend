@@ -21,8 +21,16 @@ public sealed class ListingPersistenceTests : IClassFixture<CustomWebApplication
     }
 
     [Fact]
-    public void Commercial_and_land_taxonomy_has_exact_dormant_domain_shape()
+    public void Commercial_and_land_taxonomy_has_exact_domain_shape()
     {
+        Enum.GetValues<PropertyType>().Should().Equal(
+            PropertyType.Apartment,
+            PropertyType.House,
+            PropertyType.Commercial,
+            PropertyType.Land);
+        Enum.GetValues<PropertyType>().Select(value => (int)value)
+            .Should().Equal(1, 2, 3, 4);
+
         Enum.GetValues<CommercialType>().Should().Equal(
             CommercialType.Unknown,
             CommercialType.Office,

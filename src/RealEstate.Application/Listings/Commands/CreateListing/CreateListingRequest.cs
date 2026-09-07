@@ -44,6 +44,10 @@ public sealed class CreateListingRequest
 
     public CreateListingHouseDetailsRequest? HouseDetails { get; set; }
 
+    public CreateListingCommercialDetailsRequest? CommercialDetails { get; set; }
+
+    public CreateListingLandDetailsRequest? LandDetails { get; set; }
+
     public List<CreateListingTranslationRequest> Translations { get; set; } =
         new List<CreateListingTranslationRequest>();
 }

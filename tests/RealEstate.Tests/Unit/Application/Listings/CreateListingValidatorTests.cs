@@ -15,7 +15,9 @@ public sealed class CreateListingValidatorTests
         { "condition", (int)PropertyCondition.Good },
         { "orientation", (int)Orientation.SouthEast },
         { "apartmentDetails.apartmentType", (int)ApartmentType.Standard },
-        { "houseDetails.houseType", (int)HouseType.Detached }
+        { "houseDetails.houseType", (int)HouseType.Detached },
+        { "commercialDetails.commercialType", (int)CommercialType.Shop },
+        { "landDetails.landType", (int)LandType.AgriculturalLand }
     };
 
     public static TheoryData<string> UnknownCategoricalCases => new()
@@ -25,7 +27,9 @@ public sealed class CreateListingValidatorTests
         "condition",
         "orientation",
         "apartmentDetails.apartmentType",
-        "houseDetails.houseType"
+        "houseDetails.houseType",
+        "commercialDetails.commercialType",
+        "landDetails.landType"
     };
 
     public static TheoryData<string, string> UndefinedCategoricalCases => new()
@@ -38,7 +42,12 @@ public sealed class CreateListingValidatorTests
             "apartmentDetails.apartmentType",
             "Apartment type must be a defined value."
         },
-        { "houseDetails.houseType", "House type must be a defined value." }
+        { "houseDetails.houseType", "House type must be a defined value." },
+        {
+            "commercialDetails.commercialType",
+            "Commercial type must be a defined value."
+        },
+        { "landDetails.landType", "Land type must be a defined value." }
     };
 
     [Fact]
@@ -64,6 +73,19 @@ public sealed class CreateListingValidatorTests
         var result = _validator.Validate(request);
 
         // Assert
+        result.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(PropertyType.Commercial)]
+    [InlineData(PropertyType.Land)]
+    public void Validate_ShouldReturnNull_WhenNewRootRequestIsValid(
+        PropertyType propertyType)
+    {
+        CreateListingRequest request = CreateValidRequest(propertyType);
+
+        string? result = _validator.Validate(request);
+
         result.Should().BeNull();
     }
 
@@ -133,6 +155,90 @@ public sealed class CreateListingValidatorTests
         failure!.Key.Should().Be("propertyType");
         failure.Error.Should().Be(
             CreateListingValidator.InvalidPropertyTypeError);
+    }
+
+    [Theory]
+    [InlineData(PropertyType.Commercial, "commercialDetails")]
+    [InlineData(PropertyType.Land, "landDetails")]
+    public void ValidateWithKey_NewRootWithoutMatchingDetails_FailsOnMatchingKey(
+        PropertyType propertyType,
+        string expectedKey)
+    {
+        CreateListingRequest request = CreateValidRequest(propertyType);
+
+        if (propertyType == PropertyType.Commercial)
+        {
+            request.CommercialDetails = null;
+        }
+        else
+        {
+            request.LandDetails = null;
+        }
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be(expectedKey);
+    }
+
+    [Theory]
+    [InlineData(PropertyType.Commercial, "apartment")]
+    [InlineData(PropertyType.Commercial, "house")]
+    [InlineData(PropertyType.Commercial, "land")]
+    [InlineData(PropertyType.Land, "apartment")]
+    [InlineData(PropertyType.Land, "house")]
+    [InlineData(PropertyType.Land, "commercial")]
+    public void ValidateWithKey_NewRootWithContradictoryDetails_FailsOnRequest(
+        PropertyType propertyType,
+        string contradictoryDetails)
+    {
+        CreateListingRequest request = CreateValidRequest(propertyType);
+        AddDetails(request, contradictoryDetails);
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be("request");
+    }
+
+    [Theory]
+    [InlineData(PropertyType.Commercial, "apartment", "house")]
+    [InlineData(PropertyType.Land, "apartment", "commercial")]
+    public void ValidateWithKey_NewRootWithMultipleContradictoryDetails_FailsOnRequest(
+        PropertyType propertyType,
+        string firstDetails,
+        string secondDetails)
+    {
+        CreateListingRequest request = CreateValidRequest(propertyType);
+        AddDetails(request, firstDetails);
+        AddDetails(request, secondDetails);
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be("request");
+    }
+
+    [Theory]
+    [InlineData(PropertyType.Apartment, "commercial")]
+    [InlineData(PropertyType.Apartment, "land")]
+    [InlineData(PropertyType.House, "commercial")]
+    [InlineData(PropertyType.House, "land")]
+    public void ValidateWithKey_ExistingRootRejectsNewContradictoryDetails(
+        PropertyType propertyType,
+        string contradictoryDetails)
+    {
+        CreateListingRequest request = CreateValidRequest(propertyType);
+        AddDetails(request, contradictoryDetails);
+
+        CreateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be("request");
     }
 
     [Fact]
@@ -440,9 +546,14 @@ public sealed class CreateListingValidatorTests
     private static CreateListingRequest CreateRequestForCategoricalField(
         string field)
     {
-        return field == "houseDetails.houseType"
-            ? CreateValidHouseRequest()
-            : CreateValidApartmentRequest();
+        return field switch
+        {
+            "houseDetails.houseType" => CreateValidHouseRequest(),
+            "commercialDetails.commercialType" =>
+                CreateValidRequest(PropertyType.Commercial),
+            "landDetails.landType" => CreateValidRequest(PropertyType.Land),
+            _ => CreateValidApartmentRequest()
+        };
     }
 
     private static void SetCategoricalValue(
@@ -470,6 +581,13 @@ public sealed class CreateListingValidatorTests
                 break;
             case "houseDetails.houseType":
                 request.HouseDetails!.HouseType = (HouseType)value;
+                break;
+            case "commercialDetails.commercialType":
+                request.CommercialDetails!.CommercialType =
+                    (CommercialType)value;
+                break;
+            case "landDetails.landType":
+                request.LandDetails!.LandType = (LandType)value;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(
@@ -506,6 +624,74 @@ public sealed class CreateListingValidatorTests
                 CreateTranslation("mk", "Куќа во Скопје")
             }
         };
+    }
+
+    private static CreateListingRequest CreateValidRequest(
+        PropertyType propertyType)
+    {
+        return propertyType switch
+        {
+            PropertyType.Apartment => CreateValidApartmentRequest(),
+            PropertyType.House => CreateValidHouseRequest(),
+            PropertyType.Commercial => new CreateListingRequest
+            {
+                ListingType = ListingType.Sale,
+                PropertyType = PropertyType.Commercial,
+                Price = 140_000m,
+                Currency = "EUR",
+                AreaSquareMeters = 80m,
+                CommercialDetails = new CreateListingCommercialDetailsRequest(),
+                Translations =
+                [
+                    CreateTranslation("mk", "Деловен простор")
+                ]
+            },
+            PropertyType.Land => new CreateListingRequest
+            {
+                ListingType = ListingType.Sale,
+                PropertyType = PropertyType.Land,
+                Price = 90_000m,
+                Currency = "EUR",
+                AreaSquareMeters = 600m,
+                LandDetails = new CreateListingLandDetailsRequest(),
+                Translations =
+                [
+                    CreateTranslation("mk", "Земјиште")
+                ]
+            },
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(propertyType),
+                propertyType,
+                "Unsupported test property type.")
+        };
+    }
+
+    private static void AddDetails(
+        CreateListingRequest request,
+        string details)
+    {
+        switch (details)
+        {
+            case "apartment":
+                request.ApartmentDetails =
+                    new CreateListingApartmentDetailsRequest();
+                break;
+            case "house":
+                request.HouseDetails = new CreateListingHouseDetailsRequest();
+                break;
+            case "commercial":
+                request.CommercialDetails =
+                    new CreateListingCommercialDetailsRequest();
+                break;
+            case "land":
+                request.LandDetails = new CreateListingLandDetailsRequest();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(details),
+                    details,
+                    "Unsupported test details slot.");
+        }
     }
 
     private static CreateListingTranslationRequest CreateTranslation(
