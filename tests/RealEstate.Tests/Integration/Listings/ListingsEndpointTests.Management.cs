@@ -406,8 +406,8 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14ManagementReadContract")]
-    public async Task Chapter14ManagementReadContract_GetManagement_RepresentsAllSubtypeSlotsTruthfully()
+    [Trait("Name", "ManagementReadContract")]
+    public async Task ManagementReadContract_GetManagement_RepresentsAllSubtypeSlotsTruthfully()
     {
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);

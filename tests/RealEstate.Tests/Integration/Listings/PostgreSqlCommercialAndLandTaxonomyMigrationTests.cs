@@ -245,7 +245,7 @@ public sealed class PostgreSqlCommercialAndLandTaxonomyMigrationTests
                     ListingId = listingId,
                     LanguageCode = "en",
                     Title = title,
-                    Description = "Existing pre-Chapter-14 listing.",
+                    Description = "Existing pre-taxonomy-expansion listing.",
                     AddressLine = "Migration Street 14",
                     City = "Skopje",
                     Municipality = "Centar",

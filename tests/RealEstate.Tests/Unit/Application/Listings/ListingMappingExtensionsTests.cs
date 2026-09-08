@@ -573,8 +573,8 @@ public sealed class ListingMappingExtensionsTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    [Trait("Name", "Chapter14SharedReadContract")]
-    public void Chapter14SharedReadContract_ToResponse_MapsDormantDetailsFaithfully(
+    [Trait("Name", "SharedListingReadContract")]
+    public void SharedListingReadContract_ToResponse_MapsDormantDetailsFaithfully(
         bool detailsArePresent)
     {
         Listing listing = CreateBaseListing();
@@ -612,8 +612,8 @@ public sealed class ListingMappingExtensionsTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    [Trait("Name", "Chapter14SharedReadContract")]
-    public void Chapter14SharedReadContract_ToPublicResponse_MapsDormantDetailsFaithfully(
+    [Trait("Name", "SharedListingReadContract")]
+    public void SharedListingReadContract_ToPublicResponse_MapsDormantDetailsFaithfully(
         bool detailsArePresent)
     {
         Listing listing = CreateBaseListing();
@@ -709,8 +709,8 @@ public sealed class ListingMappingExtensionsTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14ManagementReadContract")]
-    public void Chapter14ManagementReadContract_ToAuthoringResponse_MapsDormantDetailsFaithfully()
+    [Trait("Name", "ManagementReadContract")]
+    public void ManagementReadContract_ToAuthoringResponse_MapsDormantDetailsFaithfully()
     {
         Listing listing = CreateBaseListing();
         listing.CommercialDetails = new ListingCommercialDetails
@@ -737,8 +737,8 @@ public sealed class ListingMappingExtensionsTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14ManagementReadContract")]
-    public void Chapter14ManagementReadContract_ToAuthoringResponse_MapsAbsentDormantDetailsAsNull()
+    [Trait("Name", "ManagementReadContract")]
+    public void ManagementReadContract_ToAuthoringResponse_MapsAbsentDormantDetailsAsNull()
     {
         Listing listing = CreateBaseListing();
 

@@ -252,7 +252,7 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14SharedReadContract")]
+    [Trait("Name", "SharedListingReadContract")]
     public async Task GetComparables_PersonalAndAgencyCandidatesCompeteTogetherAndPreserveResponseShape()
     {
         // Arrange

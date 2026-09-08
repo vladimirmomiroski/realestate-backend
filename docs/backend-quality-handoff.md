@@ -77,7 +77,7 @@ It is a live source-controlled issue register, not a project history, completed-
 - **CH13-J2-DEPLOY-01: Active-location target-zero gate awaits first deployment**
   - Area: Chapter 13 J.2 deployment compatibility gate.
   - Current result: The reusable J.2 compatibility-gate implementation is complete and green. The backend has never been deployed, so no real staging/production target currently exists for the target-zero check.
-  - Smallest safe direction: During the first real staging/production deployment preparation, run `docs/operations/chapter-13j2-active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0` before applying the completed J.3/J.4 enforcement as a coordinated deployment unit.
+  - Smallest safe direction: During the first real staging/production deployment preparation, run `docs/operations/active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0` before applying the completed J.3/J.4 enforcement as a coordinated deployment unit.
   - Safety boundary: If incompatible rows exist, remediate only through the supported `Active -> unpublish -> resolve -> publish` lifecycle/location workflow, or leave the row non-Active; do not use raw SQL repair/backfill.
   - Classification: Chapter 13 development is complete; first staging/production deployment of J.3/J.4 remains gated until target-zero evidence is obtained.
 

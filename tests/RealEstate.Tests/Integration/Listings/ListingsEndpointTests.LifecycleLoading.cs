@@ -17,7 +17,7 @@ public sealed partial class ListingsEndpointTests
     [InlineData("publish", ListingStatus.Draft, ListingStatus.Active, false)]
     [InlineData("unpublish", ListingStatus.Active, ListingStatus.Draft, false)]
     [InlineData("archive", ListingStatus.Active, ListingStatus.Archived, true)]
-    [Trait("Name", "Chapter14SharedReadContract")]
+    [Trait("Name", "SharedListingReadContract")]
     public async Task LifecycleWriter_ReturnsFullyLoadedPersistedAggregate(
         string operation,
         ListingStatus startingStatus,

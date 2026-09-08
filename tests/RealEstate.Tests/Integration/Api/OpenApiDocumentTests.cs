@@ -395,7 +395,7 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
-    public void OpenApiDocument_Chapter13K2ListingResponses_AreSeparatedAndTruthful()
+    public void OpenApiDocument_ListingResponses_AreSeparatedAndTruthful()
     {
         using JsonDocument document = GetDocument();
         JsonElement root = document.RootElement;
@@ -552,7 +552,7 @@ public sealed class OpenApiDocumentTests
     }
 
     [Fact]
-    public void OpenApiDocument_Chapter13K2LocationReadContracts_AreStrictPublicAndNullablePrivate()
+    public void OpenApiDocument_LocationReadContracts_AreStrictPublicAndNullablePrivate()
     {
         using JsonDocument document = GetDocument();
         JsonElement schemas = document.RootElement

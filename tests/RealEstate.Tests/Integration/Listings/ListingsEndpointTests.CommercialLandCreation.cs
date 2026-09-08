@@ -486,7 +486,7 @@ public sealed partial class ListingsEndpointTests
                 {
                     LanguageCode = "en",
                     Title = $"Integration test {isCommercialTitle}",
-                    Description = "Complete Chapter 14 publication description",
+                    Description = "Complete commercial or land publication description",
                     AddressLine = "Center",
                     City = "Skopje",
                     Municipality = "Centar",
