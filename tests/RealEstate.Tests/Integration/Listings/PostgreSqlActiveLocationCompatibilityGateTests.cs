@@ -494,14 +494,14 @@ public sealed class PostgreSqlActiveLocationCompatibilityGateTests
         if (directory is null)
         {
             throw new InvalidOperationException(
-                "Could not locate the repository root for the J.2 operator report.");
+                "Could not locate the repository root for the active-location compatibility report.");
         }
 
         string path = Path.Combine(
             directory.FullName,
             "docs",
             "operations",
-            "chapter-13j2-active-location-compatibility.sql");
+            "active-location-compatibility.sql");
         return File.ReadAllText(path, Encoding.UTF8);
     }
 

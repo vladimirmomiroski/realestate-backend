@@ -20,7 +20,7 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14SharedReadContract")]
+    [Trait("Name", "SharedListingReadContract")]
     public async Task GetMyListings_WithAccessToken_ReturnsOnlyCurrentUsersListings()
     {
         AuthenticatedTestUser firstUser =

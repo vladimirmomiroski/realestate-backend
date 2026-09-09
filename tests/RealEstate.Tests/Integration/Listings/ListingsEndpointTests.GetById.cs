@@ -9,7 +9,7 @@ namespace RealEstate.Tests.Integration.Listings;
 public sealed partial class ListingsEndpointTests
 {
     [Fact]
-    [Trait("Name", "Chapter14SharedReadContract")]
+    [Trait("Name", "SharedListingReadContract")]
     public async Task GetListingById_WithExistingListing_ReturnsListingInRequestedLanguage()
     {
         var listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);

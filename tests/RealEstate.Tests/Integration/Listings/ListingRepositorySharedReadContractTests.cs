@@ -26,8 +26,8 @@ public sealed class ListingRepositorySharedReadContractTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14SharedReadContract")]
-    public async Task Chapter14SharedReadContract_CompleteLoads_WidenOnlyRootCommands()
+    [Trait("Name", "SharedListingReadContract")]
+    public async Task SharedListingReadContract_CompleteLoads_WidenOnlyRootCommands()
     {
         const string currency = "EUR";
         var (sourceId, owner) =

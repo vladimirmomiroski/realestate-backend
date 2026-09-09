@@ -50,7 +50,7 @@ public sealed partial class AgenciesEndpointTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14SharedReadContract")]
+    [Trait("Name", "SharedListingReadContract")]
     public async Task GetAgencyListings_ReturnsOnlyListingsForAgency()
     {
         AuthenticatedTestUser owner =

@@ -54,6 +54,13 @@ Do not guess project-specific names, helpers, schema fields, or conventions.
 Inspect the exact files first.
 ```
 
+Chapter numbers are planning/history identifiers only. Name production and test
+code by domain behavior, never with `Chapter13`, `Chapter14`, or future chapter
+numbers in types, methods, filenames, traits, helpers, runtime identifiers, or
+other code-facing terminology. Historical planning/evidence documents and
+immutable migration/history artifacts may retain chapter references; historical
+chapter-specific test selectors are records, not naming conventions to copy.
+
 ## 3. Project snapshot
 
 The backend supports a real estate platform with:
@@ -1163,7 +1170,7 @@ Chapter 13 added five forward migrations, bringing the repository to 20 committe
 
 Together they enforce translation-row truth, Active publication truth, optional localized-location row integrity, the canonical Listing-root geocoded snapshot, and strong Active translation/location integrity. The owner-approved L.1 gate verified the fresh 20-migration chain, repository-defined repeat lifecycle, relevant Down/re-Up paths, exact catalog objects, no fabricated coordinate/provenance backfill, and no pending EF model changes.
 
-The backend has never been deployed. Before the first staging/production deployment, run `docs/operations/chapter-13j2-active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0`; remediation is only through supported lifecycle/location workflows or by keeping rows non-Active.
+The backend has never been deployed. Before the first staging/production deployment, run `docs/operations/active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0`; remediation is only through supported lifecycle/location workflows or by keeping rows non-Active.
 
 Enums are stored as strings in PostgreSQL through EF Core conversions.
 

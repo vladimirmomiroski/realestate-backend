@@ -57,8 +57,8 @@ public sealed class ListingAuthoringRepositoryTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14ManagementReadContract")]
-    public async Task Chapter14ManagementReadContract_ReadOnlyLoad_UsesExactlyThreeCommands()
+    [Trait("Name", "ManagementReadContract")]
+    public async Task ManagementReadContract_ReadOnlyLoad_UsesExactlyThreeCommands()
     {
         Guid listingId =
             await ListingTestHelpers.CreateListingAsync(_httpClient);
@@ -154,8 +154,8 @@ public sealed class ListingAuthoringRepositoryTests
     }
 
     [Fact]
-    [Trait("Name", "Chapter14ManagementReadContract")]
-    public async Task Chapter14ManagementReadContract_LockedLoad_TracksDormantDetailsAfterParentLock()
+    [Trait("Name", "ManagementReadContract")]
+    public async Task ManagementReadContract_LockedLoad_TracksDormantDetailsAfterParentLock()
     {
         Guid listingId =
             await ListingTestHelpers.CreateListingAsync(_httpClient);
