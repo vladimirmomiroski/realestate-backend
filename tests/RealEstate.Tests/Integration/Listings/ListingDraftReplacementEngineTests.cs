@@ -89,6 +89,27 @@ public sealed class ListingDraftReplacementEngineTests
             }
         };
 
+    public static TheoryData<PropertyType, PropertyType>
+        PropertyTypeTransitionCases => new()
+        {
+            { PropertyType.Apartment, PropertyType.Apartment },
+            { PropertyType.Apartment, PropertyType.House },
+            { PropertyType.Apartment, PropertyType.Commercial },
+            { PropertyType.Apartment, PropertyType.Land },
+            { PropertyType.House, PropertyType.Apartment },
+            { PropertyType.House, PropertyType.House },
+            { PropertyType.House, PropertyType.Commercial },
+            { PropertyType.House, PropertyType.Land },
+            { PropertyType.Commercial, PropertyType.Apartment },
+            { PropertyType.Commercial, PropertyType.House },
+            { PropertyType.Commercial, PropertyType.Commercial },
+            { PropertyType.Commercial, PropertyType.Land },
+            { PropertyType.Land, PropertyType.Apartment },
+            { PropertyType.Land, PropertyType.House },
+            { PropertyType.Land, PropertyType.Commercial },
+            { PropertyType.Land, PropertyType.Land }
+        };
+
     private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _httpClient;
 
@@ -472,6 +493,160 @@ public sealed class ListingDraftReplacementEngineTests
         AssertUnresolvedLocation(await ReadListingAsync(listingId));
     }
 
+    [Theory]
+    [MemberData(nameof(PropertyTypeTransitionCases))]
+    public async Task ApplyAndPersist_AllPropertyTypeTransitionsLeaveOneTruthfulChild(
+        PropertyType sourceType,
+        PropertyType targetType)
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await SeedSourceTypeAsync(listingId, sourceType);
+        await ConfirmLocationAsync(listingId);
+        Listing before = await ReadListingAsync(listingId);
+        LocationSnapshot originalLocation = CaptureLocation(before);
+        Dictionary<string, Guid> translationIds = before.Translations
+            .ToDictionary(
+                translation => translation.LanguageCode,
+                translation => translation.Id,
+                StringComparer.Ordinal);
+
+        await using AsyncServiceScope serviceScope =
+            _factory.Services.CreateAsyncScope();
+        IListingAuthoringRepository repository = serviceScope.ServiceProvider
+            .GetRequiredService<IListingAuthoringRepository>();
+        ListingDraftReplacementEngine engine = serviceScope.ServiceProvider
+            .GetRequiredService<ListingDraftReplacementEngine>();
+        var validator = new UpdateListingValidator();
+        IListingAuthoringWriteScope? writeScope = await repository.BeginWriteAsync(
+            listingId,
+            CancellationToken.None);
+        writeScope.Should().NotBeNull();
+
+        await using (writeScope!)
+        {
+            Listing tracked = writeScope.Listing;
+            object? existingTarget = GetDetails(tracked, targetType);
+            UpdateListingRequest request = CreateReplacementRequest(tracked);
+            ConfigureTargetDetails(request, targetType);
+            request.Rooms = null;
+            request.Bathrooms = null;
+            request.BalconyCount = null;
+            request.ParkingSpaces = null;
+            request.HasBasement = null;
+            request.IsExchangePossible = null;
+            request.YearBuilt = null;
+            request.YearRenovated = null;
+            request.HeatingType = HeatingType.Unknown;
+            request.FurnishingStatus = FurnishingStatus.Unknown;
+            request.Condition = PropertyCondition.Unknown;
+            request.Orientation = Orientation.Unknown;
+            foreach (UpdateListingTranslationRequest translation
+                in request.Translations)
+            {
+                translation.Title = $"{translation.Title} replaced";
+            }
+
+            validator.ValidateWithKey(request).Should().BeNull();
+            validator.Normalize(request);
+            engine.Apply(writeScope, request);
+
+            CountDetails(tracked).Should().Be(1);
+            object? resultingTarget = GetDetails(tracked, targetType);
+            resultingTarget.Should().NotBeNull();
+
+            if (sourceType == targetType)
+            {
+                resultingTarget.Should().BeSameAs(
+                    existingTarget,
+                    "same-type replacement must mutate the tracked shared-PK child");
+            }
+            else
+            {
+                existingTarget.Should().BeNull();
+            }
+
+            await writeScope.SaveChangesAsync(CancellationToken.None);
+            await writeScope.CommitAsync(CancellationToken.None);
+        }
+
+        Listing persisted = await ReadListingAsync(listingId);
+        persisted.PropertyType.Should().Be(targetType);
+        CountDetails(persisted).Should().Be(1);
+        AssertUnknownTargetDetails(persisted, targetType);
+        persisted.Rooms.Should().BeNull();
+        persisted.Bathrooms.Should().BeNull();
+        persisted.BalconyCount.Should().BeNull();
+        persisted.ParkingSpaces.Should().BeNull();
+        persisted.HasBasement.Should().BeNull();
+        persisted.IsExchangePossible.Should().BeNull();
+        persisted.YearBuilt.Should().BeNull();
+        persisted.YearRenovated.Should().BeNull();
+        persisted.HeatingType.Should().Be(HeatingType.Unknown);
+        persisted.FurnishingStatus.Should().Be(FurnishingStatus.Unknown);
+        persisted.Condition.Should().Be(PropertyCondition.Unknown);
+        persisted.Orientation.Should().Be(Orientation.Unknown);
+        persisted.Translations.ToDictionary(
+                translation => translation.LanguageCode,
+                translation => translation.Id,
+                StringComparer.Ordinal)
+            .Should().BeEquivalentTo(translationIds);
+        CaptureLocation(persisted).Should().Be(
+            originalLocation,
+            "classification and non-location text replacement must preserve trusted location");
+        await AssertSubtypeRowsAsync(
+            listingId,
+            targetType == PropertyType.Apartment ? 1 : 0,
+            targetType == PropertyType.House ? 1 : 0,
+            targetType == PropertyType.Commercial ? 1 : 0,
+            targetType == PropertyType.Land ? 1 : 0);
+    }
+
+    [Fact]
+    public async Task ApplyAndPersist_MalformedDraftGraphIsRepairedToOneTargetChild()
+    {
+        Guid listingId = await ListingTestHelpers.CreateListingAsync(_httpClient);
+        await SeedMalformedDetailsAsync(listingId);
+
+        await using AsyncServiceScope serviceScope =
+            _factory.Services.CreateAsyncScope();
+        IListingAuthoringRepository repository = serviceScope.ServiceProvider
+            .GetRequiredService<IListingAuthoringRepository>();
+        ListingDraftReplacementEngine engine = serviceScope.ServiceProvider
+            .GetRequiredService<ListingDraftReplacementEngine>();
+        var validator = new UpdateListingValidator();
+        IListingAuthoringWriteScope? writeScope = await repository.BeginWriteAsync(
+            listingId,
+            CancellationToken.None);
+        writeScope.Should().NotBeNull();
+
+        await using (writeScope!)
+        {
+            ListingLandDetails existingLand = writeScope.Listing.LandDetails
+                ?? throw new InvalidOperationException(
+                    "The malformed fixture requires land details.");
+            CountDetails(writeScope.Listing).Should().Be(4);
+            UpdateListingRequest request =
+                CreateReplacementRequest(writeScope.Listing);
+            ConfigureTargetDetails(request, PropertyType.Land);
+
+            validator.ValidateWithKey(request).Should().BeNull();
+            engine.Apply(writeScope, request);
+
+            CountDetails(writeScope.Listing).Should().Be(1);
+            writeScope.Listing.LandDetails.Should().BeSameAs(existingLand);
+            writeScope.Listing.LandDetails!.LandType.Should().Be(LandType.Unknown);
+
+            await writeScope.SaveChangesAsync(CancellationToken.None);
+            await writeScope.CommitAsync(CancellationToken.None);
+        }
+
+        Listing persisted = await ReadListingAsync(listingId);
+        persisted.PropertyType.Should().Be(PropertyType.Land);
+        CountDetails(persisted).Should().Be(1);
+        AssertUnknownTargetDetails(persisted, PropertyType.Land);
+        await AssertSubtypeRowsAsync(listingId, 0, 0, 0, 1);
+    }
+
     [Fact]
     public async Task ApplyAndPersist_ConvertsApartmentToHouseUpdatesHouseAndConvertsBack()
     {
@@ -633,14 +808,7 @@ public sealed class ListingDraftReplacementEngineTests
                 UpdateListingRequest request =
                     CreateReplacementRequest(writeScope.Listing);
                 request.Price = 777_777m;
-                request.PropertyType = PropertyType.House;
-                request.ApartmentDetails = null;
-                request.HouseDetails = new UpdateListingHouseDetailsRequest
-                {
-                    HouseType = HouseType.Villa,
-                    NumberOfFloors = 4,
-                    YardAreaSquareMeters = 500m
-                };
+                ConfigureTargetDetails(request, PropertyType.Land);
                 request.Translations =
                 [
                     CreateTranslation("en", "Replacement English"),
@@ -682,6 +850,8 @@ public sealed class ListingDraftReplacementEngineTests
             }));
         persisted.ApartmentDetails.Should().NotBeNull();
         persisted.HouseDetails.Should().BeNull();
+        persisted.CommercialDetails.Should().BeNull();
+        persisted.LandDetails.Should().BeNull();
         persisted.Images.Should().ContainSingle(image => image.Id == imageId);
         CaptureLocation(persisted).Should().Be(originalLocation);
         await AssertSubtypeRowsAsync(
@@ -942,7 +1112,9 @@ public sealed class ListingDraftReplacementEngineTests
     private async Task AssertSubtypeRowsAsync(
         Guid listingId,
         int expectedApartmentRows,
-        int expectedHouseRows)
+        int expectedHouseRows,
+        int expectedCommercialRows = 0,
+        int expectedLandRows = 0)
     {
         await using AsyncServiceScope scope =
             _factory.Services.CreateAsyncScope();
@@ -955,9 +1127,126 @@ public sealed class ListingDraftReplacementEngineTests
         int houseRows = await dbContext.Set<ListingHouseDetails>()
             .AsNoTracking()
             .CountAsync(details => details.ListingId == listingId);
+        int commercialRows = await dbContext.Set<ListingCommercialDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
+        int landRows = await dbContext.Set<ListingLandDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
 
         apartmentRows.Should().Be(expectedApartmentRows);
         houseRows.Should().Be(expectedHouseRows);
+        commercialRows.Should().Be(expectedCommercialRows);
+        landRows.Should().Be(expectedLandRows);
+    }
+
+    private async Task SeedSourceTypeAsync(
+        Guid listingId,
+        PropertyType propertyType)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        Listing listing = await dbContext.Listings
+            .Include(current => current.ApartmentDetails)
+            .Include(current => current.HouseDetails)
+            .Include(current => current.CommercialDetails)
+            .Include(current => current.LandDetails)
+            .SingleAsync(current => current.Id == listingId);
+
+        listing.PropertyType = propertyType;
+        if (propertyType != PropertyType.Apartment)
+        {
+            listing.ApartmentDetails = null;
+        }
+
+        if (propertyType != PropertyType.House)
+        {
+            listing.HouseDetails = null;
+        }
+
+        if (propertyType != PropertyType.Commercial)
+        {
+            listing.CommercialDetails = null;
+        }
+
+        if (propertyType != PropertyType.Land)
+        {
+            listing.LandDetails = null;
+        }
+
+        switch (propertyType)
+        {
+            case PropertyType.Apartment:
+                listing.ApartmentDetails ??= new ListingApartmentDetails
+                {
+                    ListingId = listing.Id,
+                    Listing = listing
+                };
+                listing.ApartmentDetails.ApartmentType = ApartmentType.Penthouse;
+                listing.ApartmentDetails.Floor = 9;
+                listing.ApartmentDetails.TotalFloors = 12;
+                listing.ApartmentDetails.HasElevator = true;
+                break;
+            case PropertyType.House:
+                listing.HouseDetails ??= new ListingHouseDetails
+                {
+                    ListingId = listing.Id,
+                    Listing = listing
+                };
+                listing.HouseDetails.HouseType = HouseType.Villa;
+                listing.HouseDetails.NumberOfFloors = 3;
+                listing.HouseDetails.YardAreaSquareMeters = 400m;
+                break;
+            case PropertyType.Commercial:
+                listing.CommercialDetails ??= new ListingCommercialDetails
+                {
+                    ListingId = listing.Id,
+                    Listing = listing
+                };
+                listing.CommercialDetails.CommercialType = CommercialType.Shop;
+                break;
+            case PropertyType.Land:
+                listing.LandDetails ??= new ListingLandDetails
+                {
+                    ListingId = listing.Id,
+                    Listing = listing
+                };
+                listing.LandDetails.LandType = LandType.AgriculturalLand;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(propertyType));
+        }
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task SeedMalformedDetailsAsync(Guid listingId)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        dbContext.Set<ListingHouseDetails>().Add(new ListingHouseDetails
+        {
+            ListingId = listingId,
+            HouseType = HouseType.Detached
+        });
+        dbContext.Set<ListingCommercialDetails>().Add(
+            new ListingCommercialDetails
+            {
+                ListingId = listingId,
+                CommercialType = CommercialType.Office
+            });
+        dbContext.Set<ListingLandDetails>().Add(new ListingLandDetails
+        {
+            ListingId = listingId,
+            LandType = LandType.BuildingPlot
+        });
+
+        await dbContext.SaveChangesAsync();
     }
 
     private async Task SetCoordinatesAsync(
@@ -1101,6 +1390,18 @@ public sealed class ListingDraftReplacementEngineTests
                     NumberOfFloors = listing.HouseDetails.NumberOfFloors,
                     YardAreaSquareMeters = listing.HouseDetails.YardAreaSquareMeters
                 },
+            CommercialDetails = listing.CommercialDetails is null
+                ? null
+                : new UpdateListingCommercialDetailsRequest
+                {
+                    CommercialType = listing.CommercialDetails.CommercialType
+                },
+            LandDetails = listing.LandDetails is null
+                ? null
+                : new UpdateListingLandDetailsRequest
+                {
+                    LandType = listing.LandDetails.LandType
+                },
             Translations = listing.Translations
                 .Select(translation => CreateTranslation(
                     translation.LanguageCode,
@@ -1112,6 +1413,97 @@ public sealed class ListingDraftReplacementEngineTests
                     translation.Neighborhood))
                 .ToList()
         };
+    }
+
+    private static void ConfigureTargetDetails(
+        UpdateListingRequest request,
+        PropertyType targetType)
+    {
+        request.PropertyType = targetType;
+        request.ApartmentDetails = null;
+        request.HouseDetails = null;
+        request.CommercialDetails = null;
+        request.LandDetails = null;
+
+        switch (targetType)
+        {
+            case PropertyType.Apartment:
+                request.ApartmentDetails =
+                    new UpdateListingApartmentDetailsRequest
+                    {
+                        ApartmentType = ApartmentType.Unknown
+                    };
+                break;
+            case PropertyType.House:
+                request.HouseDetails = new UpdateListingHouseDetailsRequest
+                {
+                    HouseType = HouseType.Unknown
+                };
+                break;
+            case PropertyType.Commercial:
+                request.CommercialDetails =
+                    new UpdateListingCommercialDetailsRequest
+                    {
+                        CommercialType = CommercialType.Unknown
+                    };
+                break;
+            case PropertyType.Land:
+                request.LandDetails = new UpdateListingLandDetailsRequest
+                {
+                    LandType = LandType.Unknown
+                };
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(targetType));
+        }
+    }
+
+    private static object? GetDetails(Listing listing, PropertyType propertyType)
+    {
+        return propertyType switch
+        {
+            PropertyType.Apartment => listing.ApartmentDetails,
+            PropertyType.House => listing.HouseDetails,
+            PropertyType.Commercial => listing.CommercialDetails,
+            PropertyType.Land => listing.LandDetails,
+            _ => throw new ArgumentOutOfRangeException(nameof(propertyType))
+        };
+    }
+
+    private static int CountDetails(Listing listing)
+    {
+        return new object?[]
+        {
+            listing.ApartmentDetails,
+            listing.HouseDetails,
+            listing.CommercialDetails,
+            listing.LandDetails
+        }.Count(details => details is not null);
+    }
+
+    private static void AssertUnknownTargetDetails(
+        Listing listing,
+        PropertyType targetType)
+    {
+        switch (targetType)
+        {
+            case PropertyType.Apartment:
+                listing.ApartmentDetails!.ApartmentType
+                    .Should().Be(ApartmentType.Unknown);
+                break;
+            case PropertyType.House:
+                listing.HouseDetails!.HouseType.Should().Be(HouseType.Unknown);
+                break;
+            case PropertyType.Commercial:
+                listing.CommercialDetails!.CommercialType
+                    .Should().Be(CommercialType.Unknown);
+                break;
+            case PropertyType.Land:
+                listing.LandDetails!.LandType.Should().Be(LandType.Unknown);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(targetType));
+        }
     }
 
     private static UpdateListingTranslationRequest CreateTranslation(

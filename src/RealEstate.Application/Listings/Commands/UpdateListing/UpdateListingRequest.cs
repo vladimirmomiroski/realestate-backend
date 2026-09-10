@@ -42,5 +42,9 @@ public sealed class UpdateListingRequest
 
     public UpdateListingHouseDetailsRequest? HouseDetails { get; set; }
 
+    public UpdateListingCommercialDetailsRequest? CommercialDetails { get; set; }
+
+    public UpdateListingLandDetailsRequest? LandDetails { get; set; }
+
     public required List<UpdateListingTranslationRequest> Translations { get; set; }
 }

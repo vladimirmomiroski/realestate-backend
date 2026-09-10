@@ -1073,6 +1073,8 @@ public sealed class OpenApiDocumentTests
             "yearBuilt",
             "apartmentDetails",
             "houseDetails",
+            "commercialDetails",
+            "landDetails",
             "translations"
         ];
         JsonElement updateProperties = updateSchema.GetProperty("properties");
@@ -1142,6 +1144,12 @@ public sealed class OpenApiDocumentTests
             .GetString()
             .Should()
             .ContainAll("omission", "Unknown");
+        schemas.GetProperty("UpdateListingCommercialDetailsRequest")
+            .GetProperty("properties")
+            .GetProperty("commercialType");
+        schemas.GetProperty("UpdateListingLandDetailsRequest")
+            .GetProperty("properties")
+            .GetProperty("landType");
 
         AssertNullableReference(
             updateProperties.GetProperty("apartmentDetails"),
