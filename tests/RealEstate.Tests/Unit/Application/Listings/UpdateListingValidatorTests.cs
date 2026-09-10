@@ -19,6 +19,31 @@ public sealed class UpdateListingValidatorTests
         "\u3000"
     };
 
+    public static TheoryData<PropertyType> SupportedPropertyTypes => new()
+    {
+        PropertyType.Apartment,
+        PropertyType.House,
+        PropertyType.Commercial,
+        PropertyType.Land
+    };
+
+    public static TheoryData<PropertyType, PropertyType>
+        NonMatchingDetailCases => new()
+        {
+            { PropertyType.Apartment, PropertyType.House },
+            { PropertyType.Apartment, PropertyType.Commercial },
+            { PropertyType.Apartment, PropertyType.Land },
+            { PropertyType.House, PropertyType.Apartment },
+            { PropertyType.House, PropertyType.Commercial },
+            { PropertyType.House, PropertyType.Land },
+            { PropertyType.Commercial, PropertyType.Apartment },
+            { PropertyType.Commercial, PropertyType.House },
+            { PropertyType.Commercial, PropertyType.Land },
+            { PropertyType.Land, PropertyType.Apartment },
+            { PropertyType.Land, PropertyType.House },
+            { PropertyType.Land, PropertyType.Commercial }
+        };
+
     [Fact]
     public void ValidateWithKey_AcceptsCompleteApartmentReplacement()
     {
@@ -31,6 +56,16 @@ public sealed class UpdateListingValidatorTests
     public void ValidateWithKey_AcceptsCompleteHouseReplacement()
     {
         UpdateListingRequest request = CreateValidHouseRequest();
+
+        _validator.ValidateWithKey(request).Should().BeNull();
+    }
+
+    [Theory]
+    [MemberData(nameof(SupportedPropertyTypes))]
+    public void ValidateWithKey_AcceptsExactFourTypeReplacement(
+        PropertyType propertyType)
+    {
+        UpdateListingRequest request = CreateValidRequest(propertyType);
 
         _validator.ValidateWithKey(request).Should().BeNull();
     }
@@ -137,6 +172,18 @@ public sealed class UpdateListingValidatorTests
         UpdateListingRequest houseRequest = CreateValidHouseRequest();
         houseRequest.HouseDetails!.HouseType = (HouseType)999;
         AssertFailure(houseRequest, "houseDetails.houseType");
+
+        UpdateListingRequest commercialRequest =
+            CreateValidRequest(PropertyType.Commercial);
+        commercialRequest.CommercialDetails!.CommercialType =
+            (CommercialType)999;
+        AssertFailure(
+            commercialRequest,
+            "commercialDetails.commercialType");
+
+        UpdateListingRequest landRequest = CreateValidRequest(PropertyType.Land);
+        landRequest.LandDetails!.LandType = (LandType)999;
+        AssertFailure(landRequest, "landDetails.landType");
     }
 
     [Fact]
@@ -152,8 +199,17 @@ public sealed class UpdateListingValidatorTests
         UpdateListingRequest house = CreateValidHouseRequest();
         house.HouseDetails!.HouseType = HouseType.Unknown;
 
+        UpdateListingRequest commercial =
+            CreateValidRequest(PropertyType.Commercial);
+        commercial.CommercialDetails!.CommercialType = CommercialType.Unknown;
+
+        UpdateListingRequest land = CreateValidRequest(PropertyType.Land);
+        land.LandDetails!.LandType = LandType.Unknown;
+
         _validator.ValidateWithKey(apartment).Should().BeNull();
         _validator.ValidateWithKey(house).Should().BeNull();
+        _validator.ValidateWithKey(commercial).Should().BeNull();
+        _validator.ValidateWithKey(land).Should().BeNull();
     }
 
     [Theory]
@@ -413,6 +469,45 @@ public sealed class UpdateListingValidatorTests
         AssertFailure(conflicting, "request");
     }
 
+    [Theory]
+    [MemberData(nameof(SupportedPropertyTypes))]
+    public void ValidateWithKey_MissingMatchingDetailsUsesTypeSpecificKeyFirst(
+        PropertyType propertyType)
+    {
+        UpdateListingRequest request = CreateValidRequest(propertyType);
+        ClearDetails(request, propertyType);
+        SetDetails(
+            request,
+            propertyType == PropertyType.Apartment
+                ? PropertyType.House
+                : PropertyType.Apartment);
+
+        UpdateListingValidator.ValidationFailure? failure =
+            _validator.ValidateWithKey(request);
+
+        failure.Should().NotBeNull();
+        failure!.Key.Should().Be(propertyType switch
+        {
+            PropertyType.Apartment => "apartmentDetails",
+            PropertyType.House => "houseDetails",
+            PropertyType.Commercial => "commercialDetails",
+            PropertyType.Land => "landDetails",
+            _ => throw new ArgumentOutOfRangeException(nameof(propertyType))
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(NonMatchingDetailCases))]
+    public void ValidateWithKey_RejectsEveryNonMatchingDetailCombination(
+        PropertyType propertyType,
+        PropertyType contradictoryDetailType)
+    {
+        UpdateListingRequest request = CreateValidRequest(propertyType);
+        SetDetails(request, contradictoryDetailType);
+
+        AssertFailure(request, "request");
+    }
+
     [Fact]
     public void ValidateWithKey_RejectsExistingInvalidSubtypeScalarBoundaries()
     {
@@ -498,6 +593,94 @@ public sealed class UpdateListingValidatorTests
                 CreateTranslation("en", "Valid house")
             ]
         };
+    }
+
+    private static UpdateListingRequest CreateValidRequest(
+        PropertyType propertyType)
+    {
+        return propertyType switch
+        {
+            PropertyType.Apartment => CreateValidApartmentRequest(),
+            PropertyType.House => CreateValidHouseRequest(),
+            PropertyType.Commercial => new UpdateListingRequest
+            {
+                ListingType = ListingType.Sale,
+                PropertyType = PropertyType.Commercial,
+                Price = 140_000m,
+                Currency = "EUR",
+                AreaSquareMeters = 80m,
+                CommercialDetails = new UpdateListingCommercialDetailsRequest
+                {
+                    CommercialType = CommercialType.Office
+                },
+                Translations = [CreateTranslation("en", "Valid commercial")]
+            },
+            PropertyType.Land => new UpdateListingRequest
+            {
+                ListingType = ListingType.Sale,
+                PropertyType = PropertyType.Land,
+                Price = 90_000m,
+                Currency = "EUR",
+                AreaSquareMeters = 600m,
+                LandDetails = new UpdateListingLandDetailsRequest
+                {
+                    LandType = LandType.BuildingPlot
+                },
+                Translations = [CreateTranslation("en", "Valid land")]
+            },
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(propertyType),
+                propertyType,
+                "Unsupported test property type.")
+        };
+    }
+
+    private static void ClearDetails(
+        UpdateListingRequest request,
+        PropertyType propertyType)
+    {
+        switch (propertyType)
+        {
+            case PropertyType.Apartment:
+                request.ApartmentDetails = null;
+                break;
+            case PropertyType.House:
+                request.HouseDetails = null;
+                break;
+            case PropertyType.Commercial:
+                request.CommercialDetails = null;
+                break;
+            case PropertyType.Land:
+                request.LandDetails = null;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(propertyType));
+        }
+    }
+
+    private static void SetDetails(
+        UpdateListingRequest request,
+        PropertyType propertyType)
+    {
+        switch (propertyType)
+        {
+            case PropertyType.Apartment:
+                request.ApartmentDetails =
+                    new UpdateListingApartmentDetailsRequest();
+                break;
+            case PropertyType.House:
+                request.HouseDetails = new UpdateListingHouseDetailsRequest();
+                break;
+            case PropertyType.Commercial:
+                request.CommercialDetails =
+                    new UpdateListingCommercialDetailsRequest();
+                break;
+            case PropertyType.Land:
+                request.LandDetails = new UpdateListingLandDetailsRequest();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(propertyType));
+        }
     }
 
     private static UpdateListingTranslationRequest CreateTranslation(

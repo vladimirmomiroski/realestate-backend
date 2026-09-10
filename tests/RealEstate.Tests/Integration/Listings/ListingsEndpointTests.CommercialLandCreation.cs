@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -247,62 +248,203 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Theory]
-    [InlineData(PropertyType.Commercial)]
-    [InlineData(PropertyType.Land)]
-    public async Task CreateListing_NewRootPutRemainsRejectedWithoutMutation(
-        PropertyType propertyType)
+    [InlineData(PropertyType.Commercial, PropertyType.Land)]
+    [InlineData(PropertyType.Land, PropertyType.Commercial)]
+    public async Task UpdateListing_CommercialLand_ManagementGetPutGetIsTruthful(
+        PropertyType sourceType,
+        PropertyType targetType)
     {
         AuthenticatedTestUser owner =
             await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-        CreateListingRequest createRequest = propertyType == PropertyType.Commercial
+        CreateListingRequest createRequest = sourceType == PropertyType.Commercial
             ? CreateCommercialRequest(CommercialType.Office)
             : CreateLandRequest(LandType.AgriculturalLand);
         Guid listingId = await CreateNewRootAsAsync(owner, createRequest);
-        ListingSnapshot before = await ReadListingSnapshotAsync(listingId);
         _httpClient.AuthorizeAs(owner.AccessToken);
 
         try
         {
+            JsonElement before = await GetManagementJsonAsync(listingId);
+            Guid retainedEnglishId = before.GetProperty("translations")
+                .EnumerateArray()
+                .Single(translation =>
+                    translation.GetProperty("languageCode").GetString() == "en")
+                .GetProperty("id")
+                .GetGuid();
+            JsonObject payload = CreateWritablePayload(before);
+            payload["propertyType"] = targetType.ToString();
+            payload["apartmentDetails"] = null;
+            payload["houseDetails"] = null;
+            payload["commercialDetails"] = targetType == PropertyType.Commercial
+                ? new JsonObject { ["commercialType"] = "Shop" }
+                : null;
+            payload["landDetails"] = targetType == PropertyType.Land
+                ? new JsonObject { ["landType"] = "BuildingPlot" }
+                : null;
+
             HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
                 $"/api/listings/{listingId}",
-                new
-                {
-                    listingType = "Rent",
-                    propertyType = propertyType.ToString(),
-                    price = before.Price + 12_345m,
-                    currency = "USD",
-                    areaSquareMeters = before.AreaSquareMeters + 10m,
-                    apartmentDetails = (object?)null,
-                    houseDetails = (object?)null,
-                    translations = new[]
-                    {
-                        new
-                        {
-                            languageCode = "en",
-                            title = "This replacement must not persist",
-                            description = "Divergent replacement",
-                            addressLine = "Different address",
-                            city = "Bitola",
-                            municipality = "Bitola",
-                            neighborhood = "Center"
-                        }
-                    }
-                });
+                payload);
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            JsonElement updated =
+                await response.Content.ReadFromJsonAsync<JsonElement>();
+            JsonElement after = await GetManagementJsonAsync(listingId);
+
+            foreach (JsonElement current in new[] { updated, after })
+            {
+                current.GetProperty("propertyType").GetString()
+                    .Should().Be(targetType.ToString());
+                current.GetProperty("apartmentDetails").ValueKind
+                    .Should().Be(JsonValueKind.Null);
+                current.GetProperty("houseDetails").ValueKind
+                    .Should().Be(JsonValueKind.Null);
+                current.GetProperty("commercialDetails").ValueKind.Should().Be(
+                    targetType == PropertyType.Commercial
+                        ? JsonValueKind.Object
+                        : JsonValueKind.Null);
+                current.GetProperty("landDetails").ValueKind.Should().Be(
+                    targetType == PropertyType.Land
+                        ? JsonValueKind.Object
+                        : JsonValueKind.Null);
+                current.GetProperty("translations")
+                    .EnumerateArray()
+                    .Single(translation =>
+                        translation.GetProperty("languageCode").GetString() == "en")
+                    .GetProperty("id")
+                    .GetGuid()
+                    .Should().Be(retainedEnglishId);
+            }
+
+            if (targetType == PropertyType.Commercial)
+            {
+                after.GetProperty("commercialDetails")
+                    .GetProperty("commercialType").GetString()
+                    .Should().Be("Shop");
+            }
+            else
+            {
+                after.GetProperty("landDetails")
+                    .GetProperty("landType").GetString()
+                    .Should().Be("BuildingPlot");
+            }
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Theory]
+    [InlineData(PropertyType.Commercial, "commercialDetails", "commercialType")]
+    [InlineData(PropertyType.Land, "landDetails", "landType")]
+    public async Task UpdateListing_InvalidCommercialLandSubtypeLeavesGraphUnchanged(
+        PropertyType propertyType,
+        string detailsMember,
+        string subtypeMember)
+    {
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        Guid listingId = await CreateNewRootAsAsync(
+            owner,
+            propertyType == PropertyType.Commercial
+                ? CreateCommercialRequest(CommercialType.Office)
+                : CreateLandRequest(LandType.BuildingPlot));
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            JsonElement before = await GetManagementJsonAsync(listingId);
+            JsonObject payload = CreateWritablePayload(before);
+            payload["price"] = before.GetProperty("price").GetDecimal() + 10_000m;
+            payload[detailsMember]![subtypeMember] = 999;
+
+            HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
+                $"/api/listings/{listingId}",
+                payload);
 
             await ApiFailureAssertions.AssertProblemAsync(
                 response,
                 HttpStatusCode.BadRequest,
                 ErrorCodes.ValidationFailed,
                 $"/api/listings/{listingId}",
-                validationKey: "propertyType");
+                validationKey: $"{detailsMember}.{subtypeMember}");
+
+            JsonElement after = await GetManagementJsonAsync(listingId);
+            JsonNode.DeepEquals(
+                    JsonNode.Parse(before.GetRawText()),
+                    JsonNode.Parse(after.GetRawText()))
+                .Should().BeTrue();
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task UpdateListing_UnauthorizedCommercialToLandReplacementLeavesGraphUnchanged()
+    {
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        Guid listingId = await CreateNewRootAsAsync(
+            owner,
+            CreateCommercialRequest(CommercialType.Shop));
+        _httpClient.AuthorizeAs(owner.AccessToken);
+        JsonElement before;
+        JsonObject payload;
+
+        try
+        {
+            before = await GetManagementJsonAsync(listingId);
+            payload = CreateWritablePayload(before);
+            payload["propertyType"] = "Land";
+            payload["commercialDetails"] = null;
+            payload["landDetails"] = new JsonObject
+            {
+                ["landType"] = "AgriculturalLand"
+            };
         }
         finally
         {
             _httpClient.ClearAuthorization();
         }
 
-        ListingSnapshot after = await ReadListingSnapshotAsync(listingId);
-        after.Should().BeEquivalentTo(before);
+        AuthenticatedTestUser nonowner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        _httpClient.AuthorizeAs(nonowner.AccessToken);
+
+        try
+        {
+            HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
+                $"/api/listings/{listingId}",
+                payload);
+
+            await ApiFailureAssertions.AssertProblemAsync(
+                response,
+                HttpStatusCode.Forbidden,
+                ErrorCodes.AuthorizationForbidden,
+                $"/api/listings/{listingId}");
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            JsonElement after = await GetManagementJsonAsync(listingId);
+            JsonNode.DeepEquals(
+                    JsonNode.Parse(before.GetRawText()),
+                    JsonNode.Parse(after.GetRawText()))
+                .Should().BeTrue();
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
     }
 
     private async Task AssertNewRootCreatedAsync(
@@ -400,32 +542,6 @@ public sealed partial class ListingsEndpointTests
         {
             _httpClient.ClearAuthorization();
         }
-    }
-
-    private async Task<ListingSnapshot> ReadListingSnapshotAsync(Guid listingId)
-    {
-        await using AsyncServiceScope scope =
-            _factory.Services.CreateAsyncScope();
-        RealEstateDbContext dbContext = scope.ServiceProvider
-            .GetRequiredService<RealEstateDbContext>();
-        Listing listing = await dbContext.Listings
-            .AsNoTracking()
-            .Include(candidate => candidate.Translations)
-            .Include(candidate => candidate.CommercialDetails)
-            .Include(candidate => candidate.LandDetails)
-            .SingleAsync(candidate => candidate.Id == listingId);
-
-        return new ListingSnapshot(
-            listing.ListingType,
-            listing.PropertyType,
-            listing.Price,
-            listing.Currency,
-            listing.AreaSquareMeters,
-            listing.Translations.OrderBy(translation => translation.LanguageCode)
-                .Select(translation => $"{translation.LanguageCode}:{translation.Title}")
-                .ToArray(),
-            listing.CommercialDetails?.CommercialType,
-            listing.LandDetails?.LandType);
     }
 
     private static CreateListingRequest CreateCommercialRequest(
@@ -583,13 +699,4 @@ public sealed partial class ListingsEndpointTests
         }.Count(details => details is not null);
     }
 
-    private sealed record ListingSnapshot(
-        ListingType ListingType,
-        PropertyType PropertyType,
-        decimal Price,
-        string Currency,
-        decimal AreaSquareMeters,
-        IReadOnlyList<string> Translations,
-        CommercialType? CommercialType,
-        LandType? LandType);
 }

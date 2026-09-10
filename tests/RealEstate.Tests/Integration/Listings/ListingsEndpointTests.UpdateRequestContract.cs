@@ -59,6 +59,8 @@ public sealed partial class ListingsEndpointTests
         request.YearRenovated.Should().BeNull();
         request.YearBuilt.Should().BeNull();
         request.HouseDetails.Should().BeNull();
+        request.CommercialDetails.Should().BeNull();
+        request.LandDetails.Should().BeNull();
         translation.Description.Should().BeNull();
         translation.AddressLine.Should().BeNull();
         translation.City.Should().BeNull();
@@ -74,7 +76,7 @@ public sealed partial class ListingsEndpointTests
         [
             "rooms", "bathrooms", "balconyCount", "parkingSpaces",
             "hasBasement", "isExchangePossible", "yearRenovated", "yearBuilt",
-            "houseDetails"
+            "houseDetails", "commercialDetails", "landDetails"
         ];
         foreach (string member in nullableRootMembers)
         {
@@ -102,6 +104,8 @@ public sealed partial class ListingsEndpointTests
         request.YearRenovated.Should().BeNull();
         request.YearBuilt.Should().BeNull();
         request.HouseDetails.Should().BeNull();
+        request.CommercialDetails.Should().BeNull();
+        request.LandDetails.Should().BeNull();
         request.Translations.Single().Description.Should().BeNull();
         request.Translations.Single().AddressLine.Should().BeNull();
         request.Translations.Single().City.Should().BeNull();
@@ -171,7 +175,8 @@ public sealed partial class ListingsEndpointTests
             "ParkingSpaces", "HasBasement", "IsExchangePossible",
             "HeatingType", "FurnishingStatus", "Condition", "YearRenovated",
             "Orientation", "YearBuilt",
-            "ApartmentDetails", "HouseDetails", "Translations"
+            "ApartmentDetails", "HouseDetails", "CommercialDetails",
+            "LandDetails", "Translations"
         ]);
 
         typeof(UpdateListingTranslationRequest).GetProperties()

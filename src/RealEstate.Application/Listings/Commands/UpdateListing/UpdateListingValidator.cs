@@ -191,6 +191,20 @@ public sealed class UpdateListingValidator
                     "House details are not allowed for apartment listings.");
             }
 
+            if (request.CommercialDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Commercial details are not allowed for apartment listings.");
+            }
+
+            if (request.LandDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Land details are not allowed for apartment listings.");
+            }
+
             if (!Enum.IsDefined(request.ApartmentDetails.ApartmentType))
             {
                 return Failure(
@@ -241,6 +255,20 @@ public sealed class UpdateListingValidator
                     "Apartment details are not allowed for house listings.");
             }
 
+            if (request.CommercialDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Commercial details are not allowed for house listings.");
+            }
+
+            if (request.LandDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Land details are not allowed for house listings.");
+            }
+
             if (!Enum.IsDefined(request.HouseDetails.HouseType))
             {
                 return Failure(
@@ -260,6 +288,86 @@ public sealed class UpdateListingValidator
                 return Failure(
                     "houseDetails.yardAreaSquareMeters",
                     "Yard area cannot be negative.");
+            }
+
+            return null;
+        }
+
+        if (request.PropertyType == PropertyType.Commercial)
+        {
+            if (request.CommercialDetails is null)
+            {
+                return Failure(
+                    "commercialDetails",
+                    "Commercial details are required for commercial listings.");
+            }
+
+            if (request.ApartmentDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Apartment details are not allowed for commercial listings.");
+            }
+
+            if (request.HouseDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "House details are not allowed for commercial listings.");
+            }
+
+            if (request.LandDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Land details are not allowed for commercial listings.");
+            }
+
+            if (!Enum.IsDefined(request.CommercialDetails.CommercialType))
+            {
+                return Failure(
+                    "commercialDetails.commercialType",
+                    "Commercial type must be a defined value.");
+            }
+
+            return null;
+        }
+
+        if (request.PropertyType == PropertyType.Land)
+        {
+            if (request.LandDetails is null)
+            {
+                return Failure(
+                    "landDetails",
+                    "Land details are required for land listings.");
+            }
+
+            if (request.ApartmentDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Apartment details are not allowed for land listings.");
+            }
+
+            if (request.HouseDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "House details are not allowed for land listings.");
+            }
+
+            if (request.CommercialDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Commercial details are not allowed for land listings.");
+            }
+
+            if (!Enum.IsDefined(request.LandDetails.LandType))
+            {
+                return Failure(
+                    "landDetails.landType",
+                    "Land type must be a defined value.");
             }
 
             return null;
