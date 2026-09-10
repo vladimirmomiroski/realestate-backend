@@ -240,6 +240,112 @@ public sealed class ListingGeocodingConcurrencyTests
     }
 
     [Fact]
+    public async Task SubtypeReplacementConcurrency_ConfirmBeforeCommercialUpdatePreservesConfirmedLocation()
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        Listing before = await ReadListingAsync(listingId);
+        LocationConfirmationTokenPayload token =
+            await CreateTokenAsync(listingId, owner.UserId);
+        string connectionString = await GetConnectionStringAsync();
+
+        await using AsyncServiceScope confirmScope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext confirmDb = confirmScope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+        await EnsureConnectionOpenAsync(confirmDb);
+        int confirmPid = await GetBackendProcessIdAsync(confirmDb);
+        var confirmGate = new GatedAuthoringRepository(
+            confirmScope.ServiceProvider
+                .GetRequiredService<IListingAuthoringRepository>());
+        var geocoder = new GatedResolutionGeocoder(ResolvedSnapshot);
+        ConfirmListingLocationHandler confirmHandler = CreateConfirmHandler(
+            confirmGate,
+            confirmScope.ServiceProvider.GetRequiredService<IUserRepository>(),
+            confirmScope.ServiceProvider.GetRequiredService<IAgencyRepository>(),
+            owner.UserId,
+            token,
+            geocoder);
+
+        var updateProbe = new TransactionProgressProbe();
+        await using RealEstateDbContext updateDb =
+            CreateProbedDbContext(connectionString, updateProbe);
+        await EnsureConnectionOpenAsync(updateDb);
+        int updatePid = await GetBackendProcessIdAsync(updateDb);
+        UpdateListingHandler updateHandler = CreateUpdateHandler(
+            new ListingAuthoringRepository(updateDb),
+            new UserRepository(updateDb),
+            new AgencyRepository(updateDb),
+            owner.UserId);
+        UpdateListingRequest classificationOnlyRequest =
+            CreateCommercialClassificationRequest(before);
+        using var cancellation = new CancellationTokenSource();
+
+        Task<ServiceResult<ListingLocationStateResponse>>? confirmTask = null;
+        Task<ServiceResult<ListingAuthoringResponse>>? updateTask = null;
+
+        try
+        {
+            confirmTask = confirmHandler.HandleAsync(
+                new ConfirmListingLocationCommand(listingId, "token"),
+                cancellation.Token);
+            await geocoder.Completed.WaitAsync(TestTimeout);
+            await confirmGate.LockAcquired.WaitAsync(TestTimeout);
+            confirmTask.IsCompleted.Should().BeFalse(
+                "confirmation is held while owning the Listing parent lock");
+
+            updateTask = updateHandler.HandleAsync(
+                listingId,
+                classificationOnlyRequest,
+                cancellation.Token);
+            await updateProbe.TransactionStarted.WaitAsync(TestTimeout);
+            await WaitForBlockedParentLockAsync(
+                updatePid,
+                confirmPid,
+                updateTask,
+                cancellation.Token);
+            updateTask.IsCompleted.Should().BeFalse(
+                "classification replacement must wait for location confirmation");
+
+            confirmGate.Release();
+
+            ServiceResult<ListingLocationStateResponse> confirmResult =
+                await confirmTask.WaitAsync(TestTimeout);
+            ServiceResult<ListingAuthoringResponse> updateResult =
+                await updateTask.WaitAsync(TestTimeout);
+
+            confirmResult.Status.Should().Be(ServiceResultStatus.Success);
+            updateResult.Status.Should().Be(ServiceResultStatus.Success);
+            updateResult.Value!.PropertyType.Should().Be(PropertyType.Commercial);
+            updateResult.Value.CommercialDetails!.CommercialType.Should()
+                .Be(CommercialType.Office);
+            updateResult.Value.Latitude.Should().Be(ResolvedSnapshot.Latitude);
+            updateResult.Value.Longitude.Should().Be(ResolvedSnapshot.Longitude);
+
+            Listing persisted = await ReadListingAsync(listingId);
+            persisted.PropertyType.Should().Be(PropertyType.Commercial);
+            persisted.ApartmentDetails.Should().BeNull();
+            persisted.HouseDetails.Should().BeNull();
+            persisted.CommercialDetails.Should().NotBeNull();
+            persisted.CommercialDetails!.CommercialType.Should()
+                .Be(CommercialType.Office);
+            persisted.LandDetails.Should().BeNull();
+            AssertConfirmed(persisted, ResolvedSnapshot);
+            await AssertFourSubtypeRowsAsync(
+                listingId,
+                expectedApartmentRows: 0,
+                expectedHouseRows: 0,
+                expectedCommercialRows: 1,
+                expectedLandRows: 0);
+        }
+        finally
+        {
+            confirmGate.Release();
+            await DrainStartedTasksAsync(cancellation, confirmTask, updateTask);
+        }
+    }
+
+    [Fact]
     public async Task PublishBeforeConfirm_ConfirmWaitsThenRejectsNonDraft()
     {
         (Guid listingId, AuthenticatedTestUser owner) =
@@ -933,6 +1039,51 @@ public sealed class ListingGeocodingConcurrencyTests
             ConfirmationTime.AddMinutes(9));
     }
 
+    private static UpdateListingRequest CreateCommercialClassificationRequest(
+        Listing listing)
+    {
+        return new UpdateListingRequest
+        {
+            ListingType = listing.ListingType,
+            PropertyType = PropertyType.Commercial,
+            Price = listing.Price,
+            Currency = listing.Currency,
+            AreaSquareMeters = listing.AreaSquareMeters,
+            Rooms = listing.Rooms,
+            Bathrooms = listing.Bathrooms,
+            BalconyCount = listing.BalconyCount,
+            ParkingSpaces = listing.ParkingSpaces,
+            HasBasement = listing.HasBasement,
+            IsExchangePossible = listing.IsExchangePossible,
+            HeatingType = listing.HeatingType,
+            FurnishingStatus = listing.FurnishingStatus,
+            Condition = listing.Condition,
+            YearRenovated = listing.YearRenovated,
+            Orientation = listing.Orientation,
+            YearBuilt = listing.YearBuilt,
+            ApartmentDetails = null,
+            HouseDetails = null,
+            CommercialDetails = new UpdateListingCommercialDetailsRequest
+            {
+                CommercialType = CommercialType.Office
+            },
+            LandDetails = null,
+            Translations = listing.Translations
+                .OrderBy(translation => translation.LanguageCode)
+                .Select(translation => new UpdateListingTranslationRequest
+                {
+                    LanguageCode = translation.LanguageCode,
+                    Title = translation.Title,
+                    Description = translation.Description,
+                    AddressLine = translation.AddressLine,
+                    City = translation.City,
+                    Municipality = translation.Municipality,
+                    Neighborhood = translation.Neighborhood
+                })
+                .ToList()
+        };
+    }
+
     private static UpdateListingRequest CreateLocationChangingRequest(
         string title)
     {
@@ -1123,6 +1274,39 @@ public sealed class ListingGeocodingConcurrencyTests
                 listingId,
                 CancellationToken.None)
             ?? throw new InvalidOperationException("Listing was not found.");
+    }
+
+    private async Task AssertFourSubtypeRowsAsync(
+        Guid listingId,
+        int expectedApartmentRows,
+        int expectedHouseRows,
+        int expectedCommercialRows,
+        int expectedLandRows)
+    {
+        await using AsyncServiceScope scope =
+            _factory.Services.CreateAsyncScope();
+        RealEstateDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<RealEstateDbContext>();
+
+        int apartmentRows = await dbContext.Set<ListingApartmentDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
+        int houseRows = await dbContext.Set<ListingHouseDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
+        int commercialRows = await dbContext.Set<ListingCommercialDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
+        int landRows = await dbContext.Set<ListingLandDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
+
+        apartmentRows.Should().Be(expectedApartmentRows);
+        houseRows.Should().Be(expectedHouseRows);
+        commercialRows.Should().Be(expectedCommercialRows);
+        landRows.Should().Be(expectedLandRows);
+        (apartmentRows + houseRows + commercialRows + landRows)
+            .Should().Be(1);
     }
 
     private async Task SetConfirmedLocationAsync(
