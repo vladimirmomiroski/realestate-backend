@@ -37,7 +37,7 @@ public sealed class ListingUpdateConcurrencyTests
     }
 
     [Fact]
-    public async Task ConcurrentUpdates_SerializeAndSecondUsesPostCommitAggregate()
+    public async Task SubtypeReplacementConcurrency_OpposingApartmentCommercialUpdatesSerializeAndSecondUsesPostCommitAggregate()
     {
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
@@ -77,8 +77,9 @@ public sealed class ListingUpdateConcurrencyTests
             secondDependencyScope.ServiceProvider,
             owner.UserId);
 
-        UpdateListingRequest firstRequest = CreateApartmentRequest(
+        UpdateListingRequest firstRequest = CreateCommercialRequest(
             price: 111_000m,
+            CommercialType.Office,
             ("en", "Writer one English"),
             ("de", "Writer one German"));
         UpdateListingRequest secondRequest = CreateApartmentRequest(
@@ -126,8 +127,20 @@ public sealed class ListingUpdateConcurrencyTests
 
             firstResult.Status.Should().Be(ServiceResultStatus.Success);
             secondResult.Status.Should().Be(ServiceResultStatus.Success);
+            firstResult.Value!.PropertyType.Should().Be(PropertyType.Commercial);
+            firstResult.Value.ApartmentDetails.Should().BeNull();
+            firstResult.Value.HouseDetails.Should().BeNull();
+            firstResult.Value.CommercialDetails.Should().NotBeNull();
+            firstResult.Value.CommercialDetails!.CommercialType.Should()
+                .Be(CommercialType.Office);
+            firstResult.Value.LandDetails.Should().BeNull();
+            secondResult.Value!.PropertyType.Should().Be(PropertyType.Apartment);
+            secondResult.Value.ApartmentDetails.Should().NotBeNull();
+            secondResult.Value.HouseDetails.Should().BeNull();
+            secondResult.Value.CommercialDetails.Should().BeNull();
+            secondResult.Value.LandDetails.Should().BeNull();
 
-            Guid writerOneGermanId = firstResult.Value!.Translations
+            Guid writerOneGermanId = firstResult.Value.Translations
                 .Single(translation => translation.LanguageCode == "de")
                 .Id;
             ListingAuthoringResponse writerTwoResponse = secondResult.Value!;
@@ -153,8 +166,11 @@ public sealed class ListingUpdateConcurrencyTests
                 .Should().OnlyHaveUniqueItems();
             persisted.Translations.Select(translation => translation.LanguageCode)
                 .Should().OnlyHaveUniqueItems();
+            persisted.PropertyType.Should().Be(PropertyType.Apartment);
             persisted.ApartmentDetails.Should().NotBeNull();
             persisted.HouseDetails.Should().BeNull();
+            persisted.CommercialDetails.Should().BeNull();
+            persisted.LandDetails.Should().BeNull();
             persisted.ModifiedAtUtc.Should().NotBeNull();
             writerTwoResponse.ModifiedAtUtc.Should().NotBeNull();
             (persisted.ModifiedAtUtc!.Value -
@@ -166,7 +182,9 @@ public sealed class ListingUpdateConcurrencyTests
             await AssertSubtypeRowsAsync(
                 listingId,
                 expectedApartmentRows: 1,
-                expectedHouseRows: 0);
+                expectedHouseRows: 0,
+                expectedCommercialRows: 0,
+                expectedLandRows: 0);
         }
         finally
         {
@@ -179,11 +197,142 @@ public sealed class ListingUpdateConcurrencyTests
     }
 
     [Fact]
-    public async Task UpdateIncompleteDraftFirst_PublishWaitsThenReturnsListingNotReady()
+    public async Task SubtypeReplacementConcurrency_SameCommercialRootSerializesAndLastSubtypeWins()
+    {
+        (Guid listingId, AuthenticatedTestUser owner) =
+            await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
+        string connectionString = await GetConnectionStringAsync();
+
+        await using AsyncServiceScope firstDependencyScope =
+            _factory.Services.CreateAsyncScope();
+        await using AsyncServiceScope secondDependencyScope =
+            _factory.Services.CreateAsyncScope();
+
+        RealEstateDbContext firstAuthoringDbContext =
+            firstDependencyScope.ServiceProvider
+                .GetRequiredService<RealEstateDbContext>();
+        await EnsureConnectionOpenAsync(firstAuthoringDbContext);
+        int firstBackendPid = await GetBackendProcessIdAsync(
+            firstAuthoringDbContext);
+        var firstGate = new GatedAuthoringRepository(
+            firstDependencyScope.ServiceProvider
+                .GetRequiredService<IListingAuthoringRepository>());
+        var secondProbe = new AuthoringProgressProbe();
+        await using RealEstateDbContext secondAuthoringDbContext =
+            CreateProbedAuthoringDbContext(connectionString, secondProbe);
+        await EnsureConnectionOpenAsync(secondAuthoringDbContext);
+        int secondBackendPid = await GetBackendProcessIdAsync(
+            secondAuthoringDbContext);
+        var secondRepository = new ListingAuthoringRepository(
+            secondAuthoringDbContext);
+
+        UpdateListingHandler firstHandler = CreateUpdateHandler(
+            firstGate,
+            firstDependencyScope.ServiceProvider,
+            owner.UserId);
+        UpdateListingHandler secondHandler = CreateUpdateHandler(
+            secondRepository,
+            secondDependencyScope.ServiceProvider,
+            owner.UserId);
+        UpdateListingRequest firstRequest = CreateCommercialRequest(
+            181_000m,
+            CommercialType.Office,
+            ("en", "Office writer"),
+            ("de", "Office writer German"));
+        UpdateListingRequest secondRequest = CreateCommercialRequest(
+            282_000m,
+            CommercialType.Shop,
+            ("en", "Shop writer"),
+            ("sq", "Shop writer Albanian"));
+        using var cancellation = new CancellationTokenSource();
+
+        Task<ServiceResult<ListingAuthoringResponse>>? firstTask = null;
+        Task<ServiceResult<ListingAuthoringResponse>>? secondTask = null;
+
+        try
+        {
+            firstTask = firstHandler.HandleAsync(
+                listingId,
+                firstRequest,
+                cancellation.Token);
+            await firstGate.LockAcquired.WaitAsync(TestTimeout);
+            firstTask.IsCompleted.Should().BeFalse(
+                "the Office writer is held while owning the parent lock");
+
+            secondTask = secondHandler.HandleAsync(
+                listingId,
+                secondRequest,
+                cancellation.Token);
+            await secondProbe.TransactionStarted.WaitAsync(TestTimeout);
+            await WaitForBlockedParentLockAsync(
+                waitingBackendPid: secondBackendPid,
+                blockingBackendPid: firstBackendPid,
+                competingTask: secondTask,
+                cancellation.Token);
+            secondProbe.AggregateLoadStarted.IsCompleted.Should().BeFalse(
+                "the Shop writer cannot load stale child state before the parent lock");
+            secondTask.IsCompleted.Should().BeFalse();
+
+            firstGate.Release();
+
+            ServiceResult<ListingAuthoringResponse> firstResult =
+                await firstTask.WaitAsync(TestTimeout);
+            await secondProbe.AggregateLoadStarted.WaitAsync(TestTimeout);
+            ServiceResult<ListingAuthoringResponse> secondResult =
+                await secondTask.WaitAsync(TestTimeout);
+
+            firstResult.Status.Should().Be(ServiceResultStatus.Success);
+            firstResult.Value!.PropertyType.Should().Be(PropertyType.Commercial);
+            firstResult.Value.CommercialDetails!.CommercialType.Should()
+                .Be(CommercialType.Office);
+            secondResult.Status.Should().Be(ServiceResultStatus.Success);
+            secondResult.Value!.PropertyType.Should().Be(PropertyType.Commercial);
+            secondResult.Value.CommercialDetails!.CommercialType.Should()
+                .Be(CommercialType.Shop);
+
+            ListingAuthoringResponse persisted =
+                await ReadAuthoringResponseAsync(listingId);
+            persisted.PropertyType.Should().Be(PropertyType.Commercial);
+            persisted.Price.Should().Be(282_000m);
+            persisted.ApartmentDetails.Should().BeNull();
+            persisted.HouseDetails.Should().BeNull();
+            persisted.CommercialDetails.Should().NotBeNull();
+            persisted.CommercialDetails!.CommercialType.Should()
+                .Be(CommercialType.Shop);
+            persisted.LandDetails.Should().BeNull();
+            persisted.Translations.Select(translation => translation.LanguageCode)
+                .Should().Equal("en", "sq");
+            persisted.Translations.Single(translation =>
+                    translation.LanguageCode == "en")
+                .Title.Should().Be("Shop writer");
+
+            await AssertSubtypeRowsAsync(
+                listingId,
+                expectedApartmentRows: 0,
+                expectedHouseRows: 0,
+                expectedCommercialRows: 1,
+                expectedLandRows: 0,
+                expectedCommercialType: CommercialType.Shop);
+        }
+        finally
+        {
+            firstGate.Release();
+            await DrainStartedTasksAsync(
+                cancellation,
+                firstTask,
+                secondTask);
+        }
+    }
+
+    [Fact]
+    public async Task SubtypeReplacementConcurrency_CommercialUpdateFirst_NonOwnerPublishWaitsThenAuthorizationPrecedesReadiness()
     {
         (Guid listingId, AuthenticatedTestUser owner) =
             await ListingTestHelpers.CreateListingWithOwnerAsync(_httpClient);
         await SetUserStatusAsync(owner.UserId, UserStatus.Active);
+        AuthenticatedTestUser nonowner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        await SetUserStatusAsync(nonowner.UserId, UserStatus.Active);
         ListingAuthoringResponse initial =
             await ReadAuthoringResponseAsync(listingId);
         string connectionString = await GetConnectionStringAsync();
@@ -218,9 +367,10 @@ public sealed class ListingUpdateConcurrencyTests
         PublishListingHandler publishHandler = CreatePublishHandler(
             publishRepository,
             publishDependencyScope.ServiceProvider,
-            owner.UserId);
-        UpdateListingRequest incompleteRequest = CreateApartmentRequest(
+            nonowner.UserId);
+        UpdateListingRequest incompleteRequest = CreateCommercialRequest(
             price: 345_000m,
+            CommercialType.Shop,
             ("en", "Committed incomplete English"),
             ("de", "Committed incomplete German"));
         incompleteRequest.Translations
@@ -263,9 +413,10 @@ public sealed class ListingUpdateConcurrencyTests
                 await publishTask.WaitAsync(TestTimeout);
 
             updateResult.Status.Should().Be(ServiceResultStatus.Success);
-            publishResult.Status.Should().Be(ServiceResultStatus.Conflict);
+            publishResult.Status.Should().Be(ServiceResultStatus.Forbidden);
             publishResult.ErrorCode.Should().Be(
-                ErrorCodes.ConflictListingNotReady);
+                ErrorCodes.AuthorizationForbidden,
+                "post-lock ownership authorization must run before readiness");
             publishRepository.SaveChangesCallCount.Should().Be(0);
             publishRepository.CommitCallCount.Should().Be(0);
             publishRepository.DisposeCallCount.Should().Be(1);
@@ -281,6 +432,7 @@ public sealed class ListingUpdateConcurrencyTests
             ListingAuthoringResponse persisted =
                 await ReadAuthoringResponseAsync(listingId);
             persisted.Status.Should().Be(ListingStatus.Draft);
+            persisted.PropertyType.Should().Be(PropertyType.Commercial);
             persisted.Price.Should().Be(345_000m);
             persisted.Translations.Select(translation => translation.LanguageCode)
                 .Should().Equal("de", "en");
@@ -293,15 +445,21 @@ public sealed class ListingUpdateConcurrencyTests
                 "Committed incomplete German description");
             persisted.Translations.Should().NotContain(translation =>
                 translation.LanguageCode == "mk");
-            persisted.ApartmentDetails.Should().NotBeNull();
+            persisted.ApartmentDetails.Should().BeNull();
             persisted.HouseDetails.Should().BeNull();
+            persisted.CommercialDetails.Should().NotBeNull();
+            persisted.CommercialDetails!.CommercialType.Should()
+                .Be(CommercialType.Shop);
+            persisted.LandDetails.Should().BeNull();
             persisted.ModifiedAtUtc.Should().NotBeNull();
             persisted.ModifiedAtUtc.Should().BeAfter(initial.CreatedAtUtc);
 
             await AssertSubtypeRowsAsync(
                 listingId,
-                expectedApartmentRows: 1,
-                expectedHouseRows: 0);
+                expectedApartmentRows: 0,
+                expectedHouseRows: 0,
+                expectedCommercialRows: 1,
+                expectedLandRows: 0);
         }
         finally
         {
@@ -772,7 +930,10 @@ public sealed class ListingUpdateConcurrencyTests
     private async Task AssertSubtypeRowsAsync(
         Guid listingId,
         int expectedApartmentRows,
-        int expectedHouseRows)
+        int expectedHouseRows,
+        int expectedCommercialRows = 0,
+        int expectedLandRows = 0,
+        CommercialType? expectedCommercialType = null)
     {
         await using AsyncServiceScope scope =
             _factory.Services.CreateAsyncScope();
@@ -785,9 +946,74 @@ public sealed class ListingUpdateConcurrencyTests
         int houseRows = await dbContext.Set<ListingHouseDetails>()
             .AsNoTracking()
             .CountAsync(details => details.ListingId == listingId);
+        int commercialRows = await dbContext.Set<ListingCommercialDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
+        int landRows = await dbContext.Set<ListingLandDetails>()
+            .AsNoTracking()
+            .CountAsync(details => details.ListingId == listingId);
 
         apartmentRows.Should().Be(expectedApartmentRows);
         houseRows.Should().Be(expectedHouseRows);
+        commercialRows.Should().Be(expectedCommercialRows);
+        landRows.Should().Be(expectedLandRows);
+        (apartmentRows + houseRows + commercialRows + landRows)
+            .Should().Be(1);
+
+        if (expectedCommercialType.HasValue)
+        {
+            ListingCommercialDetails details = await dbContext
+                .Set<ListingCommercialDetails>()
+                .AsNoTracking()
+                .SingleAsync(current => current.ListingId == listingId);
+            details.CommercialType.Should().Be(expectedCommercialType.Value);
+        }
+    }
+
+    private static UpdateListingRequest CreateCommercialRequest(
+        decimal price,
+        CommercialType commercialType,
+        params (string LanguageCode, string Title)[] translations)
+    {
+        return new UpdateListingRequest
+        {
+            ListingType = ListingType.Sale,
+            PropertyType = PropertyType.Commercial,
+            Price = price,
+            Currency = "EUR",
+            AreaSquareMeters = 88m,
+            Rooms = 3m,
+            Bathrooms = 2m,
+            BalconyCount = 1,
+            ParkingSpaces = 1,
+            HasBasement = true,
+            IsExchangePossible = false,
+            HeatingType = HeatingType.Central,
+            FurnishingStatus = FurnishingStatus.Furnished,
+            Condition = PropertyCondition.Good,
+            YearRenovated = 2021,
+            Orientation = Orientation.South,
+            YearBuilt = 2010,
+            ApartmentDetails = null,
+            HouseDetails = null,
+            CommercialDetails = new UpdateListingCommercialDetailsRequest
+            {
+                CommercialType = commercialType
+            },
+            LandDetails = null,
+            Translations = translations
+                .Select(translation => new UpdateListingTranslationRequest
+                {
+                    LanguageCode = translation.LanguageCode,
+                    Title = translation.Title,
+                    Description = $"{translation.Title} description",
+                    AddressLine = "Concurrency address",
+                    City = "Skopje",
+                    Municipality = "Centar",
+                    Neighborhood = "Center"
+                })
+                .ToList()
+        };
     }
 
     private static UpdateListingRequest CreateApartmentRequest(
