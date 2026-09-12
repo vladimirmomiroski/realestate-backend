@@ -1161,6 +1161,16 @@ public sealed class OpenApiDocumentTests
             "#/components/schemas/UpdateListingHouseDetailsRequest",
             "House",
             "Apartment");
+        AssertNullableReference(
+            updateProperties.GetProperty("commercialDetails"),
+            "#/components/schemas/UpdateListingCommercialDetailsRequest",
+            "Commercial",
+            "Apartment");
+        AssertNullableReference(
+            updateProperties.GetProperty("landDetails"),
+            "#/components/schemas/UpdateListingLandDetailsRequest",
+            "Land",
+            "Apartment");
         updateProperties.GetProperty("translations")
             .GetProperty("description")
             .GetString()
@@ -1361,6 +1371,187 @@ public sealed class OpenApiDocumentTests
             .Select(value => value.GetString())
             .Should()
             .BeEquivalentTo("Apartment", "House", "Commercial", "Land");
+    }
+
+    [Fact]
+    public void OpenApiDocument_PropertyTaxonomyContract_IsTruthful()
+    {
+        using JsonDocument document = GetDocument();
+        JsonElement root = document.RootElement;
+        JsonElement schemas = root
+            .GetProperty("components")
+            .GetProperty("schemas");
+
+        AssertExactStringEnum(
+            schemas,
+            "PropertyType",
+            "Apartment",
+            "House",
+            "Commercial",
+            "Land");
+        AssertExactStringEnum(
+            schemas,
+            "CommercialType",
+            "Unknown",
+            "Office",
+            "Shop",
+            "Other");
+        AssertExactStringEnum(
+            schemas,
+            "LandType",
+            "Unknown",
+            "BuildingPlot",
+            "AgriculturalLand",
+            "Other");
+
+        (string SchemaName, string ContractPhrase, string ReferencePrefix)[]
+            requestSchemas =
+        [
+            (
+                "CreateListingRequest",
+                "Create runtime validation",
+                "CreateListing"),
+            (
+                "UpdateListingRequest",
+                "Full-replacement runtime validation",
+                "UpdateListing")
+        ];
+        (string PropertyName, string PropertyType, string DetailSchema)[] details =
+        [
+            ("apartmentDetails", "Apartment", "ApartmentDetailsRequest"),
+            ("houseDetails", "House", "HouseDetailsRequest"),
+            ("commercialDetails", "Commercial", "CommercialDetailsRequest"),
+            ("landDetails", "Land", "LandDetailsRequest")
+        ];
+
+        foreach ((string schemaName, string contractPhrase, string referencePrefix)
+                 in requestSchemas)
+        {
+            JsonElement requestSchema = schemas.GetProperty(schemaName);
+            JsonElement requestProperties = requestSchema.GetProperty("properties");
+            string[] required = requestSchema.GetProperty("required")
+                .EnumerateArray()
+                .Select(value => value.GetString()!)
+                .ToArray();
+
+            required.Should().NotContain(details.Select(detail => detail.PropertyName));
+
+            foreach ((string propertyName, string propertyType, string detailSchema)
+                     in details)
+            {
+                JsonElement property = requestProperties.GetProperty(propertyName);
+                AssertOptionalNullableReference(
+                    property,
+                    $"#/components/schemas/{referencePrefix}{detailSchema}");
+                property.GetProperty("description").GetString().Should()
+                    .ContainAll(
+                        "Required",
+                        propertyType,
+                        "forbidden",
+                        "Apartment",
+                        "House",
+                        "Commercial",
+                        "Land",
+                        contractPhrase,
+                        "exactly");
+            }
+        }
+
+        AssertOptionalRequestSubtype(
+            schemas,
+            "CreateListingCommercialDetailsRequest",
+            "commercialType",
+            "#/components/schemas/CommercialType",
+            "defaults",
+            "Unknown");
+        AssertOptionalRequestSubtype(
+            schemas,
+            "CreateListingLandDetailsRequest",
+            "landType",
+            "#/components/schemas/LandType",
+            "defaults",
+            "Unknown");
+        AssertOptionalRequestSubtype(
+            schemas,
+            "UpdateListingCommercialDetailsRequest",
+            "commercialType",
+            "#/components/schemas/CommercialType",
+            "resets",
+            "Unknown",
+            "full replacement");
+        AssertOptionalRequestSubtype(
+            schemas,
+            "UpdateListingLandDetailsRequest",
+            "landType",
+            "#/components/schemas/LandType",
+            "resets",
+            "Unknown",
+            "full replacement");
+
+        AssertRequiredResponseSubtype(
+            schemas,
+            "ListingCommercialDetailsResponse",
+            "commercialType",
+            "#/components/schemas/CommercialType");
+        AssertRequiredResponseSubtype(
+            schemas,
+            "ListingLandDetailsResponse",
+            "landType",
+            "#/components/schemas/LandType");
+
+        (string PropertyName, string ResponseSchema)[] responseDetails =
+        [
+            ("apartmentDetails", "ListingApartmentDetailsResponse"),
+            ("houseDetails", "ListingHouseDetailsResponse"),
+            ("commercialDetails", "ListingCommercialDetailsResponse"),
+            ("landDetails", "ListingLandDetailsResponse")
+        ];
+        foreach (string responseSchemaName in new[]
+                 {
+                     "ListingResponse",
+                     "PublicListingResponse",
+                     "ListingAuthoringResponse"
+                 })
+        {
+            JsonElement responseSchema = schemas.GetProperty(responseSchemaName);
+            JsonElement responseProperties = responseSchema.GetProperty("properties");
+
+            if (responseSchema.TryGetProperty(
+                    "required",
+                    out JsonElement required))
+            {
+                required.EnumerateArray()
+                    .Select(value => value.GetString())
+                    .Should().NotContain(
+                        responseDetails.Select(detail => detail.PropertyName));
+            }
+
+            foreach ((string propertyName, string detailSchema) in responseDetails)
+            {
+                AssertOptionalNullableReference(
+                    responseProperties.GetProperty(propertyName),
+                    $"#/components/schemas/{detailSchema}");
+            }
+        }
+
+        JsonElement createCurrency = schemas
+            .GetProperty("CreateListingRequest")
+            .GetProperty("properties")
+            .GetProperty("currency");
+        createCurrency.GetProperty("default").GetString().Should().Be("EUR");
+
+        JsonElement listingOperation = GetOperation(root, "/api/listings", "get");
+        JsonElement propertyTypeParameter = GetParameter(
+            listingOperation,
+            "propertyType");
+        propertyTypeParameter.GetProperty("schema")
+            .GetProperty("$ref")
+            .GetString()
+            .Should().Be("#/components/schemas/PropertyType");
+        listingOperation.GetProperty("parameters")
+            .EnumerateArray()
+            .Select(parameter => parameter.GetProperty("name").GetString())
+            .Should().NotContain(["commercialType", "landType"]);
     }
 
     [Fact]
@@ -1716,6 +1907,85 @@ public sealed class OpenApiDocumentTests
             .GetProperty(propertyName);
         property.GetProperty("type").GetString().Should().Be("string");
         IsNullable(property).Should().BeFalse();
+    }
+
+    private static void AssertExactStringEnum(
+        JsonElement schemas,
+        string schemaName,
+        params string[] expectedValues)
+    {
+        JsonElement schema = schemas.GetProperty(schemaName);
+        schema.GetProperty("type").GetString().Should().Be("string");
+        schema.GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().Equal(expectedValues);
+    }
+
+    private static void AssertOptionalRequestSubtype(
+        JsonElement schemas,
+        string schemaName,
+        string propertyName,
+        string expectedReference,
+        params string[] expectedDescriptionParts)
+    {
+        JsonElement schema = schemas.GetProperty(schemaName);
+        if (schema.TryGetProperty("required", out JsonElement required))
+        {
+            required.EnumerateArray()
+                .Select(value => value.GetString())
+                .Should().NotContain(propertyName);
+        }
+
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("allOf")
+            .EnumerateArray()
+            .Should().ContainSingle()
+            .Which.GetProperty("$ref")
+            .GetString()
+            .Should().Be(expectedReference);
+        property.GetProperty("description").GetString().Should()
+            .ContainAll(expectedDescriptionParts);
+        IsNullable(property).Should().BeFalse();
+        property.TryGetProperty("default", out _).Should().BeFalse();
+    }
+
+    private static void AssertRequiredResponseSubtype(
+        JsonElement schemas,
+        string schemaName,
+        string propertyName,
+        string expectedReference)
+    {
+        JsonElement schema = schemas.GetProperty(schemaName);
+        schema.GetProperty("required")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().Contain(propertyName);
+        JsonElement property = schema
+            .GetProperty("properties")
+            .GetProperty(propertyName);
+        property.GetProperty("$ref").GetString().Should().Be(expectedReference);
+        IsNullable(property).Should().BeFalse();
+    }
+
+    private static void AssertOptionalNullableReference(
+        JsonElement property,
+        string expectedReference)
+    {
+        JsonElement[] alternatives = property.GetProperty("oneOf")
+            .EnumerateArray()
+            .ToArray();
+        alternatives.Should().HaveCount(2);
+        alternatives[0].GetProperty("$ref").GetString()
+            .Should().Be(expectedReference);
+        JsonElement nullAlternative = alternatives[1];
+        IsNullable(nullAlternative).Should().BeTrue();
+        nullAlternative.GetProperty("enum")
+            .EnumerateArray()
+            .Should().ContainSingle()
+            .Which.ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     private static bool IsNullable(JsonElement schema)
