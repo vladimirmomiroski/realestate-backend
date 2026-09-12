@@ -62,6 +62,12 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
                 "latitude",
                 "longitude",
                 "locationPrecision");
+            ApplyNullableResponseDetailReferences(mutableSchema);
+        }
+
+        if (context.Type == typeof(ListingResponse))
+        {
+            ApplyNullableResponseDetailReferences(mutableSchema);
         }
 
         if (context.Type == typeof(ListingAuthoringTranslationResponse))
@@ -77,6 +83,21 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
             ApplyRequiredNonNullableProperties(
                 mutableSchema,
                 "translations");
+            ApplyNullableResponseDetailReferences(mutableSchema);
+        }
+
+        if (context.Type == typeof(ListingCommercialDetailsResponse))
+        {
+            ApplyRequiredNonNullableProperties(
+                mutableSchema,
+                "commercialType");
+        }
+
+        if (context.Type == typeof(ListingLandDetailsResponse))
+        {
+            ApplyRequiredNonNullableProperties(
+                mutableSchema,
+                "landType");
         }
 
         if (context.Type == typeof(ListingResponse) ||
@@ -126,6 +147,22 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
             ApplyCreateListingTranslationSchema(mutableSchema);
         }
 
+        if (context.Type == typeof(CreateListingCommercialDetailsRequest))
+        {
+            ApplyOptionalEnumDescription(
+                mutableSchema,
+                "commercialType",
+                "Optional; omission defaults commercialType to Unknown.");
+        }
+
+        if (context.Type == typeof(CreateListingLandDetailsRequest))
+        {
+            ApplyOptionalEnumDescription(
+                mutableSchema,
+                "landType",
+                "Optional; omission defaults landType to Unknown.");
+        }
+
         if (context.Type == typeof(UpdateListingRequest))
         {
             ApplyUpdateListingSchema(mutableSchema);
@@ -150,6 +187,22 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
                 mutableSchema,
                 "houseType",
                 "Optional; omission resets the stored value to Unknown.");
+        }
+
+        if (context.Type == typeof(UpdateListingCommercialDetailsRequest))
+        {
+            ApplyOptionalEnumDescription(
+                mutableSchema,
+                "commercialType",
+                "Optional; omission resets the stored commercialType to Unknown during full replacement.");
+        }
+
+        if (context.Type == typeof(UpdateListingLandDetailsRequest))
+        {
+            ApplyOptionalEnumDescription(
+                mutableSchema,
+                "landType",
+                "Optional; omission resets the stored landType to Unknown during full replacement.");
         }
 
         ApplyRelativeMediaDescriptions(mutableSchema, context.Type);
@@ -326,6 +379,10 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
             currency.Description =
                 "Optional; omission defaults to EUR. Explicit null or an invalid value is rejected.";
         }
+
+        ApplyConditionalDetailReferences(
+            schema,
+            "Create runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects.");
     }
 
     private static void ApplyCreateListingTranslationSchema(
@@ -420,18 +477,69 @@ public sealed class ApiOpenApiSchemaFilter : ISchemaFilter
                 "Optional; omission resets the stored value to Unknown.");
         }
 
-        WrapNullableReference(
+        ApplyConditionalDetailReferences(
             schema,
-            "apartmentDetails",
-            "Required when propertyType is Apartment and forbidden when propertyType is House. Omission or null clears this subtype payload during a valid House replacement.");
-        WrapNullableReference(
-            schema,
-            "houseDetails",
-            "Required when propertyType is House and forbidden when propertyType is Apartment. Omission or null clears this subtype payload during a valid Apartment replacement.");
+            "Full-replacement runtime validation requires exactly the detail object matching propertyType and forbids the other three detail objects; incompatible stored details are removed.");
         SetDescription(
             schema,
             "translations",
             "Complete authoritative translation set. Omitted stored languages are deleted; retained canonical languages preserve their server-owned translation IDs.");
+    }
+
+    private static void ApplyConditionalDetailReferences(
+        OpenApiSchema schema,
+        string contractDescription)
+    {
+        (string PropertyName, string PropertyType, string OtherTypes)[] details =
+        [
+            ("apartmentDetails", "Apartment", "House, Commercial, and Land"),
+            ("houseDetails", "House", "Apartment, Commercial, and Land"),
+            ("commercialDetails", "Commercial", "Apartment, House, and Land"),
+            ("landDetails", "Land", "Apartment, House, and Commercial")
+        ];
+
+        foreach ((string propertyName, string propertyType, string otherTypes) in
+                 details)
+        {
+            schema.Required?.Remove(propertyName);
+            WrapNullableReference(
+                schema,
+                propertyName,
+                $"Required when propertyType is {propertyType} and forbidden when propertyType is {otherTypes}. {contractDescription}");
+        }
+    }
+
+    private static void ApplyNullableResponseDetailReferences(
+        OpenApiSchema schema)
+    {
+        (string PropertyName, string DetailName)[] details =
+        [
+            ("apartmentDetails", "Apartment"),
+            ("houseDetails", "House"),
+            ("commercialDetails", "Commercial"),
+            ("landDetails", "Land")
+        ];
+
+        foreach ((string propertyName, string detailName) in details)
+        {
+            schema.Required?.Remove(propertyName);
+            WrapNullableReference(
+                schema,
+                propertyName,
+                $"Nullable stored {detailName} detail payload; the response reflects the loaded aggregate state.");
+        }
+    }
+
+    private static void ApplyOptionalEnumDescription(
+        OpenApiSchema schema,
+        string propertyName,
+        string description)
+    {
+        schema.Required?.Remove(propertyName);
+        WrapReferenceWithDescription(
+            schema,
+            propertyName,
+            description);
     }
 
     private static void ApplyUpdateListingTranslationSchema(
