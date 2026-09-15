@@ -42,7 +42,7 @@ It is a live source-controlled issue register, not a project history, completed-
 - **CH11-DB-02: Request validation is not duplicated broadly as database checks**
   - Area: Listing numeric, range, and coordinate integrity.
   - Risk: Direct database writes are not guarded by every request-validator rule; blanket constraints could reject legacy data or prematurely encode policy.
-  - Evidence: Validators enforce the business ranges, while the current EF model and 20 migrations do not duplicate every request-level range as a comprehensive check-constraint family. Chapter 13 added only its explicitly approved translation and confirmed-location integrity constraints.
+  - Evidence: Validators enforce the business ranges, while the current EF model and 21 migrations do not duplicate every request-level range as a comprehensive check-constraint family. Chapter 13 added only its explicitly approved translation and confirmed-location integrity constraints.
   - Smallest safe direction: Audit deployed data and approve each constraint family before a focused migration.
   - Classification: Accepted owner decision.
 
