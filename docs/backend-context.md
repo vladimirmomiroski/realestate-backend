@@ -54,6 +54,13 @@ Do not guess project-specific names, helpers, schema fields, or conventions.
 Inspect the exact files first.
 ```
 
+Chapter numbers are planning/history identifiers only. Name production and test
+code by domain behavior, never with `Chapter13`, `Chapter14`, or future chapter
+numbers in types, methods, filenames, traits, helpers, runtime identifiers, or
+other code-facing terminology. Historical planning/evidence documents and
+immutable migration/history artifacts may retain chapter references; historical
+chapter-specific test selectors are records, not naming conventions to copy.
+
 ## 3. Project snapshot
 
 The backend supports a real estate platform with:
@@ -64,7 +71,7 @@ personal listings
 agency-owned listings
 listing translations
 listing images
-apartment and house details
+apartment, house, commercial, and land details
 search and filtering
 publishing and visibility rules
 user profile and avatar management
@@ -89,22 +96,24 @@ Chapter 10 — Search and Discovery Phase 2 is complete.
 Chapter 11 — Data Integrity and Targeted Hardening is complete.
 Chapter 12 — API Consistency, Observability, and Frontend Readiness is complete.
 Chapter 13 — Public Listing Integrity and Authoring is complete through 13L.2.
-The owner-approved 13L.1 record is the cumulative technical gate for the completed backend tree.
-Chapter 14 is the next backend chapter; Chapter 15 follows it. The verified Chapter 13 contract and handoff are durable input for a full backend-to-frontend reconciliation after both chapters, not authorization to begin frontend implementation now.
+Chapter 13 remains the protected inherited translation/location/public-integrity, lifecycle, authorization, locking, and error contract.
+Chapter 14 property-taxonomy expansion is technically completed and independently accepted through 14L, including the owner-confirmed zero-finding holistic pre-close audit. 14M is the final documentation/status closeout pending fresh independent acceptance and owner commit; only then is the full Chapter 14 closeout complete.
+Chapter 15 is the next backend implementation boundary after that closeout. Final backend-to-frontend reconciliation follows Chapter 15, then documentation consolidation and frontend integration; no final frontend readiness is declared here.
 ```
 
 Current test state:
 
 ```text
-2022 passed
+2183 passed
 0 failed
 0 skipped
 solution build: 0 warnings, 0 errors
-focused Chapter 13 verification: 980 successful executions / 970 distinct cases
-serialized OpenAPI: 11/11
-generated SQL freeze: 33/33 exact, 0 mismatches, 0 missing, 0 extra
+current cumulative focused verification: 695 unique executions (340 taxonomy + 355 disjoint protected regressions)
+serialized OpenAPI: 12/12
+migration lifecycle/catalog: 3/3
+accepted SQL delta: 33 commands, 80 exact typed parameter records, 25 historically exact bodies, 8 approved widened roots
 QueryReview profile: 61/61; plans: 198/198
-20 migrations (five owned by Chapter 13)
+21 migrations (five owned by Chapter 13; one additive Chapter 14 migration)
 pending model: clean
 ```
 
@@ -254,6 +263,8 @@ ListingTranslation
 ListingImage
 ListingApartmentDetails
 ListingHouseDetails
+ListingCommercialDetails
+ListingLandDetails
 ```
 
 ### Agency aggregate
@@ -414,6 +425,14 @@ Avatar delete is idempotent.
 ```
 
 ## 10. Listings
+
+### Property taxonomy and Draft replacement
+
+Current roots are exactly `Apartment = 1`, `House = 2`, `Commercial = 3`, and `Land = 4`. Commercial has fixed `CommercialType` values `Unknown = 0`, `Office = 1`, `Shop = 2`, `Other = 3`; Land has fixed `LandType` values `Unknown = 0`, `BuildingPlot = 1`, `AgriculturalLand = 2`, `Other = 3`. Each uses its explicit shared-PK `ListingCommercialDetails` / `ListingLandDetails` child, not dynamic taxonomy or generic attributes.
+
+POST and full Draft PUT support all four roots, reject undefined/contradictory input, and leave exactly one matching persisted child. All 16 source/target replacement transitions are protected, including in-place tracked target mutation, stale-child deletion, nullable/common clearing, Unknown reset, and translation-ID preservation by language. Classification-only changes preserve trusted location; canonical location-text changes retain existing invalidation behavior. Unknown remains valid for Draft and Active without a new publication requirement.
+
+`ListingResponse`, `PublicListingResponse`, and `ListingAuthoringResponse` remain distinct; all expose faithful nullable Commercial/Land detail slots. Management, shared reads, generated OpenAPI, exact root discovery, subtype-neutral root-isolated comparables, and deterministic parent-lock race proofs are integrated. Accepted evidence is linked in section 20; the authoritative Chapter 14 record retains execution history and the pending final-closeout governance condition.
 
 ### Ownership
 
@@ -615,9 +634,11 @@ yard-area range
 
 The effective translation is selected deterministically by case-insensitive requested language, then `mk`, then PostgreSQL `C` bytewise language ordering and translation UUID. Structured location, the literal `q` predicate, display, and comparable semantics use that one effective row; `%`, `_`, and `\` are escaped as literal characters.
 
-`q` remains restricted to Title, City, Municipality, and Neighborhood. It does not search Description, AddressLine, coordinates, or LocationPrecision.
+The exact optional `propertyType` equality filter supports all four roots; omission means no root filter. There are no `commercialType` or `landType` query parameters/predicates.
 
-Comparable listings use an Active source and Active candidates, same listing/property type and currency, positive price/area, effective-language/city eligibility, and the locked six-key deterministic order. AddressLine, coordinates, and precision are not comparable inputs or ranking factors.
+`q` remains restricted to Title, City, Municipality, and Neighborhood. It does not search Description, AddressLine, coordinates, LocationPrecision, or subtype labels.
+
+Comparable listings use an Active source and Active candidates, same listing/property type and currency, positive price/area, effective-language/city eligibility, and the locked six-key deterministic order. Commercial sources compare only with Commercial and Land only with Land; subtype values affect neither eligibility nor ranking. AddressLine, coordinates, and precision are not comparable inputs or ranking factors.
 
 All four paged listing HTTP surfaces use the unified seven-member `PagedResponse<T>` contract with `items`, `page`, `pageSize`, `totalCount`, `totalPages`, `hasNextPage`, and `hasPreviousPage`. Public search and public agency lists carry `PublicListingResponse`; `/my` and agency dashboard carry `ListingResponse`. `PagedResult<T>` is internal repository data only. Offset pagination is retained; private listing paths use deterministic `CreatedAtUtc DESC, Id DESC` ordering.
 
@@ -1138,6 +1159,8 @@ ListingTranslations
 ListingImages
 ListingApartmentDetails
 ListingHouseDetails
+ListingCommercialDetails
+ListingLandDetails
 __EFMigrationsHistory
 ```
 
@@ -1163,7 +1186,9 @@ Chapter 13 added five forward migrations, bringing the repository to 20 committe
 
 Together they enforce translation-row truth, Active publication truth, optional localized-location row integrity, the canonical Listing-root geocoded snapshot, and strong Active translation/location integrity. The owner-approved L.1 gate verified the fresh 20-migration chain, repository-defined repeat lifecycle, relevant Down/re-Up paths, exact catalog objects, no fabricated coordinate/provenance backfill, and no pending EF model changes.
 
-The backend has never been deployed. Before the first staging/production deployment, run `docs/operations/chapter-13j2-active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0`; remediation is only through supported lifecycle/location workflows or by keeping rows non-Active.
+The backend has never been deployed. Before the first staging/production deployment, run `docs/operations/active-location-compatibility.sql` against the authorized target and require `IncompatibleCount = 0`; remediation is only through supported lifecycle/location workflows or by keeping rows non-Active.
+
+The additive migration `20260904023937_AddCommercialAndLandPropertyTaxonomy` brings the current inventory to 21. It creates only Commercial/Land shared-PK dependent tables with `uuid` Listing FKs/cascade and non-null `varchar(50)` enum-name columns defaulting to `Unknown`; there is no data fabrication/backfill or cross-table discriminator enforcement. The accepted 3/3 lifecycle/catalog family proves fresh apply, upgrade preservation, repeat Up, Down/re-Up and exact structure; the EF model has no pending changes.
 
 Enums are stored as strings in PostgreSQL through EF Core conversions.
 
@@ -1257,7 +1282,9 @@ serialized OpenAPI agreement for public, private, management, Create/PUT, geocod
 
 Final Chapter 13 verification is recorded in `docs/chapters/chapter-13l1-cumulative-chapter-13-verification-gate.md`: 2,022 complete-suite tests passed with none failed or skipped; six focused commands produced 980 successful executions covering 970 distinct cases; connected personal and Active-Owner agency controlled-provider Draft-to-public smokes passed; and the focused OpenAPI suite passed 11/11. Release builds completed with zero warnings and zero errors.
 
-The final query freeze is recorded in `docs/benchmarks/chapter-10f/chapter-13k3-final-generated-sql-freeze-proof.md`: 33/33 commands exact against immutable H.6 post-location run `chapter-10f-v1-baseline-20260814T112202Z-2925368b`, `chapter-10f-v2` profile 61/61, J.7 supplemental gates 8/8, 7/7, and 8/8, and 198/198 accepted plans with no spill/temp-block anomaly.
+The inherited historical Chapter 13 query freeze is recorded in `docs/benchmarks/chapter-10f/chapter-13k3-final-generated-sql-freeze-proof.md`: 33/33 commands exact against immutable H.6 post-location run `chapter-10f-v1-baseline-20260814T112202Z-2925368b`, `chapter-10f-v2` profile 61/61, J.7 supplemental gates 8/8, 7/7, and 8/8, and 198/198 accepted plans with no spill/temp-block anomaly.
+
+Current accepted [Chapter 14 cumulative verification](chapters/chapter-14l-cumulative-chapter-14-verification-gate.md) records 2,183 passed, zero failed/skipped, 695 unique focused executions, OpenAPI 12/12, lifecycle/catalog 3/3, 21 migrations, and no pending EF changes. The accepted [property-taxonomy SQL delta](benchmarks/chapter-10f/chapter-14-property-taxonomy-generated-sql-delta-proof.md) proves 33 commands, all 80 typed parameter records exact, 25 historically exact bodies and exactly eight roots widened only by two LEFT JOINs/four projected columns each; 61/61 unchanged Apartment/House profile invariants, 198/198 plans, locked results/order, Q1 pass and zero spills/temp anomalies. The historical 69-file baseline was not rewritten; query/profile source hashes remain frozen.
 
 ## 21. Development workflow
 
@@ -1384,12 +1411,11 @@ Cloud/object storage is deferred until deployment needs justify it.
 ### Current completed milestone and next work
 
 ```text
-Completed: Chapter 13 — Public Listing Integrity and Authoring
-Final technical gate: owner-approved 13L.1 cumulative verification
-Durable closeout: 13L.2 documentation and Chapter 13 backend-to-frontend handoff
-Next backend chapter: Chapter 14 — property model and taxonomy expansion
-Then: Chapter 15 — integration through discovery, API, performance, and hardening
-After Chapters 14 and 15: full backend-to-frontend handoff/reconciliation, documentation consolidation review, then frontend integration
+Protected inherited milestone: Chapter 13 — Public Listing Integrity and Authoring
+Accepted technical milestone: Chapter 14 — Property Model and Taxonomy Expansion, through 14L and holistic pre-close audit
+Final Chapter 14 documentation/status closeout: 14M pending fresh independent acceptance and owner commit
+Next backend implementation boundary after closeout: Chapter 15 — integration through discovery, API, performance, and hardening
+After Chapter 15: full backend-to-frontend handoff/reconciliation, documentation consolidation review, then frontend integration
 ```
 
 Chapter 10 completion includes:
@@ -1447,13 +1473,11 @@ Chapter 12 — API Consistency, Observability, and Frontend Readiness
 Chapter 13 — Public Listing Integrity and Authoring
 ```
 
-The Chapter 13 contract is ready for later frontend consumption and is preserved in `docs/backend-frontend-handoff.md` and generated OpenAPI. Chapter 14 is next, Chapter 15 follows, and only after both will the project produce/reconcile the full backend-to-frontend handoff before frontend integration. Chapter 13 made no frontend change and generated no frontend types.
+The Chapter 13 frontend-facing baseline remains preserved, unchanged, in `docs/backend-frontend-handoff.md`. Chapter 14 technical work is accepted; its final documentation/status closeout remains pending fresh audit and owner commit. Chapter 15 is next, and full backend-to-frontend reconciliation follows it before frontend integration. No final frontend readiness, generated frontend types, or completed broad documentation consolidation is claimed.
 
 ### Later planned backend chapters
 
 ```text
-Chapter 14 — property model and taxonomy expansion
-
 Chapter 15 — integration through discovery, API, performance, and hardening
 
 Chapter 16 — provisional authentication/security/configuration hardening; exact scope must be replanned when reached
@@ -1529,7 +1553,7 @@ generated OpenAPI agreement and frozen Chapter 10 discovery/comparable SQL
 five Chapter 13 migrations, 20 total, and cumulative L.1 verification
 ```
 
-The historical authentication/account-security work once labeled Chapter 13 was not implemented here. It is provisionally Chapter 16 and remains deferred alongside production JWT/configuration hardening. Chapter 14 and Chapter 15 retain only the high-level scopes established by the authoritative Chapter 13 plan; their exact task plans must be read from the current authoritative documents when work begins.
+The historical authentication/account-security work once labeled Chapter 13 was not implemented here. It is provisionally Chapter 16 and remains deferred alongside production JWT/configuration hardening. Chapter 14's implemented fixed property model is recorded in its authoritative chapter document. Chapter 15 retains the owner-approved high-level integration/discovery/API/performance/hardening direction; no detailed Chapter 15 design is established here. Subtype discovery semantics, representative Commercial/Land performance distribution, subtype-aware comparable valuation, extra attributes/localized labels/new categories, exporter modernization, unrelated quality work, and broader reconciliation remain deferred, not Chapter 14 defects.
 
 ## 25. Next-task policy
 
@@ -1549,9 +1573,9 @@ Use read-only review for important features.
 Current next task:
 
 ```text
-Begin Chapter 14 — property model and taxonomy expansion, using its authoritative plan when established.
-Complete Chapter 15 afterward.
-After both chapters, reconcile the full backend-to-frontend handoff and documentation before frontend integration.
+Finish the governed 14M documentation/status closeout: fresh independent audit, corrections/re-audit if needed, then owner commit.
+After that acceptance, Chapter 14 is complete and Chapter 15 is the next backend implementation boundary; plan its exact scope separately.
+After Chapter 15, reconcile the full backend-to-frontend handoff and consolidate documentation before frontend integration.
 ```
 
 After frontend development begins, backend defects discovered through real integration may be handled on focused bugfix branches with regression tests. They must not silently expand completed Chapter 13 or an unrelated later chapter.

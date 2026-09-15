@@ -191,6 +191,20 @@ public sealed class UpdateListingValidator
                     "House details are not allowed for apartment listings.");
             }
 
+            if (request.CommercialDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Commercial details are not allowed for apartment listings.");
+            }
+
+            if (request.LandDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Land details are not allowed for apartment listings.");
+            }
+
             if (!Enum.IsDefined(request.ApartmentDetails.ApartmentType))
             {
                 return Failure(
@@ -225,42 +239,141 @@ public sealed class UpdateListingValidator
             return null;
         }
 
-        if (request.HouseDetails is null)
+        if (request.PropertyType == PropertyType.House)
         {
-            return Failure(
-                "houseDetails",
-                "House details are required for house listings.");
+            if (request.HouseDetails is null)
+            {
+                return Failure(
+                    "houseDetails",
+                    "House details are required for house listings.");
+            }
+
+            if (request.ApartmentDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Apartment details are not allowed for house listings.");
+            }
+
+            if (request.CommercialDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Commercial details are not allowed for house listings.");
+            }
+
+            if (request.LandDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Land details are not allowed for house listings.");
+            }
+
+            if (!Enum.IsDefined(request.HouseDetails.HouseType))
+            {
+                return Failure(
+                    "houseDetails.houseType",
+                    "House type must be a defined value.");
+            }
+
+            if (request.HouseDetails.NumberOfFloors is < 0)
+            {
+                return Failure(
+                    "houseDetails.numberOfFloors",
+                    "Number of floors cannot be negative.");
+            }
+
+            if (request.HouseDetails.YardAreaSquareMeters is < 0)
+            {
+                return Failure(
+                    "houseDetails.yardAreaSquareMeters",
+                    "Yard area cannot be negative.");
+            }
+
+            return null;
         }
 
-        if (request.ApartmentDetails is not null)
+        if (request.PropertyType == PropertyType.Commercial)
         {
-            return Failure(
-                "request",
-                "Apartment details are not allowed for house listings.");
+            if (request.CommercialDetails is null)
+            {
+                return Failure(
+                    "commercialDetails",
+                    "Commercial details are required for commercial listings.");
+            }
+
+            if (request.ApartmentDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Apartment details are not allowed for commercial listings.");
+            }
+
+            if (request.HouseDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "House details are not allowed for commercial listings.");
+            }
+
+            if (request.LandDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Land details are not allowed for commercial listings.");
+            }
+
+            if (!Enum.IsDefined(request.CommercialDetails.CommercialType))
+            {
+                return Failure(
+                    "commercialDetails.commercialType",
+                    "Commercial type must be a defined value.");
+            }
+
+            return null;
         }
 
-        if (!Enum.IsDefined(request.HouseDetails.HouseType))
+        if (request.PropertyType == PropertyType.Land)
         {
-            return Failure(
-                "houseDetails.houseType",
-                "House type must be a defined value.");
+            if (request.LandDetails is null)
+            {
+                return Failure(
+                    "landDetails",
+                    "Land details are required for land listings.");
+            }
+
+            if (request.ApartmentDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Apartment details are not allowed for land listings.");
+            }
+
+            if (request.HouseDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "House details are not allowed for land listings.");
+            }
+
+            if (request.CommercialDetails is not null)
+            {
+                return Failure(
+                    "request",
+                    "Commercial details are not allowed for land listings.");
+            }
+
+            if (!Enum.IsDefined(request.LandDetails.LandType))
+            {
+                return Failure(
+                    "landDetails.landType",
+                    "Land type must be a defined value.");
+            }
+
+            return null;
         }
 
-        if (request.HouseDetails.NumberOfFloors is < 0)
-        {
-            return Failure(
-                "houseDetails.numberOfFloors",
-                "Number of floors cannot be negative.");
-        }
-
-        if (request.HouseDetails.YardAreaSquareMeters is < 0)
-        {
-            return Failure(
-                "houseDetails.yardAreaSquareMeters",
-                "Yard area cannot be negative.");
-        }
-
-        return null;
+        return Failure("propertyType", InvalidPropertyTypeError);
     }
 
     private static ValidationFailure? ValidateTranslations(

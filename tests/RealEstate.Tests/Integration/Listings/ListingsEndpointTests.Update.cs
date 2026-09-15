@@ -151,14 +151,24 @@ public sealed partial class ListingsEndpointTests
 
         try
         {
+            JsonObject payload = CreateValidUpdatePayload();
+            payload["propertyType"] = "Commercial";
+            payload["apartmentDetails"] = null;
+            payload["commercialDetails"] = new JsonObject
+            {
+                ["commercialType"] = "Office"
+            };
             HttpResponseMessage response = await _httpClient.PutAsJsonAsync(
                 $"/api/listings/{listingId}",
-                CreateValidUpdatePayload());
+                payload);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             JsonElement body =
                 await response.Content.ReadFromJsonAsync<JsonElement>();
             body.GetProperty("agencyId").GetGuid().Should().Be(agencyId);
+            body.GetProperty("propertyType").GetString().Should().Be("Commercial");
+            body.GetProperty("commercialDetails")
+                .GetProperty("commercialType").GetString().Should().Be("Office");
         }
         finally
         {

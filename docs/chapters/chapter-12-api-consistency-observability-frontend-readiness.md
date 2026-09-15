@@ -1203,14 +1203,14 @@ Chapter 12 is complete. The following gates are satisfied:
 13. `docs/backend-context.md` documents the supported frontend contract and next phase, and stale/conflicting statements are corrected.
 14. Final diff/Git checks are clean, no secret/upload/generated artifact is tracked, documentation agrees, and no unrelated work is present.
 
-At Chapter 12 closeout, the backend context marked Chapter 12 complete and frontend foundation/implementation as the then-next phase. That historical sequencing was later superseded; current `backend-context.md` makes Chapter 14 next, Chapter 15 subsequent, and the full backend handoff/reconciliation the gate before frontend integration.
+At Chapter 12 closeout, the backend context marked Chapter 12 complete and frontend foundation/implementation as the then-next phase. That historical sequencing was later superseded; `docs/backend-context.md` is the current authority for the backend roadmap and next implementation boundary.
 
 ## 16. Completed documentation closeout
 
 12P updates exactly these permanent tracked documents, based on actual results:
 
 - `docs/chapters/chapter-12-api-consistency-observability-frontend-readiness.md`: status, completed checkpoint record, actual test/migration/model/OpenAPI/config evidence, final contract, and retained deferrals.
-- `docs/backend-context.md`: Chapter 12 completion/lasting API, auth, pagination, invitation, observability, health, CORS/media/config rules; correct the stale earlier statement about listing-image status checks. The original instruction to make frontend development next/current is historical and superseded by the owner-approved Chapter 14 -> Chapter 15 -> full backend handoff sequence.
+- `docs/backend-context.md`: Chapter 12 completion/lasting API, auth, pagination, invitation, observability, health, CORS/media/config rules; correct the stale earlier statement about listing-image status checks. The original instruction to make frontend development next/current is historical; current phase sequencing is owned by `docs/backend-context.md`.
 - `docs/backend-quality-handoff.md`: remove only the four proven resolved entries identified in section 10; retain the transaction, test-hygiene, DB, broad-state, and durable-file items with accurate post-Chapter 12 wording; add/retain `C12-CONFIG-01` for the base JWT placeholder until Chapter 13/deployment hardening resolves it.
 
 `RealEstate.Api.http` is updated in 12O as implementation evidence, not deferred to closeout. README expansion is not required by this chapter because the tested OpenAPI, request sample, backend context, and chapter document own the relevant contract. Closeout performs no production/test fix.

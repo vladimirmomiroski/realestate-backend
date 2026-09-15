@@ -44,6 +44,18 @@ public static class ListingMappingExtensions
         NumberOfFloors = listing.HouseDetails.NumberOfFloors,
         YardAreaSquareMeters = listing.HouseDetails.YardAreaSquareMeters
     },
+            CommercialDetails = listing.CommercialDetails is null
+                ? null
+                : new ListingCommercialDetailsResponse
+                {
+                    CommercialType = listing.CommercialDetails.CommercialType
+                },
+            LandDetails = listing.LandDetails is null
+                ? null
+                : new ListingLandDetailsResponse
+                {
+                    LandType = listing.LandDetails.LandType
+                },
             AgencyId = listing.AgencyId,
             Status = listing.Status,
             Price = listing.Price,
@@ -163,6 +175,18 @@ public static class ListingMappingExtensions
                     NumberOfFloors = listing.HouseDetails.NumberOfFloors,
                     YardAreaSquareMeters =
                         listing.HouseDetails.YardAreaSquareMeters
+                },
+            CommercialDetails = listing.CommercialDetails is null
+                ? null
+                : new ListingCommercialDetailsResponse
+                {
+                    CommercialType = listing.CommercialDetails.CommercialType
+                },
+            LandDetails = listing.LandDetails is null
+                ? null
+                : new ListingLandDetailsResponse
+                {
+                    LandType = listing.LandDetails.LandType
                 },
             AgencyId = listing.AgencyId,
             Status = listing.Status,

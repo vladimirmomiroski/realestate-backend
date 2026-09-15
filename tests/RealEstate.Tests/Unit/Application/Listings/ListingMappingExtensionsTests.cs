@@ -570,6 +570,84 @@ public sealed class ListingMappingExtensionsTests
         response.ApartmentDetails.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Name", "SharedListingReadContract")]
+    public void SharedListingReadContract_ToResponse_MapsDormantDetailsFaithfully(
+        bool detailsArePresent)
+    {
+        Listing listing = CreateBaseListing();
+
+        if (detailsArePresent)
+        {
+            listing.CommercialDetails = new ListingCommercialDetails
+            {
+                ListingId = listing.Id,
+                CommercialType = CommercialType.Shop
+            };
+            listing.LandDetails = new ListingLandDetails
+            {
+                ListingId = listing.Id,
+                LandType = LandType.AgriculturalLand
+            };
+        }
+
+        ListingResponse response = listing.ToResponse("mk");
+
+        if (detailsArePresent)
+        {
+            response.CommercialDetails!.CommercialType
+                .Should().Be(CommercialType.Shop);
+            response.LandDetails!.LandType
+                .Should().Be(LandType.AgriculturalLand);
+        }
+        else
+        {
+            response.CommercialDetails.Should().BeNull();
+            response.LandDetails.Should().BeNull();
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Name", "SharedListingReadContract")]
+    public void SharedListingReadContract_ToPublicResponse_MapsDormantDetailsFaithfully(
+        bool detailsArePresent)
+    {
+        Listing listing = CreateBaseListing();
+
+        if (detailsArePresent)
+        {
+            listing.CommercialDetails = new ListingCommercialDetails
+            {
+                ListingId = listing.Id,
+                CommercialType = CommercialType.Office
+            };
+            listing.LandDetails = new ListingLandDetails
+            {
+                ListingId = listing.Id,
+                LandType = LandType.BuildingPlot
+            };
+        }
+
+        PublicListingResponse response = listing.ToPublicResponse("mk");
+
+        if (detailsArePresent)
+        {
+            response.CommercialDetails!.CommercialType
+                .Should().Be(CommercialType.Office);
+            response.LandDetails!.LandType
+                .Should().Be(LandType.BuildingPlot);
+        }
+        else
+        {
+            response.CommercialDetails.Should().BeNull();
+            response.LandDetails.Should().BeNull();
+        }
+    }
+
     [Fact]
     public void ToResponse_ShouldMapConfirmedLocationSnapshot()
     {
@@ -628,6 +706,46 @@ public sealed class ListingMappingExtensionsTests
         response.LocationPrecision.Should().BeNull();
         response.GeocodedDisplayName.Should().BeNull();
         response.LocationConfirmedAtUtc.Should().BeNull();
+    }
+
+    [Fact]
+    [Trait("Name", "ManagementReadContract")]
+    public void ManagementReadContract_ToAuthoringResponse_MapsDormantDetailsFaithfully()
+    {
+        Listing listing = CreateBaseListing();
+        listing.CommercialDetails = new ListingCommercialDetails
+        {
+            ListingId = listing.Id,
+            CommercialType = CommercialType.Office
+        };
+        listing.LandDetails = new ListingLandDetails
+        {
+            ListingId = listing.Id,
+            LandType = LandType.AgriculturalLand
+        };
+
+        ListingAuthoringResponse response = listing.ToAuthoringResponse();
+
+        response.PropertyType.Should().Be(PropertyType.Apartment);
+        response.CommercialDetails.Should().NotBeNull();
+        response.CommercialDetails!.CommercialType
+            .Should().Be(CommercialType.Office);
+        response.LandDetails.Should().NotBeNull();
+        response.LandDetails!.LandType
+            .Should().Be(LandType.AgriculturalLand);
+        response.Translations.Should().HaveCount(1);
+    }
+
+    [Fact]
+    [Trait("Name", "ManagementReadContract")]
+    public void ManagementReadContract_ToAuthoringResponse_MapsAbsentDormantDetailsAsNull()
+    {
+        Listing listing = CreateBaseListing();
+
+        ListingAuthoringResponse response = listing.ToAuthoringResponse();
+
+        response.CommercialDetails.Should().BeNull();
+        response.LandDetails.Should().BeNull();
     }
 
     private static Listing CreateBaseListing()

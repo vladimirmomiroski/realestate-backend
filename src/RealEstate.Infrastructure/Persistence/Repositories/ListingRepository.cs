@@ -57,6 +57,8 @@ public sealed class ListingRepository : IListingRepository
         List<Listing> listings = await orderedQuery
             .Include(listing => listing.ApartmentDetails)
             .Include(listing => listing.HouseDetails)
+            .Include(listing => listing.CommercialDetails)
+            .Include(listing => listing.LandDetails)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -356,6 +358,8 @@ public sealed class ListingRepository : IListingRepository
         List<Listing> listings = await limitedListingsQuery
             .Include(listing => listing.ApartmentDetails)
             .Include(listing => listing.HouseDetails)
+            .Include(listing => listing.CommercialDetails)
+            .Include(listing => listing.LandDetails)
             .ToListAsync(cancellationToken);
 
         await LoadSelectedListingCollectionsAsync(
@@ -938,6 +942,8 @@ public sealed class ListingRepository : IListingRepository
             .Include(listing => listing.Images)
             .Include(listing => listing.ApartmentDetails)
             .Include(listing => listing.HouseDetails)
+            .Include(listing => listing.CommercialDetails)
+            .Include(listing => listing.LandDetails)
             .AsSplitQuery();
     }
 

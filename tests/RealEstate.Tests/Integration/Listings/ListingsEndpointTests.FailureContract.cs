@@ -121,6 +121,18 @@ public sealed partial class ListingsEndpointTests
     }
 
     [Fact]
+    public async Task GetListings_WithUndefinedNumericEnum_ReturnsCanonicalValidation()
+    {
+        HttpResponseMessage response = await _httpClient.GetAsync(
+            "/api/listings?heatingType=999");
+
+        await AssertValidationAsync(
+            response,
+            "/api/listings",
+            "heatingType");
+    }
+
+    [Fact]
     public async Task GetListings_WithInvalidRange_ReturnsRequestKey()
     {
         HttpResponseMessage response = await _httpClient.GetAsync(
