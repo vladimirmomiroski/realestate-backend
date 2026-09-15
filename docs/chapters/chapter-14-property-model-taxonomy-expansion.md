@@ -1,6 +1,8 @@
 # Chapter 14 — Property Model and Taxonomy Expansion
 
-Status: final architecture and execution authority. Chapter 14 is planned but not implemented. The implementation sequence in section 19 is binding unless a later owner-approved architecture change amends this document.
+Status: Chapter 14 technical work (14A–14L) is implemented and independently accepted. Technical 14L `FINAL_PASS` and the additional zero-finding `CHAPTER_14_HOLISTIC_PRECLOSE_FINAL_PASS` are established audit inputs. 14M is the final documentation/status closeout, currently prepared for independent audit; its audit has not yet passed. Full Chapter 14 completion requires 14M fresh-audit `FINAL_PASS` and the owner commit. Once those occur, this is the completed Chapter 14 architecture/execution record and Chapter 15 is the next backend implementation boundary.
+
+Closeout source tree: `docs/property-taxonomy-closeout` at `2f066e57238a37e3a00aca99b562f10d878f4833`, containing the owner-committed cumulative record `47eb480231f04cca9b50156b657061f5c1d29c16`. Independent audit dispositions are supplied by the owner; the technical records below preserve their original implementation-handoff wording rather than being rewritten to impersonate audit reports.
 
 Repository baseline reviewed: `main` at `8b572c6`, tagged `backend-public-listing-integrity-authoring-v1`, with Chapter 13 closeout `9741b6f`, Chapter 13L.1 cumulative verification `ade6618`, and Chapter 13K.3 SQL freeze `f6f6322`.
 
@@ -16,23 +18,34 @@ This document is based on, in descending authority:
 4. the current Chapter 12 API/OpenAPI/error closeout and Chapter 10 discovery/query records;
 5. older chapter records only as historical evidence where newer source and records do not supersede them.
 
-The repository convention places authoritative chapter documents under `docs/chapters`. This file is the sole Chapter 14 architecture and execution plan. It is not implementation evidence and is not a replacement for generated OpenAPI.
+The repository convention places authoritative chapter documents under `docs/chapters`. This file is the sole Chapter 14 architecture, execution, and closeout record. It is not implementation evidence and is not a replacement for generated OpenAPI.
 
 ### Chapter goal
 
-Add Commercial and Land as first-class root property types, give each the smallest explicit fixed subtype model, and integrate that model through supported authoring, persistence, public/private/management reads, generated OpenAPI, existing root-type discovery, and verification. Preserve the established Apartment and House contract and every Chapter 13 integrity boundary.
+Implemented Commercial and Land as first-class root property types, each with the smallest explicit fixed subtype model, integrated through supported authoring, persistence, public/private/management reads, generated OpenAPI, existing root-type discovery, and verification. The established Apartment and House contract and every Chapter 13 integrity boundary are preserved.
 
-### Current truth, target truth, and future work
+### Historical starting truth, accepted current truth, and future work
 
 | Classification | Truth |
 |---|---|
-| Current truth | Supported authoring has only Apartment and House. Each uses a property-specific one-to-one child. `PropertyType` has two members; Create and replacement logic contain two-type assumptions. PostgreSQL has 20 migrations. Public discovery and comparables use root `PropertyType`. |
-| Target Chapter 14 truth | Four root types exist: Apartment, House, Commercial, Land. Commercial and Land each have one fixed subtype enum and one explicit one-to-one child. POST and PUT support exactly one matching child. All read contracts faithfully expose the new subtype. |
+| Historical starting truth | Before Chapter 14, supported authoring had only Apartment and House and 20 migrations. Create and replacement contained two-type assumptions; discovery and comparables already used root `PropertyType`. Section 2 preserves that starting inventory, not the current final model. |
+| Accepted current truth | Four root types exist: Apartment, House, Commercial, Land. Commercial and Land each have one fixed subtype enum and one explicit shared-PK child. POST and full Draft PUT guarantee exactly one matching child. All three separate read contracts expose nullable detail slots truthfully. Migration inventory is 21; the EF model has no pending changes. |
 | Deferred/future work | Dynamic/admin taxonomy, amenities/features, additional Commercial/Land metrics, subtype filters, subtype-aware comparables, representative new-type performance distributions, broad API/performance/hardening, final frontend reconciliation, and documentation consolidation. |
 
 No unresolved owner decision blocks this architecture.
 
-## 2. Current backend truth
+### Accepted verification anchors
+
+- [14L cumulative technical verification](chapter-14l-cumulative-chapter-14-verification-gate.md): owner-committed in `47eb480231f04cca9b50156b657061f5c1d29c16`, tested technical HEAD `e53821725d2c50684b301e1936917be313d69097`; record SHA-256 `394914eb603896272f2d8fd2a6738ac4de4c8acf2392383afebabf77cbe9a525`. Complete Release suite: **2,183 passed, 0 failed, 0 skipped**; OpenAPI **12/12**; migration lifecycle/catalog **3/3**; **695 unique focused executions** (340 taxonomy plus 355 disjoint protected-regression executions, not summed overlapping diagnostics).
+- [14K accepted SQL/plan delta](../benchmarks/chapter-10f/chapter-14-property-taxonomy-generated-sql-delta-proof.md): commit `03de30677119f8329d714c5951162ec95a29afd8`, SHA-256 `ad71c73a85adf61f09268a6b4e5da9ac459a8897273dc66d2d3abab58fe95178`. **33 commands, 80 exact typed parameter records, 25 historically exact bodies, exactly 8 approved widened roots, 61/61 profile invariants, 198/198 EXPLAIN executions**, locked results/order, Q1 pass, zero spills/temp anomalies, and unchanged accepted historical baseline. All ten recorded query/profile input hashes still match the closeout tree; no plan rerun or baseline export is needed.
+- One additive migration: `20260904023937_AddCommercialAndLandPropertyTaxonomy`, number **21**, creating only the two explicit subtype tables without data fabrication/backfill. Fresh/upgrade/repeated-Up/Down/re-Up/catalog and no-pending-model verification are recorded in 14L.
+- Accepted authoring/read/discovery/comparable/concurrency/OpenAPI behavior and protected Chapter 13 regressions are mapped to existing tests in 14L sections 5–10. The owner reports accepted 14A–14L audits and the zero-finding holistic pre-close audit; 14M acceptance remains pending under section 18.
+
+14M verification on 2026-09-15, with the technical tree unchanged: literal `dotnet restore` exited 1 silently with the known worker-fan-out failure; its exact task-created worker cohort was drained, and `dotnet restore --disable-parallel -m:1 -nodeReuse:false` succeeded. `dotnet build -c Release --no-restore` passed with **0 warnings, 0 errors** (35.10 s). The required complete Release test command passed **2,183/2,183, 0 failed, 0 skipped** (3 m 10 s). These are implementation verification results, not independent 14M acceptance.
+
+## 2. Historical starting backend (before Chapter 14)
+
+This section preserves the architecture-review inventory of the completed Chapter 13 baseline. Within section 2, “current” and missing validation/two-type behavior describe that historical starting tree only. Those gaps are resolved by the accepted implementation summarized above and in sections 4–14; they are not outstanding current defects.
 
 ### 2.1 Aggregate and current property model
 
@@ -113,7 +126,9 @@ JSON responses emit enum names and generated OpenAPI advertises names. PostgreSQ
 
 ## 3. Authoritative Chapter 14 scope
 
-### 3.1 Evidence classification
+### 3.1 Historical scope evidence and resolved starting gaps
+
+The classification below records why the chapter was bounded this way. A and B were implemented and accepted; B describes the starting gaps, not outstanding defects. C remains deliberately excluded.
 
 A. Explicitly deferred vocabulary:
 
@@ -144,11 +159,11 @@ Only A and the bounded B items form Chapter 14.
 
 ### 3.2 Chapter outcome
 
-Chapter 14 is backend-complete for the chosen property taxonomy when Commercial and Land can be safely created, replaced, persisted, read through every existing applicable response surface, discovered using the existing root filter, and returned by comparables under the existing root eligibility contract. It does not require broader subtype discovery or valuation behavior.
+The accepted technical outcome is backend-complete for the chosen property taxonomy: Commercial and Land can be safely created, replaced, persisted, read through every existing applicable response surface, discovered using the existing root filter, and returned by comparables under the existing root eligibility contract. Full chapter status closeout remains conditional on 14M acceptance/owner commit. Broader subtype discovery or valuation behavior is not required.
 
-## 4. Final target property model
+## 4. Accepted final property model
 
-Add exactly these two Domain enums:
+The implemented two Domain enums have these exact names and ordinals:
 
 ```text
 CommercialType
@@ -164,7 +179,7 @@ LandType
   Other = 3
 ```
 
-Append, without renumbering:
+The root enum appends Commercial and Land without renumbering existing members:
 
 ```text
 PropertyType
@@ -174,7 +189,7 @@ PropertyType
   Land = 4
 ```
 
-Add exactly two dependent entities:
+Exactly two new dependent entities are implemented:
 
 ```text
 ListingCommercialDetails
@@ -188,7 +203,7 @@ ListingLandDetails
   LandType: LandType = Unknown
 ```
 
-Add nullable navigations:
+The implemented nullable navigations are:
 
 ```text
 Listing.CommercialDetails: ListingCommercialDetails?
@@ -354,7 +369,7 @@ All root/common properties retain existing replacement behavior. Omitted/null op
 
 Changing PropertyType or subtype does not itself clear the confirmed location. Only the existing canonical localized-location comparison may clear it.
 
-### 7.3 Safe implementation staging
+### 7.3 Historical safe implementation staging
 
 Adding new `PropertyType` values before hardening the two-type switches would be unsafe. The execution order therefore is binding:
 
@@ -363,11 +378,11 @@ Adding new `PropertyType` values before hardening the two-type switches would be
 3. append Commercial/Land and activate POST;
 4. activate PUT immediately afterward.
 
-Tasks 14E and 14F are one coordinated, non-deployable release unit. The midpoint is intentionally data-safe—POST can create a new type and PUT returns validation for that type—but it is not a complete Chapter 14 API and must not be deployed, released, or declared contract-complete.
+Tasks 14E and 14F were one coordinated release unit. The historical 14E midpoint allowed new-type POST while rejecting new-type PUT and was not deployable or contract-complete. That midpoint no longer exists: accepted 14F supports full Draft replacement for all four roots, including all 16 transitions.
 
 ## 8. Public, private, and management contracts
 
-The response DTOs remain separate. Add:
+The response DTOs remain separate. The implemented detail response DTOs are:
 
 ```text
 ListingCommercialDetailsResponse
@@ -412,7 +427,7 @@ An Active Commercial listing may validly have `CommercialType.Unknown`; an Activ
 
 ### 10.1 EF/PostgreSQL shape
 
-Create:
+Implemented schema:
 
 ```text
 ListingCommercialDetails
@@ -447,7 +462,7 @@ Cross-table triggers/discriminator constraints would complicate transaction orde
 
 ### 10.2 Forward migration
 
-Add one normal forward migration, conceptually `AddCommercialAndLandPropertyTaxonomy`, after the current 20 migrations. It must:
+The single implemented forward migration is `20260904023937_AddCommercialAndLandPropertyTaxonomy`, following the historical 20-migration chain. The current inventory is exactly 21. It satisfies the following requirements:
 
 1. create only the two tables above;
 2. update its generated designer and the EF snapshot;
@@ -458,7 +473,7 @@ Add one normal forward migration, conceptually `AddCommercialAndLandPropertyTaxo
 
 Historical migrations/designers are immutable.
 
-Required lifecycle proof:
+Accepted lifecycle proof (14L migration family, 3/3 passed):
 
 - all 21 migrations apply to a fresh database;
 - migration 20 → 21 preserves representative Apartment/House, translation, and trusted-location data;
@@ -479,7 +494,7 @@ No J.2-style gate is required. The forward migration creates empty dependent tab
 
 ### 11.1 Discovery
 
-The existing optional `propertyType` query parameter becomes:
+The existing optional `propertyType` query parameter now supports:
 
 | Property | Final behavior |
 |---|---|
@@ -492,7 +507,7 @@ The existing optional `propertyType` query parameter becomes:
 | Agency public reuse | unchanged shared Active public repository path |
 | OpenAPI | enum expands; no new parameter |
 
-No LINQ predicate change is needed for valid new values. Chapter 14 does add `Enum.IsDefined` validation for every supplied enum filter currently present: ListingType, PropertyType, HeatingType, FurnishingStatus, Condition, ApartmentType, and HouseType. Successfully materialized undefined numeric values return canonical 400 ValidationProblem. Malformed symbolic text remains a model-binding failure. Valid filter SQL must remain unchanged.
+No LINQ predicate change was needed for valid new values. Chapter 14 added `Enum.IsDefined` validation for every supplied enum filter currently present: ListingType, PropertyType, HeatingType, FurnishingStatus, Condition, ApartmentType, and HouseType. Successfully materialized undefined numeric values return canonical 400 ValidationProblem. Malformed symbolic text remains a model-binding failure. Valid filter SQL remains unchanged.
 
 Chapter 14 does not add `commercialType` or `landType` query parameters. Faithful storage/authoring/read representation makes the taxonomy usable; new discovery dimensions are broader Chapter 15 integration. No subtype index is added without a predicate and measurements.
 
@@ -562,7 +577,7 @@ Unsupported-value exceptions after successful validation are programming guards,
 
 ## 13. API and generated OpenAPI
 
-Generated OpenAPI must show:
+Accepted generated OpenAPI (12/12 focused tests in 14L) shows:
 
 - `PropertyType` names Apartment, House, Commercial, Land;
 - exact `CommercialType` and `LandType` names;
@@ -581,7 +596,7 @@ The global enum converter remains unchanged. Documentation must not claim string
 
 ## 14. Query and performance policy
 
-### 14.1 Exact expected SQL delta
+### 14.1 Accepted exact SQL delta
 
 Adding Commercial/Land Includes to shared public root materialization changes exactly these frozen identities:
 
@@ -598,7 +613,7 @@ C1-02-comparable-ranked-root
 
 Each changed root adds two `LEFT JOIN` clauses and four projected columns: each dependent's `ListingId` plus its subtype name. Aliases may change only as unavoidably emitted by EF.
 
-Exactly 25 identities are expected normalized-text exact against Chapter 13K.3:
+Exactly 25 identities are accepted normalized-text exact against the immutable Chapter 10F SQL artifacts, with Chapter 13K.3 as the trust anchor:
 
 - seven filtered counts;
 - `A1-01-agency-existence`;
@@ -606,13 +621,13 @@ Exactly 25 identities are expected normalized-text exact against Chapter 13K.3:
 - eight translation child loads;
 - eight image child loads.
 
-Command count remains 33. Private/my/dashboard roots and management roots also gain Includes but are outside the frozen eight-shape matrix; focused integration/query-count tests cover them.
+Command count remains 33 and all 80 typed parameter records are exact. The accepted 14K proof establishes exactly two new LEFT JOINs and four projected columns per widened root, without pre-existing alias changes in the actual capture. Private/my/dashboard roots and management roots also gain Includes but are outside the frozen eight-shape matrix; accepted focused integration/query-count tests cover them.
 
 If implementation produces a different identity count or any unexpected diff, verification stops. The plan is amended or the defect is corrected; acceptance is never broadened mechanically.
 
 ### 14.2 Narrow Chapter 14 performance gate
 
-Chapter 14 owns proof only for its intentional materialization widening:
+Chapter 14 owns proof only for its intentional materialization widening. The following gate was satisfied by the accepted 14K record; it is retained as the acceptance policy, not pending work:
 
 1. apply all 21 migrations to a fresh disposable PostgreSQL 16 database;
 2. preserve the existing Chapter 10F v2 deterministic profile: 100,000 Apartment/House listings and 61/61 invariants;
@@ -710,6 +725,8 @@ Chapter 14 excludes:
 
 Chapter 14 stops when the fixed model is authorable, persistent, faithfully readable, represented in generated OpenAPI, discoverable by the existing root filter, compatible with root-only comparables, and safely verified.
 
+That technical stop line is satisfied. After independent 14M acceptance and owner commit, Chapter 15 is the next backend implementation boundary; this closeout creates no Chapter 15 implementation plan or speculative product rules.
+
 Chapter 15 retains integration through discovery, API, performance, and hardening, including:
 
 - deciding and implementing subtype filters;
@@ -785,6 +802,10 @@ The task sequence implements these bounded groups:
 No group is an umbrella implementation task. Tasks below are the final decomposition.
 
 ## 19. Final implementation task sequence
+
+The specifications below are retained as execution history and audit requirements, not unexecuted feature work. 14A–14L have owner-confirmed independent acceptance and owner commits; 14M is the final documentation/status task pending its fresh audit and owner commit. The accepted technical commit/merge inventory is in [14L section 2](chapter-14l-cumulative-chapter-14-verification-gate.md#2-immutable-source-and-repository-freeze), with 14L itself committed as `47eb480231f04cca9b50156b657061f5c1d29c16` and merged in `2f066e57238a37e3a00aca99b562f10d878f4833`.
+
+Historical chapter-numbered test selectors below are not current code-naming conventions or compatibility aliases. The separately accepted naming cleanup uses behavior-based identifiers; literal current selectors and nonzero counts are recorded in 14L. Do not copy historical chapter identifiers into executable/test names.
 
 ### 14A — Harden Existing Taxonomy Boundaries
 
@@ -2140,6 +2161,22 @@ Also explicitly enumerate untracked files and compare the final intended documen
 
 Chapter 14 is complete only when all tasks 14A–14M have fresh audit `FINAL_PASS` and owner commits, and all of these statements are true:
 
+At this closeout preparation, every technical criterion below is supported by accepted 14K/14L evidence and the owner-confirmed audits. The sole remaining governance condition is fresh independent 14M acceptance followed by the owner commit; this implementation does not certify its own acceptance. After that condition is satisfied, Chapter 14 is completed and Chapter 15 becomes the next backend implementation boundary.
+
+| Completion criterion group | Accepted evidence / result |
+|---|---|
+| Stable exact enums; two explicit children; no EAV/dynamic taxonomy | Actual Domain/EF source and 14L sections 5–6; exact ordinals in section 4 above |
+| POST/PUT validation and one persisted matching child; 16 transitions; tracked identity, deletion, repair, rollback, management round-trip | 14L section 5; 340-case taxonomy union includes validator, engine, persistence and endpoint proofs |
+| Deterministic subtype races; parent locking and post-wait authorization | 14L section 7 and concurrency/read diagnostic 23/23; no new concurrency architecture |
+| Protected translation/location/public strictness/lifecycle/auth-before-readiness; Unknown valid Draft/Active; no new readiness | 14L sections 5, 7 and 10; 355 disjoint protected executions plus Unknown publication tests |
+| Distinct truthful public/private/management contracts and nullable details | 14L sections 5 and 10; management/shared mapping and read proofs |
+| Additive migration 21; shared PK/FK/cascade; no backfill or pending EF change; no new deployment gate | Exact migration above and 14L section 6, lifecycle/catalog 3/3; existing deployment item retained |
+| All-root exact discovery; no subtype filters; locked four-field q; root-isolated subtype-neutral comparables | 14L section 8, discovery/validation 49/49 and comparables 17/17 |
+| Generated OpenAPI vocabulary, optional/nullable parents, subtype omission/reset prose, required response scalars, EUR default and failures | 14L section 9, OpenAPI 12/12; no subtype-enum default keyword |
+| Exact bounded SQL delta and safe plans; immutable baseline | 14K and 14L section 11; 33/80/25/8, 61/61 and 198/198, Q1 pass, locked order and zero spills/temp anomalies |
+| Final technical tree Release/regression gates | 14L: 2,183/0/0, 695 unique focused executions; 14M reruns Release build/full suite without technical changes |
+| Quality ownership; no frontend or broad Chapter 15 work | All ten quality entries retained under section 16; frontend handoff unchanged, deferred stop line in sections 17 and 21 |
+
 - Existing PropertyType ordinals remain stable and exact new root/subtype vocabularies are implemented.
 - Two explicit one-to-one children exist; no generic taxonomy/EAV framework was introduced.
 - POST and PUT reject contradictory/undefined input and guarantee one matching persisted child across four types.
@@ -2191,12 +2228,12 @@ The following remain deliberate future decisions, not incomplete Chapter 14 task
 | migration | one additive two-table migration, no data gate | no existing row is invalidated |
 | query acceptance | 8 reviewed / 25 exact, temporary profile output, one delta proof | protects freeze without rewriting historical baseline/tooling |
 | implementation staging | fail closed → dormant foundation/reads → POST → PUT | prevents contradictory data and keeps commits reviewable |
-| commit sizing | 13 tasks, 13 expected commits; none allowed two | each concern is independently reviewable and bounded |
+| historical commit sizing | 13 task specifications, one expected commit each; separate naming cleanup outside feature tasks | each concern is independently reviewable and bounded |
 | Chapter 15 boundary | subtype discovery/performance and broad hardening deferred | keeps Chapter 14 model-focused |
 
 ### Final self-audit
 
-| Protected contract/risk | Final plan result |
+| Protected contract/risk | Accepted technical result (14A–14L; 14M governance pending) |
 |---|---|
 | Chapter 13 location integrity | unchanged; classification alone never clears location |
 | public strictness | required localized/location truth unchanged; subtype objects nullable |
