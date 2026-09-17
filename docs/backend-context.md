@@ -97,8 +97,8 @@ Chapter 11 — Data Integrity and Targeted Hardening is complete.
 Chapter 12 — API Consistency, Observability, and Frontend Readiness is complete.
 Chapter 13 — Public Listing Integrity and Authoring is complete through 13L.2.
 Chapter 13 remains the protected inherited translation/location/public-integrity, lifecycle, authorization, locking, and error contract.
-Chapter 14 property-taxonomy expansion is technically completed and independently accepted through 14L, including the owner-confirmed zero-finding holistic pre-close audit. 14M is the final documentation/status closeout pending fresh independent acceptance and owner commit; only then is the full Chapter 14 closeout complete.
-Chapter 15 is the next backend implementation boundary after that closeout. Final backend-to-frontend reconciliation follows Chapter 15, then documentation consolidation and frontend integration; no final frontend readiness is declared here.
+Chapter 14 property-taxonomy expansion, including the 14M documentation/status closeout, is accepted, owner-committed, merged, and tagged. Closeout content commit `b7043561573c3bf3f8fcc74f57473ccace3fcb22` was merged into `development` by `4e9499fc077f3e7b238177c5263b93aacb295921`; annotated release tag `backend-property-model-taxonomy-v1` resolves to the later `main` merge `8f7c2d9c28624b57653b3b313e68e915f536e4c4`, which contains that accepted tree.
+Chapter 15 is the current backend implementation boundary under [the approved Chapter 15 plan](chapters/chapter-15-discovery-performance-hardening.md). Final backend-to-frontend reconciliation follows Chapter 15, then documentation consolidation and frontend integration; no final frontend readiness is declared here.
 ```
 
 Current test state:
@@ -432,7 +432,7 @@ Current roots are exactly `Apartment = 1`, `House = 2`, `Commercial = 3`, and `L
 
 POST and full Draft PUT support all four roots, reject undefined/contradictory input, and leave exactly one matching persisted child. All 16 source/target replacement transitions are protected, including in-place tracked target mutation, stale-child deletion, nullable/common clearing, Unknown reset, and translation-ID preservation by language. Classification-only changes preserve trusted location; canonical location-text changes retain existing invalidation behavior. Unknown remains valid for Draft and Active without a new publication requirement.
 
-`ListingResponse`, `PublicListingResponse`, and `ListingAuthoringResponse` remain distinct; all expose faithful nullable Commercial/Land detail slots. Management, shared reads, generated OpenAPI, exact root discovery, subtype-neutral root-isolated comparables, and deterministic parent-lock race proofs are integrated. Accepted evidence is linked in section 20; the authoritative Chapter 14 record retains execution history and the pending final-closeout governance condition.
+`ListingResponse`, `PublicListingResponse`, and `ListingAuthoringResponse` remain distinct; all expose faithful nullable Commercial/Land detail slots. Management, shared reads, generated OpenAPI, exact root discovery, subtype-neutral root-isolated comparables, and deterministic parent-lock race proofs are integrated. Accepted evidence is linked in section 20; the authoritative Chapter 14 record retains the original execution and closeout chronology while recording the later accepted release state.
 
 ### Ownership
 
@@ -1412,9 +1412,8 @@ Cloud/object storage is deferred until deployment needs justify it.
 
 ```text
 Protected inherited milestone: Chapter 13 — Public Listing Integrity and Authoring
-Accepted technical milestone: Chapter 14 — Property Model and Taxonomy Expansion, through 14L and holistic pre-close audit
-Final Chapter 14 documentation/status closeout: 14M pending fresh independent acceptance and owner commit
-Next backend implementation boundary after closeout: Chapter 15 — integration through discovery, API, performance, and hardening
+Accepted released milestone: Chapter 14 — Property Model and Taxonomy Expansion, including owner-committed 14M closeout and tag backend-property-model-taxonomy-v1
+Current backend implementation boundary: Chapter 15 — Discovery, Performance, and Integration Hardening
 After Chapter 15: full backend-to-frontend handoff/reconciliation, documentation consolidation review, then frontend integration
 ```
 
@@ -1473,7 +1472,7 @@ Chapter 12 — API Consistency, Observability, and Frontend Readiness
 Chapter 13 — Public Listing Integrity and Authoring
 ```
 
-The Chapter 13 frontend-facing baseline remains preserved, unchanged, in `docs/backend-frontend-handoff.md`. Chapter 14 technical work is accepted; its final documentation/status closeout remains pending fresh audit and owner commit. Chapter 15 is next, and full backend-to-frontend reconciliation follows it before frontend integration. No final frontend readiness, generated frontend types, or completed broad documentation consolidation is claimed.
+The Chapter 13 frontend-facing baseline remains preserved, unchanged, in `docs/backend-frontend-handoff.md`. Chapter 14, including its final documentation/status closeout, is accepted, owner-committed, merged, and tagged. Chapter 15 is the current backend implementation boundary, and full backend-to-frontend reconciliation follows it before frontend integration. No final frontend readiness, generated frontend types, or completed broad documentation consolidation is claimed.
 
 ### Later planned backend chapters
 
@@ -1553,7 +1552,7 @@ generated OpenAPI agreement and frozen Chapter 10 discovery/comparable SQL
 five Chapter 13 migrations, 20 total, and cumulative L.1 verification
 ```
 
-The historical authentication/account-security work once labeled Chapter 13 was not implemented here. It is provisionally Chapter 16 and remains deferred alongside production JWT/configuration hardening. Chapter 14's implemented fixed property model is recorded in its authoritative chapter document. Chapter 15 retains the owner-approved high-level integration/discovery/API/performance/hardening direction; no detailed Chapter 15 design is established here. Subtype discovery semantics, representative Commercial/Land performance distribution, subtype-aware comparable valuation, extra attributes/localized labels/new categories, exporter modernization, unrelated quality work, and broader reconciliation remain deferred, not Chapter 14 defects.
+The historical authentication/account-security work once labeled Chapter 13 was not implemented here. It is provisionally Chapter 16 and remains deferred alongside production JWT/configuration hardening. Chapter 14's implemented fixed property model is recorded in its authoritative chapter document. Chapter 15's approved discovery/performance/integration architecture and execution boundary are established in [the Chapter 15 plan](chapters/chapter-15-discovery-performance-hardening.md). Subtype-aware comparable valuation, extra attributes/localized labels/new categories, unrelated quality work, and broader reconciliation remain deferred under that authority, not Chapter 14 defects.
 
 ## 25. Next-task policy
 
@@ -1573,8 +1572,8 @@ Use read-only review for important features.
 Current next task:
 
 ```text
-Finish the governed 14M documentation/status closeout: fresh independent audit, corrections/re-audit if needed, then owner commit.
-After that acceptance, Chapter 14 is complete and Chapter 15 is the next backend implementation boundary; plan its exact scope separately.
+Chapter 14 and its 14M closeout are accepted, owner-committed, merged, and tagged as backend-property-model-taxonomy-v1.
+Execute the approved Chapter 15 plan as the current backend implementation boundary.
 After Chapter 15, reconcile the full backend-to-frontend handoff and consolidate documentation before frontend integration.
 ```
 

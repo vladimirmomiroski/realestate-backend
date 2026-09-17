@@ -1,8 +1,8 @@
 # Chapter 14 — Property Model and Taxonomy Expansion
 
-Status: Chapter 14 technical work (14A–14L) is implemented and independently accepted. Technical 14L `FINAL_PASS` and the additional zero-finding `CHAPTER_14_HOLISTIC_PRECLOSE_FINAL_PASS` are established audit inputs. 14M is the final documentation/status closeout, currently prepared for independent audit; its audit has not yet passed. Full Chapter 14 completion requires 14M fresh-audit `FINAL_PASS` and the owner commit. Once those occur, this is the completed Chapter 14 architecture/execution record and Chapter 15 is the next backend implementation boundary.
+Status: Chapter 14, including the 14M documentation/status closeout, is accepted, owner-committed, merged, and tagged. Technical 14L `FINAL_PASS` and the additional zero-finding `CHAPTER_14_HOLISTIC_PRECLOSE_FINAL_PASS` remain established audit inputs. This is the completed Chapter 14 architecture/execution record, and Chapter 15 is the current backend implementation boundary.
 
-Closeout source tree: `docs/property-taxonomy-closeout` at `2f066e57238a37e3a00aca99b562f10d878f4833`, containing the owner-committed cumulative record `47eb480231f04cca9b50156b657061f5c1d29c16`. Independent audit dispositions are supplied by the owner; the technical records below preserve their original implementation-handoff wording rather than being rewritten to impersonate audit reports.
+Accepted release lineage: 14M closeout content commit `b7043561573c3bf3f8fcc74f57473ccace3fcb22` was merged into `development` by `4e9499fc077f3e7b238177c5263b93aacb295921`; annotated tag `backend-property-model-taxonomy-v1` resolves to the later `main` merge `8f7c2d9c28624b57653b3b313e68e915f536e4c4`, which contains that accepted tree. The preceding closeout source tree was `docs/property-taxonomy-closeout` at `2f066e57238a37e3a00aca99b562f10d878f4833`, containing the owner-committed cumulative record `47eb480231f04cca9b50156b657061f5c1d29c16`. Independent audit dispositions are supplied by the owner; the technical records below preserve their original implementation-handoff wording rather than being rewritten to impersonate audit reports.
 
 Repository baseline reviewed: `main` at `8b572c6`, tagged `backend-public-listing-integrity-authoring-v1`, with Chapter 13 closeout `9741b6f`, Chapter 13L.1 cumulative verification `ade6618`, and Chapter 13K.3 SQL freeze `f6f6322`.
 
@@ -39,9 +39,9 @@ No unresolved owner decision blocks this architecture.
 - [14L cumulative technical verification](chapter-14l-cumulative-chapter-14-verification-gate.md): owner-committed in `47eb480231f04cca9b50156b657061f5c1d29c16`, tested technical HEAD `e53821725d2c50684b301e1936917be313d69097`; record SHA-256 `394914eb603896272f2d8fd2a6738ac4de4c8acf2392383afebabf77cbe9a525`. Complete Release suite: **2,183 passed, 0 failed, 0 skipped**; OpenAPI **12/12**; migration lifecycle/catalog **3/3**; **695 unique focused executions** (340 taxonomy plus 355 disjoint protected-regression executions, not summed overlapping diagnostics).
 - [14K accepted SQL/plan delta](../benchmarks/chapter-10f/chapter-14-property-taxonomy-generated-sql-delta-proof.md): commit `03de30677119f8329d714c5951162ec95a29afd8`, SHA-256 `ad71c73a85adf61f09268a6b4e5da9ac459a8897273dc66d2d3abab58fe95178`. **33 commands, 80 exact typed parameter records, 25 historically exact bodies, exactly 8 approved widened roots, 61/61 profile invariants, 198/198 EXPLAIN executions**, locked results/order, Q1 pass, zero spills/temp anomalies, and unchanged accepted historical baseline. All ten recorded query/profile input hashes still match the closeout tree; no plan rerun or baseline export is needed.
 - One additive migration: `20260904023937_AddCommercialAndLandPropertyTaxonomy`, number **21**, creating only the two explicit subtype tables without data fabrication/backfill. Fresh/upgrade/repeated-Up/Down/re-Up/catalog and no-pending-model verification are recorded in 14L.
-- Accepted authoring/read/discovery/comparable/concurrency/OpenAPI behavior and protected Chapter 13 regressions are mapped to existing tests in 14L sections 5–10. The owner reports accepted 14A–14L audits and the zero-finding holistic pre-close audit; 14M acceptance remains pending under section 18.
+- Accepted authoring/read/discovery/comparable/concurrency/OpenAPI behavior and protected Chapter 13 regressions are mapped to existing tests in 14L sections 5–10. The owner reports accepted 14A–14M audits and the zero-finding holistic pre-close audit; the accepted release lineage is recorded above.
 
-14M verification on 2026-09-15, with the technical tree unchanged: literal `dotnet restore` exited 1 silently with the known worker-fan-out failure; its exact task-created worker cohort was drained, and `dotnet restore --disable-parallel -m:1 -nodeReuse:false` succeeded. `dotnet build -c Release --no-restore` passed with **0 warnings, 0 errors** (35.10 s). The required complete Release test command passed **2,183/2,183, 0 failed, 0 skipped** (3 m 10 s). These are implementation verification results, not independent 14M acceptance.
+14M verification on 2026-09-15, with the technical tree unchanged: literal `dotnet restore` exited 1 silently with the known worker-fan-out failure; its exact task-created worker cohort was drained, and `dotnet restore --disable-parallel -m:1 -nodeReuse:false` succeeded. `dotnet build -c Release --no-restore` passed with **0 warnings, 0 errors** (35.10 s). The required complete Release test command passed **2,183/2,183, 0 failed, 0 skipped** (3 m 10 s). These were implementation verification results and did not self-certify independent 14M acceptance; the later accepted release state is recorded above.
 
 ## 2. Historical starting backend (before Chapter 14)
 
@@ -159,7 +159,7 @@ Only A and the bounded B items form Chapter 14.
 
 ### 3.2 Chapter outcome
 
-The accepted technical outcome is backend-complete for the chosen property taxonomy: Commercial and Land can be safely created, replaced, persisted, read through every existing applicable response surface, discovered using the existing root filter, and returned by comparables under the existing root eligibility contract. Full chapter status closeout remains conditional on 14M acceptance/owner commit. Broader subtype discovery or valuation behavior is not required.
+The accepted technical outcome is backend-complete for the chosen property taxonomy: Commercial and Land can be safely created, replaced, persisted, read through every existing applicable response surface, discovered using the existing root filter, and returned by comparables under the existing root eligibility contract. The later accepted 14M closeout completed the chapter without changing those technical results. Broader subtype discovery or valuation behavior is not required.
 
 ## 4. Accepted final property model
 
@@ -725,7 +725,7 @@ Chapter 14 excludes:
 
 Chapter 14 stops when the fixed model is authorable, persistent, faithfully readable, represented in generated OpenAPI, discoverable by the existing root filter, compatible with root-only comparables, and safely verified.
 
-That technical stop line is satisfied. After independent 14M acceptance and owner commit, Chapter 15 is the next backend implementation boundary; this closeout creates no Chapter 15 implementation plan or speculative product rules.
+That technical stop line is satisfied. Independent 14M acceptance and the owner commit subsequently completed Chapter 14; Chapter 15 is now the current backend implementation boundary under its separately approved plan. This closeout itself created no Chapter 15 implementation plan or speculative product rules.
 
 Chapter 15 retains integration through discovery, API, performance, and hardening, including:
 
@@ -803,7 +803,7 @@ No group is an umbrella implementation task. Tasks below are the final decomposi
 
 ## 19. Final implementation task sequence
 
-The specifications below are retained as execution history and audit requirements, not unexecuted feature work. 14A–14L have owner-confirmed independent acceptance and owner commits; 14M is the final documentation/status task pending its fresh audit and owner commit. The accepted technical commit/merge inventory is in [14L section 2](chapter-14l-cumulative-chapter-14-verification-gate.md#2-immutable-source-and-repository-freeze), with 14L itself committed as `47eb480231f04cca9b50156b657061f5c1d29c16` and merged in `2f066e57238a37e3a00aca99b562f10d878f4833`.
+The specifications below are retained as execution history and audit requirements, not unexecuted feature work. 14A–14M have owner-confirmed independent acceptance and owner commits. The accepted technical commit/merge inventory is in [14L section 2](chapter-14l-cumulative-chapter-14-verification-gate.md#2-immutable-source-and-repository-freeze), with 14L itself committed as `47eb480231f04cca9b50156b657061f5c1d29c16` and merged in `2f066e57238a37e3a00aca99b562f10d878f4833`; the later closeout/release lineage is recorded at the top of this document.
 
 Historical chapter-numbered test selectors below are not current code-naming conventions or compatibility aliases. The separately accepted naming cleanup uses behavior-based identifiers; literal current selectors and nonzero counts are recorded in 14L. Do not copy historical chapter identifiers into executable/test names.
 
@@ -2161,7 +2161,7 @@ Also explicitly enumerate untracked files and compare the final intended documen
 
 Chapter 14 is complete only when all tasks 14A–14M have fresh audit `FINAL_PASS` and owner commits, and all of these statements are true:
 
-At this closeout preparation, every technical criterion below is supported by accepted 14K/14L evidence and the owner-confirmed audits. The sole remaining governance condition is fresh independent 14M acceptance followed by the owner commit; this implementation does not certify its own acceptance. After that condition is satisfied, Chapter 14 is completed and Chapter 15 becomes the next backend implementation boundary.
+Every technical criterion below is supported by accepted 14K/14L evidence and the owner-confirmed audits. The later independent 14M acceptance and owner commit satisfied the final governance condition without altering these criteria. Chapter 14 is complete, and Chapter 15 is the current backend implementation boundary.
 
 | Completion criterion group | Accepted evidence / result |
 |---|---|
@@ -2233,7 +2233,7 @@ The following remain deliberate future decisions, not incomplete Chapter 14 task
 
 ### Final self-audit
 
-| Protected contract/risk | Accepted technical result (14A–14L; 14M governance pending) |
+| Protected contract/risk | Accepted Chapter 14 result (14A–14M) |
 |---|---|
 | Chapter 13 location integrity | unchanged; classification alone never clears location |
 | public strictness | required localized/location truth unchanged; subtype objects nullable |
