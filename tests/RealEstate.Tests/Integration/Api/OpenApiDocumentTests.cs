@@ -89,6 +89,12 @@ public sealed class OpenApiDocumentTests
             "ApiValidationProblemDetailsResponse");
         AssertProblemResponse(
             root,
+            "/api/agencies/{id}/dashboard/listings",
+            "get",
+            "400",
+            "ApiValidationProblemDetailsResponse");
+        AssertProblemResponse(
+            root,
             "/api/users/me",
             "get",
             "401",
