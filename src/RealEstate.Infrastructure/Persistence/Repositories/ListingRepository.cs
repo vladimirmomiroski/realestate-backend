@@ -707,6 +707,23 @@ public sealed class ListingRepository : IListingRepository
                 listing.HouseDetails.HouseType == filters.HouseType.Value);
         }
 
+        if (filters.CommercialType.HasValue)
+        {
+            query = query.Where(listing =>
+                listing.PropertyType == PropertyType.Commercial &&
+                listing.CommercialDetails != null &&
+                listing.CommercialDetails.CommercialType ==
+                    filters.CommercialType.Value);
+        }
+
+        if (filters.LandType.HasValue)
+        {
+            query = query.Where(listing =>
+                listing.PropertyType == PropertyType.Land &&
+                listing.LandDetails != null &&
+                listing.LandDetails.LandType == filters.LandType.Value);
+        }
+
         if (filters.MinYardAreaSquareMeters.HasValue)
         {
             query = query.Where(listing =>

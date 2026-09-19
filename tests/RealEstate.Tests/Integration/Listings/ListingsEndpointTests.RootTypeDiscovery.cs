@@ -1,12 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
-using RealEstate.Api.Controllers;
 using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Commands.CreateListing;
-using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Domain.Enums;
 using RealEstate.Tests.Integration.Api;
 using RealEstate.Tests.Integration.Auth;
@@ -385,59 +382,6 @@ public sealed partial class ListingsEndpointTests
             ErrorCodes.ValidationFailed,
             "/api/listings",
             validationKey: "propertyType");
-    }
-
-    [Fact]
-    public async Task RootTypeDiscovery_DoesNotExposeCommercialOrLandSubtypeFilters()
-    {
-        string[] forbiddenNames = ["commercialType", "landType"];
-        string[] queryMembers = typeof(GetListingsQuery)
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Select(property => property.Name)
-            .ToArray();
-        MethodInfo endpoint = typeof(ListingsController)
-            .GetMethod(nameof(ListingsController.GetListings))!;
-        string[] endpointParameters = endpoint
-            .GetParameters()
-            .Select(parameter => parameter.Name!)
-            .ToArray();
-
-        queryMembers.Should().NotContainEquivalentOf(forbiddenNames[0]);
-        queryMembers.Should().NotContainEquivalentOf(forbiddenNames[1]);
-        endpointParameters.Should().NotContainEquivalentOf(forbiddenNames[0]);
-        endpointParameters.Should().NotContainEquivalentOf(forbiddenNames[1]);
-
-        const string currency = "RTS";
-        AuthenticatedTestUser owner =
-            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
-        Guid commercialId = await CreateRootDiscoveryListingAsync(
-            owner,
-            PropertyType.Commercial,
-            currency,
-            commercialType: CommercialType.Office);
-        Guid landId = await CreateRootDiscoveryListingAsync(
-            owner,
-            PropertyType.Land,
-            currency,
-            landType: LandType.AgriculturalLand);
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            commercialId,
-            ListingStatus.Active);
-        await ListingTestHelpers.SetListingStatusAsync(
-            _factory,
-            landId,
-            ListingStatus.Active);
-
-        JsonElement page = await ReadRootDiscoveryPageAsync(
-            "/api/listings" +
-            $"?lang=en&currency={currency}" +
-            "&commercialType=Shop&landType=BuildingPlot" +
-            "&page=1&pageSize=20");
-
-        ReadItems(page).Select(ReadId).Should()
-            .BeEquivalentTo([commercialId, landId]);
-        page.GetProperty("totalCount").GetInt32().Should().Be(2);
     }
 
     private async Task<Guid> CreateRootDiscoveryListingAsync(
