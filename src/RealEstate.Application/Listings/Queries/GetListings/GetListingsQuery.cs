@@ -28,6 +28,10 @@ public sealed class GetListingsQuery
 
     public HouseType? HouseType { get; set; }
 
+    public CommercialType? CommercialType { get; set; }
+
+    public LandType? LandType { get; set; }
+
     public decimal? MinYardAreaSquareMeters { get; set; }
 
     public decimal? MaxYardAreaSquareMeters { get; set; }

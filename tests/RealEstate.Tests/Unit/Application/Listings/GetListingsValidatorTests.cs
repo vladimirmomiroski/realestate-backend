@@ -16,7 +16,9 @@ public sealed class GetListingsValidatorTests
         { "furnishingStatus", (int)FurnishingStatus.Furnished },
         { "condition", (int)PropertyCondition.Good },
         { "apartmentType", (int)ApartmentType.Standard },
-        { "houseType", (int)HouseType.Detached }
+        { "houseType", (int)HouseType.Detached },
+        { "commercialType", (int)CommercialType.Office },
+        { "landType", (int)LandType.BuildingPlot }
     };
 
     public static TheoryData<string> UnknownEnumFilterCases => new()
@@ -25,7 +27,9 @@ public sealed class GetListingsValidatorTests
         "furnishingStatus",
         "condition",
         "apartmentType",
-        "houseType"
+        "houseType",
+        "commercialType",
+        "landType"
     };
 
     [Theory]
@@ -241,6 +245,12 @@ public sealed class GetListingsValidatorTests
                 break;
             case "houseType":
                 query.HouseType = (HouseType)value;
+                break;
+            case "commercialType":
+                query.CommercialType = (CommercialType)value;
+                break;
+            case "landType":
+                query.LandType = (LandType)value;
                 break;
             default:
                 throw new ArgumentOutOfRangeException(

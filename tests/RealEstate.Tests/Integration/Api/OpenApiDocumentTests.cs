@@ -1548,10 +1548,40 @@ public sealed class OpenApiDocumentTests
             .GetProperty("$ref")
             .GetString()
             .Should().Be("#/components/schemas/PropertyType");
-        listingOperation.GetProperty("parameters")
-            .EnumerateArray()
-            .Select(parameter => parameter.GetProperty("name").GetString())
-            .Should().NotContain(["commercialType", "landType"]);
+
+        foreach ((string parameterName, string schemaName) in new[]
+                 {
+                     ("commercialType", "CommercialType"),
+                     ("landType", "LandType")
+                 })
+        {
+            JsonElement parameter = GetParameter(
+                listingOperation,
+                parameterName);
+            parameter.GetProperty("schema")
+                .GetProperty("$ref")
+                .GetString()
+                .Should().Be($"#/components/schemas/{schemaName}");
+            if (parameter.TryGetProperty("required", out JsonElement required))
+            {
+                required.GetBoolean().Should().BeFalse();
+            }
+        }
+
+        foreach ((string path, string method) in new[]
+                 {
+                     ("/api/agencies/{id}/listings", "get"),
+                     ("/api/listings/my", "get"),
+                     ("/api/agencies/{id}/dashboard/listings", "get"),
+                     ("/api/listings/{id}/management", "get")
+                 })
+        {
+            GetOperation(root, path, method)
+                .GetProperty("parameters")
+                .EnumerateArray()
+                .Select(parameter => parameter.GetProperty("name").GetString())
+                .Should().NotContain(["commercialType", "landType"]);
+        }
     }
 
     [Fact]
