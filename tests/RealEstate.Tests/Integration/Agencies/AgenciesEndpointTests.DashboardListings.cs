@@ -1,8 +1,11 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RealEstate.Application.Agencies.Queries.GetAgencyDashboardListings;
+using RealEstate.Application.Common;
 using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
+using RealEstate.Tests.Integration.Api;
 using RealEstate.Tests.Integration.Auth;
 using RealEstate.Tests.Integration.Listings;
 using System.Net;
@@ -213,6 +216,62 @@ public sealed partial class AgenciesEndpointTests
         {
             _httpClient.ClearAuthorization();
         }
+    }
+
+    [Theory]
+    [InlineData("NotAStatus")]
+    [InlineData("999")]
+    public async Task GetAgencyDashboardListings_InvalidHttpStatusReturnsAutomaticCanonicalModelState400(
+        string value)
+    {
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        Guid agencyId = await CreateAgencyAsAsync(owner);
+        _httpClient.AuthorizeAs(owner.AccessToken);
+
+        try
+        {
+            string path =
+                $"/api/agencies/{agencyId}/dashboard/listings";
+            using HttpResponseMessage response = await _httpClient.GetAsync(
+                $"{path}?status={value}");
+
+            JsonElement problem =
+                await ApiFailureAssertions.AssertProblemAsync(
+                    response,
+                    HttpStatusCode.BadRequest,
+                    ErrorCodes.ValidationFailed,
+                    path,
+                    validationKey: "status");
+            string binderMessage = problem.GetProperty("errors")
+                .GetProperty("status")[0]
+                .GetString()!;
+            binderMessage.Should().Contain(value);
+            binderMessage.Should().NotContain(
+                GetAgencyDashboardListingsValidator.UndefinedStatusError);
+        }
+        finally
+        {
+            _httpClient.ClearAuthorization();
+        }
+    }
+
+    [Fact]
+    public async Task GetAgencyDashboardListings_InvalidHttpStatusDoesNotOverrideMissingAuthentication()
+    {
+        Guid agencyId = Guid.NewGuid();
+        string path = $"/api/agencies/{agencyId}/dashboard/listings";
+        _httpClient.ClearAuthorization();
+
+        using HttpResponseMessage response = await _httpClient.GetAsync(
+            $"{path}?status=999");
+
+        await ApiFailureAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Unauthorized,
+            ErrorCodes.AuthenticationRequired,
+            path,
+            bearerChallenge: true);
     }
 
     [Fact]
