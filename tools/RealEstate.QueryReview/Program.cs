@@ -9,11 +9,9 @@ namespace RealEstate.QueryReview;
 internal static class Program
 {
     private const string RequiredDatabasePrefix = "realestate_queryreview";
-    private const int RequiredPostgreSqlMajorVersion = 16;
-
     public static async Task<int> Main(string[] args)
     {
-        Console.WriteLine("RealEstate Chapter 10F query-review tool");
+        Console.WriteLine("RealEstate QueryReview tool");
 
         QueryReviewCommand? command = null;
 
@@ -27,7 +25,15 @@ internal static class Program
             }
 
             command = options!.Command;
-            return await RunAsync(options);
+            try
+            {
+                return await RunAsync(options);
+            }
+            catch (QueryReviewGenerationNotReadyException exception)
+            {
+                Console.Error.WriteLine($"QueryReview generation unavailable: {exception.Message}");
+                return 9;
+            }
         }
         finally
         {
@@ -37,6 +43,9 @@ internal static class Program
 
     private static async Task<int> RunAsync(QueryReviewOptions options)
     {
+        QueryReviewGenerationDefinition requestedGeneration =
+            QueryReviewGenerations.ResolveOrThrow(options.Profile);
+
         if (options.Command is QueryReviewCommand.BaselineVerify or QueryReviewCommand.BaselineExport)
         {
             try
@@ -73,6 +82,10 @@ internal static class Program
                 return 8;
             }
         }
+
+        requestedGeneration.EnsureOnlineCommandAvailable(options.Command);
+        QueryReviewLaneDefinition requestedLane =
+            requestedGeneration.RequireLane(QueryReviewGenerations.PostgreSql16LaneId);
 
         NpgsqlConnectionStringBuilder connectionStringBuilder;
 
@@ -111,9 +124,10 @@ internal static class Program
             {
                 Console.WriteLine(
                     "Verifying local disposable PostgreSQL container endpoint ownership...");
-                await DisposablePostgreSqlContainerVerifier.VerifyAsync(
+                await DisposablePostgreSqlContainerVerifier.VerifyForLaneAsync(
                     connectionStringBuilder,
-                    options.ContainerName!);
+                    options.ContainerName!,
+                    requestedLane);
                 Console.WriteLine(
                     "Disposable container endpoint ownership: verified before database access.");
             }
@@ -173,11 +187,12 @@ internal static class Program
             Console.WriteLine($"  Database: {identity.Database}");
             Console.WriteLine($"  PostgreSQL version: {npgsqlConnection.PostgreSqlVersion}");
 
-            if (serverMajorVersion != RequiredPostgreSqlMajorVersion)
+            if (serverMajorVersion != requestedLane.PostgreSqlMajorVersion)
             {
                 Console.Error.WriteLine(
                     $"Error: PostgreSQL major version {serverMajorVersion} is rejected. " +
-                    $"Chapter 10F requires PostgreSQL {RequiredPostgreSqlMajorVersion}.");
+                    $"Generation '{requestedGeneration.Id}' lane '{requestedLane.Id}' requires " +
+                    $"PostgreSQL {requestedLane.PostgreSqlMajorVersion}.");
                 return 5;
             }
 
@@ -193,11 +208,14 @@ internal static class Program
                     options.ConnectionString!),
                 QueryReviewCommand.CaptureSql => await CaptureSqlAsync(
                     options,
+                    requestedGeneration,
                     identity.Database,
                     npgsqlConnection.PostgreSqlVersion.ToString(),
                     npgsqlConnection),
                 QueryReviewCommand.BaselineRun => await RunBaselineAsync(
                     options,
+                    requestedGeneration,
+                    requestedLane,
                     connectionStringBuilder,
                     identity.Database,
                     npgsqlConnection.PostgreSqlVersion.ToString(),
@@ -237,10 +255,52 @@ internal static class Program
 
     private static async Task<int> VerifyBaselineAsync(QueryReviewOptions options)
     {
-        Console.WriteLine("Running offline raw baseline verification...");
+        QueryReviewGenerationDefinition? requestedGeneration = null;
+        if (!string.IsNullOrWhiteSpace(options.Profile))
+        {
+            requestedGeneration = QueryReviewGenerations.ResolveOrThrow(options.Profile);
+            if (!Directory.Exists(options.RunDirectory!) && !requestedGeneration.IsFrozenHistorical)
+            {
+                requestedGeneration.EnsureOfflineCommandAvailable(
+                    QueryReviewCommand.BaselineVerify,
+                    QueryReviewArtifactKind.RawRun);
+            }
+        }
+
+        QueryReviewArtifactDescriptor descriptor =
+            await QueryReviewArtifactRouter.InspectAsync(options.RunDirectory!);
+        QueryReviewArtifactRouter.ValidateRequestedGeneration(options.Profile, descriptor);
+        descriptor.Generation.EnsureOfflineCommandAvailable(
+            QueryReviewCommand.BaselineVerify,
+            descriptor.Kind);
+
+        Console.WriteLine("Running offline QueryReview artifact verification...");
         Console.WriteLine("No connection string was accepted and no database operation will occur.");
 
-        var result = await ExplainRunner.VerifyAsync(options.RunDirectory!);
+        if (descriptor.Kind == QueryReviewArtifactKind.PermanentEvidence)
+        {
+            OfflineEvidenceVerificationResult permanent =
+                await BaselineEvidenceWriter.VerifyPermanentAsync(descriptor);
+            Console.WriteLine(
+                $"Permanent verification: SUCCESS ({permanent.FileCount} files, " +
+                $"generation {permanent.GenerationId}, lane {permanent.LaneId}).");
+            return 0;
+        }
+
+        if (descriptor.Kind == QueryReviewArtifactKind.ExperimentalBundle)
+        {
+            OfflineEvidenceVerificationResult experimental =
+                await ExperimentalEvidenceBundle.VerifyAsync(descriptor);
+            Console.WriteLine(
+                $"Experimental verification: SUCCESS ({experimental.FileCount} files, " +
+                $"generation {experimental.GenerationId}, lane {experimental.LaneId}).");
+            return 0;
+        }
+
+        var result = await ExplainRunner.VerifyAsync(
+            descriptor.Generation,
+            descriptor.Lane,
+            options.RunDirectory!);
         var measurements = result.Measurements;
 
         Console.WriteLine(
@@ -317,7 +377,30 @@ internal static class Program
         Console.WriteLine("No connection string was accepted and no database operation will occur.");
         Console.WriteLine("Permanent evidence export confirmation: accepted.");
 
-        var verification = await ExplainRunner.VerifyAsync(options.RunDirectory!);
+        if (!string.IsNullOrWhiteSpace(options.Profile))
+        {
+            QueryReviewGenerationDefinition requested =
+                QueryReviewGenerations.ResolveOrThrow(options.Profile);
+            if (!Directory.Exists(options.RunDirectory!) && !requested.IsFrozenHistorical)
+            {
+                requested.EnsureOfflineCommandAvailable(
+                    QueryReviewCommand.BaselineExport,
+                    QueryReviewArtifactKind.RawRun);
+            }
+        }
+
+        QueryReviewArtifactDescriptor descriptor =
+            await QueryReviewArtifactRouter.InspectAsync(options.RunDirectory!);
+        QueryReviewArtifactRouter.ValidateRequestedGeneration(options.Profile, descriptor);
+        descriptor.Generation.EnsureOfflineCommandAvailable(
+            QueryReviewCommand.BaselineExport,
+            descriptor.Kind);
+        ValidateComparisonOption(options, descriptor);
+
+        var verification = await ExplainRunner.VerifyAsync(
+            descriptor.Generation,
+            descriptor.Lane,
+            options.RunDirectory!);
 
         if (!verification.Measurements.Q1Gate.Passed)
         {
@@ -325,7 +408,10 @@ internal static class Program
                 "The verified raw run does not pass the locked Q1 gate.");
         }
 
-        var export = await BaselineEvidenceWriter.ExportAsync(verification);
+        var export = await BaselineEvidenceWriter.ExportAsync(
+            descriptor.Generation,
+            descriptor.Lane,
+            verification);
 
         Console.WriteLine(
             $"Verified raw totals: {verification.Measurements.CommandCount} commands, " +
@@ -336,6 +422,28 @@ internal static class Program
         Console.WriteLine("Exported credential scan: SUCCESS.");
         Console.WriteLine("Baseline evidence export result: SUCCESS.");
         return 0;
+    }
+
+    internal static void ValidateComparisonOption(
+        QueryReviewOptions options,
+        QueryReviewArtifactDescriptor descriptor)
+    {
+        bool isCompatibilityExport =
+            descriptor.Generation == QueryReviewGenerations.FourRootDiscovery &&
+            descriptor.Lane.Id == QueryReviewGenerations.PostgreSql184LaneId;
+
+        if (isCompatibilityExport && string.IsNullOrWhiteSpace(options.ComparisonRunDirectory))
+        {
+            throw new BaselinePlanValidationException(
+                "The PostgreSQL 18.4 successor export requires --comparison-run-dir.");
+        }
+
+        if (!isCompatibilityExport && options.ComparisonRunDirectory is not null)
+        {
+            throw new BaselinePlanValidationException(
+                "--comparison-run-dir is valid only for the future four-root-discovery-v1 " +
+                "PostgreSQL 18.4 permanent export.");
+        }
     }
 
     private static int RunDoctor()
@@ -467,6 +575,7 @@ internal static class Program
 
     private static async Task<int> CaptureSqlAsync(
         QueryReviewOptions options,
+        QueryReviewGenerationDefinition generation,
         string database,
         string postgreSqlVersion,
         NpgsqlConnection verificationConnection)
@@ -486,7 +595,10 @@ internal static class Program
             options.ConnectionString!,
             database,
             postgreSqlVersion);
-        var captureRun = captureSession.CaptureRun;
+        var captureRun = captureSession.CaptureRun with
+        {
+            GenerationId = generation.Id
+        };
 
         var outputPath = await SqlCaptureOutput.WriteAsync(
             captureRun,
@@ -498,6 +610,8 @@ internal static class Program
 
     private static async Task<int> RunBaselineAsync(
         QueryReviewOptions options,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         NpgsqlConnectionStringBuilder connectionStringBuilder,
         string database,
         string postgreSqlVersion,
@@ -523,7 +637,11 @@ internal static class Program
         var environment = await EnvironmentSnapshotCollector.CaptureAsync(
             measurementConnection,
             options.ContainerName!,
-            vacuumAnalyzeDuration);
+            vacuumAnalyzeDuration) with
+        {
+            GenerationId = generation.Id,
+            LaneId = lane.Id
+        };
 
         if (environment.PostgreSql.ActiveVacuumCount != 0)
         {
@@ -536,6 +654,13 @@ internal static class Program
             options.ConnectionString!,
             database,
             postgreSqlVersion);
+        captureSession = captureSession with
+        {
+            CaptureRun = captureSession.CaptureRun with
+            {
+                GenerationId = generation.Id
+            }
+        };
         var parameterCount = captureSession.CaptureRun.Commands
             .Sum(command => command.Parameters.Count);
 
@@ -547,6 +672,8 @@ internal static class Program
             "(ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)...");
 
         var manifest = await ExplainRunner.RunAsync(
+            generation,
+            lane,
             measurementConnection,
             connectionStringBuilder,
             captureSession,
@@ -731,22 +858,22 @@ internal static class Program
 
             case QueryReviewCommand.ProfileVerify:
                 Console.WriteLine(
-                    "Profile verification was read-only. No migration, seeding, SQL capture, " +
-                    "EXPLAIN, benchmark, or index operation occurred.");
+                    "Profile verification is read-only when provisioned; it never performs a " +
+                    "migration, seed, SQL capture, EXPLAIN, benchmark, or index operation.");
                 break;
 
             case QueryReviewCommand.CaptureSql:
                 Console.WriteLine(
-                    "The verified production queries were executed only for typed SQL capture. " +
-                    "No migration, seeding, EXPLAIN, performance benchmark, or index operation " +
-                    "occurred.");
+                    "When provisioned, capture-sql executes verified production queries only for " +
+                    "typed SQL capture; it never performs migration, seeding, EXPLAIN, " +
+                    "performance benchmarking, or index operations.");
                 break;
 
             case QueryReviewCommand.BaselineRun:
                 Console.WriteLine(
-                    "The verified production SELECT commands were replayed only through EXPLAIN " +
-                    "ANALYZE for raw PostgreSQL plan capture. No median, sequence aggregation, " +
-                    "Q1 decision, permanent evidence export, migration, or index operation occurred.");
+                    "When provisioned, baseline run replays verified SELECT commands only for raw " +
+                    "EXPLAIN ANALYZE capture; it never performs permanent evidence export, " +
+                    "migration, or index operations.");
                 break;
 
             case QueryReviewCommand.BaselineVerify:
@@ -757,9 +884,9 @@ internal static class Program
 
             case QueryReviewCommand.BaselineExport:
                 Console.WriteLine(
-                    "Baseline evidence export was offline and restricted to the permanent Chapter " +
-                    "10F evidence directory. No database connection, profile change, EXPLAIN " +
-                    "execution, migration, DDL, or index operation occurred.");
+                    "Baseline evidence export is offline and restricted to the selected " +
+                    "generation's fixed allowlisted lane. It never opens a database or performs " +
+                    "profile, EXPLAIN, migration, DDL, or index operations.");
                 break;
 
             default:

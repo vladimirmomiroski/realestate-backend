@@ -25,8 +25,6 @@ internal static partial class BaselineEvidenceWriter
     private const decimal Q1FirstPageMaximumMilliseconds = 227.000m;
     private const long Q1CountMaximumSharedAccessBlocks = 4_844;
     private const long Q1FirstPageMaximumSharedAccessBlocks = 5_160;
-    private const string EvidenceRelativePath = "docs/benchmarks/chapter-10f/evidence";
-
     private static readonly string[] ExpectedTrigramColumns =
         ["Title", "City", "Municipality", "Neighborhood"];
 
@@ -63,25 +61,103 @@ internal static partial class BaselineEvidenceWriter
                 ["IX_ListingImages_ListingId_SortOrder", "PK_Listings"])
         };
 
-    public static async Task<BaselineEvidenceExportResult> ExportAsync(
+    public static Task<BaselineEvidenceExportResult> ExportAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        BaselineVerificationResult verification,
+        CancellationToken cancellationToken = default)
+    {
+        generation.EnsureOfflineCommandAvailable(
+            QueryReviewCommand.BaselineExport,
+            QueryReviewArtifactKind.RawRun);
+
+        return ExportCoreAsync(
+            generation,
+            lane,
+            verification,
+            cancellationToken);
+    }
+
+    public static async Task<OfflineEvidenceVerificationResult>
+        VerifyPermanentAsync(
+            QueryReviewArtifactDescriptor descriptor,
+            CancellationToken cancellationToken = default)
+    {
+        if (descriptor.Kind != QueryReviewArtifactKind.PermanentEvidence ||
+            !descriptor.Generation.IsFrozenHistorical)
+        {
+            throw new BaselinePlanValidationException(
+                "Only the fixed frozen historical permanent evidence is verifiable at this stage.");
+        }
+
+        string measurementsPath = Path.Combine(
+            descriptor.Directory,
+            "baseline-measurements.json");
+        CuratedBaselineMeasurements measurements =
+            await ReadRequiredJsonAsync<CuratedBaselineMeasurements>(
+                measurementsPath,
+                cancellationToken);
+        PermanentEvidenceMetadata metadata = measurements.PermanentEvidence
+            ?? throw new BaselinePlanValidationException(
+                "Historical permanent evidence is missing completeness metadata.");
+
+        if (!descriptor.Generation.MatchesRecordedProfile(
+                metadata.ProfileVerification.ProfileIdentity) ||
+            metadata.ProfileVerification.ListingCount != ExpectedListingCount ||
+            metadata.ProfileVerification.TranslationCount != ExpectedTranslationCount ||
+            metadata.ProfileVerification.InvariantTotal != ExpectedInvariantCount ||
+            metadata.ProfileVerification.InvariantPassed != ExpectedInvariantCount ||
+            metadata.ProfileVerification.InvariantFailed != 0 ||
+            !metadata.ProfileVerification.Passed ||
+            !string.Equals(
+                metadata.SemanticResultIdentity.ExpectedResultSha256,
+                ExpectedResultSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                metadata.SemanticResultIdentity.ActualResultSha256,
+                ExpectedResultSha256,
+                StringComparison.Ordinal) ||
+            metadata.CaptureIdentity.CommandCount != ExpectedCommandCount ||
+            metadata.CaptureIdentity.TypedParameterCount != ExpectedParameterCount ||
+            metadata.CaptureIdentity.RawPlanCount != ExpectedPlanCount ||
+            !string.Equals(
+                metadata.CaptureIdentity.PostgreSqlVersion,
+                RequiredPostgreSqlVersion,
+                StringComparison.Ordinal) ||
+            !measurements.Q1Gate.Passed)
+        {
+            throw new BaselinePlanValidationException(
+                "Frozen historical permanent identity, totals, semantic hash, PostgreSQL " +
+                "version, or Q1 gate drifted.");
+        }
+
+        string[] commandKeys = measurements.Commands
+            .Select(command => command.CommandKey)
+            .ToArray();
+        ValidateCommandKeys(commandKeys);
+        HashSet<string> expectedFiles = BuildExpectedFileSet(commandKeys);
+        ValidateExactFileSet(descriptor.Directory, expectedFiles);
+        await ValidatePermanentEvidenceAsync(
+            descriptor.Directory,
+            measurements,
+            cancellationToken);
+        ScanForCredentials(descriptor.Directory);
+
+        return new OfflineEvidenceVerificationResult(
+            descriptor.Generation.Id,
+            descriptor.Lane.Id,
+            descriptor.Kind,
+            descriptor.Directory,
+            expectedFiles.Count);
+    }
+
+    private static async Task<BaselineEvidenceExportResult> ExportCoreAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         BaselineVerificationResult verification,
         CancellationToken cancellationToken = default)
     {
         ValidateVerificationResult(verification);
-
-        var repositoryRoot = FindRepositoryRoot()
-            ?? throw new BaselinePlanValidationException(
-                "Unable to locate the repository root for permanent evidence export.");
-        var destinationDirectory = Path.GetFullPath(
-            Path.Combine(repositoryRoot, EvidenceRelativePath));
-        var expectedDestination = Path.GetFullPath(
-            Path.Combine(repositoryRoot, "docs", "benchmarks", "chapter-10f", "evidence"));
-
-        if (!string.Equals(destinationDirectory, expectedDestination, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new BaselinePlanValidationException(
-                $"Permanent evidence destination must be exactly '{expectedDestination}'.");
-        }
 
         var manifest = await ReadRequiredJsonAsync<RawBaselineManifest>(
             Path.Combine(verification.RunDirectory, "manifest.json"),
@@ -112,142 +188,106 @@ internal static partial class BaselineEvidenceWriter
         await ValidateMedianPlansAsync(verification, cancellationToken);
         ScanForCredentials(verification.CuratedDirectory);
 
-        var destinationParent = Path.GetDirectoryName(destinationDirectory)
-            ?? throw new BaselinePlanValidationException(
-                "Permanent evidence destination has no parent directory.");
-        Directory.CreateDirectory(destinationParent);
-
-        var stagingDirectory = Path.Combine(
-            destinationParent,
-            $".evidence-export-{Guid.NewGuid():N}");
-        var backupDirectory = Path.Combine(
-            destinationParent,
-            $".evidence-backup-{Guid.NewGuid():N}");
         var publishedHashes = new Dictionary<string, string>(StringComparer.Ordinal);
-        var backupCreated = false;
-        var published = false;
-
-        try
-        {
-            Directory.CreateDirectory(stagingDirectory);
-
-            foreach (var relativePath in expectedFiles
-                         .Where(path => path is not "baseline-measurements.json" and
-                             not "baseline-summary.md")
-                         .OrderBy(path => path, StringComparer.Ordinal))
-            {
-                var sourcePath = ResolveWithin(verification.CuratedDirectory, relativePath);
-                var stagingPath = ResolveWithin(stagingDirectory, relativePath);
-                var stagingParent = Path.GetDirectoryName(stagingPath)!;
-                Directory.CreateDirectory(stagingParent);
-
-                var sourceHash = await ComputeSha256Async(sourcePath, cancellationToken);
-                File.Copy(sourcePath, stagingPath, overwrite: false);
-                var stagingHash = await ComputeSha256Async(stagingPath, cancellationToken);
-
-                if (!string.Equals(sourceHash, stagingHash, StringComparison.Ordinal))
+        PermanentEvidencePublicationResult publication =
+            await PermanentEvidencePublisher.PublishAsync(
+                generation,
+                lane,
+                async (stagingDirectory, publicationCancellationToken) =>
                 {
-                    throw new BaselinePlanValidationException(
-                        $"Exported hash mismatch for '{relativePath}'.");
-                }
+                    foreach (var relativePath in expectedFiles
+                                 .Where(path => path is not "baseline-measurements.json" and
+                                     not "baseline-summary.md")
+                                 .OrderBy(path => path, StringComparer.Ordinal))
+                    {
+                        var sourcePath = ResolveWithin(
+                            verification.CuratedDirectory,
+                            relativePath);
+                        var stagingPath = ResolveWithin(stagingDirectory, relativePath);
+                        Directory.CreateDirectory(Path.GetDirectoryName(stagingPath)!);
 
-            }
+                        var sourceHash = await ComputeSha256Async(
+                            sourcePath,
+                            publicationCancellationToken);
+                        File.Copy(sourcePath, stagingPath, overwrite: false);
+                        var stagingHash = await ComputeSha256Async(
+                            stagingPath,
+                            publicationCancellationToken);
 
-            var summaryPath = Path.Combine(stagingDirectory, "baseline-summary.md");
-            await File.WriteAllTextAsync(
-                summaryPath,
-                BuildPermanentSummary(verification.Measurements, evidenceCore),
-                cancellationToken);
+                        if (!string.Equals(sourceHash, stagingHash, StringComparison.Ordinal))
+                        {
+                            throw new BaselinePlanValidationException(
+                                $"Exported hash mismatch for '{relativePath}'.");
+                        }
+                    }
 
-            var artifactIntegrity = await BuildArtifactIntegrityAsync(
-                stagingDirectory,
-                commandKeys,
-                cancellationToken);
-            var permanentMeasurements = BuildPermanentMeasurements(
-                verification.Measurements,
-                evidenceCore,
-                artifactIntegrity);
-            await JsonArtifactOutput.WriteAsync(
-                Path.Combine(stagingDirectory, "baseline-measurements.json"),
-                permanentMeasurements,
-                cancellationToken);
+                    var summaryPath = Path.Combine(stagingDirectory, "baseline-summary.md");
+                    await File.WriteAllTextAsync(
+                        summaryPath,
+                        BuildPermanentSummary(verification.Measurements, evidenceCore),
+                        publicationCancellationToken);
 
-            ValidateExactFileSet(stagingDirectory, expectedFiles);
-            await ValidatePermanentEvidenceAsync(
-                stagingDirectory,
-                permanentMeasurements,
-                cancellationToken);
-            ScanForCredentials(stagingDirectory);
+                    var artifactIntegrity = await BuildArtifactIntegrityAsync(
+                        stagingDirectory,
+                        commandKeys,
+                        publicationCancellationToken);
+                    var permanentMeasurements = BuildPermanentMeasurements(
+                        verification.Measurements,
+                        evidenceCore,
+                        artifactIntegrity);
+                    await JsonArtifactOutput.WriteAsync(
+                        Path.Combine(stagingDirectory, "baseline-measurements.json"),
+                        permanentMeasurements,
+                        publicationCancellationToken);
 
-            foreach (var relativePath in expectedFiles.OrderBy(path => path, StringComparer.Ordinal))
-            {
-                publishedHashes.Add(
-                    relativePath,
-                    await ComputeSha256Async(
-                        ResolveWithin(stagingDirectory, relativePath),
-                        cancellationToken));
-            }
+                    ValidateExactFileSet(stagingDirectory, expectedFiles);
+                    await ValidatePermanentEvidenceAsync(
+                        stagingDirectory,
+                        permanentMeasurements,
+                        publicationCancellationToken);
+                    ScanForCredentials(stagingDirectory);
 
-            if (Directory.Exists(destinationDirectory))
-            {
-                Directory.Move(destinationDirectory, backupDirectory);
-                backupCreated = true;
-            }
-
-            Directory.Move(stagingDirectory, destinationDirectory);
-            published = true;
-
-            ValidateExactFileSet(destinationDirectory, expectedFiles);
-            ScanForCredentials(destinationDirectory);
-
-            foreach (var expected in publishedHashes)
-            {
-                var destinationPath = ResolveWithin(destinationDirectory, expected.Key);
-                var destinationHash = await ComputeSha256Async(
-                    destinationPath,
-                    cancellationToken);
-
-                if (!string.Equals(expected.Value, destinationHash, StringComparison.Ordinal))
+                    foreach (var relativePath in expectedFiles.OrderBy(
+                                 path => path,
+                                 StringComparer.Ordinal))
+                    {
+                        publishedHashes.Add(
+                            relativePath,
+                            await ComputeSha256Async(
+                                ResolveWithin(stagingDirectory, relativePath),
+                                publicationCancellationToken));
+                    }
+                },
+                async (destinationDirectory, publicationCancellationToken) =>
                 {
-                    throw new BaselinePlanValidationException(
-                        $"Permanent evidence hash mismatch for '{expected.Key}'.");
-                }
-            }
+                    ValidateExactFileSet(destinationDirectory, expectedFiles);
+                    ScanForCredentials(destinationDirectory);
 
-            if (backupCreated)
-            {
-                Directory.Delete(backupDirectory, recursive: true);
-                backupCreated = false;
-            }
+                    foreach (var expected in publishedHashes)
+                    {
+                        var destinationPath = ResolveWithin(
+                            destinationDirectory,
+                            expected.Key);
+                        var destinationHash = await ComputeSha256Async(
+                            destinationPath,
+                            publicationCancellationToken);
 
-            return new BaselineEvidenceExportResult(
-                destinationDirectory,
-                publishedHashes.Count,
-                publishedHashes);
-        }
-        catch
-        {
-            if (Directory.Exists(stagingDirectory))
-            {
-                Directory.Delete(stagingDirectory, recursive: true);
-            }
+                        if (!string.Equals(
+                                expected.Value,
+                                destinationHash,
+                                StringComparison.Ordinal))
+                        {
+                            throw new BaselinePlanValidationException(
+                                $"Permanent evidence hash mismatch for '{expected.Key}'.");
+                        }
+                    }
+                },
+                cancellationToken);
 
-            if (backupCreated)
-            {
-                if (Directory.Exists(destinationDirectory))
-                {
-                    Directory.Delete(destinationDirectory, recursive: true);
-                }
-
-                Directory.Move(backupDirectory, destinationDirectory);
-            }
-            else if (published && Directory.Exists(destinationDirectory))
-            {
-                Directory.Delete(destinationDirectory, recursive: true);
-            }
-
-            throw;
-        }
+        return new BaselineEvidenceExportResult(
+            publication.DestinationDirectory,
+            publishedHashes.Count,
+            publishedHashes);
     }
 
     private static void ValidateVerificationResult(BaselineVerificationResult verification)
@@ -1252,26 +1292,6 @@ internal static partial class BaselineEvidenceWriter
     private static string NormalizeRelativePath(string path)
     {
         return path.Replace(Path.DirectorySeparatorChar, '/');
-    }
-
-    private static string? FindRepositoryRoot()
-    {
-        foreach (var start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
-        {
-            var directory = new DirectoryInfo(Path.GetFullPath(start));
-
-            while (directory is not null)
-            {
-                if (Directory.Exists(Path.Combine(directory.FullName, ".git")))
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-        }
-
-        return null;
     }
 
     [GeneratedRegex(

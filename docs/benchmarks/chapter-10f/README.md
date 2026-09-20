@@ -2,7 +2,33 @@
 
 `RealEstate.QueryReview` is a standalone, opt-in .NET 10 console tool. It is not part of `RealEstate.slnx` and does not run during the normal build or test suite.
 
-Every command verifies that an explicitly supplied connection string targets a database whose name starts with `realestate_queryreview`, connects through `RealEstateDbContext` and Npgsql, confirms the connected database identity, and accepts only PostgreSQL major version 16.
+## Current generation boundary
+
+The commands and workflow below document how the accepted Chapter 10F evidence was originally produced. That historical generation is now frozen and verify-only: its profile creation, SQL capture, baseline run, and permanent export commands fail closed and cannot replace `docs/benchmarks/chapter-10f/evidence/`.
+
+The tool has exactly two explicit generation definitions:
+
+- `frozen-historical`, inferred automatically from the accepted Chapter 10F permanent manifest (including its accepted `chapter-10f-v1`/`chapter-10f-v2` recorded profile identities); and
+- `four-root-discovery-v1`, whose fixed permanent lanes are `docs/benchmarks/four-root-discovery-v1/evidence/postgresql-16/` and `docs/benchmarks/four-root-discovery-v1/evidence/postgresql-18.4/`.
+
+The PostgreSQL 16 lane requires `postgres:16-alpine` and its image-declared anonymous volume at `/var/lib/postgresql/data`. The PostgreSQL 18.4 lane requires `postgres:18.4` and its version-aware image-declared anonymous volume at `/var/lib/postgresql`; the verifier does not relax either lane into a shared storage-path assumption.
+
+At the Chapter 15D boundary, every `four-root-discovery-v1` profile, capture, run, offline verification, and permanent-export operation reports that it is not provisioned. It never falls back to historical data or destinations. Later tasks provision those capabilities in stages.
+
+Offline verification infers the generation and lane recorded by the artifact; optional `--profile` input must match. The accepted permanent evidence remains independently verifiable without PostgreSQL:
+
+```powershell
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -c Release --no-build -- baseline verify `
+  --run-dir docs/benchmarks/chapter-10f/evidence
+```
+
+Raw-run verification continues to create `<raw-run>/curated`, now with an `experimental-manifest.json` containing the generation, lane, complete relative file set, and canonical content hashes. An unchanged copy of that curated directory can be passed directly to `baseline verify`; added, missing, modified, mismatched-generation, traversal, and credential-bearing artifacts are rejected. There is no arbitrary export-destination option.
+
+The future PostgreSQL 18.4 permanent export alone accepts `--comparison-run-dir <contemporaneous-pg16-run>`. The option is required for that lane and rejected for every other lane; it never selects an output destination. Permanent successor export remains disabled until its later readiness gate.
+
+The dormant permanent publisher resolves only the exact catalog successor generation/lane pair. Staging and backup directories are controlled direct children of the successor evidence root and are bound to the selected lane. Publication inventories the unselected sibling and frozen historical trees before replacement. Every selected-content, selected-inventory, sibling, historical, route, and ancestry acceptance check finishes while the complete original backup remains available; any pre-commit failure restores that original exactly. Only then is the replacement committed, after which backup removal is cleanup-only and a cleanup failure preserves the committed destination without attempting rollback. Windows case aliases, destination collisions, traversal/rooted paths, and reparse points in any existing protected or mutation-path component are rejected before mutation and rechecked at move/delete boundaries. Attempts to direct staging, backup, replacement, or cleanup at the sibling or historical tree are also rejected. The isolated test seam mirrors these fixed logical routes only beneath a dedicated operating-system temporary directory; it cannot enable repository export.
+
+In the original historical online workflow below, each database command verified that an explicitly supplied connection string targeted a database whose name starts with `realestate_queryreview`, connected through `RealEstateDbContext` and Npgsql, confirmed the connected database identity, and accepted only PostgreSQL major version 16.
 
 The target database must already exist and must be disposable. The explicit acknowledgement flag is mandatory:
 

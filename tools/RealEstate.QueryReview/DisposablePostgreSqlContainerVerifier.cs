@@ -23,11 +23,86 @@ internal static class DisposablePostgreSqlContainerVerifier
             cancellationToken);
     }
 
+    public static Task VerifyForLaneAsync(
+        NpgsqlConnectionStringBuilder connectionStringBuilder,
+        string containerName,
+        QueryReviewLaneDefinition lane,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCatalogLane(lane);
+
+        if (!lane.RequireImageDeclaredAnonymousVolume)
+        {
+            throw new BaselinePlanValidationException(
+                $"Lane '{lane.Id}' does not declare the required disposable storage policy.");
+        }
+
+        return VerifyCoreAsync(
+            connectionStringBuilder,
+            containerName,
+            lane.RequiredContainerImage,
+            lane.PostgreSqlDataPath,
+            EnvironmentSnapshotCollector.RunProcessAsync,
+            cancellationToken);
+    }
+
+    internal static Task VerifyForLaneAsync(
+        NpgsqlConnectionStringBuilder connectionStringBuilder,
+        string containerName,
+        QueryReviewLaneDefinition lane,
+        Func<string, IReadOnlyList<string>, CancellationToken, Task<string>> processRunner,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCatalogLane(lane);
+
+        if (!lane.RequireImageDeclaredAnonymousVolume)
+        {
+            throw new BaselinePlanValidationException(
+                $"Lane '{lane.Id}' does not declare the required disposable storage policy.");
+        }
+
+        return VerifyCoreAsync(
+            connectionStringBuilder,
+            containerName,
+            lane.RequiredContainerImage,
+            lane.PostgreSqlDataPath,
+            processRunner,
+            cancellationToken);
+    }
+
+    private static void EnsureCatalogLane(QueryReviewLaneDefinition lane)
+    {
+        if (!QueryReviewGenerations.All
+                .SelectMany(generation => generation.Lanes)
+                .Any(candidate => ReferenceEquals(candidate, lane)))
+        {
+            throw new BaselinePlanValidationException(
+                "Disposable PostgreSQL verification accepts only an exact catalog lane.");
+        }
+    }
+
     internal static async Task VerifyAsync(
         NpgsqlConnectionStringBuilder connectionStringBuilder,
         string containerName,
         Func<string, IReadOnlyList<string>, CancellationToken, Task<string>> processRunner,
         CancellationToken cancellationToken = default)
+    {
+        await VerifyCoreAsync(
+            connectionStringBuilder,
+            containerName,
+            RequiredContainerImage,
+            PostgreSqlDataPath,
+            processRunner,
+            cancellationToken);
+    }
+
+    private static async Task VerifyCoreAsync(
+        NpgsqlConnectionStringBuilder connectionStringBuilder,
+        string containerName,
+        string requiredContainerImage,
+        string postgreSqlDataPath,
+        Func<string, IReadOnlyList<string>, CancellationToken, Task<string>> processRunner,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(connectionStringBuilder);
         ArgumentException.ThrowIfNullOrWhiteSpace(containerName);
@@ -65,7 +140,9 @@ internal static class DisposablePostgreSqlContainerVerifier
             inspectionJson,
             containerName,
             hostKind,
-            connectionStringBuilder.Port);
+            connectionStringBuilder.Port,
+            requiredContainerImage,
+            postgreSqlDataPath);
     }
 
     internal static void VerifyLocalDockerEngine(string dockerEndpointJson)
@@ -94,7 +171,9 @@ internal static class DisposablePostgreSqlContainerVerifier
         string inspectionJson,
         string containerName,
         SupportedLocalHostKind hostKind,
-        int suppliedPort)
+        int suppliedPort,
+        string requiredContainerImage = RequiredContainerImage,
+        string postgreSqlDataPath = PostgreSqlDataPath)
     {
         try
         {
@@ -130,11 +209,11 @@ internal static class DisposablePostgreSqlContainerVerifier
             var configuration = ReadRequiredObject(container, "Config");
             var image = ReadRequiredString(configuration, "Image");
 
-            if (!string.Equals(image, RequiredContainerImage, StringComparison.Ordinal))
+            if (!string.Equals(image, requiredContainerImage, StringComparison.Ordinal))
             {
                 throw new BaselinePlanValidationException(
                     $"Docker container '{containerName}' uses image '{image}'; expected " +
-                    $"'{RequiredContainerImage}'.");
+                    $"'{requiredContainerImage}'.");
             }
 
             var hostConfiguration = ReadRequiredObject(container, "HostConfig");
@@ -146,7 +225,12 @@ internal static class DisposablePostgreSqlContainerVerifier
                     "is disabled. Start it with '--rm'.");
             }
 
-            VerifyDisposableStorage(container, configuration, hostConfiguration, containerName);
+            VerifyDisposableStorage(
+                container,
+                configuration,
+                hostConfiguration,
+                containerName,
+                postgreSqlDataPath);
 
             var networkSettings = ReadRequiredObject(container, "NetworkSettings");
             var ports = ReadRequiredObject(networkSettings, "Ports");
@@ -217,7 +301,8 @@ internal static class DisposablePostgreSqlContainerVerifier
         JsonElement container,
         JsonElement configuration,
         JsonElement hostConfiguration,
-        string containerName)
+        string containerName,
+        string postgreSqlDataPath)
     {
         VerifyNullOrEmptyArray(hostConfiguration, "Binds", containerName);
         VerifyNullOrEmptyArray(
@@ -244,11 +329,11 @@ internal static class DisposablePostgreSqlContainerVerifier
         var declaredVolumes = ReadRequiredObject(configuration, "Volumes");
 
         if (declaredVolumes.EnumerateObject().Count() != 1 ||
-            !declaredVolumes.TryGetProperty(PostgreSqlDataPath, out _))
+            !declaredVolumes.TryGetProperty(postgreSqlDataPath, out _))
         {
             throw new BaselinePlanValidationException(
                 $"Docker container '{containerName}' does not expose exactly the expected " +
-                $"image-declared PostgreSQL volume '{PostgreSqlDataPath}'.");
+                $"image-declared PostgreSQL volume '{postgreSqlDataPath}'.");
         }
 
         var runtimeMounts = ReadRequiredArray(container, "Mounts");
@@ -257,7 +342,7 @@ internal static class DisposablePostgreSqlContainerVerifier
         {
             throw new BaselinePlanValidationException(
                 $"Docker container '{containerName}' must have exactly one runtime mount: " +
-                $"the image-created anonymous PostgreSQL volume at '{PostgreSqlDataPath}'.");
+                $"the image-created anonymous PostgreSQL volume at '{postgreSqlDataPath}'.");
         }
 
         var runtimeMount = runtimeMounts[0];
@@ -269,7 +354,7 @@ internal static class DisposablePostgreSqlContainerVerifier
                 StringComparison.Ordinal) ||
             !string.Equals(
                 ReadRequiredString(runtimeMount, "Destination"),
-                PostgreSqlDataPath,
+                postgreSqlDataPath,
                 StringComparison.Ordinal) ||
             !string.Equals(
                 ReadRequiredString(runtimeMount, "Driver"),
@@ -279,7 +364,7 @@ internal static class DisposablePostgreSqlContainerVerifier
         {
             throw new BaselinePlanValidationException(
                 $"Docker container '{containerName}' runtime storage is not the expected " +
-                $"writable local anonymous PostgreSQL volume at '{PostgreSqlDataPath}'.");
+                $"writable local anonymous PostgreSQL volume at '{postgreSqlDataPath}'.");
         }
 
         _ = ReadRequiredString(runtimeMount, "Name");

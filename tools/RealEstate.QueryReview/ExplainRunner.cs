@@ -96,6 +96,8 @@ internal static class ExplainRunner
     ];
 
     public static async Task<RawBaselineManifest> RunAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         NpgsqlConnection connection,
         NpgsqlConnectionStringBuilder connectionStringBuilder,
         ProductionCaptureSession captureSession,
@@ -246,7 +248,9 @@ internal static class ExplainRunner
             "environment-raw.json",
             CredentialScanPassed: true,
             samples,
-            profileVerification);
+            profileVerification,
+            generation.Id,
+            lane.Id);
         var manifestPath = Path.Combine(runDirectory, "manifest.json");
         await JsonArtifactOutput.WriteAsync(manifestPath, manifest, cancellationToken);
 
@@ -255,6 +259,8 @@ internal static class ExplainRunner
     }
 
     public static async Task<BaselineVerificationResult> VerifyAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         string runDirectory,
         CancellationToken cancellationToken = default)
     {
@@ -272,12 +278,33 @@ internal static class ExplainRunner
         var manifest = await ReadRequiredJsonAsync<RawBaselineManifest>(
             Path.Combine(fullRunDirectory, "manifest.json"),
             cancellationToken);
+
+        if ((!string.IsNullOrWhiteSpace(manifest.GenerationId) &&
+             !string.Equals(manifest.GenerationId, generation.Id, StringComparison.Ordinal)) ||
+            (!string.IsNullOrWhiteSpace(manifest.LaneId) &&
+             !string.Equals(manifest.LaneId, lane.Id, StringComparison.Ordinal)) ||
+            !generation.MatchesRecordedProfile(manifest.ProfileVersion))
+        {
+            throw new BaselinePlanValidationException(
+                "Raw-run generation, lane, or profile does not match the selected definition.");
+        }
         var captureRun = await ReadRequiredJsonAsync<SqlCaptureRun>(
             ResolveArtifactPath(fullRunDirectory, manifest.CapturedCommandsPath),
             cancellationToken);
         var environment = await ReadRequiredJsonAsync<BaselineEnvironmentSnapshot>(
             ResolveArtifactPath(fullRunDirectory, manifest.EnvironmentPath),
             cancellationToken);
+
+        if ((!string.IsNullOrWhiteSpace(captureRun.GenerationId) &&
+             !string.Equals(captureRun.GenerationId, generation.Id, StringComparison.Ordinal)) ||
+            (!string.IsNullOrWhiteSpace(environment.GenerationId) &&
+             !string.Equals(environment.GenerationId, generation.Id, StringComparison.Ordinal)) ||
+            (!string.IsNullOrWhiteSpace(environment.LaneId) &&
+             !string.Equals(environment.LaneId, lane.Id, StringComparison.Ordinal)))
+        {
+            throw new BaselinePlanValidationException(
+                "Capture or environment generation/lane does not match the raw manifest.");
+        }
 
         ValidateOfflineInputs(fullRunDirectory, manifest, captureRun, environment);
 
@@ -356,6 +383,13 @@ internal static class ExplainRunner
             captureRun,
             measurements,
             cancellationToken);
+        await ExperimentalEvidenceBundle.WriteManifestAsync(
+            curatedDirectory,
+            generation,
+            lane,
+            manifest.BaselineRunId,
+            manifest.ProfileVersion,
+            cancellationToken);
 
         ScanOutputForCredentials(fullRunDirectory);
 
@@ -364,7 +398,9 @@ internal static class ExplainRunner
             fullRunDirectory,
             measurementsPath,
             curatedDirectory,
-            CredentialScanPassed: true);
+            CredentialScanPassed: true,
+            generation.Id,
+            lane.Id);
     }
 
     private static void ValidateOfflineInputs(
