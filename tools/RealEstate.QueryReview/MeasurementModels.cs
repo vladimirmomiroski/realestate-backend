@@ -40,7 +40,8 @@ internal sealed record SqlCaptureRun(
     string Database,
     string PostgreSqlVersion,
     IReadOnlyList<QueryShapeResult> ShapeResults,
-    IReadOnlyList<CapturedCommand> Commands);
+    IReadOnlyList<CapturedCommand> Commands,
+    string? GenerationId = null);
 
 internal sealed record ReplayableParameter(
     string Name,
@@ -166,7 +167,9 @@ internal sealed record BaselineEnvironmentSnapshot(
     string ProfileVersion,
     int CSharpSeed,
     double PostgreSqlSeed,
-    TimeSpan VacuumAnalyzeDuration);
+    TimeSpan VacuumAnalyzeDuration,
+    string? GenerationId = null,
+    string? LaneId = null);
 
 internal sealed record RawPlanSample(
     string CommandKey,
@@ -209,7 +212,9 @@ internal sealed record RawBaselineManifest(
     string EnvironmentPath,
     bool CredentialScanPassed,
     IReadOnlyList<RawPlanSample> Samples,
-    DeterministicProfileVerificationSnapshot? ProfileVerification = null);
+    DeterministicProfileVerificationSnapshot? ProfileVerification = null,
+    string? GenerationId = null,
+    string? LaneId = null);
 
 internal sealed record PlanBufferMetrics(
     long SharedHit,
@@ -492,12 +497,31 @@ internal sealed record PermanentEvidenceMetadata(
     CaptureIdentityEvidence CaptureIdentity,
     ArtifactIntegrityEvidence ArtifactIntegrity);
 
+internal sealed record ExperimentalEvidenceManifest(
+    int SchemaVersion,
+    string ArtifactClass,
+    string GenerationId,
+    string ProfileIdentity,
+    string LaneId,
+    string BaselineRunId,
+    int ArtifactCount,
+    IReadOnlyList<ArtifactHashEvidence> Artifacts);
+
+internal sealed record OfflineEvidenceVerificationResult(
+    string GenerationId,
+    string LaneId,
+    QueryReviewArtifactKind ArtifactKind,
+    string Directory,
+    int FileCount);
+
 internal sealed record BaselineVerificationResult(
     BaselineMeasurementsRaw Measurements,
     string RunDirectory,
     string MeasurementsPath,
     string CuratedDirectory,
-    bool CredentialScanPassed);
+    bool CredentialScanPassed,
+    string GenerationId = QueryReviewGenerations.FrozenHistoricalId,
+    string LaneId = QueryReviewGenerations.PostgreSql16LaneId);
 
 internal static class SqlCaptureOutput
 {
