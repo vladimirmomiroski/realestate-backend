@@ -155,7 +155,7 @@ internal static class QueryReviewGenerations
             FourRootDiscoveryId,
             [FourRootDiscoveryId],
             IsFrozenHistorical: false,
-            ProfileProvisioned: false,
+            ProfileProvisioned: true,
             CaptureProvisioned: false,
             PermanentExportFinalized: false,
             "docs/benchmarks/four-root-discovery-v1/evidence",

@@ -7,7 +7,9 @@ internal sealed record ProfileInvariant(string Name, long Expected, long Actual)
     public bool IsSatisfied => Expected == Actual;
 }
 
-internal sealed class ProfileVerificationResult(IReadOnlyList<ProfileInvariant> invariants)
+internal sealed class ProfileVerificationResult(
+    IReadOnlyList<ProfileInvariant> invariants,
+    string profileName = "Chapter 10F")
 {
     public IReadOnlyList<ProfileInvariant> Invariants { get; } = invariants;
 
@@ -26,7 +28,7 @@ internal sealed class ProfileVerificationResult(IReadOnlyList<ProfileInvariant> 
                 $"  {failure.Name}: expected {failure.Expected:N0}, actual {failure.Actual:N0}"));
 
         throw new ProfileInvariantException(
-            $"The Chapter 10F profile does not satisfy {failures.Length} invariant(s):" +
+            $"The {profileName} profile does not satisfy {failures.Length} invariant(s):" +
             Environment.NewLine + details);
     }
 }

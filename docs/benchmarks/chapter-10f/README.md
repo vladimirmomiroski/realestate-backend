@@ -13,7 +13,23 @@ The tool has exactly two explicit generation definitions:
 
 The PostgreSQL 16 lane requires `postgres:16-alpine` and its image-declared anonymous volume at `/var/lib/postgresql/data`. The PostgreSQL 18.4 lane requires `postgres:18.4` and its version-aware image-declared anonymous volume at `/var/lib/postgresql`; the verifier does not relax either lane into a shared storage-path assumption.
 
-At the Chapter 15D boundary, every `four-root-discovery-v1` profile, capture, run, offline verification, and permanent-export operation reports that it is not provisioned. It never falls back to historical data or destinations. Later tasks provision those capabilities in stages.
+At the Chapter 15E boundary, `four-root-discovery-v1` enables only `profile create` and `profile verify` in its PostgreSQL 16 lane. SQL capture, baseline run, offline successor verification, permanent export, and every PostgreSQL 18.4 evidence operation remain unprovisioned and fail closed. The successor never falls back to historical data or destinations.
+
+The successor profile is deterministic synthetic engineering data, not a claimed market distribution. Create it only in a fresh confirmed-disposable `postgres:16-alpine` container, using explicit generation selection:
+
+```powershell
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -c Release -- profile create `
+  --profile four-root-discovery-v1 `
+  --connection-string "<local-disposable-connection-string>" `
+  --confirm-disposable `
+  --container-name <exact-auto-remove-container-name>
+
+dotnet run --project tools/RealEstate.QueryReview/RealEstate.QueryReview.csproj -c Release -- profile verify `
+  --profile four-root-discovery-v1 `
+  --connection-string "<local-disposable-connection-string>" `
+  --confirm-disposable `
+  --container-name <exact-auto-remove-container-name>
+```
 
 Offline verification infers the generation and lane recorded by the artifact; optional `--profile` input must match. The accepted permanent evidence remains independently verifiable without PostgreSQL:
 
