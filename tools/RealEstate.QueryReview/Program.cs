@@ -120,7 +120,8 @@ internal static class Program
 
         try
         {
-            if (options.Command == QueryReviewCommand.ProfileCreate)
+            if (options.Command is QueryReviewCommand.ProfileCreate or
+                QueryReviewCommand.ProfileVerify)
             {
                 Console.WriteLine(
                     "Verifying local disposable PostgreSQL container endpoint ownership...");
@@ -202,10 +203,12 @@ internal static class Program
                 QueryReviewCommand.ProfileCreate => await CreateProfileAsync(
                     dbContext,
                     npgsqlConnection,
-                    options.ConnectionString!),
+                    options.ConnectionString!,
+                    requestedGeneration),
                 QueryReviewCommand.ProfileVerify => await VerifyProfileAsync(
                     npgsqlConnection,
-                    options.ConnectionString!),
+                    options.ConnectionString!,
+                    requestedGeneration),
                 QueryReviewCommand.CaptureSql => await CaptureSqlAsync(
                     options,
                     requestedGeneration,
@@ -455,7 +458,8 @@ internal static class Program
     private static async Task<int> CreateProfileAsync(
         RealEstateDbContext dbContext,
         NpgsqlConnection connection,
-        string connectionString)
+        string connectionString,
+        QueryReviewGenerationDefinition generation)
     {
         Console.WriteLine("Applying existing committed EF migrations...");
 
@@ -473,13 +477,15 @@ internal static class Program
         }
 
         Console.WriteLine($"Existing migration application duration: {migrationStopwatch.Elapsed}.");
-        Console.WriteLine($"Profile version: {DeterministicProfileSeeder.ProfileVersion}");
+        Console.WriteLine($"Profile version: {generation.ProfileIdentity}");
         Console.WriteLine($"C# seed recorded: {DeterministicProfileSeeder.CSharpSeed}");
         Console.WriteLine($"PostgreSQL seed command: SELECT setseed({DeterministicProfileSeeder.PostgreSqlSeed});");
         Console.WriteLine("Creating deterministic set-based profile...");
 
         var profileStopwatch = Stopwatch.StartNew();
-        var beforeNormalizationVerification = await DeterministicProfileSeeder.CreateAsync(connection);
+        var beforeNormalizationVerification = generation == QueryReviewGenerations.FourRootDiscovery
+            ? await DeterministicProfileSeeder.CreateFourRootDiscoveryAsync(connection)
+            : await DeterministicProfileSeeder.CreateAsync(connection);
         beforeNormalizationVerification.EnsureValid();
         var beforeNormalizationStrongActiveVerification =
             await ProfileInvariants.VerifyStrongActiveAsync(connection);
@@ -506,7 +512,9 @@ internal static class Program
 
         var normalization = await DeterministicProfileSeeder.NormalizePhysicalProfileAsync(
             connection);
-        var verification = await ProfileInvariants.VerifyAsync(connection);
+        var verification = generation == QueryReviewGenerations.FourRootDiscovery
+            ? await FourRootProfileInvariants.VerifyAsync(connection)
+            : await ProfileInvariants.VerifyAsync(connection);
         verification.EnsureValid();
         var strongActiveVerification =
             await ProfileInvariants.VerifyStrongActiveAsync(connection);
@@ -516,6 +524,10 @@ internal static class Program
         coordinateOwnershipVerification.EnsureValid();
         int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
             connectionString);
+        FourRootProfileIdentity? successorIdentity =
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? await FourRootProfileInvariants.ComputeIdentityAsync(connection, verification)
+                : null;
         profileStopwatch.Stop();
 
         Console.WriteLine(
@@ -541,6 +553,7 @@ internal static class Program
         PrintInvariantTotals(verification);
         PrintStrongActiveInvariantTotals(strongActiveVerification);
         PrintCoordinateOwnershipInvariantTotals(coordinateOwnershipVerification);
+        PrintFourRootIdentity(successorIdentity);
         Console.WriteLine($"Profile creation duration: {profileStopwatch.Elapsed}.");
         Console.WriteLine("Profile create result: SUCCESS. All exact invariants passed.");
         return 0;
@@ -548,11 +561,14 @@ internal static class Program
 
     private static async Task<int> VerifyProfileAsync(
         NpgsqlConnection connection,
-        string connectionString)
+        string connectionString,
+        QueryReviewGenerationDefinition generation)
     {
         Console.WriteLine("Running read-only deterministic profile verification...");
 
-        var verification = await ProfileInvariants.VerifyAsync(connection);
+        var verification = generation == QueryReviewGenerations.FourRootDiscovery
+            ? await FourRootProfileInvariants.VerifyAsync(connection)
+            : await ProfileInvariants.VerifyAsync(connection);
         verification.EnsureValid();
         var strongActiveVerification =
             await ProfileInvariants.VerifyStrongActiveAsync(connection);
@@ -562,15 +578,33 @@ internal static class Program
         coordinateOwnershipVerification.EnsureValid();
         int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
             connectionString);
+        FourRootProfileIdentity? successorIdentity =
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? await FourRootProfileInvariants.ComputeIdentityAsync(connection, verification)
+                : null;
 
         PrintInvariantTotals(verification);
         PrintStrongActiveInvariantTotals(strongActiveVerification);
         PrintCoordinateOwnershipInvariantTotals(coordinateOwnershipVerification);
+        PrintFourRootIdentity(successorIdentity);
         Console.WriteLine(
             $"Locked discovery/result identities: SUCCESS " +
             $"({lockedResultIdentityCount}/{lockedResultIdentityCount} shapes).");
         Console.WriteLine("Profile verify result: SUCCESS. All exact invariants passed.");
         return 0;
+    }
+
+    private static void PrintFourRootIdentity(FourRootProfileIdentity? identity)
+    {
+        if (identity is null)
+        {
+            return;
+        }
+
+        Console.WriteLine($"Successor invariant count: {identity.InvariantCount}.");
+        Console.WriteLine($"Successor profile SHA-256: {identity.ProfileSha256}");
+        Console.WriteLine($"Successor invariant manifest SHA-256: {identity.InvariantManifestSha256}");
+        Console.WriteLine($"Successor invariant result SHA-256: {identity.InvariantResultSha256}");
     }
 
     private static async Task<int> CaptureSqlAsync(

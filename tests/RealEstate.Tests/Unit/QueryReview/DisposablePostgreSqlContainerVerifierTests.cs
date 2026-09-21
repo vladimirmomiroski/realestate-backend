@@ -30,7 +30,7 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     }
 
     [Fact]
-    public void ReadOnlyProfileVerify_DoesNotRequireContainerName()
+    public void ProfileVerify_RequiresExplicitContainerName()
     {
         var parsed = QueryReviewOptions.TryParse(
             [
@@ -42,11 +42,11 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
                 ValidConnectionString(),
                 "--confirm-disposable"
             ],
-            out var options,
+            out _,
             out var error);
 
-        parsed.Should().BeTrue(error);
-        options!.ContainerName.Should().BeNull();
+        parsed.Should().BeFalse();
+        error.Should().Contain("--container-name");
     }
 
     [Theory]
@@ -279,21 +279,18 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     }
 
     [Fact]
-    public async Task ProfileCreate_FailsAtGenerationReadinessBeforeEndpointOrDatabase()
+    public async Task CaptureSql_FailsAtGenerationReadinessBeforeEndpointOrDatabase()
     {
         var exitCode = await RealEstate.QueryReview.Program.Main(
             [
-                "profile",
-                "create",
+                "capture-sql",
                 "--profile",
                 QueryReviewGenerations.FourRootDiscoveryId,
                 "--connection-string",
                 "Host=203.0.113.10;Port=55442;" +
                 "Database=realestate_queryreview_external;Username=postgres;" +
                 "Password=not-logged;Timeout=1",
-                "--confirm-disposable",
-                "--container-name",
-                ContainerName
+                "--confirm-disposable"
             ]);
 
         exitCode.Should().Be(9);

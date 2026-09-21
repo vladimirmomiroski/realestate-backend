@@ -94,11 +94,9 @@ public sealed class QueryReviewGenerationIsolationTests
     }
 
     [Theory]
-    [InlineData((int)QueryReviewCommand.ProfileCreate)]
-    [InlineData((int)QueryReviewCommand.ProfileVerify)]
     [InlineData((int)QueryReviewCommand.CaptureSql)]
     [InlineData((int)QueryReviewCommand.BaselineRun)]
-    public void SuccessorOnlineOperations_FailAsNotProvisioned(int commandValue)
+    public void LaterSuccessorOnlineOperations_FailAsNotProvisioned(int commandValue)
     {
         var command = (QueryReviewCommand)commandValue;
         Action act = () => QueryReviewGenerations.FourRootDiscovery
@@ -106,6 +104,19 @@ public sealed class QueryReviewGenerationIsolationTests
 
         act.Should().Throw<QueryReviewGenerationNotReadyException>()
             .WithMessage("*not provisioned yet*");
+    }
+
+    [Theory]
+    [InlineData((int)QueryReviewCommand.ProfileCreate)]
+    [InlineData((int)QueryReviewCommand.ProfileVerify)]
+    public void SuccessorProfileOperations_AreProvisioned(int commandValue)
+    {
+        var command = (QueryReviewCommand)commandValue;
+
+        Action act = () => QueryReviewGenerations.FourRootDiscovery
+            .EnsureOnlineCommandAvailable(command);
+
+        act.Should().NotThrow();
     }
 
     [Fact]
@@ -236,7 +247,7 @@ public sealed class QueryReviewGenerationIsolationTests
             [
                 "profile", "verify", "--connection-string",
                 "Host=localhost;Database=realestate_queryreview_test;Username=postgres;Password=test",
-                "--confirm-disposable"
+                "--confirm-disposable", "--container-name", "queryreview-disposable-test"
             ],
             out _,
             out string? error);

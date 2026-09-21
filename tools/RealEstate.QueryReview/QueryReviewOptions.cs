@@ -41,7 +41,8 @@ internal sealed record QueryReviewOptions(
         "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- profile verify " +
         "--profile <generation> " +
-        "--connection-string \"<connection-string>\" --confirm-disposable\n" +
+        "--connection-string \"<connection-string>\" --confirm-disposable " +
+        "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- capture-sql " +
         "--profile <generation> " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
@@ -236,7 +237,9 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
-        if ((command is QueryReviewCommand.ProfileCreate or QueryReviewCommand.BaselineRun) &&
+        if ((command is QueryReviewCommand.ProfileCreate or
+                QueryReviewCommand.ProfileVerify or
+                QueryReviewCommand.BaselineRun) &&
             string.IsNullOrWhiteSpace(containerName))
         {
             error =
@@ -246,12 +249,13 @@ internal sealed record QueryReviewOptions(
         }
 
         if (command is not QueryReviewCommand.ProfileCreate and
+            not QueryReviewCommand.ProfileVerify and
             not QueryReviewCommand.BaselineRun &&
             containerName is not null)
         {
             error =
-                $"Option '{ContainerNameOption}' is valid only for 'profile create' and " +
-                "'baseline run'.";
+                $"Option '{ContainerNameOption}' is valid only for 'profile create', " +
+                "'profile verify', and 'baseline run'.";
             return false;
         }
 

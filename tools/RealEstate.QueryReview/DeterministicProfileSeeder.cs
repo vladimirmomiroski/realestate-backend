@@ -70,6 +70,58 @@ internal static class DeterministicProfileSeeder
         return verification;
     }
 
+    public static async Task<ProfileVerificationResult> CreateFourRootDiscoveryAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await EnsurePublicationIntegritySchemaAsync(connection, transaction, cancellationToken);
+        await EnsureProfileTablesAreEmptyAsync(connection, transaction, cancellationToken);
+        await ExecuteAsync(connection, transaction, "SELECT setseed(0.1042001);", cancellationToken);
+        await ExecuteAsync(connection, transaction, SeedUsersAndAgenciesSql, cancellationToken);
+        await ExecuteAsync(connection, transaction, SeedListingsSql, cancellationToken);
+        await ExecuteAsync(connection, transaction, ApplyFourRootDiscoveryClassificationSql, cancellationToken);
+        await ExecuteAsync(connection, transaction, SeedTranslationsSql, cancellationToken);
+        await ExecuteAsync(connection, transaction, SeedFourRootDetailsSql, cancellationToken);
+        await ExecuteAsync(connection, transaction, SeedImagesSql, cancellationToken);
+        await ExecuteAsync(
+            connection,
+            transaction,
+            AttachTrustedTestOnlyConfirmedLocationsSql,
+            cancellationToken);
+        await EnsureIntendedActiveAggregatesReadyAsync(
+            connection,
+            transaction,
+            cancellationToken);
+        await ExecuteAsync(connection, transaction, ApplyIntendedStatusesSql, cancellationToken);
+        await EnsureFinalActiveAggregatesValidAsync(
+            connection,
+            transaction,
+            cancellationToken);
+
+        var verification = await FourRootProfileInvariants.VerifyAsync(
+            connection,
+            transaction,
+            cancellationToken);
+        var strongActiveVerification = await ProfileInvariants.VerifyStrongActiveAsync(
+            connection,
+            transaction,
+            cancellationToken);
+        var coordinateOwnershipVerification =
+            await ProfileInvariants.VerifyCoordinateOwnershipAsync(
+                connection,
+                transaction,
+                cancellationToken);
+
+        verification.EnsureValid();
+        strongActiveVerification.EnsureValid();
+        coordinateOwnershipVerification.EnsureValid();
+        await transaction.CommitAsync(cancellationToken);
+
+        return verification;
+    }
+
     public static async Task<ListingPhysicalNormalizationResult> NormalizePhysicalProfileAsync(
         NpgsqlConnection connection,
         CancellationToken cancellationToken = default)
@@ -193,7 +245,9 @@ internal static class DeterministicProfileSeeder
                 (SELECT count(*) FROM "ListingTranslations") +
                 (SELECT count(*) FROM "ListingImages") +
                 (SELECT count(*) FROM "ListingApartmentDetails") +
-                (SELECT count(*) FROM "ListingHouseDetails");
+                (SELECT count(*) FROM "ListingHouseDetails") +
+                (SELECT count(*) FROM "ListingCommercialDetails") +
+                (SELECT count(*) FROM "ListingLandDetails");
             """;
 
         await using var command = connection.CreateCommand();
@@ -660,6 +714,183 @@ internal static class DeterministicProfileSeeder
           AND listing."Status" IS DISTINCT FROM staged."IntendedStatus";
         """;
 
+    private const string ApplyFourRootDiscoveryClassificationSql = """
+        CREATE TEMP TABLE "QueryReviewFourRootAssignments"
+        ON COMMIT DROP
+        AS
+        WITH pair_source AS
+        (
+            SELECT pair_id,
+                   CASE
+                       WHEN pair_id <= 35000 THEN 'Active'
+                       WHEN pair_id <= 38000 THEN 'Draft'
+                       WHEN pair_id <= 41000 THEN 'Archived'
+                       WHEN pair_id <= 44000 THEN 'Reserved'
+                       WHEN pair_id <= 47000 THEN 'Sold'
+                       ELSE 'Rented'
+                   END AS status_band,
+                   CASE
+                       WHEN pair_id <= 35000 THEN pair_id
+                       WHEN pair_id <= 38000 THEN pair_id - 35000
+                       WHEN pair_id <= 41000 THEN pair_id - 38000
+                       WHEN pair_id <= 44000 THEN pair_id - 41000
+                       WHEN pair_id <= 47000 THEN pair_id - 44000
+                       ELSE pair_id - 47000
+                   END AS local_pair,
+                   CASE WHEN pair_id <= 35000 THEN 35000 ELSE 3000 END AS band_pairs,
+                   pair_id BETWEEN 1501 AND 1516 AS protected_comparable,
+                   CASE
+                       WHEN pair_id BETWEEN 1501 AND 1516 THEN 'Apartment'
+                       WHEN pair_id BETWEEN 501 AND 570
+                         OR pair_id BETWEEN 1001 AND 1060
+                         OR (pair_id BETWEEN 6481 AND 34981 AND mod(pair_id - 6481, 1500) = 0)
+                         OR (pair_id BETWEEN 5999 AND 34499 AND mod(pair_id - 5999, 1500) = 0)
+                         OR (pair_id BETWEEN 25901 AND 34901 AND mod(pair_id - 25901, 500) = 0)
+                         OR (pair_id BETWEEN 25422 AND 34922 AND mod(pair_id - 25422, 500) = 0)
+                           THEN CASE
+                               WHEN mod(pair_id - 1, 2) = 0 THEN 'Apartment'
+                               ELSE 'House'
+                           END
+                   END AS protected_property_type
+            FROM generate_series(1, 50000) AS pairs(pair_id)
+        ),
+        root_ranked AS
+        (
+            SELECT pair_source.*,
+                   count(*) FILTER (WHERE protected_property_type = 'Apartment')
+                       OVER (PARTITION BY status_band) AS protected_apartment_count,
+                   count(*) FILTER (WHERE protected_property_type = 'House')
+                       OVER (PARTITION BY status_band) AS protected_house_count,
+                   sum(CASE WHEN protected_property_type IS NOT NULL THEN 0 ELSE 1 END)
+                       OVER (
+                           PARTITION BY status_band
+                           ORDER BY
+                               mod(
+                                   (local_pair - 1) *
+                                       CASE WHEN band_pairs = 35000 THEN 10007 ELSE 1009 END,
+                                   band_pairs),
+                               pair_id) AS nonprotected_rank
+            FROM pair_source
+        ),
+        roots AS
+        (
+            SELECT root_ranked.*,
+                   CASE
+                       WHEN protected_property_type IS NOT NULL THEN protected_property_type
+                       WHEN nonprotected_rank <=
+                           (CASE WHEN status_band = 'Active' THEN 14000 ELSE 1200 END) -
+                           protected_apartment_count THEN 'Apartment'
+                       WHEN nonprotected_rank <=
+                           (CASE WHEN status_band = 'Active' THEN 14000 + 10500 ELSE 1200 + 900 END) -
+                           protected_apartment_count - protected_house_count THEN 'House'
+                       WHEN nonprotected_rank <=
+                           (CASE WHEN status_band = 'Active' THEN 14000 + 10500 + 7000 ELSE 1200 + 900 + 600 END) -
+                           protected_apartment_count - protected_house_count THEN 'Commercial'
+                       ELSE 'Land'
+                   END AS property_type
+            FROM root_ranked
+        ),
+        subtype_ranked AS
+        (
+            SELECT roots.*,
+                   row_number() OVER (
+                       PARTITION BY status_band, property_type
+                       ORDER BY mod(pair_id * 7919, 100003), pair_id) AS subtype_rank
+            FROM roots
+        ),
+        subtypes AS
+        (
+            SELECT subtype_ranked.*,
+                   CASE
+                       WHEN property_type = 'Commercial' THEN
+                           CASE
+                               WHEN subtype_rank <= CASE WHEN status_band = 'Active' THEN 2800 ELSE 240 END THEN 'Unknown'
+                               WHEN subtype_rank <= CASE WHEN status_band = 'Active' THEN 4900 ELSE 420 END THEN 'Office'
+                               WHEN subtype_rank <= CASE WHEN status_band = 'Active' THEN 6300 ELSE 540 END THEN 'Shop'
+                               ELSE 'Other'
+                           END
+                   END AS commercial_type,
+                   CASE
+                       WHEN property_type = 'Land' THEN
+                           CASE
+                               WHEN subtype_rank <= CASE WHEN status_band = 'Active' THEN 1400 ELSE 120 END THEN 'Unknown'
+                               WHEN subtype_rank <= CASE WHEN status_band = 'Active' THEN 2450 ELSE 210 END THEN 'BuildingPlot'
+                               WHEN subtype_rank <= CASE WHEN status_band = 'Active' THEN 3150 ELSE 270 END THEN 'AgriculturalLand'
+                               ELSE 'Other'
+                           END
+                   END AS land_type
+            FROM subtype_ranked
+        ),
+        listing_type_ranked AS
+        (
+            SELECT subtypes.*,
+                   count(*) FILTER (WHERE protected_comparable)
+                       OVER (
+                           PARTITION BY status_band, property_type,
+                                        coalesce(commercial_type, land_type, 'Root')) AS protected_rent_count,
+                   count(*) OVER (
+                       PARTITION BY status_band, property_type,
+                                    coalesce(commercial_type, land_type, 'Root')) AS group_pair_count,
+                   sum(CASE WHEN protected_comparable THEN 0 ELSE 1 END)
+                       OVER (
+                           PARTITION BY status_band, property_type,
+                                        coalesce(commercial_type, land_type, 'Root')
+                           ORDER BY mod(pair_id * 3571, 100019), pair_id) AS nonprotected_type_rank
+            FROM subtypes
+        ),
+        pair_assignments AS
+        (
+            SELECT pair_id,
+                   property_type,
+                   commercial_type,
+                   land_type,
+                   CASE
+                       WHEN protected_comparable THEN 'Rent'
+                       WHEN nonprotected_type_rank <= group_pair_count / 2 - protected_rent_count
+                           THEN 'Rent'
+                       ELSE 'Sale'
+                   END AS listing_type,
+                   CASE
+                       WHEN mod(pair_id - 1, 100) = 0 THEN 1
+                       WHEN mod(pair_id - 1, 100) BETWEEN 1 AND 80
+                           THEN 2 + ((mod(pair_id - 1, 100) - 1) / 10)
+                       ELSE 10 + (mod(pair_id - 1, 100) - 81)
+                   END AS agency_number
+            FROM listing_type_ranked
+        )
+        SELECT sequence,
+               property_type,
+               commercial_type,
+               land_type,
+               listing_type,
+               agency_number
+        FROM pair_assignments
+        CROSS JOIN LATERAL (
+            VALUES (pair_id * 2 - 1), (pair_id * 2)
+        ) AS listing(sequence);
+
+        CREATE UNIQUE INDEX "IX_QueryReviewFourRootAssignments_Sequence"
+            ON "QueryReviewFourRootAssignments" (sequence);
+
+        UPDATE public."Listings" AS listing
+        SET "PropertyType" = assignment.property_type,
+            "ListingType" = assignment.listing_type,
+            "AgencyId" = CASE
+                WHEN mod(assignment.sequence, 2) = 0 THEN NULL
+                ELSE ('20000000-0000-0000-0000-' ||
+                      lpad(to_hex(assignment.agency_number), 12, '0'))::uuid
+            END,
+            "CreatedByUserId" = CASE
+                WHEN mod(assignment.sequence, 2) = 0
+                    THEN '10000000-0000-0000-0000-000000000065'::uuid
+                ELSE ('10000000-0000-0000-0000-' ||
+                      lpad(to_hex(assignment.agency_number), 12, '0'))::uuid
+            END
+        FROM pg_temp."QueryReviewFourRootAssignments" AS assignment
+        WHERE listing."Id" = ('40000000-0000-0000-0000-' ||
+                              lpad(to_hex(assignment.sequence), 12, '0'))::uuid;
+        """;
+
     private const string AttachTrustedTestOnlyConfirmedLocationsSql = """
         UPDATE public."Listings" AS listing
         SET "Latitude" = CASE
@@ -817,6 +1048,48 @@ internal static class DeterministicProfileSeeder
         JOIN "Listings" AS l
           ON l."Id" = ('40000000-0000-0000-0000-' || lpad(to_hex(i), 12, '0'))::uuid
         WHERE l."PropertyType" = 'House';
+        """;
+
+    private const string SeedFourRootDetailsSql = """
+        INSERT INTO "ListingApartmentDetails"
+        (
+            "ListingId", "ApartmentType", "Floor", "TotalFloors", "HasElevator"
+        )
+        SELECT listing."Id", 'Standard', mod(assignment.sequence, 10), 10,
+               mod(assignment.sequence, 2) = 0
+        FROM pg_temp."QueryReviewFourRootAssignments" AS assignment
+        JOIN public."Listings" AS listing
+          ON listing."Id" = ('40000000-0000-0000-0000-' ||
+                             lpad(to_hex(assignment.sequence), 12, '0'))::uuid
+        WHERE assignment.property_type = 'Apartment';
+
+        INSERT INTO "ListingHouseDetails"
+        (
+            "ListingId", "HouseType", "NumberOfFloors", "YardAreaSquareMeters"
+        )
+        SELECT listing."Id", 'Detached', 1 + mod(assignment.sequence, 3),
+               100 + mod(assignment.sequence, 400)
+        FROM pg_temp."QueryReviewFourRootAssignments" AS assignment
+        JOIN public."Listings" AS listing
+          ON listing."Id" = ('40000000-0000-0000-0000-' ||
+                             lpad(to_hex(assignment.sequence), 12, '0'))::uuid
+        WHERE assignment.property_type = 'House';
+
+        INSERT INTO "ListingCommercialDetails" ("ListingId", "CommercialType")
+        SELECT listing."Id", assignment.commercial_type
+        FROM pg_temp."QueryReviewFourRootAssignments" AS assignment
+        JOIN public."Listings" AS listing
+          ON listing."Id" = ('40000000-0000-0000-0000-' ||
+                             lpad(to_hex(assignment.sequence), 12, '0'))::uuid
+        WHERE assignment.property_type = 'Commercial';
+
+        INSERT INTO "ListingLandDetails" ("ListingId", "LandType")
+        SELECT listing."Id", assignment.land_type
+        FROM pg_temp."QueryReviewFourRootAssignments" AS assignment
+        JOIN public."Listings" AS listing
+          ON listing."Id" = ('40000000-0000-0000-0000-' ||
+                             lpad(to_hex(assignment.sequence), 12, '0'))::uuid
+        WHERE assignment.property_type = 'Land';
         """;
 
     private const string SeedImagesSql = """
