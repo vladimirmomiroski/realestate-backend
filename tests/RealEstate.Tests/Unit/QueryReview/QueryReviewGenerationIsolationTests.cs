@@ -96,14 +96,13 @@ public sealed class QueryReviewGenerationIsolationTests
     [Theory]
     [InlineData((int)QueryReviewCommand.CaptureSql)]
     [InlineData((int)QueryReviewCommand.BaselineRun)]
-    public void LaterSuccessorOnlineOperations_FailAsNotProvisioned(int commandValue)
+    public void SuccessorCaptureOperations_AreProvisioned(int commandValue)
     {
         var command = (QueryReviewCommand)commandValue;
         Action act = () => QueryReviewGenerations.FourRootDiscovery
             .EnsureOnlineCommandAvailable(command);
 
-        act.Should().Throw<QueryReviewGenerationNotReadyException>()
-            .WithMessage("*not provisioned yet*");
+        act.Should().NotThrow();
     }
 
     [Theory]
@@ -136,17 +135,34 @@ public sealed class QueryReviewGenerationIsolationTests
     }
 
     [Theory]
-    [InlineData((int)QueryReviewCommand.BaselineVerify)]
-    [InlineData((int)QueryReviewCommand.BaselineExport)]
-    public void SuccessorOfflineOperations_FailAsNotProvisioned(int commandValue)
+    [InlineData((int)QueryReviewArtifactKind.RawRun)]
+    [InlineData((int)QueryReviewArtifactKind.ExperimentalBundle)]
+    public void SuccessorRawAndExperimentalVerification_IsProvisioned(int artifactKindValue)
     {
-        var command = (QueryReviewCommand)commandValue;
+        var artifactKind = (QueryReviewArtifactKind)artifactKindValue;
 
         Action act = () => QueryReviewGenerations.FourRootDiscovery
-            .EnsureOfflineCommandAvailable(command, QueryReviewArtifactKind.RawRun);
+            .EnsureOfflineCommandAvailable(QueryReviewCommand.BaselineVerify, artifactKind);
 
-        act.Should().Throw<QueryReviewGenerationNotReadyException>()
-            .WithMessage("*not*provisioned yet*");
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void SuccessorPermanentVerificationAndExport_RemainNotProvisioned()
+    {
+        Action verify = () => QueryReviewGenerations.FourRootDiscovery
+            .EnsureOfflineCommandAvailable(
+                QueryReviewCommand.BaselineVerify,
+                QueryReviewArtifactKind.PermanentEvidence);
+        Action export = () => QueryReviewGenerations.FourRootDiscovery
+            .EnsureOfflineCommandAvailable(
+                QueryReviewCommand.BaselineExport,
+                QueryReviewArtifactKind.RawRun);
+
+        verify.Should().Throw<QueryReviewGenerationNotReadyException>()
+            .WithMessage("*permanent evidence verification is not provisioned yet*");
+        export.Should().Throw<QueryReviewGenerationNotReadyException>()
+            .WithMessage("*permanent export is not finalized or provisioned yet*");
     }
 
     [Fact]

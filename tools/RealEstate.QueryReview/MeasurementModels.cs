@@ -2,6 +2,8 @@ using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NpgsqlTypes;
+using RealEstate.Application.Listings.Queries.GetListings;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.QueryReview;
 
@@ -41,7 +43,80 @@ internal sealed record SqlCaptureRun(
     string PostgreSqlVersion,
     IReadOnlyList<QueryShapeResult> ShapeResults,
     IReadOnlyList<CapturedCommand> Commands,
-    string? GenerationId = null);
+    string? GenerationId = null,
+    QueryShapeManifestSnapshot? QueryShapeManifest = null);
+
+internal sealed record QueryShapeInputIdentity(
+    string ShapeId,
+    string CanonicalInputJson,
+    string Sha256);
+
+internal sealed record QueryShapeCanonicalInput(
+    string Operation,
+    string LanguageCode,
+    string? SearchText,
+    Guid? AgencyId,
+    ListingType? ListingType,
+    PropertyType? PropertyType,
+    HeatingType? HeatingType,
+    FurnishingStatus? FurnishingStatus,
+    PropertyCondition? Condition,
+    bool? HasBasement,
+    bool? HasElevator,
+    ApartmentType? ApartmentType,
+    HouseType? HouseType,
+    CommercialType? CommercialType,
+    LandType? LandType,
+    decimal? MinYardAreaSquareMeters,
+    decimal? MaxYardAreaSquareMeters,
+    decimal? MinPrice,
+    decimal? MaxPrice,
+    string? Currency,
+    decimal? MinAreaSquareMeters,
+    decimal? MaxAreaSquareMeters,
+    decimal? MinRooms,
+    decimal? MaxRooms,
+    string? Sort,
+    ListingSortOption? SortOption,
+    string? City,
+    string? Municipality,
+    string? Neighborhood,
+    int? Page,
+    int? PageSize,
+    Guid? AgencyExistenceId,
+    Guid? ComparableSourceId,
+    int? ComparableLimit);
+
+internal sealed record QueryShapeResultIdentity(
+    string ShapeId,
+    int? TotalCount,
+    int ItemCount,
+    IReadOnlyList<Guid> OrderedIds,
+    string OrderedIdsSha256);
+
+internal sealed record QueryCommandIdentity(
+    string CommandKey,
+    string ShapeId,
+    int ShapeSequence,
+    string CommandRole,
+    string NormalizedSqlSha256,
+    string TypedParametersSha256,
+    int TypedParameterCount);
+
+internal sealed record QueryShapeManifestSnapshot(
+    int SchemaVersion,
+    string GenerationId,
+    string ProfileIdentity,
+    string LogicalRunId,
+    IReadOnlyList<string> MappedLegacyShapes,
+    IReadOnlyList<QueryShapeInputIdentity> Inputs,
+    IReadOnlyList<QueryShapeResultIdentity> Results,
+    IReadOnlyList<QueryCommandIdentity> Commands,
+    int ShapeCount,
+    int CommandCount,
+    int TypedParameterCount,
+    int PlanCount,
+    int ProfileInvariantCount);
 
 internal sealed record ReplayableParameter(
     string Name,
@@ -214,7 +289,8 @@ internal sealed record RawBaselineManifest(
     IReadOnlyList<RawPlanSample> Samples,
     DeterministicProfileVerificationSnapshot? ProfileVerification = null,
     string? GenerationId = null,
-    string? LaneId = null);
+    string? LaneId = null,
+    string? QueryShapeManifestSha256 = null);
 
 internal sealed record PlanBufferMetrics(
     long SharedHit,

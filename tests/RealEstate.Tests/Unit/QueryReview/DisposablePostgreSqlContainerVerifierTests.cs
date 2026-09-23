@@ -279,24 +279,6 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     }
 
     [Fact]
-    public async Task CaptureSql_FailsAtGenerationReadinessBeforeEndpointOrDatabase()
-    {
-        var exitCode = await RealEstate.QueryReview.Program.Main(
-            [
-                "capture-sql",
-                "--profile",
-                QueryReviewGenerations.FourRootDiscoveryId,
-                "--connection-string",
-                "Host=203.0.113.10;Port=55442;" +
-                "Database=realestate_queryreview_external;Username=postgres;" +
-                "Password=not-logged;Timeout=1",
-                "--confirm-disposable"
-            ]);
-
-        exitCode.Should().Be(9);
-    }
-
-    [Fact]
     public async Task DockerInspectionFailure_FailsClosed()
     {
         Func<Task> act = () => DisposablePostgreSqlContainerVerifier.VerifyAsync(

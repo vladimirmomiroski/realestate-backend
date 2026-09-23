@@ -11,52 +11,10 @@ internal static class ExplainRunner
 {
     private const string ExplainPrefix =
         "EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)\n";
-    private const int ExpectedCommandCount = 33;
-    private const int ExpectedParameterCount = 80;
     private const int WarmUpRunsPerCommand = 1;
     private const int MeasuredRunsPerCommand = 5;
-    private const int ExpectedProfileInvariantCount = 61;
     private const long ExpectedListingCount = 100_000;
     private const long ExpectedTranslationCount = 200_000;
-    private const int ExpectedPlanCount =
-        ExpectedCommandCount * (WarmUpRunsPerCommand + MeasuredRunsPerCommand);
-
-    private static readonly string[] ExpectedCommandKeys =
-    [
-        "N1-01-filtered-count",
-        "N1-02-page-root",
-        "N1-03-translation-split",
-        "N1-04-image-split",
-        "P1-01-filtered-count",
-        "P1-02-page-root",
-        "P1-03-translation-split",
-        "P1-04-image-split",
-        "P2-01-filtered-count",
-        "P2-02-page-root",
-        "P2-03-translation-split",
-        "P2-04-image-split",
-        "A1-01-agency-existence",
-        "A1-02-filtered-count",
-        "A1-03-page-root",
-        "A1-04-translation-split",
-        "A1-05-image-split",
-        "R1-01-filtered-count",
-        "R1-02-page-root",
-        "R1-03-translation-split",
-        "R1-04-image-split",
-        "L1-01-filtered-count",
-        "L1-02-page-root",
-        "L1-03-translation-split",
-        "L1-04-image-split",
-        "Q1-01-filtered-count",
-        "Q1-02-page-root",
-        "Q1-03-translation-split",
-        "Q1-04-image-split",
-        "C1-01-comparable-source",
-        "C1-02-comparable-ranked-root",
-        "C1-03-comparable-translation-split",
-        "C1-04-comparable-image-split"
-    ];
 
     private static readonly SequenceDefinition[] SequenceDefinitions =
     [
@@ -106,9 +64,11 @@ internal static class ExplainRunner
         string outputDirectory,
         CancellationToken cancellationToken = default)
     {
+        QueryShapeContractDefinition definition =
+            DiscoveryQueryShapeManifest.GetDefinition(generation);
         ValidateConnectionSettings(connectionStringBuilder);
-        ValidateCaptureSession(captureSession);
-        ValidateProfileVerification(profileVerification);
+        ValidateCaptureSession(definition, captureSession);
+        ValidateProfileVerification(definition, profileVerification);
 
         if (environment.PostgreSql.ActiveVacuumCount != 0)
         {
@@ -120,7 +80,7 @@ internal static class ExplainRunner
         var startedAtUtc = DateTime.UtcNow;
         var shortCommit = environment.Git.Commit[..Math.Min(8, environment.Git.Commit.Length)];
         var baselineRunId =
-            $"{DeterministicProfileSeeder.ProfileVersion}-baseline-" +
+            $"{generation.ProfileIdentity}-baseline-" +
             $"{startedAtUtc:yyyyMMddTHHmmssZ}-{shortCommit}";
         var runDirectory = Path.GetFullPath(Path.Combine(outputDirectory, baselineRunId));
 
@@ -145,7 +105,7 @@ internal static class ExplainRunner
             JsonArtifactOutput.SerializerOptions));
         var structuralHashes = new Dictionary<string, string>(StringComparer.Ordinal);
         var rowCounts = new Dictionary<string, (long Rows, long Loops)>(StringComparer.Ordinal);
-        var samples = new List<RawPlanSample>(ExpectedCommandCount * 6);
+        var samples = new List<RawPlanSample>(definition.PlanCount);
 
         for (var round = 0; round <= MeasuredRunsPerCommand; round++)
         {
@@ -220,8 +180,7 @@ internal static class ExplainRunner
             }
         }
 
-        var expectedPlanCount = ExpectedCommandCount *
-                                (WarmUpRunsPerCommand + MeasuredRunsPerCommand);
+        var expectedPlanCount = definition.PlanCount;
 
         if (samples.Count != expectedPlanCount)
         {
@@ -233,14 +192,14 @@ internal static class ExplainRunner
             baselineRunId,
             startedAtUtc,
             DateTime.UtcNow,
-            DeterministicProfileSeeder.ProfileVersion,
+            generation.ProfileIdentity,
             DeterministicProfileSeeder.CSharpSeed,
             DeterministicProfileSeeder.PostgreSqlSeed,
             environment.Git.Commit,
             environment.PostgreSql.ServerVersion,
             resultSha256,
-            ExpectedCommandCount,
-            ExpectedParameterCount,
+            definition.CommandCount,
+            definition.TypedParameterCount,
             WarmUpRunsPerCommand,
             MeasuredRunsPerCommand,
             samples.Count,
@@ -250,7 +209,11 @@ internal static class ExplainRunner
             samples,
             profileVerification,
             generation.Id,
-            lane.Id);
+            lane.Id,
+            captureSession.CaptureRun.QueryShapeManifest is null
+                ? null
+                : DiscoveryQueryShapeManifest.ComputeManifestSha256(
+                    captureSession.CaptureRun.QueryShapeManifest));
         var manifestPath = Path.Combine(runDirectory, "manifest.json");
         await JsonArtifactOutput.WriteAsync(manifestPath, manifest, cancellationToken);
 
@@ -264,6 +227,8 @@ internal static class ExplainRunner
         string runDirectory,
         CancellationToken cancellationToken = default)
     {
+        QueryShapeContractDefinition definition =
+            DiscoveryQueryShapeManifest.GetDefinition(generation);
         var fullRunDirectory = Path.GetFullPath(runDirectory)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
@@ -306,19 +271,25 @@ internal static class ExplainRunner
                 "Capture or environment generation/lane does not match the raw manifest.");
         }
 
-        ValidateOfflineInputs(fullRunDirectory, manifest, captureRun, environment);
+        ValidateOfflineInputs(
+            definition,
+            generation,
+            fullRunDirectory,
+            manifest,
+            captureRun,
+            environment);
 
-        var sampleMeasurements = new List<PlanSampleMeasurement>(ExpectedPlanCount);
+        var sampleMeasurements = new List<PlanSampleMeasurement>(definition.PlanCount);
         var expectedPlanPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (var round = 0; round <= MeasuredRunsPerCommand; round++)
         {
-            for (var commandIndex = 0; commandIndex < ExpectedCommandCount; commandIndex++)
+            for (var commandIndex = 0; commandIndex < definition.CommandCount; commandIndex++)
             {
-                var manifestIndex = (round * ExpectedCommandCount) + commandIndex;
+                var manifestIndex = (round * definition.CommandCount) + commandIndex;
                 var sample = manifest.Samples[manifestIndex];
                 var command = captureRun.Commands[commandIndex];
-                var commandKey = ExpectedCommandKeys[commandIndex];
+                var commandKey = definition.CommandKeys[commandIndex];
                 var expectedRunKind = round == 0 ? "warmup" : "measured";
                 var expectedPlanPath = CreateRelativePlanPath(commandKey, round);
 
@@ -357,18 +328,22 @@ internal static class ExplainRunner
             }
         }
 
-        ValidateRawPlanFileSet(fullRunDirectory, expectedPlanPaths);
-        var commandSummaries = BuildCommandSummaries(sampleMeasurements);
-        var sequenceSummaries = BuildSequenceSummaries(commandSummaries);
+        ValidateRawPlanFileSet(definition, fullRunDirectory, expectedPlanPaths);
+        var commandSummaries = BuildCommandSummaries(
+            definition.CommandKeys,
+            sampleMeasurements);
+        var sequenceSummaries = BuildSequenceSummaries(
+            BuildSequenceDefinitions(generation),
+            commandSummaries);
         var q1Gate = EvaluateQ1Gate(commandSummaries, sequenceSummaries);
         var verifiedAtUtc = DateTime.UtcNow;
         var measurements = new BaselineMeasurementsRaw(
             manifest.BaselineRunId,
             verifiedAtUtc,
-            ExpectedCommandCount,
+            definition.CommandCount,
             sampleMeasurements.Count,
-            ExpectedCommandCount,
-            ExpectedCommandCount * MeasuredRunsPerCommand,
+            definition.CommandCount,
+            definition.CommandCount * MeasuredRunsPerCommand,
             sampleMeasurements,
             commandSummaries,
             sequenceSummaries,
@@ -382,6 +357,7 @@ internal static class ExplainRunner
             environment,
             captureRun,
             measurements,
+            definition,
             cancellationToken);
         await ExperimentalEvidenceBundle.WriteManifestAsync(
             curatedDirectory,
@@ -404,6 +380,8 @@ internal static class ExplainRunner
     }
 
     private static void ValidateOfflineInputs(
+        QueryShapeContractDefinition definition,
+        QueryReviewGenerationDefinition generation,
         string runDirectory,
         RawBaselineManifest manifest,
         SqlCaptureRun captureRun,
@@ -418,20 +396,21 @@ internal static class ExplainRunner
                 "Raw-run directory name does not match the manifest baseline run ID.");
         }
 
-        if (manifest.CommandCount != ExpectedCommandCount ||
-            manifest.ParameterCount != ExpectedParameterCount ||
+        if (manifest.CommandCount != definition.CommandCount ||
+            manifest.ParameterCount != definition.TypedParameterCount ||
             manifest.WarmUpRunsPerCommand != WarmUpRunsPerCommand ||
             manifest.MeasuredRunsPerCommand != MeasuredRunsPerCommand ||
-            manifest.PlanCount != ExpectedPlanCount ||
-            manifest.Samples.Count != ExpectedPlanCount ||
+            manifest.PlanCount != definition.PlanCount ||
+            manifest.Samples.Count != definition.PlanCount ||
             !manifest.CredentialScanPassed)
         {
             throw new BaselinePlanValidationException(
-                $"Raw manifest does not contain exactly 33 commands, {ExpectedParameterCount} parameters, " +
+                $"Raw manifest does not contain exactly {definition.CommandCount} commands, " +
+                $"{definition.TypedParameterCount} parameters, " +
                 "one warm-up and five measured plans per command, and a passed credential scan.");
         }
 
-        ValidateProfileVerification(manifest.ProfileVerification);
+        ValidateProfileVerification(definition, manifest.ProfileVerification);
 
         if (!string.Equals(manifest.CapturedCommandsPath, "captured-commands.json", StringComparison.Ordinal) ||
             !string.Equals(manifest.EnvironmentPath, "environment-raw.json", StringComparison.Ordinal))
@@ -440,23 +419,25 @@ internal static class ExplainRunner
                 "Raw manifest references unexpected capture or environment artifact paths.");
         }
 
-        if (captureRun.Commands.Count != ExpectedCommandCount ||
-            captureRun.Commands.Sum(command => command.Parameters.Count) != ExpectedParameterCount)
+        if (captureRun.Commands.Count != definition.CommandCount ||
+            captureRun.Commands.Sum(command => command.Parameters.Count) !=
+                definition.TypedParameterCount)
         {
             throw new BaselinePlanValidationException(
-                "Captured production artifact does not contain the required 33 commands and " +
-                $"{ExpectedParameterCount} typed parameters.");
+                $"Captured production artifact does not contain the required " +
+                $"{definition.CommandCount} commands and " +
+                $"{definition.TypedParameterCount} typed parameters.");
         }
 
-        for (var index = 0; index < ExpectedCommandCount; index++)
+        for (var index = 0; index < definition.CommandCount; index++)
         {
             var actualKey = CreateCommandKey(captureRun.Commands[index]);
 
-            if (!string.Equals(actualKey, ExpectedCommandKeys[index], StringComparison.Ordinal))
+            if (!string.Equals(actualKey, definition.CommandKeys[index], StringComparison.Ordinal))
             {
                 throw new BaselinePlanValidationException(
                     $"Fixed command order drifted at position {index + 1}: expected " +
-                    $"'{ExpectedCommandKeys[index]}', actual '{actualKey}'.");
+                    $"'{definition.CommandKeys[index]}', actual '{actualKey}'.");
             }
         }
 
@@ -468,6 +449,24 @@ internal static class ExplainRunner
         {
             throw new BaselinePlanValidationException(
                 "Production semantic-result hash does not match the raw manifest.");
+        }
+
+        string queryManifestSha256 = generation == QueryReviewGenerations.FourRootDiscovery
+            ? DiscoveryQueryShapeManifest.ValidateRecordedManifest(generation, captureRun)
+            : string.Empty;
+
+        if (generation == QueryReviewGenerations.FourRootDiscovery &&
+            (!string.Equals(
+                 queryManifestSha256,
+                 manifest.QueryShapeManifestSha256,
+                 StringComparison.Ordinal) ||
+             !string.Equals(
+                 queryManifestSha256,
+                 definition.ExpectedManifestSha256,
+                 StringComparison.Ordinal)))
+        {
+            throw new BaselinePlanValidationException(
+                "Successor raw manifest query-shape identity is missing or drifted.");
         }
 
         if (!string.Equals(captureRun.ProfileVersion, manifest.ProfileVersion, StringComparison.Ordinal) ||
@@ -488,21 +487,23 @@ internal static class ExplainRunner
     }
 
     private static void ValidateProfileVerification(
+        QueryShapeContractDefinition definition,
         DeterministicProfileVerificationSnapshot? profileVerification)
     {
         if (profileVerification is null ||
             !string.Equals(
                 profileVerification.ProfileIdentity,
-                DeterministicProfileSeeder.ProfileVersion,
+                definition.ProfileIdentity,
                 StringComparison.Ordinal) ||
             profileVerification.ListingCount != ExpectedListingCount ||
             profileVerification.TranslationCount != ExpectedTranslationCount ||
-            profileVerification.InvariantTotal != ExpectedProfileInvariantCount ||
-            profileVerification.InvariantPassed != ExpectedProfileInvariantCount ||
+            profileVerification.InvariantTotal != definition.ProfileInvariantCount ||
+            profileVerification.InvariantPassed != definition.ProfileInvariantCount ||
             profileVerification.InvariantFailed != 0)
         {
             throw new BaselinePlanValidationException(
-                "Raw manifest lacks the complete successful chapter-10f-v1 61-invariant " +
+                $"Raw manifest lacks the complete successful {definition.ProfileIdentity} " +
+                $"{definition.ProfileInvariantCount}-invariant " +
                 "profile verification required for baseline verification and export.");
         }
     }
@@ -534,6 +535,7 @@ internal static class ExplainRunner
     }
 
     private static void ValidateRawPlanFileSet(
+        QueryShapeContractDefinition definition,
         string runDirectory,
         IReadOnlySet<string> expectedPlanPaths)
     {
@@ -549,11 +551,11 @@ internal static class ExplainRunner
             .Select(Path.GetFullPath)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        if (actualPlanPaths.Count != ExpectedPlanCount ||
+        if (actualPlanPaths.Count != definition.PlanCount ||
             !actualPlanPaths.SetEquals(expectedPlanPaths))
         {
             throw new BaselinePlanValidationException(
-                $"Raw plan file set must contain exactly the expected {ExpectedPlanCount} files.");
+                $"Raw plan file set must contain exactly the expected {definition.PlanCount} files.");
         }
     }
 
@@ -750,11 +752,12 @@ internal static class ExplainRunner
     }
 
     private static IReadOnlyList<CommandMeasurementSummary> BuildCommandSummaries(
+        IReadOnlyList<string> expectedCommandKeys,
         IReadOnlyList<PlanSampleMeasurement> samples)
     {
-        var summaries = new List<CommandMeasurementSummary>(ExpectedCommandCount);
+        var summaries = new List<CommandMeasurementSummary>(expectedCommandKeys.Count);
 
-        foreach (var commandKey in ExpectedCommandKeys)
+        foreach (var commandKey in expectedCommandKeys)
         {
             var commandSamples = samples
                 .Where(sample => string.Equals(sample.CommandKey, commandKey, StringComparison.Ordinal))
@@ -828,14 +831,15 @@ internal static class ExplainRunner
     }
 
     private static IReadOnlyList<SequenceMeasurementSummary> BuildSequenceSummaries(
+        IReadOnlyList<SequenceDefinition> sequenceDefinitions,
         IReadOnlyList<CommandMeasurementSummary> commands)
     {
         var commandLookup = commands.ToDictionary(
             command => command.CommandKey,
             StringComparer.Ordinal);
-        var summaries = new List<SequenceMeasurementSummary>(SequenceDefinitions.Length);
+        var summaries = new List<SequenceMeasurementSummary>(sequenceDefinitions.Count);
 
-        foreach (var definition in SequenceDefinitions)
+        foreach (var definition in sequenceDefinitions)
         {
             var sequenceCommands = definition.CommandKeys
                 .Select(commandKey => commandLookup.TryGetValue(commandKey, out var command)
@@ -941,6 +945,7 @@ internal static class ExplainRunner
         BaselineEnvironmentSnapshot environment,
         SqlCaptureRun captureRun,
         BaselineMeasurementsRaw measurements,
+        QueryShapeContractDefinition definition,
         CancellationToken cancellationToken)
     {
         var curatedDirectory = Path.Combine(runDirectory, "curated");
@@ -985,9 +990,9 @@ internal static class ExplainRunner
             curatedMeasurements,
             cancellationToken);
 
-        for (var index = 0; index < ExpectedCommandCount; index++)
+        for (var index = 0; index < definition.CommandCount; index++)
         {
-            var commandKey = ExpectedCommandKeys[index];
+            var commandKey = definition.CommandKeys[index];
             var command = captureRun.Commands[index];
             var summary = measurements.Commands[index];
             var sqlPath = Path.Combine(sqlDirectory, $"{commandKey}.sql");
@@ -1038,7 +1043,7 @@ internal static class ExplainRunner
     private static string BuildSummaryMarkdown(BaselineMeasurementsRaw measurements)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Chapter 10F temporary baseline summary");
+        builder.AppendLine("# QueryReview temporary baseline summary");
         builder.AppendLine();
         builder.AppendLine($"Run: `{measurements.BaselineRunId}`");
         builder.AppendLine();
@@ -1114,13 +1119,15 @@ internal static class ExplainRunner
         }
     }
 
-    private static void ValidateCaptureSession(ProductionCaptureSession captureSession)
+    private static void ValidateCaptureSession(
+        QueryShapeContractDefinition definition,
+        ProductionCaptureSession captureSession)
     {
-        if (captureSession.CaptureRun.Commands.Count != ExpectedCommandCount ||
-            captureSession.ReplayableCommands.Count != ExpectedCommandCount)
+        if (captureSession.CaptureRun.Commands.Count != definition.CommandCount ||
+            captureSession.ReplayableCommands.Count != definition.CommandCount)
         {
             throw new BaselinePlanValidationException(
-                $"Expected {ExpectedCommandCount} captured/replayable commands; actual " +
+                $"Expected {definition.CommandCount} captured/replayable commands; actual " +
                 $"{captureSession.CaptureRun.Commands.Count}/" +
                 $"{captureSession.ReplayableCommands.Count}.");
         }
@@ -1128,15 +1135,15 @@ internal static class ExplainRunner
         var parameterCount = captureSession.CaptureRun.Commands
             .Sum(command => command.Parameters.Count);
 
-        if (parameterCount != ExpectedParameterCount)
+        if (parameterCount != definition.TypedParameterCount)
         {
             throw new BaselinePlanValidationException(
-                $"Expected {ExpectedParameterCount} typed parameters, captured {parameterCount}.");
+                $"Expected {definition.TypedParameterCount} typed parameters, captured {parameterCount}.");
         }
 
         var commandKeys = new HashSet<string>(StringComparer.Ordinal);
 
-        for (var index = 0; index < ExpectedCommandCount; index++)
+        for (var index = 0; index < definition.CommandCount; index++)
         {
             var captured = captureSession.CaptureRun.Commands[index];
             var replayable = captureSession.ReplayableCommands[index];
@@ -1294,7 +1301,7 @@ internal static class ExplainRunner
         return Convert.ToHexStringLower(bytes);
     }
 
-    private static async Task<T> ReadRequiredJsonAsync<T>(
+    internal static async Task<T> ReadRequiredJsonAsync<T>(
         string path,
         CancellationToken cancellationToken)
     {
@@ -1626,6 +1633,33 @@ internal static class ExplainRunner
                 $"{shapeId}-03-translation-split",
                 $"{shapeId}-04-image-split"
             ]);
+    }
+
+    private static IReadOnlyList<SequenceDefinition> BuildSequenceDefinitions(
+        QueryReviewGenerationDefinition generation)
+    {
+        if (generation != QueryReviewGenerations.FourRootDiscovery)
+        {
+            return SequenceDefinitions;
+        }
+
+        var definitions = SequenceDefinitions.ToList();
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> rolesByShape =
+            QueryShapeDefinitions.GetExpectedCommandRoles(generation);
+
+        foreach (string shapeId in QueryShapeDefinitions.SuccessorDiscoveryShapeIds)
+        {
+            string[] roles = rolesByShape[shapeId].Keys.ToArray();
+            string[] pageCommandKeys = roles
+                .Select((role, index) => (Role: role, Key: $"{shapeId}-{index + 1:D2}-{role}"))
+                .Where(item => item.Role is CommandRoles.PageRoot or
+                    CommandRoles.TranslationSplit or CommandRoles.ImageSplit)
+                .Select(item => item.Key)
+                .ToArray();
+            definitions.Add(new SequenceDefinition($"{shapeId}-page", pageCommandKeys));
+        }
+
+        return definitions;
     }
 
     private sealed record ExplainExecution(

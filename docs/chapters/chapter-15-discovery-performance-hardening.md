@@ -220,10 +220,12 @@ Legacy shape identities `N1`, `P1`, `P2`, `A1`, `R1`, `L1`, `Q1`, and `C1` retai
 | `land-agricultural-location` | `landType=AgriculturalLand` plus locked city/municipality, newest, page 1 x 20 | medium selectivity/effective translation |
 | `land-other-deep-page` | `landType=Other`, newest, page 25 x 20 | rare/deep paging |
 | `agency-commercial-shop-first-page` | locked `agencyId` plus `commercialType=Shop`, newest, page 1 x 20 | rich general-search agency composition |
-| `agency-land-agricultural-deep-page` | locked `agencyId` plus `landType=AgriculturalLand`, newest, page 10 x 20 | agency/subtype deep page |
+| `agency-land-agricultural-deep-page` | locked `agencyId` plus `landType=AgriculturalLand`, newest, page 4 x 20 | agency/subtype deep page |
 | `cross-family-subtypes-empty` | `commercialType=Office` plus `landType=BuildingPlot`, page 1 x 20 | valid empty AND composition from mutually exclusive explicit root predicates |
 
 Every nonempty shape locks count, root page, translation hydration, and image hydration roles. The empty shape locks the exact roles the real repository emits and must include count and root-page execution. These 13 new shapes plus the eight mapped legacy shapes are the complete successor inventory.
+
+**Task 15F amendment:** the accepted 15E profile yields 71 rows for the locked agency plus AgriculturalLand filter. The originally planned page 10 was empty; page 4 is the deepest populated page at page size 20 and returns 11 rows. The profile and shape ID are unchanged. This bounded correction restores the required count, root-page, translation-hydration, and image-hydration topology for every nonempty shape; `cross-family-subtypes-empty` remains the sole intentionally empty successor shape.
 
 Historical anchors remain immutable: 69 files; measurements SHA-256 `d6dac6f58245f7ecd65b626ca1c3b85df2a2d39808a350e8b1536b82779f5a17`; measurements Git blob `051b93a9b19dbdbcac6a3411afa4636b3b191ad2`; the accepted aggregate result hash; and Chapter 14's exact/delta proof.
 

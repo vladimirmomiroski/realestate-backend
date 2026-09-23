@@ -105,10 +105,21 @@ internal sealed record QueryReviewGenerationDefinition(
             }
         }
 
-        if (command == QueryReviewCommand.BaselineVerify && !IsFrozenHistorical)
+        if (command == QueryReviewCommand.BaselineVerify &&
+            !IsFrozenHistorical &&
+            !CaptureProvisioned)
         {
             throw new QueryReviewGenerationNotReadyException(
                 $"Generation '{Id}' offline verification is not provisioned yet.");
+        }
+
+        if (command == QueryReviewCommand.BaselineVerify &&
+            !IsFrozenHistorical &&
+            artifactKind == QueryReviewArtifactKind.PermanentEvidence &&
+            !PermanentExportFinalized)
+        {
+            throw new QueryReviewGenerationNotReadyException(
+                $"Generation '{Id}' permanent evidence verification is not provisioned yet.");
         }
 
         if (command == QueryReviewCommand.BaselineVerify &&
@@ -156,7 +167,7 @@ internal static class QueryReviewGenerations
             [FourRootDiscoveryId],
             IsFrozenHistorical: false,
             ProfileProvisioned: true,
-            CaptureProvisioned: false,
+            CaptureProvisioned: true,
             PermanentExportFinalized: false,
             "docs/benchmarks/four-root-discovery-v1/evidence",
             [
