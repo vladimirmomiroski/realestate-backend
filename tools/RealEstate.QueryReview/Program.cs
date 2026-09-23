@@ -523,7 +523,8 @@ internal static class Program
             await ProfileInvariants.VerifyCoordinateOwnershipAsync(connection);
         coordinateOwnershipVerification.EnsureValid();
         int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
-            connectionString);
+            connectionString,
+            generation);
         FourRootProfileIdentity? successorIdentity =
             generation == QueryReviewGenerations.FourRootDiscovery
                 ? await FourRootProfileInvariants.ComputeIdentityAsync(connection, verification)
@@ -577,7 +578,8 @@ internal static class Program
             await ProfileInvariants.VerifyCoordinateOwnershipAsync(connection);
         coordinateOwnershipVerification.EnsureValid();
         int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
-            connectionString);
+            connectionString,
+            generation);
         FourRootProfileIdentity? successorIdentity =
             generation == QueryReviewGenerations.FourRootDiscovery
                 ? await FourRootProfileInvariants.ComputeIdentityAsync(connection, verification)
@@ -616,7 +618,9 @@ internal static class Program
     {
         Console.WriteLine("Verifying the deterministic profile before production SQL capture...");
 
-        var verification = await ProfileInvariants.VerifyAsync(verificationConnection);
+        var verification = await VerifyProfileForGenerationAsync(
+            verificationConnection,
+            generation);
         verification.EnsureValid();
 
         Console.WriteLine(
@@ -626,6 +630,7 @@ internal static class Program
         QueryShapeDefinitions.EnsureOutputIsOutsideRepository(options.OutputDirectory);
 
         var captureSession = await CaptureProductionCommandsAsync(
+            generation,
             options.ConnectionString!,
             database,
             postgreSqlVersion);
@@ -633,6 +638,7 @@ internal static class Program
         {
             GenerationId = generation.Id
         };
+        captureRun = DiscoveryQueryShapeManifest.BindAndValidate(generation, captureRun);
 
         var outputPath = await SqlCaptureOutput.WriteAsync(
             captureRun,
@@ -653,7 +659,9 @@ internal static class Program
     {
         Console.WriteLine("Verifying the deterministic profile before raw baseline capture...");
 
-        var verification = await ProfileInvariants.VerifyAsync(measurementConnection);
+        var verification = await VerifyProfileForGenerationAsync(
+            measurementConnection,
+            generation);
         verification.EnsureValid();
 
         Console.WriteLine(
@@ -674,7 +682,8 @@ internal static class Program
             vacuumAnalyzeDuration) with
         {
             GenerationId = generation.Id,
-            LaneId = lane.Id
+            LaneId = lane.Id,
+            ProfileVersion = generation.ProfileIdentity
         };
 
         if (environment.PostgreSql.ActiveVacuumCount != 0)
@@ -685,15 +694,18 @@ internal static class Program
 
         Console.WriteLine("Invoking committed repositories for exact production command capture...");
         var captureSession = await CaptureProductionCommandsAsync(
+            generation,
             options.ConnectionString!,
             database,
             postgreSqlVersion);
         captureSession = captureSession with
         {
-            CaptureRun = captureSession.CaptureRun with
-            {
-                GenerationId = generation.Id
-            }
+            CaptureRun = DiscoveryQueryShapeManifest.BindAndValidate(
+                generation,
+                captureSession.CaptureRun with
+                {
+                    GenerationId = generation.Id
+                })
         };
         var parameterCount = captureSession.CaptureRun.Commands
             .Sum(command => command.Parameters.Count);
@@ -712,7 +724,7 @@ internal static class Program
             connectionStringBuilder,
             captureSession,
             environment,
-            CreateProfileVerificationSnapshot(verification),
+            CreateProfileVerificationSnapshot(verification, generation),
             options.OutputDirectory);
         var runDirectory = Path.Combine(options.OutputDirectory, manifest.BaselineRunId);
 
@@ -728,7 +740,8 @@ internal static class Program
     }
 
     private static DeterministicProfileVerificationSnapshot CreateProfileVerificationSnapshot(
-        ProfileVerificationResult verification)
+        ProfileVerificationResult verification,
+        QueryReviewGenerationDefinition generation)
     {
         var passed = verification.Invariants.Count(invariant => invariant.IsSatisfied);
         var failed = verification.Invariants.Count - passed;
@@ -738,7 +751,7 @@ internal static class Program
             string.Equals(invariant.Name, "translations.total", StringComparison.Ordinal));
 
         return new DeterministicProfileVerificationSnapshot(
-            DeterministicProfileSeeder.ProfileVersion,
+            generation.ProfileIdentity,
             listingCount.Actual,
             translationCount.Actual,
             verification.Invariants.Count,
@@ -747,12 +760,15 @@ internal static class Program
     }
 
     private static async Task<ProductionCaptureSession> CaptureProductionCommandsAsync(
+        QueryReviewGenerationDefinition generation,
         string connectionString,
         string database,
         string postgreSqlVersion)
     {
         var interceptor = new ProductionCommandCaptureInterceptor(
-            QueryShapeDefinitions.LogicalRunId);
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? QueryShapeDefinitions.FourRootLogicalRunId
+                : QueryShapeDefinitions.LogicalRunId);
 
         var captureOptions = new DbContextOptionsBuilder<RealEstateDbContext>()
             .UseNpgsql(connectionString)
@@ -762,12 +778,12 @@ internal static class Program
         await using var captureDbContext = new RealEstateDbContext(captureOptions);
 
         IReadOnlyList<QueryShapeResult> shapeResults =
-            await QueryShapeDefinitions.ExecuteAsync(captureDbContext, interceptor);
+            await QueryShapeDefinitions.ExecuteAsync(generation, captureDbContext, interceptor);
 
         var commands = interceptor.Commands;
         var captureRun = new SqlCaptureRun(
-            QueryShapeDefinitions.LogicalRunId,
-            DeterministicProfileSeeder.ProfileVersion,
+            interceptor.LogicalRunId,
+            generation.ProfileIdentity,
             DeterministicProfileSeeder.CSharpSeed,
             DeterministicProfileSeeder.PostgreSqlSeed,
             database,
@@ -801,6 +817,15 @@ internal static class Program
         Console.WriteLine(
             $"Typed parameters: {parameters.Length:N0} captured with CLR, DbType, Npgsql, " +
             "nullability, and exact-value metadata.");
+        if (captureRun.QueryShapeManifest is not null)
+        {
+            Console.WriteLine(
+                $"Query-shape manifest SHA-256: " +
+                $"{DiscoveryQueryShapeManifest.ComputeManifestSha256(captureRun.QueryShapeManifest)}");
+            Console.WriteLine(
+                $"Query result/order SHA-256: " +
+                $"{DiscoveryQueryShapeManifest.ComputeResultIdentitySha256(captureRun.ShapeResults)}");
+        }
         Console.WriteLine($"Complete SQL capture: {outputPath}");
         Console.WriteLine("Capture SQL result: SUCCESS. All command and result validations passed.");
     }
@@ -844,7 +869,8 @@ internal static class Program
     }
 
     private static async Task<int> VerifyLockedResultIdentitiesAsync(
-        string connectionString)
+        string connectionString,
+        QueryReviewGenerationDefinition generation)
     {
         var options = new DbContextOptionsBuilder<RealEstateDbContext>()
             .UseNpgsql(connectionString)
@@ -852,9 +878,18 @@ internal static class Program
 
         await using var dbContext = new RealEstateDbContext(options);
         IReadOnlyList<QueryShapeResult> results =
-            await QueryShapeDefinitions.VerifyLockedResultIdentitiesAsync(dbContext);
+            await QueryShapeDefinitions.VerifyLockedResultIdentitiesAsync(generation, dbContext);
 
         return results.Count;
+    }
+
+    private static Task<ProfileVerificationResult> VerifyProfileForGenerationAsync(
+        NpgsqlConnection connection,
+        QueryReviewGenerationDefinition generation)
+    {
+        return generation == QueryReviewGenerations.FourRootDiscovery
+            ? FourRootProfileInvariants.VerifyAsync(connection)
+            : ProfileInvariants.VerifyAsync(connection);
     }
 
     private static async Task<DatabaseIdentity> ReadDatabaseIdentityAsync(
