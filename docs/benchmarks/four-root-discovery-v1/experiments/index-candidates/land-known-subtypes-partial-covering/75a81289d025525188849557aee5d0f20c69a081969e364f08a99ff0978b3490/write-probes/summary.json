@@ -1,0 +1,429 @@
+{
+    "SchemaVersion":  2,
+    "BehaviorId":  "land-known-subtypes-partial-covering",
+    "MedianRule":  "All timing, buffer, temp, and WAL medians use only the five measured samples; warm-ups are excluded.",
+    "Results":  [
+                    {
+                        "Probe":  "insert",
+                        "WarmupsPerPhase":  1,
+                        "MeasuredSamplesPerPhase":  5,
+                        "MedianRule":  "Each metric is the median of the five measured samples only; warm-up excluded.",
+                        "MetricMedians":  {
+                                              "PlanningMilliseconds":  {
+                                                                           "UnindexedMedian":  0.016,
+                                                                           "CandidateMedian":  0.016,
+                                                                           "AbsoluteDelta":  0,
+                                                                           "PercentDelta":  0
+                                                                       },
+                                              "ExecutionMilliseconds":  {
+                                                                            "UnindexedMedian":  1.816,
+                                                                            "CandidateMedian":  1.785,
+                                                                            "AbsoluteDelta":  -0.031000000000000139,
+                                                                            "PercentDelta":  -1.7070484581497873
+                                                                        },
+                                              "SharedHitBlocks":  {
+                                                                      "UnindexedMedian":  7,
+                                                                      "CandidateMedian":  9,
+                                                                      "AbsoluteDelta":  2,
+                                                                      "PercentDelta":  28.571428571428573
+                                                                  },
+                                              "SharedReadBlocks":  {
+                                                                       "UnindexedMedian":  0,
+                                                                       "CandidateMedian":  0,
+                                                                       "AbsoluteDelta":  0,
+                                                                       "PercentDelta":  0
+                                                                   },
+                                              "SharedDirtiedBlocks":  {
+                                                                          "UnindexedMedian":  0,
+                                                                          "CandidateMedian":  0,
+                                                                          "AbsoluteDelta":  0,
+                                                                          "PercentDelta":  0
+                                                                      },
+                                              "SharedWrittenBlocks":  {
+                                                                          "UnindexedMedian":  0,
+                                                                          "CandidateMedian":  0,
+                                                                          "AbsoluteDelta":  0,
+                                                                          "PercentDelta":  0
+                                                                      },
+                                              "TempReadBlocks":  {
+                                                                     "UnindexedMedian":  0,
+                                                                     "CandidateMedian":  0,
+                                                                     "AbsoluteDelta":  0,
+                                                                     "PercentDelta":  0
+                                                                 },
+                                              "TempWrittenBlocks":  {
+                                                                        "UnindexedMedian":  0,
+                                                                        "CandidateMedian":  0,
+                                                                        "AbsoluteDelta":  0,
+                                                                        "PercentDelta":  0
+                                                                    },
+                                              "WalRecords":  {
+                                                                 "UnindexedMedian":  2,
+                                                                 "CandidateMedian":  3,
+                                                                 "AbsoluteDelta":  1,
+                                                                 "PercentDelta":  50
+                                                             },
+                                              "WalFullPageImages":  {
+                                                                        "UnindexedMedian":  0,
+                                                                        "CandidateMedian":  0,
+                                                                        "AbsoluteDelta":  0,
+                                                                        "PercentDelta":  0
+                                                                    },
+                                              "WalBytes":  {
+                                                               "UnindexedMedian":  156,
+                                                               "CandidateMedian":  244,
+                                                               "AbsoluteDelta":  88,
+                                                               "PercentDelta":  56.410256410256409
+                                                           }
+                                          },
+                        "GateFailed":  false,
+                        "AllAffectedRowsExactlyOne":  true,
+                        "AllTransactionsRolledBack":  true,
+                        "UnindexedSamples":  [
+                                                 {
+                                                     "PlanningMilliseconds":  0.03,
+                                                     "ExecutionMilliseconds":  1.986,
+                                                     "SharedHitBlocks":  7,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  2,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  156
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.017,
+                                                     "ExecutionMilliseconds":  1.773,
+                                                     "SharedHitBlocks":  7,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  2,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  156
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.015,
+                                                     "ExecutionMilliseconds":  1.902,
+                                                     "SharedHitBlocks":  7,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  2,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  156
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.016,
+                                                     "ExecutionMilliseconds":  1.579,
+                                                     "SharedHitBlocks":  7,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  2,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  156
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.016,
+                                                     "ExecutionMilliseconds":  1.816,
+                                                     "SharedHitBlocks":  7,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  2,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  156
+                                                 }
+                                             ],
+                        "CandidateSamples":  [
+                                                 {
+                                                     "PlanningMilliseconds":  0.016,
+                                                     "ExecutionMilliseconds":  1.673,
+                                                     "SharedHitBlocks":  9,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  244
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.014,
+                                                     "ExecutionMilliseconds":  1.785,
+                                                     "SharedHitBlocks":  9,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  244
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.018,
+                                                     "ExecutionMilliseconds":  1.89,
+                                                     "SharedHitBlocks":  9,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  244
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.016,
+                                                     "ExecutionMilliseconds":  1.875,
+                                                     "SharedHitBlocks":  9,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  244
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.015,
+                                                     "ExecutionMilliseconds":  1.628,
+                                                     "SharedHitBlocks":  9,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  244
+                                                 }
+                                             ]
+                    },
+                    {
+                        "Probe":  "update",
+                        "WarmupsPerPhase":  1,
+                        "MeasuredSamplesPerPhase":  5,
+                        "MedianRule":  "Each metric is the median of the five measured samples only; warm-up excluded.",
+                        "MetricMedians":  {
+                                              "PlanningMilliseconds":  {
+                                                                           "UnindexedMedian":  0.103,
+                                                                           "CandidateMedian":  0.257,
+                                                                           "AbsoluteDelta":  0.15400000000000003,
+                                                                           "PercentDelta":  149.51456310679615
+                                                                       },
+                                              "ExecutionMilliseconds":  {
+                                                                            "UnindexedMedian":  0.302,
+                                                                            "CandidateMedian":  0.321,
+                                                                            "AbsoluteDelta":  0.019000000000000017,
+                                                                            "PercentDelta":  6.2913907284768271
+                                                                        },
+                                              "SharedHitBlocks":  {
+                                                                      "UnindexedMedian":  16,
+                                                                      "CandidateMedian":  20,
+                                                                      "AbsoluteDelta":  4,
+                                                                      "PercentDelta":  25
+                                                                  },
+                                              "SharedReadBlocks":  {
+                                                                       "UnindexedMedian":  0,
+                                                                       "CandidateMedian":  0,
+                                                                       "AbsoluteDelta":  0,
+                                                                       "PercentDelta":  0
+                                                                   },
+                                              "SharedDirtiedBlocks":  {
+                                                                          "UnindexedMedian":  0,
+                                                                          "CandidateMedian":  0,
+                                                                          "AbsoluteDelta":  0,
+                                                                          "PercentDelta":  0
+                                                                      },
+                                              "SharedWrittenBlocks":  {
+                                                                          "UnindexedMedian":  0,
+                                                                          "CandidateMedian":  0,
+                                                                          "AbsoluteDelta":  0,
+                                                                          "PercentDelta":  0
+                                                                      },
+                                              "TempReadBlocks":  {
+                                                                     "UnindexedMedian":  0,
+                                                                     "CandidateMedian":  0,
+                                                                     "AbsoluteDelta":  0,
+                                                                     "PercentDelta":  0
+                                                                 },
+                                              "TempWrittenBlocks":  {
+                                                                        "UnindexedMedian":  0,
+                                                                        "CandidateMedian":  0,
+                                                                        "AbsoluteDelta":  0,
+                                                                        "PercentDelta":  0
+                                                                    },
+                                              "WalRecords":  {
+                                                                 "UnindexedMedian":  3,
+                                                                 "CandidateMedian":  4,
+                                                                 "AbsoluteDelta":  1,
+                                                                 "PercentDelta":  33.333333333333336
+                                                             },
+                                              "WalFullPageImages":  {
+                                                                        "UnindexedMedian":  0,
+                                                                        "CandidateMedian":  0,
+                                                                        "AbsoluteDelta":  0,
+                                                                        "PercentDelta":  0
+                                                                    },
+                                              "WalBytes":  {
+                                                               "UnindexedMedian":  233,
+                                                               "CandidateMedian":  329,
+                                                               "AbsoluteDelta":  96,
+                                                               "PercentDelta":  41.201716738197426
+                                                           }
+                                          },
+                        "GateFailed":  false,
+                        "AllAffectedRowsExactlyOne":  true,
+                        "AllTransactionsRolledBack":  true,
+                        "UnindexedSamples":  [
+                                                 {
+                                                     "PlanningMilliseconds":  0.113,
+                                                     "ExecutionMilliseconds":  0.3,
+                                                     "SharedHitBlocks":  16,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  233
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.094,
+                                                     "ExecutionMilliseconds":  0.321,
+                                                     "SharedHitBlocks":  16,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  233
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.103,
+                                                     "ExecutionMilliseconds":  0.326,
+                                                     "SharedHitBlocks":  16,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  233
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.097,
+                                                     "ExecutionMilliseconds":  0.302,
+                                                     "SharedHitBlocks":  16,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  233
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.121,
+                                                     "ExecutionMilliseconds":  0.291,
+                                                     "SharedHitBlocks":  16,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  3,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  233
+                                                 }
+                                             ],
+                        "CandidateSamples":  [
+                                                 {
+                                                     "PlanningMilliseconds":  0.265,
+                                                     "ExecutionMilliseconds":  0.321,
+                                                     "SharedHitBlocks":  20,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  4,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  329
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.194,
+                                                     "ExecutionMilliseconds":  0.419,
+                                                     "SharedHitBlocks":  20,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  4,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  329
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.264,
+                                                     "ExecutionMilliseconds":  0.304,
+                                                     "SharedHitBlocks":  20,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  4,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  329
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.257,
+                                                     "ExecutionMilliseconds":  0.308,
+                                                     "SharedHitBlocks":  20,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  4,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  329
+                                                 },
+                                                 {
+                                                     "PlanningMilliseconds":  0.227,
+                                                     "ExecutionMilliseconds":  0.366,
+                                                     "SharedHitBlocks":  20,
+                                                     "SharedReadBlocks":  0,
+                                                     "SharedDirtiedBlocks":  0,
+                                                     "SharedWrittenBlocks":  0,
+                                                     "TempReadBlocks":  0,
+                                                     "TempWrittenBlocks":  0,
+                                                     "WalRecords":  4,
+                                                     "WalFullPageImages":  0,
+                                                     "WalBytes":  329
+                                                 }
+                                             ]
+                    }
+                ]
+}

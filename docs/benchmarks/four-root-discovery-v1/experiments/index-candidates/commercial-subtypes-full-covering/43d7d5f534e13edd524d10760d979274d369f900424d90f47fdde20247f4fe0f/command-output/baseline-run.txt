@@ -1,0 +1,23 @@
+RealEstate QueryReview tool
+Disposable-database confirmation: accepted.
+Future output directory: C:\Users\User\AppData\Local\Temp\realestate-queryreview
+Opening the requested database through RealEstateDbContext and Npgsql...
+Connected database identity verified:
+  Database: realestate_queryreview_15h_corr_cf
+  PostgreSQL version: 16.14
+Verifying the deterministic profile before raw baseline capture...
+Profile verification: SUCCESS (179/179 invariants).
+Running one VACUUM (ANALYZE) before the measurement block...
+VACUUM (ANALYZE) duration: 00:00:01.4777519.
+Capturing Git, runtime, Docker, PostgreSQL, relation, and index metadata...
+Invoking committed repositories for exact production command capture...
+Production capture validated: 83 commands, 190 typed parameters.
+Replaying one warm-up and five measured rounds with EXPLAIN (ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)...
+Raw baseline run ID: four-root-discovery-v1-baseline-20260925T204352Z-5443f863
+Raw JSON plans: 498
+Structural plan and row-count validation: SUCCESS.
+Credential scan: SUCCESS.
+Raw output directory: C:\Users\User\AppData\Local\Temp\realestate-queryreview\four-root-discovery-v1-baseline-20260925T204352Z-5443f863
+Baseline run result: SUCCESS. No medians, sequence aggregation, Q1 gate, permanent evidence export, or index operation occurred.
+
+When provisioned, baseline run replays verified SELECT commands only for raw EXPLAIN ANALYZE capture; it never performs permanent evidence export, migration, or index operations.

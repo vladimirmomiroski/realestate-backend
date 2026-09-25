@@ -1,0 +1,101 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "land-known-subtypes-partial-covering",
+    "Gates":  {
+                  "Gate1Correctness":  true,
+                  "Gate2StableIntendedIndexUse":  true,
+                  "Gate3QualifyingTrio":  false,
+                  "Gate4ProtectedRegressions":  false,
+                  "Gate5PlansAndAnomalies":  true,
+                  "Gate6WriteAndStorage":  true,
+                  "CandidatePassedAllGates":  false
+              },
+    "QualifyingTrio":  [
+                           {
+                               "CommandKey":  "land-building-plot-first-page-01-filtered-count",
+                               "UnindexedSharedBlocks":  3459,
+                               "CandidateSharedBlocks":  3409,
+                               "SharedBlockReductionPercent":  1.4455044810638913,
+                               "UnindexedExecutionMilliseconds":  23.473,
+                               "CandidateExecutionMilliseconds":  21.122,
+                               "ExecutionTimeReductionPercent":  10.015762791292119,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "land-building-plot-first-page-02-page-root",
+                               "UnindexedSharedBlocks":  3683,
+                               "CandidateSharedBlocks":  3575,
+                               "SharedBlockReductionPercent":  2.9323920716806953,
+                               "UnindexedExecutionMilliseconds":  37.377,
+                               "CandidateExecutionMilliseconds":  38.643,
+                               "ExecutionTimeReductionPercent":  -3.3871097198812055,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "land-other-deep-page-02-page-root",
+                               "UnindexedSharedBlocks":  3579,
+                               "CandidateSharedBlocks":  3516,
+                               "SharedBlockReductionPercent":  1.760268231349539,
+                               "UnindexedExecutionMilliseconds":  31.809,
+                               "CandidateExecutionMilliseconds":  21.198,
+                               "ExecutionTimeReductionPercent":  33.358483448080733,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  true
+                           }
+                       ],
+    "ProtectedBlockFailures":  [
+                                   {
+                                       "CommandKey":  "L1-01-filtered-count",
+                                       "UnindexedBlocks":  1428,
+                                       "CandidateBlocks":  4753,
+                                       "RegressionPercent":  232.84313725490196
+                                   },
+                                   {
+                                       "CommandKey":  "L1-02-page-root",
+                                       "UnindexedBlocks":  1608,
+                                       "CandidateBlocks":  4933,
+                                       "RegressionPercent":  206.77860696517413
+                                   },
+                                   {
+                                       "CommandKey":  "Q1-01-filtered-count",
+                                       "UnindexedBlocks":  1189,
+                                       "CandidateBlocks":  4455,
+                                       "RegressionPercent":  274.6846089150547
+                                   },
+                                   {
+                                       "CommandKey":  "Q1-02-page-root",
+                                       "UnindexedBlocks":  1369,
+                                       "CandidateBlocks":  4635,
+                                       "RegressionPercent":  238.56829802775749
+                                   }
+                               ],
+    "ProtectedSequenceFailures":  [
+                                      {
+                                          "SequenceId":  "L1-first-page",
+                                          "UnindexedMilliseconds":  13.701,
+                                          "CandidateMilliseconds":  50.193,
+                                          "AbsoluteRegressionMilliseconds":  36.492,
+                                          "RegressionPercent":  266.3455222246551
+                                      },
+                                      {
+                                          "SequenceId":  "Q1-first-page",
+                                          "UnindexedMilliseconds":  11.194,
+                                          "CandidateMilliseconds":  50.37,
+                                          "AbsoluteRegressionMilliseconds":  39.175999999999995,
+                                          "RegressionPercent":  349.97319992853306
+                                      }
+                                  ],
+    "AnomalyCount":  0,
+    "SpillCommandCount":  0,
+    "TempAccessCommandCount":  0,
+    "CandidateBytes":  327680,
+    "DependentHeapBytes":  581632
+}
