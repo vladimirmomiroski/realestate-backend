@@ -1,0 +1,687 @@
+{
+  "SchemaVersion": 1,
+  "ArtifactClass": "queryreview-experimental",
+  "GenerationId": "four-root-discovery-v1",
+  "ProfileIdentity": "four-root-discovery-v1",
+  "LaneId": "postgresql-16",
+  "BaselineRunId": "four-root-discovery-v1-baseline-20260925T204857Z-5443f863",
+  "ArtifactCount": 169,
+  "Artifacts": [
+    {
+      "Path": "baseline-measurements.json",
+      "Sha256": "6816a58aa8cff4f28bbe6511f45f189ed27b84c3b21af692e4a77a5159db3691"
+    },
+    {
+      "Path": "baseline-plans/A1-01-agency-existence.json",
+      "Sha256": "cc6cf01270eab56ef1901e363063245aca3ee256ca7aca734211b51e8be3f0ba"
+    },
+    {
+      "Path": "baseline-plans/A1-02-filtered-count.json",
+      "Sha256": "ec48b964d279fa0fa549c16d67bded1cd6d52db26679edff6d107978ab464378"
+    },
+    {
+      "Path": "baseline-plans/A1-03-page-root.json",
+      "Sha256": "b7e2ecfe772d0ff5dcd36d1098ed47f0f5a93097395485cd28c1ffaada36847d"
+    },
+    {
+      "Path": "baseline-plans/A1-04-translation-split.json",
+      "Sha256": "f5c052ca5b5ea84529f0b8971f75f3697b488dbbd9bf50875f1603d700a395fb"
+    },
+    {
+      "Path": "baseline-plans/A1-05-image-split.json",
+      "Sha256": "af6c970dfcc5eb299e400ace1b8e0168ad2b5afa06a575720f8b1d6de7ba1767"
+    },
+    {
+      "Path": "baseline-plans/C1-01-comparable-source.json",
+      "Sha256": "a8cb74a66fdde75929306b62948a279f74a24dfe46fbc8c78930447f2412be24"
+    },
+    {
+      "Path": "baseline-plans/C1-02-comparable-ranked-root.json",
+      "Sha256": "b9d863e1e85f47323748ff6b6ba31db4a7fb558c8b251be69da7bbf2a25ce291"
+    },
+    {
+      "Path": "baseline-plans/C1-03-comparable-translation-split.json",
+      "Sha256": "89ad06f6ec1d67e662cb553776b3c84892343ed47aaece69b49fedede5952840"
+    },
+    {
+      "Path": "baseline-plans/C1-04-comparable-image-split.json",
+      "Sha256": "0782150c78e483a83671c1a89cdd050fa811bbe8a388c112299cb7aa7edb2a57"
+    },
+    {
+      "Path": "baseline-plans/L1-01-filtered-count.json",
+      "Sha256": "a49d844e6c49d2097af039ca34a7036125fa87176cb80139462b98b8ab242677"
+    },
+    {
+      "Path": "baseline-plans/L1-02-page-root.json",
+      "Sha256": "bc171934bc58088a43da93d8c114573322cb8a48fde360132a8e8fa0ca1c2208"
+    },
+    {
+      "Path": "baseline-plans/L1-03-translation-split.json",
+      "Sha256": "9cceb313d6a212a859191a53cf7452519c0a0bf4fc9862b7e74401e03c50535a"
+    },
+    {
+      "Path": "baseline-plans/L1-04-image-split.json",
+      "Sha256": "504664e4caf02ff28e6c9eb65b28af827d19fced336d1a07aa59df115f545712"
+    },
+    {
+      "Path": "baseline-plans/N1-01-filtered-count.json",
+      "Sha256": "3d576c0ad45027b65716a7b5e1ef5a9f084a8ec03422e9739b36929f52ab5762"
+    },
+    {
+      "Path": "baseline-plans/N1-02-page-root.json",
+      "Sha256": "f8da23f975927fc8cc2327e2780800ba677a95bd25dd8501073f0e551db6f420"
+    },
+    {
+      "Path": "baseline-plans/N1-03-translation-split.json",
+      "Sha256": "c2d6c221ab3b5be4bf3c5a408323cfb674a9872545e034f084918cc281eeb78e"
+    },
+    {
+      "Path": "baseline-plans/N1-04-image-split.json",
+      "Sha256": "76d21786f21ac77abb7e017e5e94df59274ec244efcdcddee2249f7f166b55fa"
+    },
+    {
+      "Path": "baseline-plans/P1-01-filtered-count.json",
+      "Sha256": "31e48ef1dbc82ba3461546ba7fd33a388201f660110f66faf3b75e10c4ce9feb"
+    },
+    {
+      "Path": "baseline-plans/P1-02-page-root.json",
+      "Sha256": "427fb8487117effdbf6a0ea469e94258908d24c094c6aad2555d4babf868cd0c"
+    },
+    {
+      "Path": "baseline-plans/P1-03-translation-split.json",
+      "Sha256": "1d7143c9d202b956ef36f8ecc28b52496570e072b73e23e69530df807e83583f"
+    },
+    {
+      "Path": "baseline-plans/P1-04-image-split.json",
+      "Sha256": "9b10902825e6dd3167b7b9e82d5d84e37418d8c0bf5d66047ed9dac39a265a84"
+    },
+    {
+      "Path": "baseline-plans/P2-01-filtered-count.json",
+      "Sha256": "4873a23e28bbc34f2d6b98fa902bf179990fc243d1234868e73731054ea799e2"
+    },
+    {
+      "Path": "baseline-plans/P2-02-page-root.json",
+      "Sha256": "90d595d2ff16b81466b7b8e5f4614fee022201b400c5a7bc30ff9bf15e98c4ff"
+    },
+    {
+      "Path": "baseline-plans/P2-03-translation-split.json",
+      "Sha256": "4ad70a231fd0f2fb7babc6495189d0accdbc1f0703227ae800081dc8a5507984"
+    },
+    {
+      "Path": "baseline-plans/P2-04-image-split.json",
+      "Sha256": "ce384d270b92307454e5dfacf4484add48979108598c1ded8b19015b7367c28c"
+    },
+    {
+      "Path": "baseline-plans/Q1-01-filtered-count.json",
+      "Sha256": "ae00fc7b0d599f4cae87aca77a524999a64eecf94f813e3d25fd84b365bfdb45"
+    },
+    {
+      "Path": "baseline-plans/Q1-02-page-root.json",
+      "Sha256": "79eaae368c93c38ec1f0646f069f2d6280e9e39c5c943ab372cfa6325c27342e"
+    },
+    {
+      "Path": "baseline-plans/Q1-03-translation-split.json",
+      "Sha256": "b309c28699bab767f19ae81a372c39dd76b2fec22f218bd3c1a5cabc59fea84b"
+    },
+    {
+      "Path": "baseline-plans/Q1-04-image-split.json",
+      "Sha256": "f94275c81ccc04aad0656f15ecac5c3b225217aa2d82a96751f188b24d7653ed"
+    },
+    {
+      "Path": "baseline-plans/R1-01-filtered-count.json",
+      "Sha256": "07cdff11e5046b77ce80d49441c34e37a9ce49e51c6ca7a7a3fbf0291662e800"
+    },
+    {
+      "Path": "baseline-plans/R1-02-page-root.json",
+      "Sha256": "cd17cda2ac3dad588c48dcfc2fa29becb3ed009f2b7ab5966c5436ca2e5d9d6a"
+    },
+    {
+      "Path": "baseline-plans/R1-03-translation-split.json",
+      "Sha256": "466963b5e5ebe026694d9850d77b1043d72ce05ab924f1c2c94f1ebf72e2b903"
+    },
+    {
+      "Path": "baseline-plans/R1-04-image-split.json",
+      "Sha256": "79cd9714663506e5949feaa2819c9d9bbb02685a5e59cf46e3a68c33f9efa2cb"
+    },
+    {
+      "Path": "baseline-plans/agency-commercial-shop-first-page-01-filtered-count.json",
+      "Sha256": "a435630402124fa71e355dcd1b600d7384da7d3dcd953115e2f4f4f565515e76"
+    },
+    {
+      "Path": "baseline-plans/agency-commercial-shop-first-page-02-page-root.json",
+      "Sha256": "0695a2fb9aeac6231b4423447ff2e6401975dcd82e3e852e70a269dab78f3938"
+    },
+    {
+      "Path": "baseline-plans/agency-commercial-shop-first-page-03-translation-split.json",
+      "Sha256": "80a78ede901e339264edb998239dc666a1d3fbecd16b3b7fe9163174a4350ca9"
+    },
+    {
+      "Path": "baseline-plans/agency-commercial-shop-first-page-04-image-split.json",
+      "Sha256": "730bd8a3616ce19e8cec61f67cd37a99d2b1511e40f89284598d3965034f8a4d"
+    },
+    {
+      "Path": "baseline-plans/agency-land-agricultural-deep-page-01-filtered-count.json",
+      "Sha256": "5fa88ef7e3f5649213bd801bf1ba475c9306a0ff0ac0618b8b80010b30b2233e"
+    },
+    {
+      "Path": "baseline-plans/agency-land-agricultural-deep-page-02-page-root.json",
+      "Sha256": "b1346c9d7b86cd905e4be6407dc9de8c18492de34875d52b7e44fbc9e7a09783"
+    },
+    {
+      "Path": "baseline-plans/agency-land-agricultural-deep-page-03-translation-split.json",
+      "Sha256": "f5c2b5148270ec32ae57c970bf578028eae45c25d3f49d479b9716f86a74c70c"
+    },
+    {
+      "Path": "baseline-plans/agency-land-agricultural-deep-page-04-image-split.json",
+      "Sha256": "a96085b218f6e64a941e292366d6d4d7e2e457c84bdbb7acd3d181f61a491f61"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-first-page-01-filtered-count.json",
+      "Sha256": "4042f3cc51f1e30f8fc76b1868e769a512ff2d69604f4d5b042f1d16c0676f22"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-first-page-02-page-root.json",
+      "Sha256": "b004226920d8d3ae23f64a4ae0fc3c1f897ced9e539076c72e01db6c29f6bbef"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-first-page-03-translation-split.json",
+      "Sha256": "65271c84d392d840f678dd7667dbe78cf984baa66f2f235f316670d0cf025f99"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-first-page-04-image-split.json",
+      "Sha256": "5ef2c7afcfcd7fc275b84103b265b1556452b8cc734450e7492cdda2a6df9ba8"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-root-first-page-01-filtered-count.json",
+      "Sha256": "bcbe44582567325bbb68b4b9ad1742059c970779b7358d8d6aebaf6e16438026"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-root-first-page-02-page-root.json",
+      "Sha256": "41ee00517fe2f8e7da959561d5355c3ab993859a2db77ffe0267467d3517f024"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-root-first-page-03-translation-split.json",
+      "Sha256": "668dd6c581c367d055b1269edff110ca9152842c2e4665a761dca4c1e8651595"
+    },
+    {
+      "Path": "baseline-plans/commercial-office-root-first-page-04-image-split.json",
+      "Sha256": "541369795dc215f670ed7d0dc7f23789cfff7920d15e8e2ecb7e6ad29894af2d"
+    },
+    {
+      "Path": "baseline-plans/commercial-other-deep-page-01-filtered-count.json",
+      "Sha256": "fb67dfe12a324ff9a9ac29b7e4617990ac259ebc9216616c76cfb29499e53839"
+    },
+    {
+      "Path": "baseline-plans/commercial-other-deep-page-02-page-root.json",
+      "Sha256": "74984805ce8895e5ea68bec08759e7c2f4e07c374fa3765ac82b2c38cd95edee"
+    },
+    {
+      "Path": "baseline-plans/commercial-other-deep-page-03-translation-split.json",
+      "Sha256": "f8583c397142187aa2d14a0d71608f6203a0a88fc0d681d60561187f57ca0fd1"
+    },
+    {
+      "Path": "baseline-plans/commercial-other-deep-page-04-image-split.json",
+      "Sha256": "fc10abfa869856619c99aadc7011b5cc0f351770ef1697421c19f0a6fb34b554"
+    },
+    {
+      "Path": "baseline-plans/commercial-shop-location-01-filtered-count.json",
+      "Sha256": "4fbc389ceaf64ccd9fdbb01a13d423e124374de15ce6b5b2ed464f2d40485827"
+    },
+    {
+      "Path": "baseline-plans/commercial-shop-location-02-page-root.json",
+      "Sha256": "32a9b51ea49362f75534ff06b94d99547ba692dcbcaf84049103228c50a369b5"
+    },
+    {
+      "Path": "baseline-plans/commercial-shop-location-03-translation-split.json",
+      "Sha256": "82c4f80771721c8918e9c0f95cbf565e829f466b5f27e11e747e767933e7ac06"
+    },
+    {
+      "Path": "baseline-plans/commercial-shop-location-04-image-split.json",
+      "Sha256": "e3f5c903c0e7b543187a55d0b13f8df43744e906a9c03f47d37d786827cc8e07"
+    },
+    {
+      "Path": "baseline-plans/commercial-unknown-first-page-01-filtered-count.json",
+      "Sha256": "5fb90219068a68579e9b25369c62dfe86fc66f2ecceaf9fe20fad28442e9b806"
+    },
+    {
+      "Path": "baseline-plans/commercial-unknown-first-page-02-page-root.json",
+      "Sha256": "7cb6cf0f7188febc4f99154fdb741b593354286ca2baa815ae3f917a3d015c9f"
+    },
+    {
+      "Path": "baseline-plans/commercial-unknown-first-page-03-translation-split.json",
+      "Sha256": "d5a4ee93a888de0de9c245d1f25bc4c1b85f68244e264fca22e97d3fd0d1fee0"
+    },
+    {
+      "Path": "baseline-plans/commercial-unknown-first-page-04-image-split.json",
+      "Sha256": "bff0d01ac5d00011b9dd2246281470e7c831e0ab3c30159e2d36c6f637290e62"
+    },
+    {
+      "Path": "baseline-plans/cross-family-subtypes-empty-01-filtered-count.json",
+      "Sha256": "0a53ec36926def6a50e41d8a160f5aa39a569bb1e56d46bdb88ee9c06d183916"
+    },
+    {
+      "Path": "baseline-plans/cross-family-subtypes-empty-02-page-root.json",
+      "Sha256": "c4e50ebce98e4bd5c540a467e16e2de6d258781143d8b101ff80fd9570697b43"
+    },
+    {
+      "Path": "baseline-plans/land-agricultural-location-01-filtered-count.json",
+      "Sha256": "f5a3f67f29f4875d419bfe0ec8368cbe3a6231efd46af271890d62c44415a9f3"
+    },
+    {
+      "Path": "baseline-plans/land-agricultural-location-02-page-root.json",
+      "Sha256": "123f00148c32f0df8875f17a4397abb2ef60f41f47a51ee24158fed71af7466b"
+    },
+    {
+      "Path": "baseline-plans/land-agricultural-location-03-translation-split.json",
+      "Sha256": "a98cfef1c898e3c8c9a35980370e0bbb42694e4977374c2379e0e421d9638eed"
+    },
+    {
+      "Path": "baseline-plans/land-agricultural-location-04-image-split.json",
+      "Sha256": "22d88117271bcaca425d72a6e762b491836d291c7e4b7b6cba3c23fde90c73ea"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-first-page-01-filtered-count.json",
+      "Sha256": "c3f506862ed94bcab0c6512bfa76dde42786c18758ae09ea03c58e3d6ba5f69a"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-first-page-02-page-root.json",
+      "Sha256": "1d4b9fd98074edf4162ef291478234ed9523f93b38413b7f4a00540ed022c294"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-first-page-03-translation-split.json",
+      "Sha256": "bd002751390e0bd4d50a6d56872aacd3e15d3b9dbd77c785ce53fba0b6b37bba"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-first-page-04-image-split.json",
+      "Sha256": "6f26be4d606ccafd0e90a23e2f6ed3dc5a2ad7b25273b36bf635963adc64ffb1"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-root-first-page-01-filtered-count.json",
+      "Sha256": "4b68baec04099940f7960b610306cdebfd3f5dc435d27c91d7f9dff9f8324a1f"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-root-first-page-02-page-root.json",
+      "Sha256": "a06ba1cce7909d7e997d31766c261138fb58371b3db733a9b0f14351ae0ebaf3"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-root-first-page-03-translation-split.json",
+      "Sha256": "2f5622972d792e7be653304f2c5ff5ee2f1a5b4d2c5ddd8db7670bac2bcdbb89"
+    },
+    {
+      "Path": "baseline-plans/land-building-plot-root-first-page-04-image-split.json",
+      "Sha256": "70e24794708d16d869e929ce35a6d5d6412c6abe59a859fa989bf83f8e179d7c"
+    },
+    {
+      "Path": "baseline-plans/land-other-deep-page-01-filtered-count.json",
+      "Sha256": "35a81d977476e1a5b7c75ecfd5d00ea363528ca51d705ed9a5faaa2e7628248c"
+    },
+    {
+      "Path": "baseline-plans/land-other-deep-page-02-page-root.json",
+      "Sha256": "807703097736e5618f8e20566cf73cd529b2b9040a7fc1a6070e06f846a26f37"
+    },
+    {
+      "Path": "baseline-plans/land-other-deep-page-03-translation-split.json",
+      "Sha256": "6df356aa06879399b8793763d950cd6e8afad2f702842224c9c20a692c1923fb"
+    },
+    {
+      "Path": "baseline-plans/land-other-deep-page-04-image-split.json",
+      "Sha256": "6d9b99ded53ceaa681ece5cf32411fbbfffcefe753d1a22fe8b1f8746a7c650f"
+    },
+    {
+      "Path": "baseline-plans/land-unknown-first-page-01-filtered-count.json",
+      "Sha256": "a0c880cea4dcf258ee676a5bae404e47d8a2b355b70118a8f0f5b5c8b0cc24c8"
+    },
+    {
+      "Path": "baseline-plans/land-unknown-first-page-02-page-root.json",
+      "Sha256": "6189742f89ad1bde797960f7eb9ef118b3c975cb6703fda0e16392f5e3dd0964"
+    },
+    {
+      "Path": "baseline-plans/land-unknown-first-page-03-translation-split.json",
+      "Sha256": "1ad5bf9a71348c00b3168cc873f0f6b1ac2c81f1abf9270b14f2089f50fb25bb"
+    },
+    {
+      "Path": "baseline-plans/land-unknown-first-page-04-image-split.json",
+      "Sha256": "1f731cef03b257a2177a315e70a28e6edfb6eafdc94bff61b5bbcb7df534c219"
+    },
+    {
+      "Path": "baseline-summary.md",
+      "Sha256": "b2007d47bf6acf928e06ac38d2760980e18b59a07c054498818396f5c189b300"
+    },
+    {
+      "Path": "environment.json",
+      "Sha256": "e5624e482989e7d15bd2e3a7385c702858650bdcfba9f73e5da9d52b315e7c30"
+    },
+    {
+      "Path": "sql/A1-01-agency-existence.sql",
+      "Sha256": "6957da296e3df9a17006b00cdf7862ca144caecc6d5c25bf6608e8dd0ab9caa3"
+    },
+    {
+      "Path": "sql/A1-02-filtered-count.sql",
+      "Sha256": "a506edf16752b908341e0f558d979124d9bd7718758151b7e8bae5bd9dfa363c"
+    },
+    {
+      "Path": "sql/A1-03-page-root.sql",
+      "Sha256": "363713fac9da459fb8e53dd4fea0ba1a0de1df26886f151430edd1e97516f836"
+    },
+    {
+      "Path": "sql/A1-04-translation-split.sql",
+      "Sha256": "42d6909ae55df01699676218496223e7ff1afe65c1e89a9066a44638200bca17"
+    },
+    {
+      "Path": "sql/A1-05-image-split.sql",
+      "Sha256": "47118f996169c5eaec50e9daf97184b5a46ed53bd8605adbd1f30b2fd789409b"
+    },
+    {
+      "Path": "sql/C1-01-comparable-source.sql",
+      "Sha256": "c676a6ba3f9752ef1a91862ad0df2051416bd51a4bed37a15b170c4c860f72a4"
+    },
+    {
+      "Path": "sql/C1-02-comparable-ranked-root.sql",
+      "Sha256": "f2c288ed5b8b592703a929f464d948119b53517a9767fbef972c6cc0422eb215"
+    },
+    {
+      "Path": "sql/C1-03-comparable-translation-split.sql",
+      "Sha256": "d105d7ed7dc5296a458706fc0e183cff3967c1979747639f6dbed81fff6d7396"
+    },
+    {
+      "Path": "sql/C1-04-comparable-image-split.sql",
+      "Sha256": "8a2bf5088ecfce33e4b295ab559a5bef2c678f320c367e50d49ffac58bd30a73"
+    },
+    {
+      "Path": "sql/L1-01-filtered-count.sql",
+      "Sha256": "b796b29ddd815aa3e46243794b90ed937344f81ef811bcdb0c00b059b3e03bff"
+    },
+    {
+      "Path": "sql/L1-02-page-root.sql",
+      "Sha256": "c1044a40ea63f3f22d22095af5db93c3f6a5cf86956f574f840702b8e53d6a22"
+    },
+    {
+      "Path": "sql/L1-03-translation-split.sql",
+      "Sha256": "c69350705a93687913a84ec6872d74a4416465aef13728833b8474bd40e1cd62"
+    },
+    {
+      "Path": "sql/L1-04-image-split.sql",
+      "Sha256": "c1b1626cb8559db294ec739e29eb53339f605b289c5f22907a9d773d2c519814"
+    },
+    {
+      "Path": "sql/N1-01-filtered-count.sql",
+      "Sha256": "71d892484ec51372fa196a1c61ba1f6d4922e85cd1b6de54c86bdba554db148f"
+    },
+    {
+      "Path": "sql/N1-02-page-root.sql",
+      "Sha256": "b6dae805d9a2592ec92cdf7718c3a3b16a5f71c4b87b57e4620a2f8f76b75198"
+    },
+    {
+      "Path": "sql/N1-03-translation-split.sql",
+      "Sha256": "b37c0c307121df1df5d6119dcb576d278beff0451d32811844ed2a90e75c5403"
+    },
+    {
+      "Path": "sql/N1-04-image-split.sql",
+      "Sha256": "b48092b5fd5ce53853d5be89a99c577b6f3dce478f221f797001532a3673ad1a"
+    },
+    {
+      "Path": "sql/P1-01-filtered-count.sql",
+      "Sha256": "7e7cbca5ef4d4bc0c972a3614cdc0298f25d98c6df920a98b6d6d819823d9154"
+    },
+    {
+      "Path": "sql/P1-02-page-root.sql",
+      "Sha256": "a3a4cdd0c595c014025aeadf160a8038dc4fb1704a006bd9e800549515a14b2f"
+    },
+    {
+      "Path": "sql/P1-03-translation-split.sql",
+      "Sha256": "e4ccdc85713fd6d6fcee8d49b45bf969ebcc1c85bf56fc8225fea6ff68f1a653"
+    },
+    {
+      "Path": "sql/P1-04-image-split.sql",
+      "Sha256": "8b83fea33c68b4053ea5fd026ec2577976114dbce781f2aed6c27d601b8fd922"
+    },
+    {
+      "Path": "sql/P2-01-filtered-count.sql",
+      "Sha256": "b845629ded9b79684afceb9f1da29e85881a0e25fbc778adbe0a76b08e46fa97"
+    },
+    {
+      "Path": "sql/P2-02-page-root.sql",
+      "Sha256": "ac220a9528f7356020291c8d1613ed8182cb999e03a6fcbbda83ba0195374e82"
+    },
+    {
+      "Path": "sql/P2-03-translation-split.sql",
+      "Sha256": "0020227ffae96e4c3acf6abe79403d4cc95c5b42121f7ce297ce9e97c9b12165"
+    },
+    {
+      "Path": "sql/P2-04-image-split.sql",
+      "Sha256": "a1ddac6b9ed5a6d51e923c16e079b21a108a274af2bca337fb797ed0f2c8c89e"
+    },
+    {
+      "Path": "sql/Q1-01-filtered-count.sql",
+      "Sha256": "024b959782407204569ce8f26427d2ee4814c31df854937e8cd0385c1d2bbce7"
+    },
+    {
+      "Path": "sql/Q1-02-page-root.sql",
+      "Sha256": "e18b77b9b47ef4a46f826c2f21d77e8a67a3ccf00b61515daf597ecd99ae75ee"
+    },
+    {
+      "Path": "sql/Q1-03-translation-split.sql",
+      "Sha256": "a95a01bc39823b3067b0cd51a70ee380ece5dcdcc80eaa9b69708330126845a0"
+    },
+    {
+      "Path": "sql/Q1-04-image-split.sql",
+      "Sha256": "6de558d72f3dcac53389ca493ccb931b8a728c34aed9ee518cdfc8aaf2a6ce2e"
+    },
+    {
+      "Path": "sql/R1-01-filtered-count.sql",
+      "Sha256": "e670819b7f690e0cc3c7bee6160226152431feb1929cd9dd797114e69b6760ed"
+    },
+    {
+      "Path": "sql/R1-02-page-root.sql",
+      "Sha256": "dc5dd17d148404863f68851cbfd31cd5b4fde40061974344dc3078ce851ddd94"
+    },
+    {
+      "Path": "sql/R1-03-translation-split.sql",
+      "Sha256": "9fb4ad29408df9ae8a50997191b4796ad1506a7e809b8a094e8af7d533ca3568"
+    },
+    {
+      "Path": "sql/R1-04-image-split.sql",
+      "Sha256": "2fc8bea5437b48e10534bb17a20af4515a878545cfa249f447ce457ed7978072"
+    },
+    {
+      "Path": "sql/agency-commercial-shop-first-page-01-filtered-count.sql",
+      "Sha256": "e57d839b67219f1dc106dca522f23b99ebeee44318b4443ad569b6c1eedd8941"
+    },
+    {
+      "Path": "sql/agency-commercial-shop-first-page-02-page-root.sql",
+      "Sha256": "586ff60a9c47720e15d8013aacab8bcf3970491bfd33fcd57be3f2685bc04bb3"
+    },
+    {
+      "Path": "sql/agency-commercial-shop-first-page-03-translation-split.sql",
+      "Sha256": "a1dc1402cf3b24a0a1f08c71bd2797aab6de8480a179700d3813c61b2082993d"
+    },
+    {
+      "Path": "sql/agency-commercial-shop-first-page-04-image-split.sql",
+      "Sha256": "4e2873b5e113a130eab6d67ce5027b137ba39e89de2fa26c09f54425dbc3a0f9"
+    },
+    {
+      "Path": "sql/agency-land-agricultural-deep-page-01-filtered-count.sql",
+      "Sha256": "abe32417ef783afa2dc67531fa6d53d1ff6b4ae1f23704a9c8af1f3bb4cab48e"
+    },
+    {
+      "Path": "sql/agency-land-agricultural-deep-page-02-page-root.sql",
+      "Sha256": "87492508a00f1da2381d7024b17e04555f8f97e437b7bc0388c6aa5ca7142fa1"
+    },
+    {
+      "Path": "sql/agency-land-agricultural-deep-page-03-translation-split.sql",
+      "Sha256": "cacf3fb2a36af0fc2afadce55d2f8a1bd3a051343cbe5b9116f07314a7487ce4"
+    },
+    {
+      "Path": "sql/agency-land-agricultural-deep-page-04-image-split.sql",
+      "Sha256": "50ee6437d3133d2b4dc43507b2942c1851c6ee4028b14dc76b4b32d17f1b73cb"
+    },
+    {
+      "Path": "sql/commercial-office-first-page-01-filtered-count.sql",
+      "Sha256": "d087323be7139e39896f1e8e4d773d52c0bf5ad38c31872a5e2ae663237016cb"
+    },
+    {
+      "Path": "sql/commercial-office-first-page-02-page-root.sql",
+      "Sha256": "6fe189cec570437e938df61e070673bc78a8587967af660a7afd77d74c7d9b53"
+    },
+    {
+      "Path": "sql/commercial-office-first-page-03-translation-split.sql",
+      "Sha256": "337b582373f9df54f52caaf730593c4890198966e0f561b3b47ba41bdfb7ecb1"
+    },
+    {
+      "Path": "sql/commercial-office-first-page-04-image-split.sql",
+      "Sha256": "c85952dd026ae39a9a971124f7cc5b4a7dfa7432b1ff7b4cb75448a32329649f"
+    },
+    {
+      "Path": "sql/commercial-office-root-first-page-01-filtered-count.sql",
+      "Sha256": "05250b90e430d87fc13491025c8a46be74a1f32219c5c517ac1e3be1fd9f41c5"
+    },
+    {
+      "Path": "sql/commercial-office-root-first-page-02-page-root.sql",
+      "Sha256": "cd728d2f1c891e2e2756c9ddb383064ef1848c72e1ccdbeb0c6e20a350adcf27"
+    },
+    {
+      "Path": "sql/commercial-office-root-first-page-03-translation-split.sql",
+      "Sha256": "1671972b2fc1065429741cdd8a7faad6968c3c0f0f2a84e021d66999da12ea10"
+    },
+    {
+      "Path": "sql/commercial-office-root-first-page-04-image-split.sql",
+      "Sha256": "f51952acfc83a8191a6840020d274e643ef0bff2b1b6cb1b68905b030a0809b9"
+    },
+    {
+      "Path": "sql/commercial-other-deep-page-01-filtered-count.sql",
+      "Sha256": "e76b4dfe3a3c87ceda062034015acec6dbe2874e3487b4e73a8a87456c91bb61"
+    },
+    {
+      "Path": "sql/commercial-other-deep-page-02-page-root.sql",
+      "Sha256": "60bc0c12b130a93bab91e26d18845d091d7efa59dd3daaf71c1f889e874014a0"
+    },
+    {
+      "Path": "sql/commercial-other-deep-page-03-translation-split.sql",
+      "Sha256": "6866703f235548eec56663e65d4d3a3b7b1a9fbd5bce400612e7052eb7302276"
+    },
+    {
+      "Path": "sql/commercial-other-deep-page-04-image-split.sql",
+      "Sha256": "161e1c74a826c00dce3c4a6561770accaafef6d3acbf79424c0819441dbd29d6"
+    },
+    {
+      "Path": "sql/commercial-shop-location-01-filtered-count.sql",
+      "Sha256": "7d921587a0fa11b5e661672e9cd1257ddfe6364c6b9ec34ea31156b0c4ec523a"
+    },
+    {
+      "Path": "sql/commercial-shop-location-02-page-root.sql",
+      "Sha256": "4bc306ed494c796ac5927861f2862119574a8089d00f8b8f2cbb2902ea6ce6f6"
+    },
+    {
+      "Path": "sql/commercial-shop-location-03-translation-split.sql",
+      "Sha256": "5d786d3ff2178fae11a0e5cbe128a5cf77b9b1b089a96ec917a1f50008e514b7"
+    },
+    {
+      "Path": "sql/commercial-shop-location-04-image-split.sql",
+      "Sha256": "2241e045f6553e5d5f0709102f5b33c130376e99eb2c004b06cebeb48b9a7c30"
+    },
+    {
+      "Path": "sql/commercial-unknown-first-page-01-filtered-count.sql",
+      "Sha256": "4e092f453e9bfb6b9f43047fa05fcd9703d3f73292e7885f89d25aad052b9f21"
+    },
+    {
+      "Path": "sql/commercial-unknown-first-page-02-page-root.sql",
+      "Sha256": "dc5bc806acf8c97a3152fc1045263b1d01c9cf21a8156a73ac8b3f16117b0961"
+    },
+    {
+      "Path": "sql/commercial-unknown-first-page-03-translation-split.sql",
+      "Sha256": "fc6efbc829b98f02cc6c0fa986a065e6b6338f69359383e1656b2dd01fed38c9"
+    },
+    {
+      "Path": "sql/commercial-unknown-first-page-04-image-split.sql",
+      "Sha256": "c144f2fce8e50815bf6b96f00bb2ca6fa839734d428e147d7fa507f4877231f4"
+    },
+    {
+      "Path": "sql/cross-family-subtypes-empty-01-filtered-count.sql",
+      "Sha256": "249dd1a06cf17a0280cc5cc5d560cce098c56d3ad1c24eaa7010673ebf251c6e"
+    },
+    {
+      "Path": "sql/cross-family-subtypes-empty-02-page-root.sql",
+      "Sha256": "bcfc7e13d65cdd0032bc78e7a21d9f2d2134e6a423012624aa7b56174cf2fb12"
+    },
+    {
+      "Path": "sql/land-agricultural-location-01-filtered-count.sql",
+      "Sha256": "ccd52d4467df828792abb53ea4bf5650d42d0d6c7b249a4af299d16e325b1ee7"
+    },
+    {
+      "Path": "sql/land-agricultural-location-02-page-root.sql",
+      "Sha256": "73e9aae7fd199fe21a7320564ae0e605277e480bd23c0b92b497c7a506c5271d"
+    },
+    {
+      "Path": "sql/land-agricultural-location-03-translation-split.sql",
+      "Sha256": "7e88e01294f86cf83e6cd86ebd3988d8649cb9d21414ff7246c9927fdf2b5540"
+    },
+    {
+      "Path": "sql/land-agricultural-location-04-image-split.sql",
+      "Sha256": "4210652953d5408f58efcc1d6307168f540427d075079329d69cf79bfcb795c0"
+    },
+    {
+      "Path": "sql/land-building-plot-first-page-01-filtered-count.sql",
+      "Sha256": "89c0e39a73668558a8e081c17eb64e02c255c4d2b4b7e020ea3993a50a526dac"
+    },
+    {
+      "Path": "sql/land-building-plot-first-page-02-page-root.sql",
+      "Sha256": "5250b60730350c7f09fca3ad587c8736c2bf6bf9fa7385b8c756d9449d4cb63e"
+    },
+    {
+      "Path": "sql/land-building-plot-first-page-03-translation-split.sql",
+      "Sha256": "7db0c540cd6a9c53164b637d4c21a91fb35d8e56126c6e4454dad4021f0febc7"
+    },
+    {
+      "Path": "sql/land-building-plot-first-page-04-image-split.sql",
+      "Sha256": "02ae508bf3a6e10f1b0eb3563044238c208af9494511d02f5f5aa9b212e9448d"
+    },
+    {
+      "Path": "sql/land-building-plot-root-first-page-01-filtered-count.sql",
+      "Sha256": "d61cd27293a01bef81707e3df1d89593d8f8acac1a18e9b5f3893b3f90349c89"
+    },
+    {
+      "Path": "sql/land-building-plot-root-first-page-02-page-root.sql",
+      "Sha256": "fe757456a1039ce5a4e5a1a184fbe82bce31f771399802604678d3cffe8ee690"
+    },
+    {
+      "Path": "sql/land-building-plot-root-first-page-03-translation-split.sql",
+      "Sha256": "0a5f4c604c7a6301fd10e0c9392391b33d783b0e5d77f5767187bd96c9263cdf"
+    },
+    {
+      "Path": "sql/land-building-plot-root-first-page-04-image-split.sql",
+      "Sha256": "fd0ec53d66a5c23be7a5c6c6d3ff357ac208687b03946b656265ae29b404a936"
+    },
+    {
+      "Path": "sql/land-other-deep-page-01-filtered-count.sql",
+      "Sha256": "2aa6f28be1ea32a294ae42e6db7ac2780967a4257336b40d81c570462921aacb"
+    },
+    {
+      "Path": "sql/land-other-deep-page-02-page-root.sql",
+      "Sha256": "49eb3cc502e21b8c9f720623c1bb38290d7b06ca4d4ce54e4bfa7fbc1cc1a59e"
+    },
+    {
+      "Path": "sql/land-other-deep-page-03-translation-split.sql",
+      "Sha256": "5444ce102b58d0c3baffe0ce705a578421d8084f541177282703f1e5839d99e6"
+    },
+    {
+      "Path": "sql/land-other-deep-page-04-image-split.sql",
+      "Sha256": "4bd9ed1aae743670786cb5015c7bd12a3277edf991488b515822118725282138"
+    },
+    {
+      "Path": "sql/land-unknown-first-page-01-filtered-count.sql",
+      "Sha256": "6e0ac00dce07e576ccedfe0b597fefa12658684be5b2adc5d68d136e5319cc2e"
+    },
+    {
+      "Path": "sql/land-unknown-first-page-02-page-root.sql",
+      "Sha256": "dd03164c26e6545b334c41097bf2b62a7fe6bba105dc6cdb566e2a5ac3a3e755"
+    },
+    {
+      "Path": "sql/land-unknown-first-page-03-translation-split.sql",
+      "Sha256": "91d29e616dbb837fc7085b6f268407a45a3f9a43a44519b39726a2a877763e81"
+    },
+    {
+      "Path": "sql/land-unknown-first-page-04-image-split.sql",
+      "Sha256": "c688060a2ecf5725c3138b0c654df3091c7c69f6a9f003f191c07e367866e053"
+    }
+  ]
+}

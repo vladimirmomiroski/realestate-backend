@@ -1,0 +1,101 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "commercial-known-subtypes-partial-covering",
+    "Gates":  {
+                  "Gate1Correctness":  true,
+                  "Gate2StableIntendedIndexUse":  true,
+                  "Gate3QualifyingTrio":  false,
+                  "Gate4ProtectedRegressions":  false,
+                  "Gate5PlansAndAnomalies":  true,
+                  "Gate6WriteAndStorage":  true,
+                  "CandidatePassedAllGates":  false
+              },
+    "QualifyingTrio":  [
+                           {
+                               "CommandKey":  "commercial-office-first-page-01-filtered-count",
+                               "UnindexedSharedBlocks":  3516,
+                               "CandidateSharedBlocks":  3420,
+                               "SharedBlockReductionPercent":  2.7303754266211606,
+                               "UnindexedExecutionMilliseconds":  27.234,
+                               "CandidateExecutionMilliseconds":  24.16,
+                               "ExecutionTimeReductionPercent":  11.287361386502171,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "commercial-office-first-page-02-page-root",
+                               "UnindexedSharedBlocks":  3807,
+                               "CandidateSharedBlocks":  3743,
+                               "SharedBlockReductionPercent":  1.6811137378513266,
+                               "UnindexedExecutionMilliseconds":  44.418,
+                               "CandidateExecutionMilliseconds":  42.421,
+                               "ExecutionTimeReductionPercent":  4.4959250754198745,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "commercial-other-deep-page-02-page-root",
+                               "UnindexedSharedBlocks":  3636,
+                               "CandidateSharedBlocks":  3521,
+                               "SharedBlockReductionPercent":  3.1628162816281629,
+                               "UnindexedExecutionMilliseconds":  31.332,
+                               "CandidateExecutionMilliseconds":  26.352,
+                               "ExecutionTimeReductionPercent":  15.894293374186137,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           }
+                       ],
+    "ProtectedBlockFailures":  [
+                                   {
+                                       "CommandKey":  "L1-01-filtered-count",
+                                       "UnindexedBlocks":  1428,
+                                       "CandidateBlocks":  4753,
+                                       "RegressionPercent":  232.84313725490196
+                                   },
+                                   {
+                                       "CommandKey":  "L1-02-page-root",
+                                       "UnindexedBlocks":  1608,
+                                       "CandidateBlocks":  4933,
+                                       "RegressionPercent":  206.77860696517413
+                                   },
+                                   {
+                                       "CommandKey":  "Q1-01-filtered-count",
+                                       "UnindexedBlocks":  1189,
+                                       "CandidateBlocks":  4455,
+                                       "RegressionPercent":  274.6846089150547
+                                   },
+                                   {
+                                       "CommandKey":  "Q1-02-page-root",
+                                       "UnindexedBlocks":  1369,
+                                       "CandidateBlocks":  4635,
+                                       "RegressionPercent":  238.56829802775749
+                                   }
+                               ],
+    "ProtectedSequenceFailures":  [
+                                      {
+                                          "SequenceId":  "L1-first-page",
+                                          "UnindexedMilliseconds":  13.701,
+                                          "CandidateMilliseconds":  57.679,
+                                          "AbsoluteRegressionMilliseconds":  43.978,
+                                          "RegressionPercent":  320.98386979052623
+                                      },
+                                      {
+                                          "SequenceId":  "Q1-first-page",
+                                          "UnindexedMilliseconds":  11.194,
+                                          "CandidateMilliseconds":  56.096,
+                                          "AbsoluteRegressionMilliseconds":  44.901999999999994,
+                                          "RegressionPercent":  401.12560300160794
+                                      }
+                                  ],
+    "AnomalyCount":  0,
+    "SpillCommandCount":  0,
+    "TempAccessCommandCount":  0,
+    "CandidateBytes":  507904,
+    "DependentHeapBytes":  1048576
+}

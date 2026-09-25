@@ -1,0 +1,64 @@
+{
+    "Query":  "WITH target_tables AS (\n    SELECT c.oid, c.relname\n    FROM pg_class AS c\n    JOIN pg_namespace AS n ON n.oid = c.relnamespace\n    WHERE n.nspname = \u0027public\u0027\n      AND c.relname IN (\u0027ListingCommercialDetails\u0027, \u0027ListingLandDetails\u0027)\n)\nSELECT json_build_object(\n    \u0027captured_at_utc\u0027, to_char(clock_timestamp() AT TIME ZONE \u0027UTC\u0027, \u0027YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"\u0027),\n    \u0027database\u0027, current_database(),\n    \u0027server_version\u0027, current_setting(\u0027server_version\u0027),\n    \u0027tables\u0027, (\n        SELECT json_agg(\n            json_build_object(\n                \u0027table\u0027, t.relname,\n                \u0027heap_bytes\u0027, pg_relation_size(t.oid),\n                \u0027total_bytes\u0027, pg_total_relation_size(t.oid),\n                \u0027indexes\u0027, COALESCE((\n                    SELECT json_agg(\n                        json_build_object(\n                            \u0027name\u0027, i.relname,\n                            \u0027definition\u0027, pg_get_indexdef(i.oid),\n                            \u0027access_method\u0027, am.amname,\n                            \u0027key_columns\u0027, ARRAY(\n                                SELECT pg_get_indexdef(i.oid, key_position, true)\n                                FROM generate_series(1, ix.indnkeyatts) AS key_position\n                                ORDER BY key_position\n                            ),\n                            \u0027predicate\u0027, pg_get_expr(ix.indpred, ix.indrelid),\n                            \u0027is_valid\u0027, ix.indisvalid,\n                            \u0027is_ready\u0027, ix.indisready,\n                            \u0027is_live\u0027, ix.indislive,\n                            \u0027size_bytes\u0027, pg_relation_size(i.oid)\n                        ) ORDER BY i.relname COLLATE \"C\"\n                    )\n                    FROM pg_index AS ix\n                    JOIN pg_class AS i ON i.oid = ix.indexrelid\n                    JOIN pg_am AS am ON am.oid = i.relam\n                    WHERE ix.indrelid = t.oid\n                ), \u0027[]\u0027::json)\n            ) ORDER BY t.relname COLLATE \"C\"\n        )\n        FROM target_tables AS t\n    )\n);",
+    "Snapshot":  {
+                     "captured_at_utc":  "2026-09-25T20:40:59.518350Z",
+                     "database":  "realestate_queryreview_15h_corr_cp",
+                     "server_version":  "16.14",
+                     "tables":  [
+                                    {
+                                        "table":  "ListingCommercialDetails",
+                                        "heap_bytes":  1048576,
+                                        "total_bytes":  2457600,
+                                        "indexes":  [
+                                                        {
+                                                            "name":  "IX_ListingCommercialDetails_CommercialType_ListingId_Known",
+                                                            "definition":  "CREATE INDEX \"IX_ListingCommercialDetails_CommercialType_ListingId_Known\" ON public.\"ListingCommercialDetails\" USING btree (\"CommercialType\", \"ListingId\") WHERE ((\"CommercialType\")::text \u003c\u003e \u0027Unknown\u0027::text)",
+                                                            "access_method":  "btree",
+                                                            "key_columns":  [
+                                                                                "\"CommercialType\"",
+                                                                                "\"ListingId\""
+                                                                            ],
+                                                            "predicate":  "((\"CommercialType\")::text \u003c\u003e \u0027Unknown\u0027::text)",
+                                                            "is_valid":  true,
+                                                            "is_ready":  true,
+                                                            "is_live":  true,
+                                                            "size_bytes":  507904
+                                                        },
+                                                        {
+                                                            "name":  "PK_ListingCommercialDetails",
+                                                            "definition":  "CREATE UNIQUE INDEX \"PK_ListingCommercialDetails\" ON public.\"ListingCommercialDetails\" USING btree (\"ListingId\")",
+                                                            "access_method":  "btree",
+                                                            "key_columns":  [
+                                                                                "\"ListingId\""
+                                                                            ],
+                                                            "predicate":  null,
+                                                            "is_valid":  true,
+                                                            "is_ready":  true,
+                                                            "is_live":  true,
+                                                            "size_bytes":  868352
+                                                        }
+                                                    ]
+                                    },
+                                    {
+                                        "table":  "ListingLandDetails",
+                                        "heap_bytes":  581632,
+                                        "total_bytes":  1056768,
+                                        "indexes":  [
+                                                        {
+                                                            "name":  "PK_ListingLandDetails",
+                                                            "definition":  "CREATE UNIQUE INDEX \"PK_ListingLandDetails\" ON public.\"ListingLandDetails\" USING btree (\"ListingId\")",
+                                                            "access_method":  "btree",
+                                                            "key_columns":  [
+                                                                                "\"ListingId\""
+                                                                            ],
+                                                            "predicate":  null,
+                                                            "is_valid":  true,
+                                                            "is_ready":  true,
+                                                            "is_live":  true,
+                                                            "size_bytes":  442368
+                                                        }
+                                                    ]
+                                    }
+                                ]
+                 }
+}

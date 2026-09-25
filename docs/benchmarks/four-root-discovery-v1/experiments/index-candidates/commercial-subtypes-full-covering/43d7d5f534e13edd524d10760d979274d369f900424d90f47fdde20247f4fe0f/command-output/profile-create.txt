@@ -1,0 +1,229 @@
+RealEstate QueryReview tool
+Disposable-database confirmation: accepted.
+Future output directory: C:\Users\User\AppData\Local\Temp\realestate-queryreview
+Verifying local disposable PostgreSQL container endpoint ownership...
+Disposable container endpoint ownership: verified before database access.
+Opening the requested database through RealEstateDbContext and Npgsql...
+Connected database identity verified:
+  Database: realestate_queryreview_15h_corr_cf
+  PostgreSQL version: 16.14
+Applying existing committed EF migrations...
+Existing migration application duration: 00:00:00.9745855.
+Profile version: four-root-discovery-v1
+C# seed recorded: 1042001
+PostgreSQL seed command: SELECT setseed(0.1042001);
+Creating deterministic set-based profile...
+Logical profile before physical normalization: SUCCESS (179/179 invariants).
+J.7 strong-Active integrity before physical normalization: SUCCESS (8/8 checks).
+J.7 coordinate/root ownership before physical normalization: SUCCESS (7/7 checks).
+Normalizing the disposable Listings heap with VACUUM FULL (ANALYZE)...
+Listings physical profile: before=111,353,856 bytes/13,593 pages; after=27,754,496 bytes/3,388 pages.
+Logical profile after physical normalization: SUCCESS (179/179 invariants).
+J.7 strong-Active integrity after physical normalization: SUCCESS (8/8 checks).
+J.7 coordinate/root ownership after physical normalization: SUCCESS (7/7 checks).
+Locked discovery/result identities: SUCCESS (21/21 shapes).
+Exact invariant totals (179):
+  agencies.total: 100
+  agency_members.total: 100
+  commercial.office.listing_type.rent: 3,000
+  commercial.office.listing_type.sale: 3,000
+  commercial.office.ownership.agency: 3,000
+  commercial.office.ownership.personal: 3,000
+  commercial.office.status.active: 4,200
+  commercial.office.status.archived: 360
+  commercial.office.status.draft: 360
+  commercial.office.status.rented: 360
+  commercial.office.status.reserved: 360
+  commercial.office.status.sold: 360
+  commercial.other.listing_type.rent: 1,000
+  commercial.other.listing_type.sale: 1,000
+  commercial.other.ownership.agency: 1,000
+  commercial.other.ownership.personal: 1,000
+  commercial.other.status.active: 1,400
+  commercial.other.status.archived: 120
+  commercial.other.status.draft: 120
+  commercial.other.status.rented: 120
+  commercial.other.status.reserved: 120
+  commercial.other.status.sold: 120
+  commercial.shop.listing_type.rent: 2,000
+  commercial.shop.listing_type.sale: 2,000
+  commercial.shop.ownership.agency: 2,000
+  commercial.shop.ownership.personal: 2,000
+  commercial.shop.status.active: 2,800
+  commercial.shop.status.archived: 240
+  commercial.shop.status.draft: 240
+  commercial.shop.status.rented: 240
+  commercial.shop.status.reserved: 240
+  commercial.shop.status.sold: 240
+  commercial.unknown.listing_type.rent: 4,000
+  commercial.unknown.listing_type.sale: 4,000
+  commercial.unknown.ownership.agency: 4,000
+  commercial.unknown.ownership.personal: 4,000
+  commercial.unknown.status.active: 5,600
+  commercial.unknown.status.archived: 480
+  commercial.unknown.status.draft: 480
+  commercial.unknown.status.rented: 480
+  commercial.unknown.status.reserved: 480
+  commercial.unknown.status.sold: 480
+  commercial_type.office: 6,000
+  commercial_type.other: 2,000
+  commercial_type.shop: 4,000
+  commercial_type.unknown: 8,000
+  comparables.cluster: 31
+  comparables.eligible_candidates: 30
+  comparables.protected_root_and_type: 31
+  currency.eur: 33,334
+  currency.mkd: 33,333
+  currency.root_subtype_missing_combinations: 0
+  currency.usd: 33,333
+  details.apartment: 40,000
+  details.commercial: 20,000
+  details.exactly_one_matching: 100,000
+  details.house: 30,000
+  details.land: 10,000
+  details.mismatched_or_extra: 0
+  details.missing_matching: 0
+  distribution.sequence_windows_with_all_roots: 100
+  images.multiple: 10,000
+  images.one: 40,000
+  images.total: 60,000
+  images.zero: 50,000
+  land.agriculturalland.listing_type.rent: 1,000
+  land.agriculturalland.listing_type.sale: 1,000
+  land.agriculturalland.ownership.agency: 1,000
+  land.agriculturalland.ownership.personal: 1,000
+  land.agriculturalland.status.active: 1,400
+  land.agriculturalland.status.archived: 120
+  land.agriculturalland.status.draft: 120
+  land.agriculturalland.status.rented: 120
+  land.agriculturalland.status.reserved: 120
+  land.agriculturalland.status.sold: 120
+  land.buildingplot.listing_type.rent: 1,500
+  land.buildingplot.listing_type.sale: 1,500
+  land.buildingplot.ownership.agency: 1,500
+  land.buildingplot.ownership.personal: 1,500
+  land.buildingplot.status.active: 2,100
+  land.buildingplot.status.archived: 180
+  land.buildingplot.status.draft: 180
+  land.buildingplot.status.rented: 180
+  land.buildingplot.status.reserved: 180
+  land.buildingplot.status.sold: 180
+  land.other.listing_type.rent: 500
+  land.other.listing_type.sale: 500
+  land.other.ownership.agency: 500
+  land.other.ownership.personal: 500
+  land.other.status.active: 700
+  land.other.status.archived: 60
+  land.other.status.draft: 60
+  land.other.status.rented: 60
+  land.other.status.reserved: 60
+  land.other.status.sold: 60
+  land.unknown.listing_type.rent: 2,000
+  land.unknown.listing_type.sale: 2,000
+  land.unknown.ownership.agency: 2,000
+  land.unknown.ownership.personal: 2,000
+  land.unknown.status.active: 2,800
+  land.unknown.status.archived: 240
+  land.unknown.status.draft: 240
+  land.unknown.status.rented: 240
+  land.unknown.status.reserved: 240
+  land.unknown.status.sold: 240
+  land_type.agriculturalland: 2,000
+  land_type.buildingplot: 3,000
+  land_type.other: 1,000
+  land_type.unknown: 4,000
+  listing_type.rent: 50,000
+  listing_type.sale: 50,000
+  listings.active: 70,000
+  listings.archived: 6,000
+  listings.draft: 6,000
+  listings.rented: 6,000
+  listings.reserved: 6,000
+  listings.sold: 6,000
+  listings.total: 100,000
+  locations.bitola: 14,000
+  locations.selective: 140
+  locations.skopje: 28,000
+  ownership.agency: 50,000
+  ownership.common_agencies_exact: 8
+  ownership.legacy_agency_one_active: 350
+  ownership.legacy_agency_one_total: 500
+  ownership.personal: 50,000
+  ownership.sparse_agencies_exact: 19
+  property_type.apartment: 40,000
+  property_type.commercial: 20,000
+  property_type.house: 30,000
+  property_type.land: 10,000
+  protected.legacy_property_type_violations: 0
+  root.apartment.listing_type.rent: 20,000
+  root.apartment.listing_type.sale: 20,000
+  root.apartment.ownership.agency: 20,000
+  root.apartment.ownership.personal: 20,000
+  root.apartment.status.active: 28,000
+  root.apartment.status.archived: 2,400
+  root.apartment.status.draft: 2,400
+  root.apartment.status.rented: 2,400
+  root.apartment.status.reserved: 2,400
+  root.apartment.status.sold: 2,400
+  root.commercial.listing_type.rent: 10,000
+  root.commercial.listing_type.sale: 10,000
+  root.commercial.ownership.agency: 10,000
+  root.commercial.ownership.personal: 10,000
+  root.commercial.status.active: 14,000
+  root.commercial.status.archived: 1,200
+  root.commercial.status.draft: 1,200
+  root.commercial.status.rented: 1,200
+  root.commercial.status.reserved: 1,200
+  root.commercial.status.sold: 1,200
+  root.house.listing_type.rent: 15,000
+  root.house.listing_type.sale: 15,000
+  root.house.ownership.agency: 15,000
+  root.house.ownership.personal: 15,000
+  root.house.status.active: 21,000
+  root.house.status.archived: 1,800
+  root.house.status.draft: 1,800
+  root.house.status.rented: 1,800
+  root.house.status.reserved: 1,800
+  root.house.status.sold: 1,800
+  root.land.listing_type.rent: 5,000
+  root.land.listing_type.sale: 5,000
+  root.land.ownership.agency: 5,000
+  root.land.ownership.personal: 5,000
+  root.land.status.active: 7,000
+  root.land.status.archived: 600
+  root.land.status.draft: 600
+  root.land.status.rented: 600
+  root.land.status.reserved: 600
+  root.land.status.sold: 600
+  text.broad_title: 10,000
+  text.excluded_decoys: 500
+  text.selective_q: 120
+  translations.canonical_violations: 0
+  translations.exactly_two_per_listing: 100,000
+  translations.total: 200,000
+  users.total: 101
+J.7 strong-Active integrity checks (8):
+  strong_active.missing_translations: expected 0, actual 0
+  strong_active.invalid_municipality_translations: expected 0, actual 0
+  strong_active.invalid_address_line_translations: expected 0, actual 0
+  strong_active.root_unresolved: expected 0, actual 0
+  strong_active.root_legacy_unverified: expected 0, actual 0
+  strong_active.root_partial: expected 0, actual 0
+  strong_active.root_invalid_confirmed: expected 0, actual 0
+  strong_active.enabled_listing_triggers: expected 2, actual 2
+J.7 coordinate/root ownership checks (7):
+  coordinate_ownership.active_not_trusted_confirmed: expected 0, actual 0
+  coordinate_ownership.displaced_band_not_unresolved: expected 0, actual 0
+  coordinate_ownership.retained_null_band_not_unresolved: expected 0, actual 0
+  coordinate_ownership.retained_pair_band_not_legacy_formula: expected 0, actual 0
+  coordinate_ownership.global_paired: expected 80,000, actual 80,000
+  coordinate_ownership.global_null_pair: expected 20,000, actual 20,000
+  coordinate_ownership.global_partial: expected 0, actual 0
+Successor invariant count: 179.
+Successor profile SHA-256: 7d389dfbecb10fa0f491a58e6f83bda265cee1ea7e664a43b53f6fcc7c838946
+Successor invariant manifest SHA-256: bae3243bd1da79993710b3522b2f1e7c1c695152cd8dea25d61d13f9d9331be7
+Successor invariant result SHA-256: bae3243bd1da79993710b3522b2f1e7c1c695152cd8dea25d61d13f9d9331be7
+Profile creation duration: 00:01:33.0689866.
+Profile create result: SUCCESS. All exact invariants passed.
+
+No migration was created, and no SQL capture, EXPLAIN, benchmark, or index operation occurred. This command may only apply existing migrations, seed the deterministic profile, and normalize its disposable Listings heap.

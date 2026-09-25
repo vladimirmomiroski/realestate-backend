@@ -1,0 +1,11 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "land-known-subtypes-partial-covering",
+    "ExactDdl":  "CREATE INDEX \"IX_ListingLandDetails_LandType_ListingId_Known\" ON public.\"ListingLandDetails\" USING btree (\"LandType\", \"ListingId\") WHERE \"LandType\" \u003c\u003e \u0027Unknown\u0027;",
+    "StartedAtUtc":  "2026-09-25T20:46:14.1738084+00:00",
+    "EndedAtUtc":  "2026-09-25T20:46:14.3589124+00:00",
+    "MonotonicElapsedMilliseconds":  185.2134,
+    "ClientObservedBuildDurationMilliseconds":  185.2134,
+    "PsqlExitCode":  0,
+    "PsqlOutput":  ""
+}

@@ -1,0 +1,11 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "commercial-known-subtypes-partial-covering",
+    "ExactDdl":  "CREATE INDEX \"IX_ListingCommercialDetails_CommercialType_ListingId_Known\" ON public.\"ListingCommercialDetails\" USING btree (\"CommercialType\", \"ListingId\") WHERE \"CommercialType\" \u003c\u003e \u0027Unknown\u0027;",
+    "StartedAtUtc":  "2026-09-25T20:40:59.2005135+00:00",
+    "EndedAtUtc":  "2026-09-25T20:40:59.3807024+00:00",
+    "MonotonicElapsedMilliseconds":  180.1553,
+    "ClientObservedBuildDurationMilliseconds":  180.1553,
+    "PsqlExitCode":  0,
+    "PsqlOutput":  ""
+}
