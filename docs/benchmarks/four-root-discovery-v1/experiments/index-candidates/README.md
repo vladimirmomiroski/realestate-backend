@@ -1,6 +1,8 @@
 # PostgreSQL 16 subtype-index candidate measurements
 
-This directory contains the four Task 15H Checkpoint B experiments locked by `docs/planning/chapter-15h-checkpoint-a-candidate-designs.md`. It records factual candidate observations only. It does not make the final Task 15H `INDEX` / `NO_INDEX` disposition and grants no migration authority.
+This directory contains the four Task 15H Checkpoint B experiments locked by `docs/planning/chapter-15h-checkpoint-a-candidate-designs.md`. The Checkpoint B measurements below record factual candidate observations only and grant no migration authority.
+
+The accepted final Task 15H decision is recorded in [`disposition.md`](disposition.md): Commercial = `NO_INDEX`, Land = `NO_INDEX`, combined-winner confirmation is not eligible, and conditional Task 15I is skipped.
 
 ## Identity and protocol
 
