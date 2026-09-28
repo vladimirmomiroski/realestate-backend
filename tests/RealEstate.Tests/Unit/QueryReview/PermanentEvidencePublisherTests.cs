@@ -624,15 +624,21 @@ public sealed class PermanentEvidencePublisherTests
     }
 
     [Fact]
-    public async Task ProductionPublisher_ReadinessAndCatalogIdentityCannotBeBypassed()
+    public async Task ProductionPublisher_FinalManifestAndCatalogIdentityCannotBeBypassed()
     {
         bool prepareCalled = false;
         QueryReviewLaneDefinition lane =
             QueryReviewGenerations.FourRootDiscovery.RequireLane(
                 QueryReviewGenerations.PostgreSql16LaneId);
 
-        Func<Task> notReady = () => PermanentEvidencePublisher.PublishAsync(
-            QueryReviewGenerations.FourRootDiscovery,
+        QueryReviewGenerationDefinition forgedGeneration =
+            QueryReviewGenerations.FourRootDiscovery with
+            {
+                PermanentExportContract = QueryReviewGenerations.FourRootDiscovery
+                    .PermanentExportContract! with { MigrationCount = 22 }
+            };
+        Func<Task> forged = () => PermanentEvidencePublisher.PublishAsync(
+            forgedGeneration,
             lane,
             (_, _) =>
             {
@@ -640,22 +646,9 @@ public sealed class PermanentEvidencePublisherTests
                 return Task.CompletedTask;
             },
             (_, _) => Task.CompletedTask);
-        await notReady.Should().ThrowAsync<QueryReviewGenerationNotReadyException>()
-            .WithMessage("*not finalized or provisioned yet*");
-        prepareCalled.Should().BeFalse();
-
-        QueryReviewGenerationDefinition forgedGeneration =
-            QueryReviewGenerations.FourRootDiscovery with
-            {
-                PermanentExportFinalized = true
-            };
-        Func<Task> forged = () => PermanentEvidencePublisher.PublishAsync(
-            forgedGeneration,
-            lane,
-            (_, _) => Task.CompletedTask,
-            (_, _) => Task.CompletedTask);
         await forged.Should().ThrowAsync<BaselinePlanValidationException>()
-            .WithMessage("*exact catalog successor generation/lane pair*");
+            .WithMessage("*exact finalized catalog generation definition*");
+        prepareCalled.Should().BeFalse();
     }
 
     private static async Task AssertPreCommitFailureRestoresAsync(

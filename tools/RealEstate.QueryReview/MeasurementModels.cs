@@ -266,7 +266,10 @@ internal sealed record DeterministicProfileVerificationSnapshot(
     long TranslationCount,
     int InvariantTotal,
     int InvariantPassed,
-    int InvariantFailed);
+    int InvariantFailed,
+    string? ProfileSha256 = null,
+    string? InvariantManifestSha256 = null,
+    string? InvariantResultSha256 = null);
 
 internal sealed record RawBaselineManifest(
     string BaselineRunId,
@@ -469,7 +472,43 @@ internal sealed record ProfileVerificationEvidence(
     int InvariantTotal,
     int InvariantPassed,
     int InvariantFailed,
-    bool Passed);
+    bool Passed,
+    string? ProfileSha256 = null,
+    string? InvariantManifestSha256 = null,
+    string? InvariantResultSha256 = null);
+
+internal sealed record SuccessorRunComparisonIdentity(
+    string GenerationId,
+    string ProfileIdentity,
+    string LaneId,
+    string GitCommit,
+    string ProfileSha256,
+    string InvariantManifestSha256,
+    string InvariantResultSha256,
+    string QueryShapeManifestSha256,
+    string SqlIdentitySha256,
+    string ParameterIdentitySha256,
+    string ResultIdentitySha256,
+    string OrderIdentitySha256,
+    string SettingsIdentitySha256,
+    int CommandCount,
+    int ParameterCount,
+    int WarmUpRunsPerCommand,
+    int MeasuredRunsPerCommand,
+    int PlanCount);
+
+internal sealed record EmbeddedComparisonEvidence(
+    string RelativeRoot,
+    SuccessorRunComparisonIdentity PrimaryIdentity,
+    SuccessorRunComparisonIdentity ComparisonIdentity,
+    int ArtifactCount,
+    IReadOnlyList<ArtifactHashEvidence> Artifacts);
+
+internal sealed record VerifiedSuccessorComparisonRun(
+    QueryReviewArtifactDescriptor Descriptor,
+    BaselineVerificationResult Verification,
+    SuccessorRunComparisonIdentity PrimaryIdentity,
+    SuccessorRunComparisonIdentity ComparisonIdentity);
 
 internal sealed record SemanticResultIdentityEvidence(
     string ExpectedResultSha256,
@@ -569,9 +608,11 @@ internal sealed record PermanentEvidenceMetadata(
     ProfileVerificationEvidence ProfileVerification,
     SemanticResultIdentityEvidence SemanticResultIdentity,
     IReadOnlyList<LockedResultComparisonEvidence> LockedResults,
-    A1ApprovedExceptionEvidence A1ApprovedException,
+    A1ApprovedExceptionEvidence? A1ApprovedException,
     CaptureIdentityEvidence CaptureIdentity,
-    ArtifactIntegrityEvidence ArtifactIntegrity);
+    ArtifactIntegrityEvidence ArtifactIntegrity,
+    SuccessorPermanentExportContract? SuccessorExportContract = null,
+    EmbeddedComparisonEvidence? PostgreSql16Comparison = null);
 
 internal sealed record ExperimentalEvidenceManifest(
     int SchemaVersion,

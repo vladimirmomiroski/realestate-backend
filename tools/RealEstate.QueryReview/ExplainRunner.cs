@@ -188,6 +188,24 @@ internal static class ExplainRunner
                 $"Expected {expectedPlanCount} raw plans, captured {samples.Count}.");
         }
 
+        if (generation == QueryReviewGenerations.FourRootDiscovery)
+        {
+            ProfileVerificationResult sealedVerification =
+                await FourRootProfileInvariants.VerifyAsync(connection, cancellationToken: cancellationToken);
+            sealedVerification.EnsureValid();
+            FourRootProfileIdentity sealedIdentity =
+                await FourRootProfileInvariants.ComputeIdentityAsync(
+                    connection,
+                    sealedVerification,
+                    cancellationToken);
+            profileVerification = profileVerification with
+            {
+                ProfileSha256 = sealedIdentity.ProfileSha256,
+                InvariantManifestSha256 = sealedIdentity.InvariantManifestSha256,
+                InvariantResultSha256 = sealedIdentity.InvariantResultSha256
+            };
+        }
+
         var manifest = new RawBaselineManifest(
             baselineRunId,
             startedAtUtc,
@@ -499,7 +517,23 @@ internal static class ExplainRunner
             profileVerification.TranslationCount != ExpectedTranslationCount ||
             profileVerification.InvariantTotal != definition.ProfileInvariantCount ||
             profileVerification.InvariantPassed != definition.ProfileInvariantCount ||
-            profileVerification.InvariantFailed != 0)
+            profileVerification.InvariantFailed != 0 ||
+            (string.Equals(
+                 definition.GenerationId,
+                 QueryReviewGenerations.FourRootDiscoveryId,
+                 StringComparison.Ordinal) &&
+             (!string.Equals(
+                  profileVerification.ProfileSha256,
+                  SuccessorPermanentExportManifest.AcceptedProfileSha256,
+                  StringComparison.Ordinal) ||
+              !string.Equals(
+                  profileVerification.InvariantManifestSha256,
+                  SuccessorPermanentExportManifest.AcceptedInvariantManifestSha256,
+                  StringComparison.Ordinal) ||
+              !string.Equals(
+                  profileVerification.InvariantResultSha256,
+                  SuccessorPermanentExportManifest.AcceptedInvariantResultSha256,
+                  StringComparison.Ordinal))))
         {
             throw new BaselinePlanValidationException(
                 $"Raw manifest lacks the complete successful {definition.ProfileIdentity} " +

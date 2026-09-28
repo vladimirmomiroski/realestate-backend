@@ -414,7 +414,8 @@ internal static class Program
         var export = await BaselineEvidenceWriter.ExportAsync(
             descriptor.Generation,
             descriptor.Lane,
-            verification);
+            verification,
+            options.ComparisonRunDirectory);
 
         Console.WriteLine(
             $"Verified raw totals: {verification.Measurements.CommandCount} commands, " +
@@ -444,7 +445,7 @@ internal static class Program
         if (!isCompatibilityExport && options.ComparisonRunDirectory is not null)
         {
             throw new BaselinePlanValidationException(
-                "--comparison-run-dir is valid only for the future four-root-discovery-v1 " +
+                "--comparison-run-dir is valid only for the four-root-discovery-v1 " +
                 "PostgreSQL 18.4 permanent export.");
         }
     }
