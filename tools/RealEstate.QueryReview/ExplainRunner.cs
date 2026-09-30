@@ -188,24 +188,6 @@ internal static class ExplainRunner
                 $"Expected {expectedPlanCount} raw plans, captured {samples.Count}.");
         }
 
-        if (generation == QueryReviewGenerations.FourRootDiscovery)
-        {
-            ProfileVerificationResult sealedVerification =
-                await FourRootProfileInvariants.VerifyAsync(connection, cancellationToken: cancellationToken);
-            sealedVerification.EnsureValid();
-            FourRootProfileIdentity sealedIdentity =
-                await FourRootProfileInvariants.ComputeIdentityAsync(
-                    connection,
-                    sealedVerification,
-                    cancellationToken);
-            profileVerification = profileVerification with
-            {
-                ProfileSha256 = sealedIdentity.ProfileSha256,
-                InvariantManifestSha256 = sealedIdentity.InvariantManifestSha256,
-                InvariantResultSha256 = sealedIdentity.InvariantResultSha256
-            };
-        }
-
         var manifest = new RawBaselineManifest(
             baselineRunId,
             startedAtUtc,
@@ -504,7 +486,7 @@ internal static class ExplainRunner
         }
     }
 
-    private static void ValidateProfileVerification(
+    internal static void ValidateProfileVerification(
         QueryShapeContractDefinition definition,
         DeterministicProfileVerificationSnapshot? profileVerification)
     {

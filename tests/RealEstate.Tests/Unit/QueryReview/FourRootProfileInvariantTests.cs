@@ -77,4 +77,151 @@ public sealed class FourRootProfileInvariantTests
         FourRootProfileInvariants.ExpectedValues.Should().ContainKey(
             "protected.legacy_property_type_violations").WhoseValue.Should().Be(0);
     }
+
+    [Fact]
+    public void SuccessorRawRunSnapshot_CarriesMeasuredIdentityBeforeFirstValidation()
+    {
+        var verification = new ProfileVerificationResult(
+            FourRootProfileInvariants.ExpectedValues
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(item => new ProfileInvariant(item.Key, item.Value, item.Value))
+                .ToArray(),
+            QueryReviewGenerations.FourRootDiscoveryId);
+        var measuredIdentity = new FourRootProfileIdentity(
+            FourRootProfileInvariants.InvariantCount,
+            SuccessorPermanentExportManifest.AcceptedProfileSha256,
+            SuccessorPermanentExportManifest.AcceptedInvariantManifestSha256,
+            SuccessorPermanentExportManifest.AcceptedInvariantResultSha256);
+
+        DeterministicProfileVerificationSnapshot snapshot =
+            RealEstate.QueryReview.Program.CreateProfileVerificationSnapshot(
+                verification,
+                QueryReviewGenerations.FourRootDiscovery,
+                measuredIdentity);
+
+        snapshot.ProfileSha256.Should().Be(measuredIdentity.ProfileSha256);
+        snapshot.InvariantManifestSha256.Should().Be(
+            measuredIdentity.InvariantManifestSha256);
+        snapshot.InvariantResultSha256.Should().Be(measuredIdentity.InvariantResultSha256);
+
+        Action firstRawRunValidation = () => ExplainRunner.ValidateProfileVerification(
+            DiscoveryQueryShapeManifest.GetDefinition(
+                QueryReviewGenerations.FourRootDiscovery),
+            snapshot);
+
+        firstRawRunValidation.Should().NotThrow();
+    }
+
+    [Fact]
+    public void SuccessorRawRunSnapshot_RejectsMissingMeasuredIdentity()
+    {
+        var verification = new ProfileVerificationResult(
+            FourRootProfileInvariants.ExpectedValues
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(item => new ProfileInvariant(item.Key, item.Value, item.Value))
+                .ToArray(),
+            QueryReviewGenerations.FourRootDiscoveryId);
+
+        Action act = () => RealEstate.QueryReview.Program.CreateProfileVerificationSnapshot(
+            verification,
+            QueryReviewGenerations.FourRootDiscovery,
+            successorIdentity: null);
+
+        act.Should().Throw<BaselinePlanValidationException>()
+            .WithMessage("*requires the identity computed from the verified measured profile*");
+    }
+
+    [Fact]
+    public void SuccessorRawRunSnapshot_DoesNotSubstituteContractConstants()
+    {
+        var verification = new ProfileVerificationResult(
+            FourRootProfileInvariants.ExpectedValues
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(item => new ProfileInvariant(item.Key, item.Value, item.Value))
+                .ToArray(),
+            QueryReviewGenerations.FourRootDiscoveryId);
+        var measuredIdentity = new FourRootProfileIdentity(
+            FourRootProfileInvariants.InvariantCount,
+            new string('a', 64),
+            new string('b', 64),
+            new string('c', 64));
+
+        DeterministicProfileVerificationSnapshot snapshot =
+            RealEstate.QueryReview.Program.CreateProfileVerificationSnapshot(
+                verification,
+                QueryReviewGenerations.FourRootDiscovery,
+                measuredIdentity);
+
+        snapshot.ProfileSha256.Should().Be(measuredIdentity.ProfileSha256);
+        snapshot.InvariantManifestSha256.Should().Be(
+            measuredIdentity.InvariantManifestSha256);
+        snapshot.InvariantResultSha256.Should().Be(measuredIdentity.InvariantResultSha256);
+
+        Action firstRawRunValidation = () => ExplainRunner.ValidateProfileVerification(
+            DiscoveryQueryShapeManifest.GetDefinition(
+                QueryReviewGenerations.FourRootDiscovery),
+            snapshot);
+
+        firstRawRunValidation.Should().Throw<BaselinePlanValidationException>()
+            .WithMessage("*complete successful four-root-discovery-v1*");
+    }
+
+    [Theory]
+    [InlineData("missing-profile")]
+    [InlineData("wrong-profile")]
+    [InlineData("missing-invariant-manifest")]
+    [InlineData("wrong-invariant-manifest")]
+    [InlineData("missing-invariant-result")]
+    [InlineData("wrong-invariant-result")]
+    public void SuccessorRawRunSnapshot_RejectsMissingOrWrongMeasuredHash(string mutation)
+    {
+        DeterministicProfileVerificationSnapshot snapshot = AcceptedSnapshot();
+        snapshot = mutation switch
+        {
+            "missing-profile" => snapshot with { ProfileSha256 = null },
+            "wrong-profile" => snapshot with { ProfileSha256 = new string('a', 64) },
+            "missing-invariant-manifest" => snapshot with
+            {
+                InvariantManifestSha256 = null
+            },
+            "wrong-invariant-manifest" => snapshot with
+            {
+                InvariantManifestSha256 = new string('b', 64)
+            },
+            "missing-invariant-result" => snapshot with { InvariantResultSha256 = null },
+            "wrong-invariant-result" => snapshot with
+            {
+                InvariantResultSha256 = new string('c', 64)
+            },
+            _ => throw new InvalidOperationException($"Unknown mutation '{mutation}'.")
+        };
+
+        Action firstRawRunValidation = () => ExplainRunner.ValidateProfileVerification(
+            DiscoveryQueryShapeManifest.GetDefinition(
+                QueryReviewGenerations.FourRootDiscovery),
+            snapshot);
+
+        firstRawRunValidation.Should().Throw<BaselinePlanValidationException>()
+            .WithMessage("*complete successful four-root-discovery-v1*");
+    }
+
+    private static DeterministicProfileVerificationSnapshot AcceptedSnapshot()
+    {
+        var verification = new ProfileVerificationResult(
+            FourRootProfileInvariants.ExpectedValues
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(item => new ProfileInvariant(item.Key, item.Value, item.Value))
+                .ToArray(),
+            QueryReviewGenerations.FourRootDiscoveryId);
+        var measuredIdentity = new FourRootProfileIdentity(
+            FourRootProfileInvariants.InvariantCount,
+            SuccessorPermanentExportManifest.AcceptedProfileSha256,
+            SuccessorPermanentExportManifest.AcceptedInvariantManifestSha256,
+            SuccessorPermanentExportManifest.AcceptedInvariantResultSha256);
+
+        return RealEstate.QueryReview.Program.CreateProfileVerificationSnapshot(
+            verification,
+            QueryReviewGenerations.FourRootDiscovery,
+            measuredIdentity);
+    }
 }
