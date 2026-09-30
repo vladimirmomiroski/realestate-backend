@@ -554,7 +554,7 @@ internal static partial class BaselineEvidenceWriter
             captureIdentity);
     }
 
-    private static void ValidateQ1Evidence(BaselineMeasurementsRaw measurements)
+    internal static void ValidateQ1Evidence(BaselineMeasurementsRaw measurements)
     {
         var count = measurements.Commands.Single(command =>
             string.Equals(command.CommandKey, "Q1-01-filtered-count", StringComparison.Ordinal));
@@ -570,13 +570,40 @@ internal static partial class BaselineEvidenceWriter
             countBuffers > Q1CountMaximumSharedAccessBlocks ||
             firstPageBuffers > Q1FirstPageMaximumSharedAccessBlocks ||
             !count.IndexNames.Contains(TrigramIndexName, StringComparer.Ordinal) ||
-            !page.IndexNames.Contains(TrigramIndexName, StringComparer.Ordinal) ||
-            count.ScanTypes.Contains("Seq Scan", StringComparer.Ordinal) ||
-            page.ScanTypes.Contains("Seq Scan", StringComparer.Ordinal))
+            !page.IndexNames.Contains(TrigramIndexName, StringComparer.Ordinal))
         {
             throw new BaselinePlanValidationException(
                 "Permanent evidence requires Q1 timing/buffer gates, trigram-index use in count " +
                 "and page plans, and absence of the old translation sequential scan.");
+        }
+
+        ValidateQ1SequentialScans(count, page);
+    }
+
+    private static void ValidateQ1SequentialScans(
+        params CommandMeasurementSummary[] commands)
+    {
+        PlanNodeMeasurement[] sequentialScans = commands
+            .SelectMany(command => command.Samples)
+            .SelectMany(sample => sample.Nodes)
+            .Where(node => string.Equals(node.NodeType, "Seq Scan", StringComparison.Ordinal))
+            .ToArray();
+
+        if (sequentialScans.Any(node => string.IsNullOrWhiteSpace(node.Relation)))
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence rejects a malformed Q1 sequential scan with a missing or " +
+                "blank Relation Name; an alias cannot prove that the scanned relation is safe.");
+        }
+
+        if (sequentialScans.Any(node => string.Equals(
+                node.Relation,
+                "ListingTranslations",
+                StringComparison.Ordinal)))
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence rejects a Q1 ListingTranslations sequential scan; " +
+                "the accepted translation path must use IX_ListingTranslations_Q_Trigram.");
         }
     }
 
