@@ -486,7 +486,7 @@ internal static class ExplainRunner
         }
     }
 
-    private static void ValidateProfileVerification(
+    internal static void ValidateProfileVerification(
         QueryShapeContractDefinition definition,
         DeterministicProfileVerificationSnapshot? profileVerification)
     {
@@ -499,7 +499,23 @@ internal static class ExplainRunner
             profileVerification.TranslationCount != ExpectedTranslationCount ||
             profileVerification.InvariantTotal != definition.ProfileInvariantCount ||
             profileVerification.InvariantPassed != definition.ProfileInvariantCount ||
-            profileVerification.InvariantFailed != 0)
+            profileVerification.InvariantFailed != 0 ||
+            (string.Equals(
+                 definition.GenerationId,
+                 QueryReviewGenerations.FourRootDiscoveryId,
+                 StringComparison.Ordinal) &&
+             (!string.Equals(
+                  profileVerification.ProfileSha256,
+                  SuccessorPermanentExportManifest.AcceptedProfileSha256,
+                  StringComparison.Ordinal) ||
+              !string.Equals(
+                  profileVerification.InvariantManifestSha256,
+                  SuccessorPermanentExportManifest.AcceptedInvariantManifestSha256,
+                  StringComparison.Ordinal) ||
+              !string.Equals(
+                  profileVerification.InvariantResultSha256,
+                  SuccessorPermanentExportManifest.AcceptedInvariantResultSha256,
+                  StringComparison.Ordinal))))
         {
             throw new BaselinePlanValidationException(
                 $"Raw manifest lacks the complete successful {definition.ProfileIdentity} " +

@@ -24,7 +24,8 @@ internal sealed record QueryReviewGenerationDefinition(
     bool CaptureProvisioned,
     bool PermanentExportFinalized,
     string PermanentEvidenceRootRelativePath,
-    IReadOnlyList<QueryReviewLaneDefinition> Lanes)
+    IReadOnlyList<QueryReviewLaneDefinition> Lanes,
+    SuccessorPermanentExportContract? PermanentExportContract = null)
 {
     public bool MatchesRecordedProfile(string profileIdentity) =>
         RecordedProfileIdentities.Contains(profileIdentity, StringComparer.Ordinal);
@@ -97,6 +98,16 @@ internal sealed record QueryReviewGenerationDefinition(
                     $"Generation '{Id}' permanent export is not finalized or provisioned yet.");
             }
 
+            if (!ReferenceEquals(this, QueryReviewGenerations.FourRootDiscovery) ||
+                PermanentExportContract is null)
+            {
+                throw new BaselinePlanValidationException(
+                    "Permanent successor export accepts only the exact finalized catalog " +
+                    "generation definition.");
+            }
+
+            SuccessorPermanentExportManifest.ValidateContract(PermanentExportContract);
+
             if (artifactKind != QueryReviewArtifactKind.RawRun)
             {
                 throw new BaselinePlanValidationException(
@@ -120,6 +131,21 @@ internal sealed record QueryReviewGenerationDefinition(
         {
             throw new QueryReviewGenerationNotReadyException(
                 $"Generation '{Id}' permanent evidence verification is not provisioned yet.");
+        }
+
+        if (command == QueryReviewCommand.BaselineVerify &&
+            !IsFrozenHistorical &&
+            artifactKind == QueryReviewArtifactKind.PermanentEvidence)
+        {
+            if (!ReferenceEquals(this, QueryReviewGenerations.FourRootDiscovery) ||
+                PermanentExportContract is null)
+            {
+                throw new BaselinePlanValidationException(
+                    "Permanent successor verification accepts only the exact finalized " +
+                    "catalog generation definition.");
+            }
+
+            SuccessorPermanentExportManifest.ValidateContract(PermanentExportContract);
         }
 
         if (command == QueryReviewCommand.BaselineVerify &&
@@ -168,7 +194,7 @@ internal static class QueryReviewGenerations
             IsFrozenHistorical: false,
             ProfileProvisioned: true,
             CaptureProvisioned: true,
-            PermanentExportFinalized: false,
+            PermanentExportFinalized: true,
             "docs/benchmarks/four-root-discovery-v1/evidence",
             [
                 new QueryReviewLaneDefinition(
@@ -185,7 +211,8 @@ internal static class QueryReviewGenerations
                     "/var/lib/postgresql",
                     true,
                     "docs/benchmarks/four-root-discovery-v1/evidence/postgresql-18.4")
-            ]);
+            ],
+            SuccessorPermanentExportManifest.Accepted);
 
     public static IReadOnlyList<QueryReviewGenerationDefinition> All { get; } =
         [FrozenHistorical, FourRootDiscovery];

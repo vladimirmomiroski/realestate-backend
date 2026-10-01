@@ -148,7 +148,7 @@ public sealed class QueryReviewGenerationIsolationTests
     }
 
     [Fact]
-    public void SuccessorPermanentVerificationAndExport_RemainNotProvisioned()
+    public void SuccessorPermanentVerificationAndExport_AreFinalizedForSealedRawRuns()
     {
         Action verify = () => QueryReviewGenerations.FourRootDiscovery
             .EnsureOfflineCommandAvailable(
@@ -159,22 +159,14 @@ public sealed class QueryReviewGenerationIsolationTests
                 QueryReviewCommand.BaselineExport,
                 QueryReviewArtifactKind.RawRun);
 
-        verify.Should().Throw<QueryReviewGenerationNotReadyException>()
-            .WithMessage("*permanent evidence verification is not provisioned yet*");
-        export.Should().Throw<QueryReviewGenerationNotReadyException>()
-            .WithMessage("*permanent export is not finalized or provisioned yet*");
+        verify.Should().NotThrow();
+        export.Should().NotThrow();
     }
 
     [Fact]
     public void ExperimentalArtifact_CanNeverBecomePermanentExportInput()
     {
-        QueryReviewGenerationDefinition exportReady =
-            QueryReviewGenerations.FourRootDiscovery with
-            {
-                PermanentExportFinalized = true
-            };
-
-        Action act = () => exportReady.EnsureOfflineCommandAvailable(
+        Action act = () => QueryReviewGenerations.FourRootDiscovery.EnsureOfflineCommandAvailable(
             QueryReviewCommand.BaselineExport,
             QueryReviewArtifactKind.ExperimentalBundle);
 

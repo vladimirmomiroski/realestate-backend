@@ -414,7 +414,8 @@ internal static class Program
         var export = await BaselineEvidenceWriter.ExportAsync(
             descriptor.Generation,
             descriptor.Lane,
-            verification);
+            verification,
+            options.ComparisonRunDirectory);
 
         Console.WriteLine(
             $"Verified raw totals: {verification.Measurements.CommandCount} commands, " +
@@ -444,7 +445,7 @@ internal static class Program
         if (!isCompatibilityExport && options.ComparisonRunDirectory is not null)
         {
             throw new BaselinePlanValidationException(
-                "--comparison-run-dir is valid only for the future four-root-discovery-v1 " +
+                "--comparison-run-dir is valid only for the four-root-discovery-v1 " +
                 "PostgreSQL 18.4 permanent export.");
         }
     }
@@ -663,6 +664,10 @@ internal static class Program
             measurementConnection,
             generation);
         verification.EnsureValid();
+        var profileVerification = await CreateProfileVerificationSnapshotAsync(
+            measurementConnection,
+            verification,
+            generation);
 
         Console.WriteLine(
             $"Profile verification: SUCCESS ({verification.Invariants.Count}/" +
@@ -724,7 +729,7 @@ internal static class Program
             connectionStringBuilder,
             captureSession,
             environment,
-            CreateProfileVerificationSnapshot(verification, generation),
+            profileVerification,
             options.OutputDirectory);
         var runDirectory = Path.Combine(options.OutputDirectory, manifest.BaselineRunId);
 
@@ -739,9 +744,31 @@ internal static class Program
         return 0;
     }
 
-    private static DeterministicProfileVerificationSnapshot CreateProfileVerificationSnapshot(
+    internal static async Task<DeterministicProfileVerificationSnapshot>
+        CreateProfileVerificationSnapshotAsync(
+            NpgsqlConnection connection,
+            ProfileVerificationResult verification,
+            QueryReviewGenerationDefinition generation,
+            CancellationToken cancellationToken = default)
+    {
+        FourRootProfileIdentity? successorIdentity =
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? await FourRootProfileInvariants.ComputeIdentityAsync(
+                    connection,
+                    verification,
+                    cancellationToken)
+                : null;
+
+        return CreateProfileVerificationSnapshot(
+            verification,
+            generation,
+            successorIdentity);
+    }
+
+    internal static DeterministicProfileVerificationSnapshot CreateProfileVerificationSnapshot(
         ProfileVerificationResult verification,
-        QueryReviewGenerationDefinition generation)
+        QueryReviewGenerationDefinition generation,
+        FourRootProfileIdentity? successorIdentity)
     {
         var passed = verification.Invariants.Count(invariant => invariant.IsSatisfied);
         var failed = verification.Invariants.Count - passed;
@@ -750,13 +777,25 @@ internal static class Program
         var translationCount = verification.Invariants.Single(invariant =>
             string.Equals(invariant.Name, "translations.total", StringComparison.Ordinal));
 
+        if (generation == QueryReviewGenerations.FourRootDiscovery &&
+            (successorIdentity is null ||
+             successorIdentity.InvariantCount != verification.Invariants.Count))
+        {
+            throw new BaselinePlanValidationException(
+                "The successor raw-run profile snapshot requires the identity computed from " +
+                "the verified measured profile before baseline validation.");
+        }
+
         return new DeterministicProfileVerificationSnapshot(
             generation.ProfileIdentity,
             listingCount.Actual,
             translationCount.Actual,
             verification.Invariants.Count,
             passed,
-            failed);
+            failed,
+            successorIdentity?.ProfileSha256,
+            successorIdentity?.InvariantManifestSha256,
+            successorIdentity?.InvariantResultSha256);
     }
 
     private static async Task<ProductionCaptureSession> CaptureProductionCommandsAsync(

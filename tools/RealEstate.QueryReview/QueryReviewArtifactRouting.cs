@@ -39,7 +39,7 @@ internal static class QueryReviewArtifactRouter
 
         string experimentalManifestPath = Path.Combine(
             fullDirectory,
-            "experimental-manifest.json");
+            ExperimentalEvidenceBundle.ManifestFileName);
 
         if (File.Exists(experimentalManifestPath))
         {
@@ -257,8 +257,8 @@ internal static class QueryReviewArtifactRouter
 internal static class ExperimentalEvidenceBundle
 {
     public const string ArtifactClass = "queryreview-experimental";
+    internal const string ManifestFileName = "experimental-manifest.json";
     private const int ManifestSchemaVersion = 1;
-    private const string ManifestFileName = "experimental-manifest.json";
 
     private static readonly Regex ConnectionAssignmentPattern = new(
         @"\b(?:Host|Server|Username|User\s+ID|Password|Pwd)\s*=",
