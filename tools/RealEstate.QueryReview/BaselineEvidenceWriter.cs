@@ -285,7 +285,12 @@ internal static partial class BaselineEvidenceWriter
         ValidateCommandKeys(commandKeys, expectations.CommandCount);
 
         var expectedFiles = BuildExpectedFileSet(commandKeys);
-        ValidateExactFileSet(verification.CuratedDirectory, expectedFiles);
+        await ValidateCuratedExportInputAsync(
+            generation,
+            lane,
+            verification.CuratedDirectory,
+            commandKeys,
+            cancellationToken);
         await ValidateCuratedMeasurementsAsync(verification, cancellationToken);
         await ValidateEnvironmentArtifactAsync(verification, cancellationToken);
         await ValidateMedianPlansAsync(verification, cancellationToken);
@@ -1419,6 +1424,36 @@ internal static partial class BaselineEvidenceWriter
         }
 
         return expected;
+    }
+
+    internal static async Task ValidateCuratedExportInputAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        string curatedDirectory,
+        IReadOnlyList<string> commandKeys,
+        CancellationToken cancellationToken = default)
+    {
+        HashSet<string> expectedCuratedFiles = BuildExpectedFileSet(commandKeys);
+        expectedCuratedFiles.Add(ExperimentalEvidenceBundle.ManifestFileName);
+        ValidateExactFileSet(curatedDirectory, expectedCuratedFiles);
+
+        QueryReviewArtifactDescriptor descriptor =
+            await QueryReviewArtifactRouter.InspectAsync(
+                curatedDirectory,
+                cancellationToken);
+
+        if (descriptor.Kind != QueryReviewArtifactKind.ExperimentalBundle ||
+            !ReferenceEquals(descriptor.Generation, generation) ||
+            !string.Equals(descriptor.Lane.Id, lane.Id, StringComparison.Ordinal))
+        {
+            throw new BaselinePlanValidationException(
+                "The curated permanent-export input does not match its selected " +
+                "generation or PostgreSQL lane.");
+        }
+
+        await ExperimentalEvidenceBundle.VerifyAsync(
+            descriptor,
+            cancellationToken);
     }
 
     private static void AddEmbeddedComparisonFiles(
