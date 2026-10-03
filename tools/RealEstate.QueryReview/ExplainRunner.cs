@@ -188,10 +188,54 @@ internal static class ExplainRunner
                 $"Expected {expectedPlanCount} raw plans, captured {samples.Count}.");
         }
 
-        var manifest = new RawBaselineManifest(
+        var manifest = CreateRawBaselineManifest(
             baselineRunId,
             startedAtUtc,
             DateTime.UtcNow,
+            generation,
+            lane,
+            environment,
+            resultSha256,
+            definition,
+            samples,
+            profileVerification,
+            captureSession.CaptureRun.QueryShapeManifest is null
+                ? null
+                : DiscoveryQueryShapeManifest.ComputeManifestSha256(
+                    captureSession.CaptureRun.QueryShapeManifest));
+        var manifestPath = Path.Combine(runDirectory, "manifest.json");
+        await JsonArtifactOutput.WriteAsync(manifestPath, manifest, cancellationToken);
+
+        ScanOutputForCredentials(runDirectory, connectionStringBuilder);
+        return manifest;
+    }
+
+    internal static RawBaselineManifest CreateRawBaselineManifest(
+        string baselineRunId,
+        DateTime startedAtUtc,
+        DateTime completedAtUtc,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        BaselineEnvironmentSnapshot environment,
+        string resultSha256,
+        QueryShapeContractDefinition definition,
+        IReadOnlyList<RawPlanSample> samples,
+        DeterministicProfileVerificationSnapshot profileVerification,
+        string? queryShapeManifestSha256)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baselineRunId);
+        ArgumentNullException.ThrowIfNull(generation);
+        ArgumentNullException.ThrowIfNull(lane);
+        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resultSha256);
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(samples);
+        ArgumentNullException.ThrowIfNull(profileVerification);
+
+        return new RawBaselineManifest(
+            baselineRunId,
+            startedAtUtc,
+            completedAtUtc,
             generation.ProfileIdentity,
             DeterministicProfileSeeder.CSharpSeed,
             DeterministicProfileSeeder.PostgreSqlSeed,
@@ -210,15 +254,7 @@ internal static class ExplainRunner
             profileVerification,
             generation.Id,
             lane.Id,
-            captureSession.CaptureRun.QueryShapeManifest is null
-                ? null
-                : DiscoveryQueryShapeManifest.ComputeManifestSha256(
-                    captureSession.CaptureRun.QueryShapeManifest));
-        var manifestPath = Path.Combine(runDirectory, "manifest.json");
-        await JsonArtifactOutput.WriteAsync(manifestPath, manifest, cancellationToken);
-
-        ScanOutputForCredentials(runDirectory, connectionStringBuilder);
-        return manifest;
+            queryShapeManifestSha256);
     }
 
     public static async Task<BaselineVerificationResult> VerifyAsync(

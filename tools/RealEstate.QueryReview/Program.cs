@@ -85,7 +85,11 @@ internal static class Program
 
         requestedGeneration.EnsureOnlineCommandAvailable(options.Command);
         QueryReviewLaneDefinition requestedLane =
-            requestedGeneration.RequireLane(QueryReviewGenerations.PostgreSql16LaneId);
+            QueryReviewGenerations.ResolveOnlineLane(
+                requestedGeneration,
+                options.Command,
+                options.Lane);
+        Console.WriteLine($"Online PostgreSQL lane: {requestedLane.Id}");
 
         NpgsqlConnectionStringBuilder connectionStringBuilder;
 
@@ -120,28 +124,28 @@ internal static class Program
 
         try
         {
-            if (options.Command is QueryReviewCommand.ProfileCreate or
-                QueryReviewCommand.ProfileVerify)
-            {
-                Console.WriteLine(
-                    "Verifying local disposable PostgreSQL container endpoint ownership...");
-                await DisposablePostgreSqlContainerVerifier.VerifyForLaneAsync(
-                    connectionStringBuilder,
-                    options.ContainerName!,
-                    requestedLane);
-                Console.WriteLine(
-                    "Disposable container endpoint ownership: verified before database access.");
-            }
-
-            Console.WriteLine(
-                "Opening the requested database through RealEstateDbContext and Npgsql...");
-
             var dbContextOptions = new DbContextOptionsBuilder<RealEstateDbContext>()
                 .UseNpgsql(options.ConnectionString!)
                 .Options;
 
             await using var dbContext = new RealEstateDbContext(dbContextOptions);
-            await dbContext.Database.OpenConnectionAsync();
+            await ExecuteAfterContainerVerificationAsync(
+                options,
+                connectionStringBuilder,
+                requestedLane,
+                static (builder, containerName, lane, cancellationToken) =>
+                    DisposablePostgreSqlContainerVerifier.VerifyForLaneAsync(
+                        builder,
+                        containerName,
+                        lane,
+                        cancellationToken),
+                async () =>
+                {
+                    Console.WriteLine(
+                        "Opening the requested database through RealEstateDbContext and Npgsql...");
+                    await dbContext.Database.OpenConnectionAsync();
+                    return true;
+                });
 
             var connection = dbContext.Database.GetDbConnection();
 
@@ -254,6 +258,46 @@ internal static class Program
                 exception.Message);
             return 4;
         }
+    }
+
+    internal static bool RequiresVerifiedContainer(QueryReviewCommand command) =>
+        command is QueryReviewCommand.ProfileCreate or
+            QueryReviewCommand.ProfileVerify or
+            QueryReviewCommand.BaselineRun;
+
+    internal static async Task<TResult> ExecuteAfterContainerVerificationAsync<TResult>(
+        QueryReviewOptions options,
+        NpgsqlConnectionStringBuilder connectionStringBuilder,
+        QueryReviewLaneDefinition lane,
+        Func<
+            NpgsqlConnectionStringBuilder,
+            string,
+            QueryReviewLaneDefinition,
+            CancellationToken,
+            Task> containerVerifier,
+        Func<Task<TResult>> databaseAccess,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(connectionStringBuilder);
+        ArgumentNullException.ThrowIfNull(lane);
+        ArgumentNullException.ThrowIfNull(containerVerifier);
+        ArgumentNullException.ThrowIfNull(databaseAccess);
+
+        if (RequiresVerifiedContainer(options.Command))
+        {
+            Console.WriteLine(
+                "Verifying local disposable PostgreSQL container endpoint ownership...");
+            await containerVerifier(
+                connectionStringBuilder,
+                options.ContainerName!,
+                lane,
+                cancellationToken);
+            Console.WriteLine(
+                "Disposable container endpoint ownership: verified before database access.");
+        }
+
+        return await databaseAccess();
     }
 
     private static async Task<int> VerifyBaselineAsync(QueryReviewOptions options)
@@ -681,15 +725,13 @@ internal static class Program
         Console.WriteLine($"VACUUM (ANALYZE) duration: {vacuumAnalyzeDuration}.");
 
         Console.WriteLine("Capturing Git, runtime, Docker, PostgreSQL, relation, and index metadata...");
-        var environment = await EnvironmentSnapshotCollector.CaptureAsync(
-            measurementConnection,
-            options.ContainerName!,
-            vacuumAnalyzeDuration) with
-        {
-            GenerationId = generation.Id,
-            LaneId = lane.Id,
-            ProfileVersion = generation.ProfileIdentity
-        };
+        var environment = BindBaselineEnvironmentIdentity(
+            await EnvironmentSnapshotCollector.CaptureAsync(
+                measurementConnection,
+                options.ContainerName!,
+                vacuumAnalyzeDuration),
+            generation,
+            lane);
 
         if (environment.PostgreSql.ActiveVacuumCount != 0)
         {
@@ -742,6 +784,23 @@ internal static class Program
             "Baseline run result: SUCCESS. No medians, sequence aggregation, Q1 gate, " +
             "permanent evidence export, or index operation occurred.");
         return 0;
+    }
+
+    internal static BaselineEnvironmentSnapshot BindBaselineEnvironmentIdentity(
+        BaselineEnvironmentSnapshot environment,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentNullException.ThrowIfNull(generation);
+        ArgumentNullException.ThrowIfNull(lane);
+
+        return environment with
+        {
+            GenerationId = generation.Id,
+            LaneId = lane.Id,
+            ProfileVersion = generation.ProfileIdentity
+        };
     }
 
     internal static async Task<DeterministicProfileVerificationSnapshot>

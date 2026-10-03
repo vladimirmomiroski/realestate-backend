@@ -14,6 +14,7 @@ internal enum QueryReviewCommand
 internal sealed record QueryReviewOptions(
     QueryReviewCommand Command,
     string? Profile,
+    string? Lane,
     string? ConnectionString,
     bool ConfirmDisposable,
     string OutputDirectory,
@@ -23,6 +24,7 @@ internal sealed record QueryReviewOptions(
     bool ConfirmEvidenceExport)
 {
     private const string ProfileOption = "--profile";
+    private const string LaneOption = "--lane";
     private const string ConnectionStringOption = "--connection-string";
     private const string ConfirmDisposableOption = "--confirm-disposable";
     private const string ContainerNameOption = "--container-name";
@@ -36,18 +38,18 @@ internal sealed record QueryReviewOptions(
         "  dotnet run --project tools/RealEstate.QueryReview -- doctor " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- profile create " +
-        "--profile <generation> " +
+        "--profile <generation> [--lane postgresql-16|postgresql-18.4] " +
         "--connection-string \"<connection-string>\" --confirm-disposable " +
         "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- profile verify " +
-        "--profile <generation> " +
+        "--profile <generation> [--lane postgresql-16|postgresql-18.4] " +
         "--connection-string \"<connection-string>\" --confirm-disposable " +
         "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- capture-sql " +
         "--profile <generation> " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- baseline run " +
-        "--profile <generation> " +
+        "--profile <generation> [--lane postgresql-16|postgresql-18.4] " +
         "--connection-string \"<connection-string>\" --confirm-disposable " +
         "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- baseline verify " +
@@ -71,6 +73,7 @@ internal sealed record QueryReviewOptions(
         }
 
         string? profile = null;
+        string? lane = null;
         string? connectionString = null;
         var confirmDisposable = false;
         string? containerName = null;
@@ -96,6 +99,22 @@ internal sealed record QueryReviewOptions(
                     }
 
                     profile = args[++index].Trim();
+                    break;
+
+                case LaneOption:
+                    if (lane is not null)
+                    {
+                        error = $"Option '{LaneOption}' may be supplied only once.";
+                        return false;
+                    }
+
+                    if (index + 1 >= args.Length || string.IsNullOrWhiteSpace(args[index + 1]))
+                    {
+                        error = $"Option '{LaneOption}' requires a value.";
+                        return false;
+                    }
+
+                    lane = args[++index].Trim();
                     break;
 
                 case ConnectionStringOption:
@@ -259,6 +278,28 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
+        if (command is not QueryReviewCommand.ProfileCreate and
+            not QueryReviewCommand.ProfileVerify and
+            not QueryReviewCommand.BaselineRun &&
+            lane is not null)
+        {
+            error =
+                $"Option '{LaneOption}' is valid only for 'profile create', " +
+                "'profile verify', and 'baseline run'.";
+            return false;
+        }
+
+        if (lane is not null &&
+            !string.Equals(lane, QueryReviewGenerations.PostgreSql16LaneId, StringComparison.Ordinal) &&
+            !string.Equals(lane, QueryReviewGenerations.PostgreSql184LaneId, StringComparison.Ordinal))
+        {
+            error =
+                $"Option '{LaneOption}' must be exactly " +
+                $"'{QueryReviewGenerations.PostgreSql16LaneId}' or " +
+                $"'{QueryReviewGenerations.PostgreSql184LaneId}'.";
+            return false;
+        }
+
         if (command is not QueryReviewCommand.BaselineVerify and
             not QueryReviewCommand.BaselineExport &&
             runDirectory is not null)
@@ -307,6 +348,7 @@ internal sealed record QueryReviewOptions(
         options = new QueryReviewOptions(
             command,
             profile,
+            lane,
             connectionString,
             confirmDisposable,
             outputDirectory,

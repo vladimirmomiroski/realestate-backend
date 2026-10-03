@@ -120,6 +120,38 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     }
 
     [Fact]
+    public async Task PostgreSql16Lane_RejectsPostgreSql184Image()
+    {
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
+            QueryReviewGenerations.PostgreSql16LaneId);
+
+        Func<Task> act = () => VerifyLaneWithInspectionAsync(
+            lane,
+            Inspection(
+                image: "postgres:18.4",
+                declaredVolumePath: "/var/lib/postgresql",
+                runtimeMounts:
+                [
+                    RuntimeMount(destination: "/var/lib/postgresql")
+                ]));
+
+        await act.Should().ThrowAsync<BaselinePlanValidationException>()
+            .WithMessage("*expected 'postgres:16-alpine'*");
+    }
+
+    [Fact]
+    public async Task PostgreSql184Lane_RejectsPostgreSql16Image()
+    {
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
+            QueryReviewGenerations.PostgreSql184LaneId);
+
+        Func<Task> act = () => VerifyLaneWithInspectionAsync(lane, Inspection());
+
+        await act.Should().ThrowAsync<BaselinePlanValidationException>()
+            .WithMessage("*expected 'postgres:18.4'*");
+    }
+
+    [Fact]
     public async Task PostgreSql184Lane_RejectsPre18DataVolumeLayout()
     {
         QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
