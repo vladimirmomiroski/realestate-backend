@@ -588,7 +588,8 @@ internal sealed record CaptureIdentityEvidence(
     int SpillCount,
     int PlanSwitchCount,
     int AnomalyCount,
-    int CredentialFindingCount);
+    int CredentialFindingCount,
+    string? PostgreSqlVersionNumber = null);
 
 internal sealed record ArtifactHashEvidence(
     string Path,
