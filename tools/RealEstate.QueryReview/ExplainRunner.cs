@@ -104,7 +104,7 @@ internal static class ExplainRunner
             captureSession.CaptureRun.ShapeResults,
             JsonArtifactOutput.SerializerOptions));
         var structuralHashes = new Dictionary<string, string>(StringComparer.Ordinal);
-        var rowCounts = new Dictionary<string, (long Rows, long Loops)>(StringComparer.Ordinal);
+        var rowCounts = new Dictionary<string, (decimal Rows, long Loops)>(StringComparer.Ordinal);
         var samples = new List<RawPlanSample>(definition.PlanCount);
 
         for (var round = 0; round <= MeasuredRunsPerCommand; round++)
@@ -611,7 +611,7 @@ internal static class ExplainRunner
         }
     }
 
-    private static PlanSampleMeasurement ParsePlanMeasurement(
+    internal static PlanSampleMeasurement ParsePlanMeasurement(
         RawPlanSample sample,
         string rawJson)
     {
@@ -757,7 +757,7 @@ internal static class ExplainRunner
             ReadOptionalInt64(element, "Plan Width"),
             ReadOptionalDecimal(element, "Actual Startup Time"),
             ReadOptionalDecimal(element, "Actual Total Time"),
-            ReadRequiredInt64(element, "Actual Rows"),
+            ReadRequiredDecimal(element, "Actual Rows"),
             ReadRequiredInt64(element, "Actual Loops"),
             ReadOptionalInt64(element, "Rows Removed by Filter") ?? 0,
             ReadOptionalInt64(element, "Rows Removed by Index Recheck") ?? 0,
@@ -1283,7 +1283,7 @@ internal static class ExplainRunner
                 $"{replayableCommand.CapturedCommand.CommandRole}: invalid EXPLAIN JSON shape.");
         }
 
-        var actualRows = ReadRequiredInt64(plan, "Actual Rows");
+        var actualRows = ReadRequiredDecimal(plan, "Actual Rows");
         var actualLoops = ReadRequiredInt64(plan, "Actual Loops");
         var structuralJson = CreateStructuralPlanJson(root);
 
@@ -1717,7 +1717,7 @@ internal static class ExplainRunner
     private sealed record ExplainExecution(
         string RawJson,
         string StructuralPlanSha256,
-        long ActualRows,
+        decimal ActualRows,
         long ActualLoops);
 
     private sealed record SequenceDefinition(

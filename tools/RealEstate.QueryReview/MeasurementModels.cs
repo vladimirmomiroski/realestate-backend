@@ -257,7 +257,7 @@ internal sealed record RawPlanSample(
     string SqlSha256,
     string ParameterSha256,
     string StructuralPlanSha256,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops);
 
 internal sealed record DeterministicProfileVerificationSnapshot(
@@ -324,7 +324,7 @@ internal sealed record PlanNodeMeasurement(
     long? PlanWidth,
     decimal? ActualStartupTimeMilliseconds,
     decimal? ActualTotalTimeMilliseconds,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops,
     long RowsRemovedByFilter,
     long RowsRemovedByIndexRecheck,
@@ -357,7 +357,7 @@ internal sealed record PlanSampleMeasurement(
     string StructuralPlanSha256,
     decimal PlanningTimeMilliseconds,
     decimal ExecutionTimeMilliseconds,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops,
     PlanBufferMetrics TopLevelBuffers,
     IReadOnlyDictionary<string, string> Settings,
