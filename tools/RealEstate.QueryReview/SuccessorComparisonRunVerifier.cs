@@ -39,12 +39,17 @@ internal static class SuccessorComparisonRunVerifier
             comparisonVerification,
             cancellationToken);
         ValidateCompatible(primary, comparison);
+        CrossMajorComparisonReport report = CrossMajorCompatibilityReportBuilder.Build(
+            primaryVerification.Measurements,
+            comparisonVerification.Measurements);
+        CrossMajorCompatibilityReportBuilder.ValidateForPublication(report);
 
         return new VerifiedSuccessorComparisonRun(
             comparisonDescriptor,
             comparisonVerification,
             primary,
-            comparison);
+            comparison,
+            report);
     }
 
     internal static void ValidateComparisonDescriptor(
