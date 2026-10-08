@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using FluentAssertions;
+using Npgsql;
 using RealEstate.QueryReview;
 
 namespace RealEstate.Tests.Unit.QueryReview;
@@ -264,6 +265,259 @@ public sealed class QueryReviewGenerationIsolationTests
         error.Should().Contain("requires explicit '--profile'");
     }
 
+    [Theory]
+    [InlineData((int)QueryReviewCommand.ProfileCreate, QueryReviewGenerations.PostgreSql16LaneId)]
+    [InlineData((int)QueryReviewCommand.ProfileVerify, QueryReviewGenerations.PostgreSql16LaneId)]
+    [InlineData((int)QueryReviewCommand.BaselineRun, QueryReviewGenerations.PostgreSql16LaneId)]
+    [InlineData((int)QueryReviewCommand.ProfileCreate, QueryReviewGenerations.PostgreSql184LaneId)]
+    [InlineData((int)QueryReviewCommand.ProfileVerify, QueryReviewGenerations.PostgreSql184LaneId)]
+    [InlineData((int)QueryReviewCommand.BaselineRun, QueryReviewGenerations.PostgreSql184LaneId)]
+    public void Cli_ResolvesExplicitSuccessorOnlineLane(
+        int commandValue,
+        string laneId)
+    {
+        QueryReviewCommand command = (QueryReviewCommand)commandValue;
+        string[] commandTokens = command switch
+        {
+            QueryReviewCommand.ProfileCreate => ["profile", "create"],
+            QueryReviewCommand.ProfileVerify => ["profile", "verify"],
+            QueryReviewCommand.BaselineRun => ["baseline", "run"],
+            _ => throw new InvalidOperationException()
+        };
+        string[] args =
+        [
+            .. commandTokens,
+            "--profile", QueryReviewGenerations.FourRootDiscoveryId,
+            "--lane", laneId,
+            "--connection-string",
+            "Host=localhost;Database=realestate_queryreview_test;Username=postgres;Password=test",
+            "--confirm-disposable",
+            "--container-name", "queryreview-disposable-test"
+        ];
+
+        bool parsed = QueryReviewOptions.TryParse(
+            args,
+            out QueryReviewOptions? options,
+            out string? error);
+
+        parsed.Should().BeTrue(error);
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.ResolveOnlineLane(
+            QueryReviewGenerations.FourRootDiscovery,
+            command,
+            options!.Lane);
+        lane.Id.Should().Be(laneId);
+    }
+
+    [Fact]
+    public void Cli_OmittedOnlineLanePreservesPostgreSql16Compatibility()
+    {
+        bool parsed = QueryReviewOptions.TryParse(
+            [
+                "profile", "verify",
+                "--profile", QueryReviewGenerations.FourRootDiscoveryId,
+                "--connection-string",
+                "Host=localhost;Database=realestate_queryreview_test;Username=postgres;Password=test",
+                "--confirm-disposable",
+                "--container-name", "queryreview-disposable-test"
+            ],
+            out QueryReviewOptions? options,
+            out string? error);
+
+        parsed.Should().BeTrue(error);
+        options!.Lane.Should().BeNull();
+        QueryReviewGenerations.ResolveOnlineLane(
+                QueryReviewGenerations.FourRootDiscovery,
+                QueryReviewCommand.ProfileVerify,
+                options.Lane)
+            .Id.Should().Be(QueryReviewGenerations.PostgreSql16LaneId);
+    }
+
+    [Fact]
+    public void Cli_RejectsDuplicateLaneArguments()
+    {
+        bool parsed = QueryReviewOptions.TryParse(
+            [
+                "baseline", "run",
+                "--profile", QueryReviewGenerations.FourRootDiscoveryId,
+                "--lane", QueryReviewGenerations.PostgreSql16LaneId,
+                "--lane", QueryReviewGenerations.PostgreSql184LaneId,
+                "--connection-string",
+                "Host=localhost;Database=realestate_queryreview_test;Username=postgres;Password=test",
+                "--confirm-disposable",
+                "--container-name", "queryreview-disposable-test"
+            ],
+            out _,
+            out string? error);
+
+        parsed.Should().BeFalse();
+        error.Should().Contain("may be supplied only once");
+    }
+
+    [Theory]
+    [InlineData(QueryReviewGenerations.PostgreSql16LaneId)]
+    [InlineData(QueryReviewGenerations.PostgreSql184LaneId)]
+    public async Task BaselineOrchestration_PropagatesParsedLaneAfterContainerVerification(
+        string laneId)
+    {
+        QueryReviewOptions options = ParseBaselineOptions(laneId);
+        QueryReviewGenerationDefinition generation =
+            QueryReviewGenerations.ResolveOrThrow(options.Profile);
+        generation.EnsureOnlineCommandAvailable(options.Command);
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.ResolveOnlineLane(
+            generation,
+            options.Command,
+            options.Lane);
+        var order = new List<string>();
+
+        (BaselineEnvironmentSnapshot Environment, RawBaselineManifest Manifest) result =
+            await RealEstate.QueryReview.Program.ExecuteAfterContainerVerificationAsync(
+                options,
+                new NpgsqlConnectionStringBuilder(options.ConnectionString),
+                lane,
+                (_, containerName, verifiedLane, _) =>
+                {
+                    order.Add("container-verification");
+                    containerName.Should().Be(options.ContainerName);
+                    verifiedLane.Should().BeSameAs(lane);
+                    return Task.CompletedTask;
+                },
+                () =>
+                {
+                    order.Add("database-access");
+                    BaselineEnvironmentSnapshot environment =
+                        RealEstate.QueryReview.Program.BindBaselineEnvironmentIdentity(
+                            CreateEnvironment(),
+                            generation,
+                            lane);
+                    RawBaselineManifest manifest = ExplainRunner.CreateRawBaselineManifest(
+                        "lane-orchestration-test",
+                        DateTime.UnixEpoch,
+                        DateTime.UnixEpoch.AddSeconds(1),
+                        generation,
+                        lane,
+                        environment,
+                        new string('a', 64),
+                        CreateShapeContract(generation),
+                        [],
+                        CreateProfileVerification(),
+                        new string('b', 64));
+                    return Task.FromResult((environment, manifest));
+                });
+
+        order.Should().Equal("container-verification", "database-access");
+        result.Environment.GenerationId.Should().Be(generation.Id);
+        result.Environment.ProfileVersion.Should().Be(generation.ProfileIdentity);
+        result.Environment.LaneId.Should().Be(laneId);
+        result.Manifest.GenerationId.Should().Be(generation.Id);
+        result.Manifest.ProfileVersion.Should().Be(generation.ProfileIdentity);
+        result.Manifest.LaneId.Should().Be(laneId);
+    }
+
+    [Theory]
+    [InlineData(QueryReviewGenerations.PostgreSql16LaneId)]
+    [InlineData(QueryReviewGenerations.PostgreSql184LaneId)]
+    public async Task BaselineOrchestration_ContainerFailurePreventsDatabaseAccess(
+        string laneId)
+    {
+        QueryReviewOptions options = ParseBaselineOptions(laneId);
+        QueryReviewGenerationDefinition generation =
+            QueryReviewGenerations.ResolveOrThrow(options.Profile);
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.ResolveOnlineLane(
+            generation,
+            options.Command,
+            options.Lane);
+        var databaseAccessed = false;
+
+        Func<Task> act = async () =>
+            await RealEstate.QueryReview.Program.ExecuteAfterContainerVerificationAsync(
+                options,
+                new NpgsqlConnectionStringBuilder(options.ConnectionString),
+                lane,
+                (_, _, _, _) => throw new BaselinePlanValidationException(
+                    "Injected exact-container verification failure."),
+                () =>
+                {
+                    databaseAccessed = true;
+                    return Task.FromResult(0);
+                });
+
+        await act.Should().ThrowAsync<BaselinePlanValidationException>()
+            .WithMessage("*exact-container verification failure*");
+        databaseAccessed.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("postgresql-19")]
+    [InlineData("PostgreSQL-18.4")]
+    [InlineData(" ")]
+    public void Cli_RejectsUnsupportedOrMalformedLane(string laneId)
+    {
+        bool parsed = QueryReviewOptions.TryParse(
+            [
+                "profile", "verify",
+                "--profile", QueryReviewGenerations.FourRootDiscoveryId,
+                "--lane", laneId,
+                "--connection-string",
+                "Host=localhost;Database=realestate_queryreview_test;Username=postgres;Password=test",
+                "--confirm-disposable",
+                "--container-name", "queryreview-disposable-test"
+            ],
+            out _,
+            out string? error);
+
+        parsed.Should().BeFalse();
+        error.Should().Contain("--lane");
+    }
+
+    [Theory]
+    [InlineData((int)QueryReviewCommand.ProfileCreate)]
+    [InlineData((int)QueryReviewCommand.ProfileVerify)]
+    [InlineData((int)QueryReviewCommand.BaselineRun)]
+    public void LaneAwareOnlineCommands_RequirePreDatabaseContainerVerification(
+        int commandValue)
+    {
+        RealEstate.QueryReview.Program.RequiresVerifiedContainer(
+                (QueryReviewCommand)commandValue)
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void NonLaneAwareCaptureCommand_DoesNotBypassIntoLaneAwareContainerPath()
+    {
+        RealEstate.QueryReview.Program.RequiresVerifiedContainer(QueryReviewCommand.CaptureSql)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void Cli_RejectsLaneSelectionForNonLaneAwareCommand()
+    {
+        bool parsed = QueryReviewOptions.TryParse(
+            [
+                "capture-sql",
+                "--profile", QueryReviewGenerations.FourRootDiscoveryId,
+                "--lane", QueryReviewGenerations.PostgreSql184LaneId,
+                "--connection-string",
+                "Host=localhost;Database=realestate_queryreview_test;Username=postgres;Password=test",
+                "--confirm-disposable"
+            ],
+            out _,
+            out string? error);
+
+        parsed.Should().BeFalse();
+        error.Should().Contain("valid only");
+    }
+
+    [Fact]
+    public void FrozenHistoricalGeneration_RemainsUnavailableForOnlineLaneSelection()
+    {
+        Action act = () =>
+            QueryReviewGenerations.FrozenHistorical.EnsureOnlineCommandAvailable(
+                QueryReviewCommand.ProfileVerify);
+
+        act.Should().Throw<QueryReviewGenerationNotReadyException>()
+            .WithMessage("*frozen and verify-only*");
+    }
+
     [Fact]
     public void ComparisonRun_IsRequiredOnlyForFuturePostgreSql184Export()
     {
@@ -472,6 +726,83 @@ public sealed class QueryReviewGenerationIsolationTests
             $"queryreview-generation-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
         return directory;
+    }
+
+    private static QueryReviewOptions ParseBaselineOptions(string laneId)
+    {
+        bool parsed = QueryReviewOptions.TryParse(
+            [
+                "baseline", "run",
+                "--profile", QueryReviewGenerations.FourRootDiscoveryId,
+                "--lane", laneId,
+                "--connection-string",
+                "Host=localhost;Database=realestate_queryreview_test;Username=postgres;Password=test",
+                "--confirm-disposable",
+                "--container-name", "queryreview-disposable-test"
+            ],
+            out QueryReviewOptions? options,
+            out string? error);
+
+        parsed.Should().BeTrue(error);
+        return options!;
+    }
+
+    private static BaselineEnvironmentSnapshot CreateEnvironment()
+    {
+        return new BaselineEnvironmentSnapshot(
+            DateTime.UnixEpoch,
+            new GitEnvironmentSnapshot("source-commit", "test", []),
+            null!,
+            null!,
+            new PostgreSqlEnvironmentSnapshot(
+                "PostgreSQL test",
+                "18.4",
+                "180004",
+                "realestate_queryreview_test",
+                0,
+                0,
+                [],
+                [],
+                [],
+                [],
+                []),
+            "ef",
+            "npgsql",
+            "tool",
+            "unbound",
+            DeterministicProfileSeeder.CSharpSeed,
+            DeterministicProfileSeeder.PostgreSqlSeed,
+            TimeSpan.Zero);
+    }
+
+    private static QueryShapeContractDefinition CreateShapeContract(
+        QueryReviewGenerationDefinition generation)
+    {
+        return new QueryShapeContractDefinition(
+            generation.Id,
+            generation.ProfileIdentity,
+            "lane-orchestration-test",
+            ShapeCount: 21,
+            CommandCount: 83,
+            TypedParameterCount: 190,
+            PlanCount: 498,
+            ProfileInvariantCount: 179,
+            CommandKeys: [],
+            ExpectedManifestSha256: null);
+    }
+
+    private static DeterministicProfileVerificationSnapshot CreateProfileVerification()
+    {
+        return new DeterministicProfileVerificationSnapshot(
+            QueryReviewGenerations.FourRootDiscoveryId,
+            ListingCount: 100_000,
+            TranslationCount: 200_000,
+            InvariantTotal: 179,
+            InvariantPassed: 179,
+            InvariantFailed: 0,
+            ProfileSha256: new string('c', 64),
+            InvariantManifestSha256: new string('d', 64),
+            InvariantResultSha256: new string('d', 64));
     }
 
     private static void CopyDirectory(string source, string destination)

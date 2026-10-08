@@ -257,7 +257,7 @@ internal sealed record RawPlanSample(
     string SqlSha256,
     string ParameterSha256,
     string StructuralPlanSha256,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops);
 
 internal sealed record DeterministicProfileVerificationSnapshot(
@@ -324,7 +324,7 @@ internal sealed record PlanNodeMeasurement(
     long? PlanWidth,
     decimal? ActualStartupTimeMilliseconds,
     decimal? ActualTotalTimeMilliseconds,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops,
     long RowsRemovedByFilter,
     long RowsRemovedByIndexRecheck,
@@ -357,7 +357,7 @@ internal sealed record PlanSampleMeasurement(
     string StructuralPlanSha256,
     decimal PlanningTimeMilliseconds,
     decimal ExecutionTimeMilliseconds,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops,
     PlanBufferMetrics TopLevelBuffers,
     IReadOnlyDictionary<string, string> Settings,
@@ -497,6 +497,27 @@ internal sealed record SuccessorRunComparisonIdentity(
     int MeasuredRunsPerCommand,
     int PlanCount);
 
+internal sealed record CrossMajorSequenceComparison(
+    string SequenceId,
+    decimal PostgreSql16ExecutionTimeMedianMilliseconds,
+    decimal PostgreSql184ExecutionTimeMedianMilliseconds,
+    decimal ExecutionTimeDeltaMilliseconds,
+    decimal ExecutionTimeDeltaPercent,
+    long PostgreSql16SharedAccessBlocksMedian,
+    long PostgreSql184SharedAccessBlocksMedian,
+    long SharedAccessBlocksDelta,
+    decimal SharedAccessBlocksDeltaPercent,
+    bool ThresholdAExceeded,
+    bool ThresholdBExceeded,
+    IReadOnlyList<string> PostgreSql16OnlyTopology,
+    IReadOnlyList<string> PostgreSql184OnlyTopology);
+
+internal sealed record CrossMajorComparisonReport(
+    IReadOnlyList<CrossMajorSequenceComparison> Sequences,
+    int ThresholdAExceedanceCount,
+    int ThresholdBExceedanceCount,
+    bool Q1TrigramIndexPreserved);
+
 internal sealed record EmbeddedComparisonEvidence(
     string RelativeRoot,
     SuccessorRunComparisonIdentity PrimaryIdentity,
@@ -508,7 +529,8 @@ internal sealed record VerifiedSuccessorComparisonRun(
     QueryReviewArtifactDescriptor Descriptor,
     BaselineVerificationResult Verification,
     SuccessorRunComparisonIdentity PrimaryIdentity,
-    SuccessorRunComparisonIdentity ComparisonIdentity);
+    SuccessorRunComparisonIdentity ComparisonIdentity,
+    CrossMajorComparisonReport Report);
 
 internal sealed record SemanticResultIdentityEvidence(
     string ExpectedResultSha256,
@@ -588,7 +610,8 @@ internal sealed record CaptureIdentityEvidence(
     int SpillCount,
     int PlanSwitchCount,
     int AnomalyCount,
-    int CredentialFindingCount);
+    int CredentialFindingCount,
+    string? PostgreSqlVersionNumber = null);
 
 internal sealed record ArtifactHashEvidence(
     string Path,

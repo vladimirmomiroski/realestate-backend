@@ -230,6 +230,34 @@ internal static class QueryReviewGenerations
                    $"'{FrozenHistoricalId}' or '{FourRootDiscoveryId}'.");
     }
 
+    public static QueryReviewLaneDefinition ResolveOnlineLane(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewCommand command,
+        string? laneId)
+    {
+        ArgumentNullException.ThrowIfNull(generation);
+
+        if (command is not QueryReviewCommand.ProfileCreate and
+            not QueryReviewCommand.ProfileVerify and
+            not QueryReviewCommand.BaselineRun)
+        {
+            if (!string.IsNullOrWhiteSpace(laneId))
+            {
+                throw new BaselinePlanValidationException(
+                    $"Online lane selection is not valid for command " +
+                    $"'{QueryReviewOptions.FormatCommand(command)}'.");
+            }
+
+            return generation.RequireLane(PostgreSql16LaneId);
+        }
+
+        string selectedLane = string.IsNullOrWhiteSpace(laneId)
+            ? PostgreSql16LaneId
+            : laneId;
+
+        return generation.RequireLane(selectedLane);
+    }
+
     public static QueryReviewGenerationDefinition ResolveRecordedProfileOrThrow(
         string profileIdentity)
     {

@@ -16,6 +16,7 @@ internal static partial class BaselineEvidenceWriter
     private const long ExpectedTranslationCount = 200_000;
     private const int RequiredPostgreSqlMajorVersion = 16;
     private const string RequiredPostgreSqlVersion = "16.14";
+    private const int RequiredPostgreSqlVersionNumber = 160014;
     private const string HistoricalResultSha256 =
         "7f74f991bf29b6f3ad24d48f2e8e13ecf9f375ea6f9eb0da8f18204c528bfb36";
     private const string TrigramExtensionName = "pg_trgm";
@@ -76,7 +77,8 @@ internal static partial class BaselineEvidenceWriter
                 DeterministicProfileSeeder.ProfileVersion,
                 HistoricalResultSha256,
                 RequiredPostgreSqlMajorVersion,
-                RequiredPostgreSqlVersion);
+                RequiredPostgreSqlVersion,
+                RequiredPostgreSqlVersionNumber);
         }
 
         SuccessorPermanentExportContract contract = generation.PermanentExportContract
@@ -93,7 +95,8 @@ internal static partial class BaselineEvidenceWriter
             contract.ProfileIdentity,
             contract.ResultOrderIdentitySha256,
             lane.PostgreSqlMajorVersion,
-            lane.PostgreSqlMajorVersion == 16 ? "16.14" : "18.4");
+            lane.PostgreSqlMajorVersion == 16 ? "16.14" : "18.4",
+            lane.PostgreSqlMajorVersion == 16 ? 160014 : 180004);
     }
 
     public static Task<BaselineEvidenceExportResult> ExportAsync(
@@ -143,6 +146,10 @@ internal static partial class BaselineEvidenceWriter
         PermanentEvidenceMetadata metadata = measurements.PermanentEvidence
             ?? throw new BaselinePlanValidationException(
                 "Historical permanent evidence is missing completeness metadata.");
+        ValidatePersistedPostgreSqlVersion(
+            descriptor.Generation,
+            descriptor.Lane,
+            metadata.CaptureIdentity);
 
         if (!descriptor.Generation.MatchesRecordedProfile(
                 metadata.ProfileVerification.ProfileIdentity) ||
@@ -163,9 +170,6 @@ internal static partial class BaselineEvidenceWriter
             metadata.CaptureIdentity.CommandCount != expectations.CommandCount ||
             metadata.CaptureIdentity.TypedParameterCount != expectations.ParameterCount ||
             metadata.CaptureIdentity.RawPlanCount != expectations.PlanCount ||
-            !metadata.CaptureIdentity.PostgreSqlVersion.StartsWith(
-                $"{expectations.PostgreSqlMajorVersion}.",
-                StringComparison.Ordinal) ||
             !measurements.Q1Gate.Passed)
         {
             throw new BaselinePlanValidationException(
@@ -184,6 +188,7 @@ internal static partial class BaselineEvidenceWriter
             descriptor.Directory,
             measurements,
             descriptor.Generation,
+            descriptor.Lane,
             expectations,
             cancellationToken);
         ScanForCredentials(descriptor.Directory);
@@ -270,9 +275,16 @@ internal static partial class BaselineEvidenceWriter
             SuccessorPermanentExportManifest.ValidateNoIndexCatalog(environment);
         }
 
-        ValidateIdentity(manifest, environment, verification.Measurements, expectations);
+        ValidateIdentity(
+            manifest,
+            environment,
+            verification.Measurements,
+            generation,
+            lane,
+            expectations);
         var evidenceCore = BuildEvidenceCore(
             generation,
+            lane,
             expectations,
             verification,
             manifest,
@@ -381,8 +393,10 @@ internal static partial class BaselineEvidenceWriter
                         summaryPath,
                         BuildPermanentSummary(
                             generation,
+                            lane,
                             verification.Measurements,
-                            evidenceCore),
+                            evidenceCore,
+                            comparison?.Report),
                         publicationCancellationToken);
 
                     var artifactIntegrity = await BuildArtifactIntegrityAsync(
@@ -405,6 +419,7 @@ internal static partial class BaselineEvidenceWriter
                         stagingDirectory,
                         permanentMeasurements,
                         generation,
+                        lane,
                         expectations,
                         publicationCancellationToken);
                     ScanForCredentials(stagingDirectory);
@@ -477,6 +492,8 @@ internal static partial class BaselineEvidenceWriter
         RawBaselineManifest manifest,
         BaselineEnvironmentSnapshot environment,
         BaselineMeasurementsRaw measurements,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         PermanentBaselineExpectations expectations)
     {
         if (!string.Equals(
@@ -514,20 +531,15 @@ internal static partial class BaselineEvidenceWriter
                 "Commit, profile, seed, database, or PostgreSQL identity mismatch prevents export.");
         }
 
-        if (!int.TryParse(
-                environment.PostgreSql.ServerVersionNumber,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out var serverVersionNumber) ||
-            serverVersionNumber / 10_000 != expectations.PostgreSqlMajorVersion)
-        {
-            throw new BaselinePlanValidationException(
-                $"Permanent evidence requires PostgreSQL {expectations.PostgreSqlMajorVersion}.");
-        }
+        ValidatePostgreSqlVersionForPermanentEvidence(
+            generation,
+            lane,
+            environment.PostgreSql);
     }
 
     private static EvidenceCore BuildEvidenceCore(
         QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         PermanentBaselineExpectations expectations,
         BaselineVerificationResult verification,
         RawBaselineManifest manifest,
@@ -546,6 +558,8 @@ internal static partial class BaselineEvidenceWriter
             ? BuildA1ExceptionEvidence(verification.Measurements)
             : null;
         var captureIdentity = BuildCaptureIdentity(
+            generation,
+            lane,
             expectations,
             verification,
             manifest,
@@ -881,19 +895,17 @@ internal static partial class BaselineEvidenceWriter
     }
 
     private static CaptureIdentityEvidence BuildCaptureIdentity(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         PermanentBaselineExpectations expectations,
         BaselineVerificationResult verification,
         RawBaselineManifest manifest,
         BaselineEnvironmentSnapshot environment)
     {
-        if (!string.Equals(
-                environment.PostgreSql.ServerVersion,
-                expectations.PostgreSqlVersion,
-                StringComparison.Ordinal))
-        {
-            throw new BaselinePlanValidationException(
-                $"Permanent evidence requires PostgreSQL {expectations.PostgreSqlVersion}.");
-        }
+        ValidatePostgreSqlVersionForPermanentEvidence(
+            generation,
+            lane,
+            environment.PostgreSql);
 
         var extension = environment.PostgreSql.Extensions.SingleOrDefault(candidate =>
             string.Equals(candidate.Name, TrigramExtensionName, StringComparison.Ordinal));
@@ -959,7 +971,150 @@ internal static partial class BaselineEvidenceWriter
             spillCount,
             planSwitchCount,
             anomalyCount,
-            credentialFindingCount);
+            credentialFindingCount,
+            environment.PostgreSql.ServerVersionNumber);
+    }
+
+    internal static void ValidatePostgreSqlVersionForPermanentEvidence(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        PostgreSqlEnvironmentSnapshot postgreSql)
+    {
+        ArgumentNullException.ThrowIfNull(generation);
+        ArgumentNullException.ThrowIfNull(lane);
+        ArgumentNullException.ThrowIfNull(postgreSql);
+
+        ValidatePostgreSqlVersionIdentity(
+            GetExpectations(generation, lane),
+            postgreSql.ServerVersion,
+            postgreSql.ServerVersionNumber,
+            allowLegacyPostgreSql16WithoutVersionNumber: false);
+    }
+
+    private static void ValidatePersistedPostgreSqlVersion(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        CaptureIdentityEvidence captureIdentity)
+    {
+        PermanentBaselineExpectations expectations = GetExpectations(generation, lane);
+        bool allowLegacyPostgreSql16WithoutVersionNumber =
+            expectations.PostgreSqlMajorVersion == RequiredPostgreSqlMajorVersion &&
+            string.IsNullOrWhiteSpace(captureIdentity.PostgreSqlVersionNumber);
+
+        ValidatePostgreSqlVersionIdentity(
+            expectations,
+            captureIdentity.PostgreSqlVersion,
+            captureIdentity.PostgreSqlVersionNumber,
+            allowLegacyPostgreSql16WithoutVersionNumber);
+    }
+
+    private static void ValidatePostgreSqlVersionIdentity(
+        PermanentBaselineExpectations expectations,
+        string? serverVersion,
+        string? serverVersionNumber,
+        bool allowLegacyPostgreSql16WithoutVersionNumber)
+    {
+        (int Major, int Minor) expectedTextIdentity =
+            ParsePostgreSqlServerVersionText(expectations.PostgreSqlVersion);
+        (int Major, int Minor) actualTextIdentity =
+            ParsePostgreSqlServerVersionText(serverVersion);
+
+        if (actualTextIdentity != expectedTextIdentity ||
+            (expectations.PostgreSqlMajorVersion == RequiredPostgreSqlMajorVersion &&
+             !string.Equals(
+                 serverVersion,
+                 expectations.PostgreSqlVersion,
+                 StringComparison.Ordinal)))
+        {
+            throw new BaselinePlanValidationException(
+                $"Permanent evidence requires exact PostgreSQL " +
+                $"{expectations.PostgreSqlVersion} version identity.");
+        }
+
+        if (string.IsNullOrWhiteSpace(serverVersionNumber))
+        {
+            if (allowLegacyPostgreSql16WithoutVersionNumber)
+            {
+                return;
+            }
+
+            throw new BaselinePlanValidationException(
+                "Permanent evidence is missing PostgreSQL server_version_num metadata.");
+        }
+
+        if (!int.TryParse(
+                serverVersionNumber,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int numericVersion) ||
+            numericVersion != expectations.PostgreSqlVersionNumber)
+        {
+            throw new BaselinePlanValidationException(
+                $"Permanent evidence requires PostgreSQL server_version_num " +
+                $"{expectations.PostgreSqlVersionNumber}.");
+        }
+
+        int numericMajor = numericVersion / 10_000;
+        int numericMinor = numericVersion % 10_000;
+
+        if (actualTextIdentity.Major != numericMajor ||
+            actualTextIdentity.Minor != numericMinor)
+        {
+            throw new BaselinePlanValidationException(
+                "PostgreSQL server version text contradicts server_version_num metadata.");
+        }
+    }
+
+    private static (int Major, int Minor) ParsePostgreSqlServerVersionText(
+        string? serverVersion)
+    {
+        if (string.IsNullOrWhiteSpace(serverVersion) ||
+            !string.Equals(serverVersion, serverVersion.Trim(), StringComparison.Ordinal))
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence has malformed PostgreSQL server version text.");
+        }
+
+        int decorationStart = serverVersion.IndexOf(' ');
+        string canonicalVersion = decorationStart < 0
+            ? serverVersion
+            : serverVersion[..decorationStart];
+
+        if (decorationStart >= 0)
+        {
+            string decoration = serverVersion[decorationStart..];
+
+            if (decoration.Length < 4 ||
+                !decoration.StartsWith(" (", StringComparison.Ordinal) ||
+                decoration[^1] != ')' ||
+                string.IsNullOrWhiteSpace(decoration[2..^1]))
+            {
+                throw new BaselinePlanValidationException(
+                    "Permanent evidence has malformed PostgreSQL server version text.");
+            }
+        }
+
+        string[] components = canonicalVersion.Split('.');
+
+        if (components.Length != 2 ||
+            !int.TryParse(
+                components[0],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int major) ||
+            !int.TryParse(
+                components[1],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int minor) ||
+            major <= 0 ||
+            minor < 0)
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence has malformed PostgreSQL server version text.");
+        }
+
+        return (major, minor);
     }
 
     private static CuratedBaselineMeasurements BuildPermanentMeasurements(
@@ -1044,12 +1199,20 @@ internal static partial class BaselineEvidenceWriter
 
     private static string BuildPermanentSummary(
         QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         BaselineMeasurementsRaw measurements,
-        EvidenceCore evidenceCore)
+        EvidenceCore evidenceCore,
+        CrossMajorComparisonReport? comparisonReport)
     {
         if (!generation.IsFrozenHistorical)
         {
-            return BuildSuccessorPermanentSummary(generation, measurements, evidenceCore);
+            return BuildSuccessorPermanentSummary(
+                generation,
+                lane,
+                measurements,
+                evidenceCore.ProfileVerification,
+                evidenceCore.CaptureIdentity,
+                comparisonReport);
         }
         var q1Count = measurements.Commands.Single(command =>
             string.Equals(command.CommandKey, "Q1-01-filtered-count", StringComparison.Ordinal));
@@ -1157,13 +1320,38 @@ internal static partial class BaselineEvidenceWriter
         return builder.ToString();
     }
 
-    private static string BuildSuccessorPermanentSummary(
+    internal static string BuildSuccessorPermanentSummary(
         QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         BaselineMeasurementsRaw measurements,
-        EvidenceCore evidenceCore)
+        ProfileVerificationEvidence profileVerification,
+        CaptureIdentityEvidence identity,
+        CrossMajorComparisonReport? comparisonReport)
     {
+        if (string.Equals(
+                lane.Id,
+                QueryReviewGenerations.PostgreSql184LaneId,
+                StringComparison.Ordinal))
+        {
+            return BuildPostgreSql184CompatibilitySummary(
+                generation,
+                measurements,
+                profileVerification,
+                identity,
+                comparisonReport);
+        }
+
+        if (!string.Equals(
+                lane.Id,
+                QueryReviewGenerations.PostgreSql16LaneId,
+                StringComparison.Ordinal) ||
+            comparisonReport is not null)
+        {
+            throw new BaselinePlanValidationException(
+                "The authoritative PostgreSQL 16 summary received an invalid lane or comparison report.");
+        }
+
         SuccessorPermanentExportContract contract = generation.PermanentExportContract!;
-        var identity = evidenceCore.CaptureIdentity;
         var builder = new StringBuilder();
         builder.AppendLine("# Authoritative permanent four-root discovery baseline summary");
         builder.AppendLine();
@@ -1174,8 +1362,8 @@ internal static partial class BaselineEvidenceWriter
             $"Disposition: Commercial `{contract.CommercialDisposition}`; Land " +
             $"`{contract.LandDisposition}`; migrations {contract.MigrationCount}.");
         builder.AppendLine(
-            $"Profile: {evidenceCore.ProfileVerification.InvariantPassed}/" +
-            $"{evidenceCore.ProfileVerification.InvariantTotal} invariants; " +
+            $"Profile: {profileVerification.InvariantPassed}/" +
+            $"{profileVerification.InvariantTotal} invariants; " +
             $"shape identity `{contract.QueryShapeManifestSha256}`; result/order identity " +
             $"`{contract.ResultOrderIdentitySha256}`.");
         builder.AppendLine(
@@ -1193,6 +1381,160 @@ internal static partial class BaselineEvidenceWriter
             "inventory were verified before publication.");
         return builder.ToString();
     }
+
+    private static string BuildPostgreSql184CompatibilitySummary(
+        QueryReviewGenerationDefinition generation,
+        BaselineMeasurementsRaw measurements,
+        ProfileVerificationEvidence profileVerification,
+        CaptureIdentityEvidence identity,
+        CrossMajorComparisonReport? comparisonReport)
+    {
+        if (comparisonReport is null)
+        {
+            throw new BaselinePlanValidationException(
+                "PostgreSQL 18.4 permanent publication requires a complete cross-major report.");
+        }
+
+        CrossMajorCompatibilityReportBuilder.ValidateForPublication(comparisonReport);
+        SuccessorPermanentExportContract contract = generation.PermanentExportContract!;
+        var builder = new StringBuilder();
+        builder.AppendLine("# PostgreSQL 18.4 Compatibility Evidence");
+        builder.AppendLine();
+        builder.AppendLine(
+            "PostgreSQL 16 remains the authoritative Chapter 15 correctness lane, " +
+            "historical-comparison lane, performance lane, and index-decision lane.");
+        builder.AppendLine(
+            "PostgreSQL 18.4 is a bounded compatibility/performance-observation lane.");
+        builder.AppendLine(
+            "Cross-major timing is observational and is not an SLA.");
+        builder.AppendLine();
+        builder.AppendLine($"Generation/profile: `{contract.GenerationId}`.");
+        builder.AppendLine($"Run: `{measurements.BaselineRunId}`.");
+        builder.AppendLine($"Capture commit: `{identity.GitCommit}`.");
+        builder.AppendLine(
+            $"Disposition: Commercial `{contract.CommercialDisposition}`; Land " +
+            $"`{contract.LandDisposition}`; migrations {contract.MigrationCount}.");
+        builder.AppendLine(
+            $"Profile: {profileVerification.InvariantPassed}/" +
+            $"{profileVerification.InvariantTotal} invariants; " +
+            $"shape identity `{contract.QueryShapeManifestSha256}`; result/order identity " +
+            $"`{contract.ResultOrderIdentitySha256}`.");
+        builder.AppendLine(
+            $"Capture: {identity.CommandCount} commands; {identity.TypedParameterCount} typed " +
+            $"parameters; {identity.RawPlanCount} plans; {identity.WarmUpRounds} warm-up and " +
+            $"{identity.MeasuredRounds} measured rounds.");
+        builder.AppendLine(
+            $"Safety: spills {identity.SpillCount}; plan switches {identity.PlanSwitchCount}; " +
+            $"anomalies {identity.AnomalyCount}; credential findings " +
+            $"{identity.CredentialFindingCount}.");
+        builder.AppendLine();
+        builder.AppendLine("## Cross-major review rules");
+        builder.AppendLine();
+        builder.AppendLine(
+            "- Threshold A: PostgreSQL 18.4 is both more than 25% and more than 2 ms " +
+            "slower than the contemporaneous PostgreSQL 16 measured median.");
+        builder.AppendLine(
+            "- Threshold B: PostgreSQL 18.4 uses more than 20% additional median " +
+            "shared-access blocks.");
+        builder.AppendLine(
+            "- Medians use only the five measured samples; discarded warm-ups are excluded.");
+        builder.AppendLine();
+        builder.AppendLine("## Cross-major sequence comparison");
+        builder.AppendLine();
+        builder.AppendLine(
+            "| Sequence | PG16 ms | PG18.4 ms | Delta ms | Delta % | PG16 blocks | " +
+            "PG18.4 blocks | Block delta | Block % | A | B |");
+        builder.AppendLine(
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|:---:|:---:|");
+
+        foreach (CrossMajorSequenceComparison sequence in comparisonReport.Sequences)
+        {
+            builder.Append("| ").Append(sequence.SequenceId)
+                .Append(" | ").Append(FormatDecimal(sequence.PostgreSql16ExecutionTimeMedianMilliseconds))
+                .Append(" | ").Append(FormatDecimal(sequence.PostgreSql184ExecutionTimeMedianMilliseconds))
+                .Append(" | ").Append(FormatSignedDecimal(sequence.ExecutionTimeDeltaMilliseconds))
+                .Append(" | ").Append(FormatSignedDecimal(sequence.ExecutionTimeDeltaPercent)).Append('%')
+                .Append(" | ").Append(sequence.PostgreSql16SharedAccessBlocksMedian)
+                .Append(" | ").Append(sequence.PostgreSql184SharedAccessBlocksMedian)
+                .Append(" | ").Append(FormatSignedLong(sequence.SharedAccessBlocksDelta))
+                .Append(" | ").Append(FormatSignedDecimal(sequence.SharedAccessBlocksDeltaPercent)).Append('%')
+                .Append(" | ").Append(sequence.ThresholdAExceeded ? "yes" : "no")
+                .Append(" | ").Append(sequence.ThresholdBExceeded ? "yes" : "no")
+                .AppendLine(" |");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine(
+            $"- Threshold A exceedances: {comparisonReport.ThresholdAExceedanceCount}.");
+        builder.AppendLine(
+            $"- Threshold B exceedances: {comparisonReport.ThresholdBExceedanceCount}.");
+        builder.AppendLine();
+        builder.AppendLine("## Lane-qualified plan/topology review");
+        builder.AppendLine();
+
+        CrossMajorSequenceComparison[] topologyDifferences = comparisonReport.Sequences
+            .Where(sequence =>
+                sequence.PostgreSql16OnlyTopology.Count != 0 ||
+                sequence.PostgreSql184OnlyTopology.Count != 0)
+            .ToArray();
+
+        if (topologyDifferences.Length == 0)
+        {
+            builder.AppendLine("- No lane-qualified median-plan topology differences.");
+        }
+        else
+        {
+            foreach (CrossMajorSequenceComparison sequence in topologyDifferences)
+            {
+                bool eliminatesListingsSequentialScan =
+                    sequence.PostgreSql16OnlyTopology.Contains(
+                        "scan:Seq Scan;relation:Listings;index:-",
+                        StringComparer.Ordinal) &&
+                    !sequence.PostgreSql184OnlyTopology.Any(value =>
+                        string.Equals(
+                            value,
+                            "scan:Seq Scan;relation:Listings;index:-",
+                            StringComparison.Ordinal));
+
+                builder.Append("- ").Append(sequence.SequenceId)
+                    .Append(": PostgreSQL 16-only [")
+                    .Append(FormatTopology(sequence.PostgreSql16OnlyTopology))
+                    .Append("]; PostgreSQL 18.4-only [")
+                    .Append(FormatTopology(sequence.PostgreSql184OnlyTopology))
+                    .AppendLine("].");
+
+                if (eliminatesListingsSequentialScan)
+                {
+                    builder.Append("- ").Append(sequence.SequenceId)
+                        .AppendLine(
+                            ": PostgreSQL 18.4 eliminates the PostgreSQL 16 named " +
+                            "`Listings` sequential scan.");
+                }
+            }
+        }
+
+        builder.AppendLine(
+            $"- Required Q1 `{CrossMajorCompatibilityReportBuilder.TrigramIndexName}` " +
+            $"behavior remains intact: {(comparisonReport.Q1TrigramIndexPreserved ? "PASS" : "FAIL")}.");
+        builder.AppendLine();
+        builder.AppendLine(
+            "All SQL, typed parameters, totals, selected IDs, order identities, settings, " +
+            "and sample protocol match the verified contemporaneous PostgreSQL 16 comparison.");
+
+        return builder.ToString();
+    }
+
+    private static string FormatDecimal(decimal value) =>
+        value.ToString("0.000", CultureInfo.InvariantCulture);
+
+    private static string FormatSignedDecimal(decimal value) =>
+        value.ToString("+0.000;-0.000;0.000", CultureInfo.InvariantCulture);
+
+    private static string FormatSignedLong(long value) =>
+        value.ToString("+0;-0;0", CultureInfo.InvariantCulture);
+
+    private static string FormatTopology(IReadOnlyList<string> topology) =>
+        topology.Count == 0 ? "none" : string.Join(", ", topology);
 
     private static void AppendA1Summary(
         StringBuilder builder,
@@ -1263,6 +1605,7 @@ internal static partial class BaselineEvidenceWriter
         string directory,
         CuratedBaselineMeasurements expected,
         QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         PermanentBaselineExpectations expectations,
         CancellationToken cancellationToken)
     {
@@ -1291,6 +1634,11 @@ internal static partial class BaselineEvidenceWriter
             throw new BaselinePlanValidationException(
                 "Permanent measurements are missing required successful completeness metadata.");
         }
+
+        ValidatePersistedPostgreSqlVersion(
+            generation,
+            lane,
+            metadata.CaptureIdentity);
 
         if (!historical)
         {
@@ -1374,14 +1722,34 @@ internal static partial class BaselineEvidenceWriter
             Path.Combine(directory, "baseline-summary.md"),
             cancellationToken);
 
+        bool postgreSql184Compatibility =
+            !historical &&
+            string.Equals(
+                lane.Id,
+                QueryReviewGenerations.PostgreSql184LaneId,
+                StringComparison.Ordinal);
         string expectedHeading = historical
             ? "# Authoritative permanent Chapter 10F baseline summary"
-            : "# Authoritative permanent four-root discovery baseline summary";
+            : postgreSql184Compatibility
+                ? "# PostgreSQL 18.4 Compatibility Evidence"
+                : "# Authoritative permanent four-root discovery baseline summary";
         if (!summary.StartsWith(expectedHeading, StringComparison.Ordinal) ||
-            summary.Contains("temporary baseline summary", StringComparison.OrdinalIgnoreCase))
+            summary.Contains("temporary baseline summary", StringComparison.OrdinalIgnoreCase) ||
+            (postgreSql184Compatibility &&
+             (!summary.Contains(
+                  "PostgreSQL 16 remains the authoritative Chapter 15 correctness lane",
+                  StringComparison.Ordinal) ||
+              !summary.Contains(
+                  "PostgreSQL 18.4 is a bounded compatibility/performance-observation lane",
+                  StringComparison.Ordinal) ||
+              !summary.Contains(
+                  "Cross-major timing is observational and is not an SLA",
+                  StringComparison.Ordinal) ||
+              CrossMajorCompatibilityReportBuilder.ExpectedSequenceIds.Any(sequenceId =>
+                  !summary.Contains($"| {sequenceId} |", StringComparison.Ordinal)))))
         {
             throw new BaselinePlanValidationException(
-                "Permanent summary wording is not authoritative or still claims to be temporary.");
+                "Permanent summary wording or cross-major compatibility reporting is incomplete.");
         }
     }
 
@@ -1836,7 +2204,8 @@ internal static partial class BaselineEvidenceWriter
         string ProfileIdentity,
         string ResultOrderIdentitySha256,
         int PostgreSqlMajorVersion,
-        string PostgreSqlVersion);
+        string PostgreSqlVersion,
+        int PostgreSqlVersionNumber);
 
     private sealed record ExpectedA1Topology(
         IReadOnlyList<string> NodeTypes,
