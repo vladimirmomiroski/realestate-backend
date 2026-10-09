@@ -2,7 +2,43 @@
 
 ## 1. Status and authority
 
-**Status:** authoritative implementation plan; implementation has not started.
+**Status:** technical implementation and cumulative verification are independently accepted and owner-committed through 15L. Documentation closeout (15M) is prepared for its own independent audit and owner commit; Chapter 15 is not yet declared fully complete.
+
+### Accepted execution status (15M closeout)
+
+Closeout source: `d2c357d9870283df76b2a4f714fe444315e90601`, branch `docs/chapter15-discovery-closeout`; production `src` tree `367529280368366f8216471daff0c2d9e7984ccd`. The independently accepted [15L technical FINAL_PASS](chapter-15l-cumulative-chapter-15-verification-gate.md) was owner-committed as `cf9ef2dbd114f024f36b68ac3138729611cb5e11` and merged by this closeout source. Its verification source is the earlier `cf1eec2d7352a0545e5400ca5eeb9cda8bc3d552`, not the raw 15K capture source.
+
+The outcomes below reflect owner-confirmed independent acceptance and the committed technical records. Commit references identify actual content commits, not invented audit commits. The original task specifications, staged readiness rules and feasibility estimates below remain planning history/requirements; this table records the achieved state.
+
+| Task | Independently accepted outcome | Owner content commit(s) |
+|---|---|---|
+| 15A | PASS — corrected accepted Chapter 14 release status | `16572ab223f1d471af1063af10dbd5d9d15536de` |
+| 15B | PASS — scalar Commercial/Land root-plus-child discovery, unchanged reduced agency vocabulary | `526140b7633bbc6d5618d12e1eaf98e84466265f` |
+| 15C | PASS — direct dashboard status validation after existing access checks | `a5481b5de12f919835c00e444bace6b9a7e37264` |
+| 15D | PASS — explicit generations, historical verify-only protection, lane publication isolation | `a67fde374d5a8196e8839f0b6ed1567494f72a90`, `fd6a28b03c73d4d83b35f55b3fb59a7ee60679d1` |
+| 15E | PASS — deterministic four-root profile, 179 invariants and independent repeatability proof | `333e463275aaeb6f67523bbefc070f4e3c234b9d` |
+| 15F | PASS — 21 shapes, all canonical inputs and SQL/parameter/result/order locks; amended populated agency Land page 4 | `8f221927774dff58da213cd35b3133a4c12ec8fc` |
+| 15G | PASS — unindexed PG16 evidence with corrected ordinal content address | `c4bf2faa74fa5df7db377fb174dd9d9548559259` |
+| 15H | PASS — locked designs, complete candidate evidence and final Commercial/Land NO_INDEX disposition | `3aee5a44fc3cb5176fbe984c141a9e50d800feca`, `94c65222f090edede221ccc9b64dbb97a2d9f13d` |
+| 15I | SKIPPED — NO_INDEX; no conditional or placeholder migration | No commit required |
+| 15J | PASS — final export contract/corrections and authoritative PG16 permanent baseline | Final capture/tooling source `673ce09bfebf5bb0784f8ca500de9fc09c671cdc`; publication `0949d5ccc67912537b0660781ffa512c9c67ad48` |
+| 15K | PASS — fresh PG18.4 compatibility lane, embedded contemporaneous PG16 comparison, sealed 23-sequence report | Final capture/tooling source `fde28a9543831a10fb7eaa3720f779e63adf91e3`; publication `3466ae1a4ec4427082619d8915dc0215ad0f2a9f` |
+| 15L | Independently accepted technical FINAL_PASS — retained Release execution proof and cumulative gates | `cf9ef2dbd114f024f36b68ac3138729611cb5e11` |
+| 15M | Documentation prepared; independent audit and owner commit PENDING | Not yet committed; no self-acceptance |
+
+Actual history includes separately audited bounded tooling corrections rather than the original commit-count estimate: 15J export finalization `c13a19b0efece0a744ed76d307f1a1c3d3fe4be5`, profile-hash sequencing `ca562002ed99dd04a898716bb351282f2676c77b`, Q1 gate `24be71f6b20ededfaa910cf1a02fefaa444397e5`, inventory/filename finalization `673ce09bfebf5bb0784f8ca500de9fc09c671cdc`; 15K lane selection `04c14d33c3b681cc65befd931a9291d10a8d5b06`, decimal EXPLAIN rows `0c5159df8929603140d47c75e47241ac279f631c`, exact server versions `58a843ab249af58637ea3f337d654a13553cfdb6`, and complete durable report/Q1 parity `fde28a9543831a10fb7eaa3720f779e63adf91e3`. Accepted permanent captures followed those committed corrections; failed attempts are not accepted evidence. 15M changes no tooling or evidence.
+
+Final technical facts:
+
+- .NET 10 Release restore/build PASS, zero build warnings/errors; 2,419 full-suite tests passed, zero failed/skipped. The 375 unique focused identities are separate, not additional full-suite tests. Actual generated OpenAPI: 46 operations inspected.
+- Exactly 21 migrations, no pending EF model changes; fresh, upgrade and Down/re-Up accepted. Commercial = NO_INDEX; Land = NO_INDEX; no 15I migration or subtype secondary index.
+- [Measured disposition](../benchmarks/four-root-discovery-v1/experiments/index-candidates/disposition.md): all four candidates passed correctness/index-use gates but failed mandatory Gate 3. Whole-command shared-block reductions of 1.446%–3.163% did not meet the locked 25% reduction (and 20% time reduction) for every qualifying count/shallow/deep command. Combined-winner confirmation was ineligible; NO_INDEX is an intentional measured outcome, not unfinished work.
+- `four-root-discovery-v1`: 100,000 synthetic listings / 200,000 translations, roots 40k/30k/20k/10k, 179 invariants, 21 shapes, 83 commands, 190 parameters, 498 source plans per lane, 83 discarded warm-ups / 415 measured samples. Eight historical mappings preserve accepted SQL and all 80 historical typed parameters.
+- [PG16 authority/proof](../benchmarks/four-root-discovery-v1/chapter-15-successor-sql-plan-proof.md): 169 permanent files. [PG18.4 compatibility summary](../benchmarks/four-root-discovery-v1/evidence/postgresql-18.4/baseline-summary.md): 339 files including the fresh PG16 comparison; all 23 sequences reported, threshold A/B exceedances 0/0, complete Q1 parity and topology inventory. Historical 69-file evidence remains frozen and verify-only. Exact inventories/identities are retained in 15L and backend-context.
+- PostgreSQL 16 remains authoritative for correctness, historical comparison, performance and index decisions. PostgreSQL 18.4 is compatibility/performance observation only; cross-major timing is not an SLA.
+- All ten quality issues remain OPEN with existing ownership; the frozen frontend handoff and frontend paths remain unchanged. Next boundary after accepted/owner-committed 15M: final backend/frontend reconciliation, not implementation within this closeout.
+
+Chapter 15 becomes fully complete only after 15M itself passes independent audit and is owner-committed. No further technical work is currently outstanding, and this text does not pre-award that acceptance.
 
 This chapter plan was prepared on `planning/discovery-performance-hardening` at `4e9499fc077f3e7b238177c5263b93aacb295921`. The planning tree was clean before this file was created. The annotated release tag `backend-property-model-taxonomy-v1` contains this commit and resolves to the later `main` merge `8f7c2d9c28624b57653b3b313e68e915f536e4c4`.
 
@@ -68,7 +104,9 @@ Chapter 15 must preserve all of the following.
 - Listing-parent serialization, post-lock aggregate authorization, lifecycle/readiness behavior, and stable failure ordering/codes remain unchanged.
 - The CQRS-lite controller -> handler -> repository interface -> repository -> DbContext -> PostgreSQL flow remains intact.
 
-## 5. Current implementation truth
+## 5. Planning-start implementation snapshot
+
+This section preserves the pre-implementation reasons for the task design, not the accepted current state. The discovery/dashboard gaps and static QueryReview limitations described here were resolved by the accepted tasks in section 1; current backend truth is in `docs/backend-context.md` and the 15L gate.
 
 The public discovery path is `src/RealEstate.Api/Controllers/ListingsController.cs` (`GetListings`) -> `GetListingsQuery` / `GetListingsHandler` / `GetListingsValidator` under `src/RealEstate.Application/Listings/Queries/GetListings/` -> `IListingRepository.GetFilteredReadOnlyAsync` -> `src/RealEstate.Infrastructure/Persistence/Repositories/ListingRepository.cs` -> `RealEstateDbContext` -> PostgreSQL.
 
@@ -1750,7 +1788,7 @@ owner approves plan
 
 The graph expresses causality, not a demand that every independent branch run serially. In particular, 15B, 15C, and 15D can be developed independently after 15A; 15F is the first join of API semantics and profile/tool capability.
 
-There are **13 task specifications: 12 mandatory and 1 conditional**. The mandatory path expects **14 owner commits**. Activating 15I raises the maximum to **15 owner commits**. No task exceeds two commits.
+There are **13 task specifications: 12 mandatory and 1 conditional**. The original mandatory-path estimate was **14 owner commits**, or **15** if 15I activated, with no planned task exceeding two commits. These are planning estimates, not actual release-history counts; accepted checkpoint/correction commits and the skipped 15I outcome are recorded in section 1.
 
 ## 22. Release-unit/deployability notes
 
@@ -1813,7 +1851,9 @@ There is **no remaining product decision blocking the core Chapter 15 path**. Su
 
 ## 26. Final self-audit
 
-### Commit-feasibility review
+### Original planning commit-feasibility review
+
+The estimates and architecture challenge results below are preserved as planning rationale, not a claim that actual execution used only those commits. Section 1 records the accepted outcome and bounded correction history.
 
 | Task | Concern boundary | Expected commits | Feasibility result |
 |---|---|---:|---|
