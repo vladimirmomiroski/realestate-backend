@@ -1,0 +1,7 @@
+-- agency-land-agricultural-deep-page-01-filtered-count
+-- @filters_AgencyId_Value: CLR=System.Guid, DbType=Guid, NpgsqlDbType=Uuid, Nullable=True, Value=20000000-0000-0000-0000-000000000002
+-- @filters_LandType_Value: CLR=System.String, DbType=String, NpgsqlDbType=Varchar, Nullable=False, Value=AgriculturalLand
+SELECT count(*)::int
+FROM "Listings" AS l
+LEFT JOIN "ListingLandDetails" AS l0 ON l."Id" = l0."ListingId"
+WHERE l."Status" = 'Active' AND l."AgencyId" = @filters_AgencyId_Value AND l."PropertyType" = 'Land' AND l0."ListingId" IS NOT NULL AND l0."LandType" = @filters_LandType_Value

@@ -85,6 +85,20 @@ public sealed class GetListingsValidator
             return Failure("houseType", "House type must be a defined value.");
         }
 
+        if (query.CommercialType.HasValue &&
+            !Enum.IsDefined(query.CommercialType.Value))
+        {
+            return Failure(
+                "commercialType",
+                "Commercial type must be a defined value.");
+        }
+
+        if (query.LandType.HasValue &&
+            !Enum.IsDefined(query.LandType.Value))
+        {
+            return Failure("landType", "Land type must be a defined value.");
+        }
+
         if (query.Currency is not null &&
             !IsValidCurrency(query.Currency))
         {

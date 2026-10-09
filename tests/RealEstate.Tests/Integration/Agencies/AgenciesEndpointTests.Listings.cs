@@ -788,6 +788,47 @@ public sealed partial class AgenciesEndpointTests
         totalCount.Should().Be(2);
     }
 
+    [Fact]
+    public async Task GetAgencyListings_SubtypeQueryParameters_AreIgnoredBecauseRouteKeepsReducedVocabulary()
+    {
+        const string currency = "AGS";
+        AuthenticatedTestUser owner =
+            await AuthTestHelpers.RegisterAndLoginAsync(_httpClient);
+        Guid agencyId = await CreateAgencyAsAsync(owner);
+        Guid listingId = await CreateAgencyListingAsAsync(
+            owner,
+            agencyId,
+            currency: currency);
+
+        await ListingTestHelpers.SetListingStatusAsync(
+            _factory,
+            listingId,
+            ListingStatus.Active);
+        await ListingTestHelpers.SeedDormantSubtypeDetailsAsync(
+            _factory,
+            listingId,
+            CommercialType.Office,
+            LandType.BuildingPlot);
+
+        string basePath =
+            $"/api/agencies/{agencyId}/listings" +
+            $"?lang=en&currency={currency}&page=1&pageSize=20";
+        HttpResponseMessage baselineResponse =
+            await _httpClient.GetAsync(basePath);
+        HttpResponseMessage subtypeKeysResponse = await _httpClient.GetAsync(
+            basePath +
+            "&commercialType=Shop&landType=AgriculturalLand");
+
+        (IReadOnlyList<Guid> baselineIds, int baselineCount) =
+            await ReadAgencyListingsPageAsync(baselineResponse);
+        (IReadOnlyList<Guid> subtypeKeysIds, int subtypeKeysCount) =
+            await ReadAgencyListingsPageAsync(subtypeKeysResponse);
+
+        baselineIds.Should().Equal(listingId);
+        subtypeKeysIds.Should().Equal(baselineIds);
+        subtypeKeysCount.Should().Be(baselineCount).And.Be(1);
+    }
+
     private static async Task<(
     IReadOnlyList<Guid> Ids,
     int TotalCount)> ReadAgencyListingsPageAsync(

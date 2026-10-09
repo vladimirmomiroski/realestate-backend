@@ -1,0 +1,146 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "commercial-subtypes-full-covering",
+    "Phase":  "candidate",
+    "Probe":  "update",
+    "SampleKind":  "measured",
+    "RunNumber":  4,
+    "DiscardedWarmup":  false,
+    "TransactionSql":  "SELECT \u0027BEFORE|\u0027 || json_build_object(\n    \u0027rows\u0027, count(*),\n    \u0027subtype\u0027, max(\"CommercialType\"::text),\n    \u0027xmin\u0027, max(xmin::text)\n)::text\nFROM public.\"ListingCommercialDetails\"\nWHERE \"ListingId\" = \u002740000000-0000-0000-0000-0000000026e9\u0027::uuid;\nBEGIN;\nEXPLAIN (ANALYZE, BUFFERS, WAL, SETTINGS, SUMMARY, FORMAT JSON)\nUPDATE public.\"ListingCommercialDetails\"\nSET \"CommercialType\" = \u0027Shop\u0027\nWHERE \"ListingId\" = \u002740000000-0000-0000-0000-0000000026e9\u0027::uuid\n  AND \"CommercialType\" = \u0027Office\u0027;\nSELECT \u0027AFFECTED|\u0027 || json_build_object(\n    \u0027rows\u0027, count(*),\n    \u0027expected_type_rows\u0027, count(*) FILTER (WHERE \"CommercialType\" = \u0027Shop\u0027),\n    \u0027subtype\u0027, max(\"CommercialType\"::text),\n    \u0027xmin\u0027, max(xmin::text)\n)::text\nFROM public.\"ListingCommercialDetails\"\nWHERE \"ListingId\" = \u002740000000-0000-0000-0000-0000000026e9\u0027::uuid;\nROLLBACK;\nSELECT \u0027AFTER|\u0027 || json_build_object(\n    \u0027rows\u0027, count(*),\n    \u0027subtype\u0027, max(\"CommercialType\"::text),\n    \u0027xmin\u0027, max(xmin::text)\n)::text\nFROM public.\"ListingCommercialDetails\"\nWHERE \"ListingId\" = \u002740000000-0000-0000-0000-0000000026e9\u0027::uuid;",
+    "Explain":  [
+                    {
+                        "value":  [
+                                      {
+                                          "Plan":  {
+                                                       "Node Type":  "ModifyTable",
+                                                       "Operation":  "Update",
+                                                       "Parallel Aware":  false,
+                                                       "Async Capable":  false,
+                                                       "Relation Name":  "ListingCommercialDetails",
+                                                       "Alias":  "ListingCommercialDetails",
+                                                       "Startup Cost":  0.29,
+                                                       "Total Cost":  8.31,
+                                                       "Plan Rows":  0,
+                                                       "Plan Width":  0,
+                                                       "Actual Startup Time":  0.316,
+                                                       "Actual Total Time":  0.316,
+                                                       "Actual Rows":  0,
+                                                       "Actual Loops":  1,
+                                                       "Shared Hit Blocks":  21,
+                                                       "Shared Read Blocks":  0,
+                                                       "Shared Dirtied Blocks":  0,
+                                                       "Shared Written Blocks":  0,
+                                                       "Local Hit Blocks":  0,
+                                                       "Local Read Blocks":  0,
+                                                       "Local Dirtied Blocks":  0,
+                                                       "Local Written Blocks":  0,
+                                                       "Temp Read Blocks":  0,
+                                                       "Temp Written Blocks":  0,
+                                                       "WAL Records":  5,
+                                                       "WAL FPI":  0,
+                                                       "WAL Bytes":  358,
+                                                       "Plans":  [
+                                                                     {
+                                                                         "Node Type":  "Index Scan",
+                                                                         "Parent Relationship":  "Outer",
+                                                                         "Parallel Aware":  false,
+                                                                         "Async Capable":  false,
+                                                                         "Scan Direction":  "Forward",
+                                                                         "Index Name":  "IX_ListingCommercialDetails_CommercialType_ListingId",
+                                                                         "Relation Name":  "ListingCommercialDetails",
+                                                                         "Alias":  "ListingCommercialDetails",
+                                                                         "Startup Cost":  0.29,
+                                                                         "Total Cost":  8.31,
+                                                                         "Plan Rows":  1,
+                                                                         "Plan Width":  124,
+                                                                         "Actual Startup Time":  0.022,
+                                                                         "Actual Total Time":  0.025,
+                                                                         "Actual Rows":  1,
+                                                                         "Actual Loops":  1,
+                                                                         "Index Cond":  "(((\"CommercialType\")::text = \u0027Office\u0027::text) AND (\"ListingId\" = \u002740000000-0000-0000-0000-0000000026e9\u0027::uuid))",
+                                                                         "Rows Removed by Index Recheck":  0,
+                                                                         "Shared Hit Blocks":  5,
+                                                                         "Shared Read Blocks":  0,
+                                                                         "Shared Dirtied Blocks":  0,
+                                                                         "Shared Written Blocks":  0,
+                                                                         "Local Hit Blocks":  0,
+                                                                         "Local Read Blocks":  0,
+                                                                         "Local Dirtied Blocks":  0,
+                                                                         "Local Written Blocks":  0,
+                                                                         "Temp Read Blocks":  0,
+                                                                         "Temp Written Blocks":  0,
+                                                                         "WAL Records":  0,
+                                                                         "WAL FPI":  0,
+                                                                         "WAL Bytes":  0
+                                                                     }
+                                                                 ]
+                                                   },
+                                          "Settings":  {
+
+                                                       },
+                                          "Planning":  {
+                                                           "Shared Hit Blocks":  9,
+                                                           "Shared Read Blocks":  0,
+                                                           "Shared Dirtied Blocks":  0,
+                                                           "Shared Written Blocks":  0,
+                                                           "Local Hit Blocks":  0,
+                                                           "Local Read Blocks":  0,
+                                                           "Local Dirtied Blocks":  0,
+                                                           "Local Written Blocks":  0,
+                                                           "Temp Read Blocks":  0,
+                                                           "Temp Written Blocks":  0
+                                                       },
+                                          "Planning Time":  0.123,
+                                          "Triggers":  [
+
+                                                       ],
+                                          "Execution Time":  0.441
+                                      }
+                                  ],
+                        "Count":  1
+                    }
+                ],
+    "Before":  {
+                   "rows":  1,
+                   "subtype":  "Office",
+                   "xmin":  "754"
+               },
+    "Affected":  {
+                     "rows":  1,
+                     "expected_type_rows":  1,
+                     "subtype":  "Shop",
+                     "xmin":  "855"
+                 },
+    "AfterRollback":  {
+                          "rows":  1,
+                          "subtype":  "Office",
+                          "xmin":  "754"
+                      },
+    "AffectedRowProof":  {
+                             "Expected":  1,
+                             "PlanInputRows":  1,
+                             "RowsForListing":  1,
+                             "ExpectedTypeRows":  1,
+                             "Passed":  true
+                         },
+    "RollbackProof":  {
+                          "BeforeXmin":  "754",
+                          "AfterXmin":  "754",
+                          "BeforeSubtype":  "Office",
+                          "AfterSubtype":  "Office",
+                          "Passed":  true
+                      },
+    "Metrics":  {
+                    "PlanningMilliseconds":  0.123,
+                    "ExecutionMilliseconds":  0.441,
+                    "SharedHitBlocks":  21,
+                    "SharedReadBlocks":  0,
+                    "SharedDirtiedBlocks":  0,
+                    "SharedWrittenBlocks":  0,
+                    "TempReadBlocks":  0,
+                    "TempWrittenBlocks":  0,
+                    "WalRecords":  5,
+                    "WalFullPageImages":  0,
+                    "WalBytes":  358
+                }
+}

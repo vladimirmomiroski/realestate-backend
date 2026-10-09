@@ -13,17 +13,24 @@ internal enum QueryReviewCommand
 
 internal sealed record QueryReviewOptions(
     QueryReviewCommand Command,
+    string? Profile,
+    string? Lane,
     string? ConnectionString,
     bool ConfirmDisposable,
     string OutputDirectory,
     string? ContainerName,
     string? RunDirectory,
+    string? ComparisonRunDirectory,
     bool ConfirmEvidenceExport)
 {
+    private const string ProfileOption = "--profile";
+    private const string LaneOption = "--lane";
     private const string ConnectionStringOption = "--connection-string";
     private const string ConfirmDisposableOption = "--confirm-disposable";
     private const string ContainerNameOption = "--container-name";
     private const string RunDirectoryOption = "--run-directory";
+    private const string RunDirectoryAlias = "--run-dir";
+    private const string ComparisonRunDirectoryOption = "--comparison-run-dir";
     private const string ConfirmEvidenceExportOption = "--confirm-evidence-export";
 
     public static string Usage =>
@@ -31,19 +38,25 @@ internal sealed record QueryReviewOptions(
         "  dotnet run --project tools/RealEstate.QueryReview -- doctor " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- profile create " +
+        "--profile <generation> [--lane postgresql-16|postgresql-18.4] " +
         "--connection-string \"<connection-string>\" --confirm-disposable " +
         "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- profile verify " +
-        "--connection-string \"<connection-string>\" --confirm-disposable\n" +
+        "--profile <generation> [--lane postgresql-16|postgresql-18.4] " +
+        "--connection-string \"<connection-string>\" --confirm-disposable " +
+        "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- capture-sql " +
+        "--profile <generation> " +
         "--connection-string \"<connection-string>\" --confirm-disposable\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- baseline run " +
+        "--profile <generation> [--lane postgresql-16|postgresql-18.4] " +
         "--connection-string \"<connection-string>\" --confirm-disposable " +
         "--container-name <container-name>\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- baseline verify " +
-        "--run-directory \"<absolute-raw-run-directory>\"\n" +
+        "[--profile <generation>] --run-dir \"<artifact-directory>\"\n" +
         "  dotnet run --project tools/RealEstate.QueryReview -- baseline export " +
-        "--run-directory \"<absolute-verified-raw-run-directory>\" " +
+        "[--profile <generation>] --run-dir \"<sealed-raw-run-directory>\" " +
+        "[--comparison-run-dir \"<sealed-pg16-run-directory>\"] " +
         "--confirm-evidence-export";
 
     public static bool TryParse(
@@ -59,16 +72,51 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
+        string? profile = null;
+        string? lane = null;
         string? connectionString = null;
         var confirmDisposable = false;
         string? containerName = null;
         string? runDirectory = null;
+        string? comparisonRunDirectory = null;
         var confirmEvidenceExport = false;
 
         for (var index = optionsStartIndex; index < args.Length; index++)
         {
             switch (args[index])
             {
+                case ProfileOption:
+                    if (profile is not null)
+                    {
+                        error = $"Option '{ProfileOption}' may be supplied only once.";
+                        return false;
+                    }
+
+                    if (index + 1 >= args.Length || string.IsNullOrWhiteSpace(args[index + 1]))
+                    {
+                        error = $"Option '{ProfileOption}' requires a value.";
+                        return false;
+                    }
+
+                    profile = args[++index].Trim();
+                    break;
+
+                case LaneOption:
+                    if (lane is not null)
+                    {
+                        error = $"Option '{LaneOption}' may be supplied only once.";
+                        return false;
+                    }
+
+                    if (index + 1 >= args.Length || string.IsNullOrWhiteSpace(args[index + 1]))
+                    {
+                        error = $"Option '{LaneOption}' requires a value.";
+                        return false;
+                    }
+
+                    lane = args[++index].Trim();
+                    break;
+
                 case ConnectionStringOption:
                     if (connectionString is not null)
                     {
@@ -112,9 +160,12 @@ internal sealed record QueryReviewOptions(
                     break;
 
                 case RunDirectoryOption:
+                case RunDirectoryAlias:
                     if (runDirectory is not null)
                     {
-                        error = $"Option '{RunDirectoryOption}' may be supplied only once.";
+                        error =
+                            $"Options '{RunDirectoryOption}'/'{RunDirectoryAlias}' may be " +
+                            "supplied only once.";
                         return false;
                     }
 
@@ -125,6 +176,23 @@ internal sealed record QueryReviewOptions(
                     }
 
                     runDirectory = args[++index].Trim();
+                    break;
+
+                case ComparisonRunDirectoryOption:
+                    if (comparisonRunDirectory is not null)
+                    {
+                        error =
+                            $"Option '{ComparisonRunDirectoryOption}' may be supplied only once.";
+                        return false;
+                    }
+
+                    if (index + 1 >= args.Length || string.IsNullOrWhiteSpace(args[index + 1]))
+                    {
+                        error = $"Option '{ComparisonRunDirectoryOption}' requires a value.";
+                        return false;
+                    }
+
+                    comparisonRunDirectory = args[++index].Trim();
                     break;
 
                 case ConfirmEvidenceExportOption:
@@ -159,12 +227,6 @@ internal sealed record QueryReviewOptions(
                 return false;
             }
 
-            if (!Path.IsPathFullyQualified(runDirectory))
-            {
-                error = $"Option '{RunDirectoryOption}' must be an absolute path.";
-                return false;
-            }
-
             if (command == QueryReviewCommand.BaselineVerify && confirmEvidenceExport)
             {
                 error =
@@ -194,7 +256,9 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
-        if ((command is QueryReviewCommand.ProfileCreate or QueryReviewCommand.BaselineRun) &&
+        if ((command is QueryReviewCommand.ProfileCreate or
+                QueryReviewCommand.ProfileVerify or
+                QueryReviewCommand.BaselineRun) &&
             string.IsNullOrWhiteSpace(containerName))
         {
             error =
@@ -204,12 +268,35 @@ internal sealed record QueryReviewOptions(
         }
 
         if (command is not QueryReviewCommand.ProfileCreate and
+            not QueryReviewCommand.ProfileVerify and
             not QueryReviewCommand.BaselineRun &&
             containerName is not null)
         {
             error =
-                $"Option '{ContainerNameOption}' is valid only for 'profile create' and " +
-                "'baseline run'.";
+                $"Option '{ContainerNameOption}' is valid only for 'profile create', " +
+                "'profile verify', and 'baseline run'.";
+            return false;
+        }
+
+        if (command is not QueryReviewCommand.ProfileCreate and
+            not QueryReviewCommand.ProfileVerify and
+            not QueryReviewCommand.BaselineRun &&
+            lane is not null)
+        {
+            error =
+                $"Option '{LaneOption}' is valid only for 'profile create', " +
+                "'profile verify', and 'baseline run'.";
+            return false;
+        }
+
+        if (lane is not null &&
+            !string.Equals(lane, QueryReviewGenerations.PostgreSql16LaneId, StringComparison.Ordinal) &&
+            !string.Equals(lane, QueryReviewGenerations.PostgreSql184LaneId, StringComparison.Ordinal))
+        {
+            error =
+                $"Option '{LaneOption}' must be exactly " +
+                $"'{QueryReviewGenerations.PostgreSql16LaneId}' or " +
+                $"'{QueryReviewGenerations.PostgreSql184LaneId}'.";
             return false;
         }
 
@@ -223,16 +310,53 @@ internal sealed record QueryReviewOptions(
             return false;
         }
 
+        if (command is not QueryReviewCommand.Doctor and
+            not QueryReviewCommand.BaselineVerify and
+            not QueryReviewCommand.BaselineExport &&
+            string.IsNullOrWhiteSpace(profile))
+        {
+            error =
+                $"'{FormatCommand(command)}' requires explicit '{ProfileOption}' generation selection.";
+            return false;
+        }
+
+        if (command != QueryReviewCommand.BaselineExport &&
+            comparisonRunDirectory is not null)
+        {
+            error =
+                $"Option '{ComparisonRunDirectoryOption}' is valid only for " +
+                "'baseline export'.";
+            return false;
+        }
+
+        if (comparisonRunDirectory is not null &&
+            runDirectory is not null &&
+            string.Equals(
+                Path.GetFullPath(comparisonRunDirectory),
+                Path.GetFullPath(runDirectory),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            error =
+                $"Options '{RunDirectoryAlias}' and '{ComparisonRunDirectoryOption}' " +
+                "must identify different sealed runs.";
+            return false;
+        }
+
         var outputDirectory = Path.GetFullPath(
             Path.Combine(Path.GetTempPath(), "realestate-queryreview"));
 
         options = new QueryReviewOptions(
             command,
+            profile,
+            lane,
             connectionString,
             confirmDisposable,
             outputDirectory,
             containerName,
             runDirectory is null ? null : Path.GetFullPath(runDirectory),
+            comparisonRunDirectory is null
+                ? null
+                : Path.GetFullPath(comparisonRunDirectory),
             confirmEvidenceExport);
 
         return true;
@@ -312,11 +436,14 @@ internal sealed record QueryReviewOptions(
         return false;
     }
 
-    private static string FormatCommand(QueryReviewCommand command)
+    internal static string FormatCommand(QueryReviewCommand command)
     {
         return command switch
         {
+            QueryReviewCommand.Doctor => "doctor",
             QueryReviewCommand.ProfileCreate => "profile create",
+            QueryReviewCommand.ProfileVerify => "profile verify",
+            QueryReviewCommand.CaptureSql => "capture-sql",
             QueryReviewCommand.BaselineRun => "baseline run",
             QueryReviewCommand.BaselineVerify => "baseline verify",
             QueryReviewCommand.BaselineExport => "baseline export",

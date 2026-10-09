@@ -1,0 +1,11 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "commercial-subtypes-full-covering",
+    "ExactDdl":  "CREATE INDEX \"IX_ListingCommercialDetails_CommercialType_ListingId\" ON public.\"ListingCommercialDetails\" USING btree (\"CommercialType\", \"ListingId\");",
+    "StartedAtUtc":  "2026-09-25T20:43:39.4561818+00:00",
+    "EndedAtUtc":  "2026-09-25T20:43:39.6571371+00:00",
+    "MonotonicElapsedMilliseconds":  201.0047,
+    "ClientObservedBuildDurationMilliseconds":  201.0047,
+    "PsqlExitCode":  0,
+    "PsqlOutput":  ""
+}

@@ -13,17 +13,20 @@ namespace RealEstate.Application.Agencies.Queries.GetAgencyDashboardListings;
 public sealed class GetAgencyDashboardListingsHandler
 {
     private readonly AgencyListingAccessChecker _agencyListingAccessChecker;
+    private readonly GetAgencyDashboardListingsValidator _validator;
     private readonly IListingRepository _listingRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public GetAgencyDashboardListingsHandler(
         AgencyListingAccessChecker agencyListingAccessChecker,
+        GetAgencyDashboardListingsValidator validator,
         IListingRepository listingRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService)
     {
         _agencyListingAccessChecker = agencyListingAccessChecker;
+        _validator = validator;
         _listingRepository = listingRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
@@ -67,6 +70,17 @@ public sealed class GetAgencyDashboardListingsHandler
         if (agencyAccessResult is not null)
         {
             return agencyAccessResult;
+        }
+
+        string? validationError = _validator.Validate(query);
+
+        if (validationError is not null)
+        {
+            return ServiceResult<PagedResponse<ListingResponse>>
+                .ValidationError(
+                    validationError,
+                    "status",
+                    ErrorCodes.ValidationFailed);
         }
 
         string languageCode = NormalizeLanguageCode(query.LanguageCode);

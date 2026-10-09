@@ -1,0 +1,65 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "commercial-subtypes-full-covering",
+    "Gates":  {
+                  "Gate1Correctness":  true,
+                  "Gate2StableIntendedIndexUse":  true,
+                  "Gate3QualifyingTrio":  false,
+                  "Gate4ProtectedRegressions":  true,
+                  "Gate5PlansAndAnomalies":  true,
+                  "Gate6WriteAndStorage":  true,
+                  "CandidatePassedAllGates":  false
+              },
+    "QualifyingTrio":  [
+                           {
+                               "CommandKey":  "commercial-office-first-page-01-filtered-count",
+                               "UnindexedSharedBlocks":  3516,
+                               "CandidateSharedBlocks":  3420,
+                               "SharedBlockReductionPercent":  2.7303754266211606,
+                               "UnindexedExecutionMilliseconds":  27.234,
+                               "CandidateExecutionMilliseconds":  23.782,
+                               "ExecutionTimeReductionPercent":  12.675332305206732,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "commercial-office-first-page-02-page-root",
+                               "UnindexedSharedBlocks":  3807,
+                               "CandidateSharedBlocks":  3743,
+                               "SharedBlockReductionPercent":  1.6811137378513266,
+                               "UnindexedExecutionMilliseconds":  44.418,
+                               "CandidateExecutionMilliseconds":  42.426,
+                               "ExecutionTimeReductionPercent":  4.4846683776847165,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "commercial-other-deep-page-02-page-root",
+                               "UnindexedSharedBlocks":  3636,
+                               "CandidateSharedBlocks":  3521,
+                               "SharedBlockReductionPercent":  3.1628162816281629,
+                               "UnindexedExecutionMilliseconds":  31.332,
+                               "CandidateExecutionMilliseconds":  26.425,
+                               "ExecutionTimeReductionPercent":  15.661304736371759,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           }
+                       ],
+    "ProtectedBlockFailures":  [
+
+                               ],
+    "ProtectedSequenceFailures":  [
+
+                                  ],
+    "AnomalyCount":  0,
+    "SpillCommandCount":  0,
+    "TempAccessCommandCount":  0,
+    "CandidateBytes":  827392,
+    "DependentHeapBytes":  1048576
+}

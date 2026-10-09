@@ -2,6 +2,8 @@ using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NpgsqlTypes;
+using RealEstate.Application.Listings.Queries.GetListings;
+using RealEstate.Domain.Enums;
 
 namespace RealEstate.QueryReview;
 
@@ -40,7 +42,81 @@ internal sealed record SqlCaptureRun(
     string Database,
     string PostgreSqlVersion,
     IReadOnlyList<QueryShapeResult> ShapeResults,
-    IReadOnlyList<CapturedCommand> Commands);
+    IReadOnlyList<CapturedCommand> Commands,
+    string? GenerationId = null,
+    QueryShapeManifestSnapshot? QueryShapeManifest = null);
+
+internal sealed record QueryShapeInputIdentity(
+    string ShapeId,
+    string CanonicalInputJson,
+    string Sha256);
+
+internal sealed record QueryShapeCanonicalInput(
+    string Operation,
+    string LanguageCode,
+    string? SearchText,
+    Guid? AgencyId,
+    ListingType? ListingType,
+    PropertyType? PropertyType,
+    HeatingType? HeatingType,
+    FurnishingStatus? FurnishingStatus,
+    PropertyCondition? Condition,
+    bool? HasBasement,
+    bool? HasElevator,
+    ApartmentType? ApartmentType,
+    HouseType? HouseType,
+    CommercialType? CommercialType,
+    LandType? LandType,
+    decimal? MinYardAreaSquareMeters,
+    decimal? MaxYardAreaSquareMeters,
+    decimal? MinPrice,
+    decimal? MaxPrice,
+    string? Currency,
+    decimal? MinAreaSquareMeters,
+    decimal? MaxAreaSquareMeters,
+    decimal? MinRooms,
+    decimal? MaxRooms,
+    string? Sort,
+    ListingSortOption? SortOption,
+    string? City,
+    string? Municipality,
+    string? Neighborhood,
+    int? Page,
+    int? PageSize,
+    Guid? AgencyExistenceId,
+    Guid? ComparableSourceId,
+    int? ComparableLimit);
+
+internal sealed record QueryShapeResultIdentity(
+    string ShapeId,
+    int? TotalCount,
+    int ItemCount,
+    IReadOnlyList<Guid> OrderedIds,
+    string OrderedIdsSha256);
+
+internal sealed record QueryCommandIdentity(
+    string CommandKey,
+    string ShapeId,
+    int ShapeSequence,
+    string CommandRole,
+    string NormalizedSqlSha256,
+    string TypedParametersSha256,
+    int TypedParameterCount);
+
+internal sealed record QueryShapeManifestSnapshot(
+    int SchemaVersion,
+    string GenerationId,
+    string ProfileIdentity,
+    string LogicalRunId,
+    IReadOnlyList<string> MappedLegacyShapes,
+    IReadOnlyList<QueryShapeInputIdentity> Inputs,
+    IReadOnlyList<QueryShapeResultIdentity> Results,
+    IReadOnlyList<QueryCommandIdentity> Commands,
+    int ShapeCount,
+    int CommandCount,
+    int TypedParameterCount,
+    int PlanCount,
+    int ProfileInvariantCount);
 
 internal sealed record ReplayableParameter(
     string Name,
@@ -166,7 +242,9 @@ internal sealed record BaselineEnvironmentSnapshot(
     string ProfileVersion,
     int CSharpSeed,
     double PostgreSqlSeed,
-    TimeSpan VacuumAnalyzeDuration);
+    TimeSpan VacuumAnalyzeDuration,
+    string? GenerationId = null,
+    string? LaneId = null);
 
 internal sealed record RawPlanSample(
     string CommandKey,
@@ -179,7 +257,7 @@ internal sealed record RawPlanSample(
     string SqlSha256,
     string ParameterSha256,
     string StructuralPlanSha256,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops);
 
 internal sealed record DeterministicProfileVerificationSnapshot(
@@ -188,7 +266,10 @@ internal sealed record DeterministicProfileVerificationSnapshot(
     long TranslationCount,
     int InvariantTotal,
     int InvariantPassed,
-    int InvariantFailed);
+    int InvariantFailed,
+    string? ProfileSha256 = null,
+    string? InvariantManifestSha256 = null,
+    string? InvariantResultSha256 = null);
 
 internal sealed record RawBaselineManifest(
     string BaselineRunId,
@@ -209,7 +290,10 @@ internal sealed record RawBaselineManifest(
     string EnvironmentPath,
     bool CredentialScanPassed,
     IReadOnlyList<RawPlanSample> Samples,
-    DeterministicProfileVerificationSnapshot? ProfileVerification = null);
+    DeterministicProfileVerificationSnapshot? ProfileVerification = null,
+    string? GenerationId = null,
+    string? LaneId = null,
+    string? QueryShapeManifestSha256 = null);
 
 internal sealed record PlanBufferMetrics(
     long SharedHit,
@@ -240,7 +324,7 @@ internal sealed record PlanNodeMeasurement(
     long? PlanWidth,
     decimal? ActualStartupTimeMilliseconds,
     decimal? ActualTotalTimeMilliseconds,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops,
     long RowsRemovedByFilter,
     long RowsRemovedByIndexRecheck,
@@ -273,7 +357,7 @@ internal sealed record PlanSampleMeasurement(
     string StructuralPlanSha256,
     decimal PlanningTimeMilliseconds,
     decimal ExecutionTimeMilliseconds,
-    long ActualRows,
+    decimal ActualRows,
     long ActualLoops,
     PlanBufferMetrics TopLevelBuffers,
     IReadOnlyDictionary<string, string> Settings,
@@ -388,7 +472,65 @@ internal sealed record ProfileVerificationEvidence(
     int InvariantTotal,
     int InvariantPassed,
     int InvariantFailed,
-    bool Passed);
+    bool Passed,
+    string? ProfileSha256 = null,
+    string? InvariantManifestSha256 = null,
+    string? InvariantResultSha256 = null);
+
+internal sealed record SuccessorRunComparisonIdentity(
+    string GenerationId,
+    string ProfileIdentity,
+    string LaneId,
+    string GitCommit,
+    string ProfileSha256,
+    string InvariantManifestSha256,
+    string InvariantResultSha256,
+    string QueryShapeManifestSha256,
+    string SqlIdentitySha256,
+    string ParameterIdentitySha256,
+    string ResultIdentitySha256,
+    string OrderIdentitySha256,
+    string SettingsIdentitySha256,
+    int CommandCount,
+    int ParameterCount,
+    int WarmUpRunsPerCommand,
+    int MeasuredRunsPerCommand,
+    int PlanCount);
+
+internal sealed record CrossMajorSequenceComparison(
+    string SequenceId,
+    decimal PostgreSql16ExecutionTimeMedianMilliseconds,
+    decimal PostgreSql184ExecutionTimeMedianMilliseconds,
+    decimal ExecutionTimeDeltaMilliseconds,
+    decimal ExecutionTimeDeltaPercent,
+    long PostgreSql16SharedAccessBlocksMedian,
+    long PostgreSql184SharedAccessBlocksMedian,
+    long SharedAccessBlocksDelta,
+    decimal SharedAccessBlocksDeltaPercent,
+    bool ThresholdAExceeded,
+    bool ThresholdBExceeded,
+    IReadOnlyList<string> PostgreSql16OnlyTopology,
+    IReadOnlyList<string> PostgreSql184OnlyTopology);
+
+internal sealed record CrossMajorComparisonReport(
+    IReadOnlyList<CrossMajorSequenceComparison> Sequences,
+    int ThresholdAExceedanceCount,
+    int ThresholdBExceedanceCount,
+    bool Q1TrigramIndexPreserved);
+
+internal sealed record EmbeddedComparisonEvidence(
+    string RelativeRoot,
+    SuccessorRunComparisonIdentity PrimaryIdentity,
+    SuccessorRunComparisonIdentity ComparisonIdentity,
+    int ArtifactCount,
+    IReadOnlyList<ArtifactHashEvidence> Artifacts);
+
+internal sealed record VerifiedSuccessorComparisonRun(
+    QueryReviewArtifactDescriptor Descriptor,
+    BaselineVerificationResult Verification,
+    SuccessorRunComparisonIdentity PrimaryIdentity,
+    SuccessorRunComparisonIdentity ComparisonIdentity,
+    CrossMajorComparisonReport Report);
 
 internal sealed record SemanticResultIdentityEvidence(
     string ExpectedResultSha256,
@@ -468,7 +610,8 @@ internal sealed record CaptureIdentityEvidence(
     int SpillCount,
     int PlanSwitchCount,
     int AnomalyCount,
-    int CredentialFindingCount);
+    int CredentialFindingCount,
+    string? PostgreSqlVersionNumber = null);
 
 internal sealed record ArtifactHashEvidence(
     string Path,
@@ -488,16 +631,37 @@ internal sealed record PermanentEvidenceMetadata(
     ProfileVerificationEvidence ProfileVerification,
     SemanticResultIdentityEvidence SemanticResultIdentity,
     IReadOnlyList<LockedResultComparisonEvidence> LockedResults,
-    A1ApprovedExceptionEvidence A1ApprovedException,
+    A1ApprovedExceptionEvidence? A1ApprovedException,
     CaptureIdentityEvidence CaptureIdentity,
-    ArtifactIntegrityEvidence ArtifactIntegrity);
+    ArtifactIntegrityEvidence ArtifactIntegrity,
+    SuccessorPermanentExportContract? SuccessorExportContract = null,
+    EmbeddedComparisonEvidence? PostgreSql16Comparison = null);
+
+internal sealed record ExperimentalEvidenceManifest(
+    int SchemaVersion,
+    string ArtifactClass,
+    string GenerationId,
+    string ProfileIdentity,
+    string LaneId,
+    string BaselineRunId,
+    int ArtifactCount,
+    IReadOnlyList<ArtifactHashEvidence> Artifacts);
+
+internal sealed record OfflineEvidenceVerificationResult(
+    string GenerationId,
+    string LaneId,
+    QueryReviewArtifactKind ArtifactKind,
+    string Directory,
+    int FileCount);
 
 internal sealed record BaselineVerificationResult(
     BaselineMeasurementsRaw Measurements,
     string RunDirectory,
     string MeasurementsPath,
     string CuratedDirectory,
-    bool CredentialScanPassed);
+    bool CredentialScanPassed,
+    string GenerationId = QueryReviewGenerations.FrozenHistoricalId,
+    string LaneId = QueryReviewGenerations.PostgreSql16LaneId);
 
 internal static class SqlCaptureOutput
 {

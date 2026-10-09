@@ -94,6 +94,7 @@ public static class DependencyInjection
         services.AddScoped<GetAgencyMembersHandler>();
         services.AddScoped<GetAgencyInvitationsHandler>();
         services.AddScoped<GetAgencyListingsHandler>();
+        services.AddScoped<GetAgencyDashboardListingsValidator>();
         services.AddScoped<GetAgencyDashboardListingsHandler>();
         services.AddScoped<GetAgencyDashboardSummaryHandler>();
         services.AddScoped<UpdateAgencyValidator>();

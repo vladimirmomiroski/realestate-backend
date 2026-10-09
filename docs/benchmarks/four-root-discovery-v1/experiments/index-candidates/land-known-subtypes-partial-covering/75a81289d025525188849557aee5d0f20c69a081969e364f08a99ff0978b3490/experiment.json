@@ -1,0 +1,73 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "land-known-subtypes-partial-covering",
+    "Family":  "Land",
+    "Design":  "Partial",
+    "StartedAtUtc":  "2026-09-25T20:44:17.3158304+00:00",
+    "CompletedAtUtc":  "2026-09-25T20:46:40.7668198+00:00",
+    "Source":  {
+                   "AcceptedLineage":  "ae89a343a3c41a9c1e7f6f5c4f00fe4d86f805c3",
+                   "MeasuredHead":  "5443f863d1ffea0a6331d7e91315e9a1f5767b4f",
+                   "SrcTree":  "367529280368366f8216471daff0c2d9e7984ccd",
+                   "ToolsTree":  "8ff9a3c7af656698da7d75b90bca0eb8c6005ccc",
+                   "TestsTree":  "43e778665e85fb51136da269c839800792e5d713",
+                   "SolutionBlob":  "d73fa4577cbacadd72ac790876e330343aa398fb",
+                   "ExecutableSourceDrift":  [
+
+                                             ],
+                   "WorktreeExecutableSourceDrift":  [
+
+                                                     ]
+               },
+    "Environment":  {
+                        "PostgreSqlVersion":  "16.14",
+                        "Image":  "postgres:16-alpine",
+                        "ImageId":  "sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777",
+                        "AutoRemove":  true,
+                        "StorageType":  "volume",
+                        "StorageDestination":  "/var/lib/postgresql/data",
+                        "LoopbackOnly":  true
+                    },
+    "Profile":  {
+                    "Identity":  "four-root-discovery-v1",
+                    "InvariantCount":  179,
+                    "ProfileSha256":  "7d389dfbecb10fa0f491a58e6f83bda265cee1ea7e664a43b53f6fcc7c838946",
+                    "InvariantManifestAndResultSha256":  "bae3243bd1da79993710b3522b2f1e7c1c695152cd8dea25d61d13f9d9331be7"
+                },
+    "QueryContract":  {
+                          "Shapes":  21,
+                          "Commands":  83,
+                          "TypedParameters":  190,
+                          "Plans":  498,
+                          "WarmupsPerCommand":  1,
+                          "MeasuredSamplesPerCommand":  5,
+                          "ShapeManifestSha256":  "fce861c91a31a8e505dd0193cc0baaad5982d5c81fc1454258f2281a7b74a979",
+                          "AcceptedAggregateResultOrderSha256":  "975a9d37ced4e372c0aec370782bf7932101042ebcd263e14a097fad0d4cab19",
+                          "RawResultSha256":  "726498202dd52bbc13f680f221a6a44ff0223fd383f89c7b08eacd6a6ce82f81",
+                          "RawRunId":  "four-root-discovery-v1-baseline-20260925T204626Z-5443f863"
+                      },
+    "StatisticsPreparation":  {
+                                  "PostUnindexedProbeVacuumStartedAtUtc":  "2026-09-25T20:46:12.5828704+00:00",
+                                  "PostUnindexedProbeVacuumEndedAtUtc":  "2026-09-25T20:46:14.1732800+00:00",
+                                  "PostUnindexedProbeVacuumElapsedMilliseconds":  1588.5599,
+                                  "QueryReviewLockedVacuum":  true
+                              },
+    "Candidate":  {
+                      "IndexName":  "IX_ListingLandDetails_LandType_ListingId_Known",
+                      "ExactDdl":  "CREATE INDEX \"IX_ListingLandDetails_LandType_ListingId_Known\" ON public.\"ListingLandDetails\" USING btree (\"LandType\", \"ListingId\") WHERE \"LandType\" \u003c\u003e \u0027Unknown\u0027;",
+                      "ClientObservedBuildDurationMilliseconds":  185.2134,
+                      "IndexBytes":  327680,
+                      "DependentHeapBytes":  581632,
+                      "IsValid":  true,
+                      "IsReady":  true,
+                      "IsLive":  true
+                  },
+    "Evidence":  {
+                     "QueryReviewCuratedFiles":  170,
+                     "WriteProbeRawFiles":  24,
+                     "PreAndPostCatalogFiles":  2,
+                     "DdlBuildFiles":  1,
+                     "GateObservationFiles":  1,
+                     "Logs":  4
+                 }
+}

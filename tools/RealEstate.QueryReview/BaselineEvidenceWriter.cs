@@ -8,15 +8,16 @@ namespace RealEstate.QueryReview;
 
 internal static partial class BaselineEvidenceWriter
 {
-    private const int ExpectedCommandCount = 33;
-    private const int ExpectedParameterCount = 80;
-    private const int ExpectedPlanCount = 198;
-    private const int ExpectedInvariantCount = 61;
+    private const int HistoricalCommandCount = 33;
+    private const int HistoricalParameterCount = 80;
+    private const int HistoricalPlanCount = 198;
+    private const int HistoricalInvariantCount = 61;
     private const long ExpectedListingCount = 100_000;
     private const long ExpectedTranslationCount = 200_000;
     private const int RequiredPostgreSqlMajorVersion = 16;
     private const string RequiredPostgreSqlVersion = "16.14";
-    private const string ExpectedResultSha256 =
+    private const int RequiredPostgreSqlVersionNumber = 160014;
+    private const string HistoricalResultSha256 =
         "7f74f991bf29b6f3ad24d48f2e8e13ecf9f375ea6f9eb0da8f18204c528bfb36";
     private const string TrigramExtensionName = "pg_trgm";
     private const string TrigramExtensionVersion = "1.6";
@@ -25,8 +26,6 @@ internal static partial class BaselineEvidenceWriter
     private const decimal Q1FirstPageMaximumMilliseconds = 227.000m;
     private const long Q1CountMaximumSharedAccessBlocks = 4_844;
     private const long Q1FirstPageMaximumSharedAccessBlocks = 5_160;
-    private const string EvidenceRelativePath = "docs/benchmarks/chapter-10f/evidence";
-
     private static readonly string[] ExpectedTrigramColumns =
         ["Title", "City", "Municipality", "Neighborhood"];
 
@@ -63,25 +62,154 @@ internal static partial class BaselineEvidenceWriter
                 ["IX_ListingImages_ListingId_SortOrder", "PK_Listings"])
         };
 
-    public static async Task<BaselineEvidenceExportResult> ExportAsync(
+    private static PermanentBaselineExpectations GetExpectations(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane)
+    {
+        if (generation.IsFrozenHistorical)
+        {
+            return new PermanentBaselineExpectations(
+                ShapeCount: 8,
+                HistoricalCommandCount,
+                HistoricalParameterCount,
+                HistoricalPlanCount,
+                HistoricalInvariantCount,
+                DeterministicProfileSeeder.ProfileVersion,
+                HistoricalResultSha256,
+                RequiredPostgreSqlMajorVersion,
+                RequiredPostgreSqlVersion,
+                RequiredPostgreSqlVersionNumber);
+        }
+
+        SuccessorPermanentExportContract contract = generation.PermanentExportContract
+            ?? throw new BaselinePlanValidationException(
+                "The successor generation is missing its permanent-export contract.");
+        SuccessorPermanentExportManifest.ValidateContract(contract);
+        QueryShapeContractDefinition shape = DiscoveryQueryShapeManifest.GetDefinition(generation);
+        return new PermanentBaselineExpectations(
+            shape.ShapeCount,
+            shape.CommandCount,
+            shape.TypedParameterCount,
+            shape.PlanCount,
+            shape.ProfileInvariantCount,
+            contract.ProfileIdentity,
+            contract.ResultOrderIdentitySha256,
+            lane.PostgreSqlMajorVersion,
+            lane.PostgreSqlMajorVersion == 16 ? "16.14" : "18.4",
+            lane.PostgreSqlMajorVersion == 16 ? 160014 : 180004);
+    }
+
+    public static Task<BaselineEvidenceExportResult> ExportAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         BaselineVerificationResult verification,
+        string? comparisonRunDirectory = null,
         CancellationToken cancellationToken = default)
     {
-        ValidateVerificationResult(verification);
+        generation.EnsureOfflineCommandAvailable(
+            QueryReviewCommand.BaselineExport,
+            QueryReviewArtifactKind.RawRun);
 
-        var repositoryRoot = FindRepositoryRoot()
-            ?? throw new BaselinePlanValidationException(
-                "Unable to locate the repository root for permanent evidence export.");
-        var destinationDirectory = Path.GetFullPath(
-            Path.Combine(repositoryRoot, EvidenceRelativePath));
-        var expectedDestination = Path.GetFullPath(
-            Path.Combine(repositoryRoot, "docs", "benchmarks", "chapter-10f", "evidence"));
+        return ExportCoreAsync(
+            generation,
+            lane,
+            verification,
+            comparisonRunDirectory,
+            cancellationToken);
+    }
 
-        if (!string.Equals(destinationDirectory, expectedDestination, StringComparison.OrdinalIgnoreCase))
+    public static async Task<OfflineEvidenceVerificationResult>
+        VerifyPermanentAsync(
+            QueryReviewArtifactDescriptor descriptor,
+            CancellationToken cancellationToken = default)
+    {
+        if (descriptor.Kind != QueryReviewArtifactKind.PermanentEvidence)
         {
             throw new BaselinePlanValidationException(
-                $"Permanent evidence destination must be exactly '{expectedDestination}'.");
+                "Permanent evidence verification requires a fixed catalog lane destination.");
         }
+
+        descriptor.Generation.EnsureOfflineCommandAvailable(
+            QueryReviewCommand.BaselineVerify,
+            QueryReviewArtifactKind.PermanentEvidence);
+        PermanentBaselineExpectations expectations = GetExpectations(
+            descriptor.Generation,
+            descriptor.Lane);
+
+        string measurementsPath = Path.Combine(
+            descriptor.Directory,
+            "baseline-measurements.json");
+        CuratedBaselineMeasurements measurements =
+            await ReadRequiredJsonAsync<CuratedBaselineMeasurements>(
+                measurementsPath,
+                cancellationToken);
+        PermanentEvidenceMetadata metadata = measurements.PermanentEvidence
+            ?? throw new BaselinePlanValidationException(
+                "Historical permanent evidence is missing completeness metadata.");
+        ValidatePersistedPostgreSqlVersion(
+            descriptor.Generation,
+            descriptor.Lane,
+            metadata.CaptureIdentity);
+
+        if (!descriptor.Generation.MatchesRecordedProfile(
+                metadata.ProfileVerification.ProfileIdentity) ||
+            metadata.ProfileVerification.ListingCount != ExpectedListingCount ||
+            metadata.ProfileVerification.TranslationCount != ExpectedTranslationCount ||
+            metadata.ProfileVerification.InvariantTotal != expectations.InvariantCount ||
+            metadata.ProfileVerification.InvariantPassed != expectations.InvariantCount ||
+            metadata.ProfileVerification.InvariantFailed != 0 ||
+            !metadata.ProfileVerification.Passed ||
+            !string.Equals(
+                metadata.SemanticResultIdentity.ExpectedResultSha256,
+                expectations.ResultOrderIdentitySha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                metadata.SemanticResultIdentity.ActualResultSha256,
+                expectations.ResultOrderIdentitySha256,
+                StringComparison.Ordinal) ||
+            metadata.CaptureIdentity.CommandCount != expectations.CommandCount ||
+            metadata.CaptureIdentity.TypedParameterCount != expectations.ParameterCount ||
+            metadata.CaptureIdentity.RawPlanCount != expectations.PlanCount ||
+            !measurements.Q1Gate.Passed)
+        {
+            throw new BaselinePlanValidationException(
+                "Frozen historical permanent identity, totals, semantic hash, PostgreSQL " +
+                "version, or Q1 gate drifted.");
+        }
+
+        string[] commandKeys = measurements.Commands
+            .Select(command => command.CommandKey)
+            .ToArray();
+        ValidateCommandKeys(commandKeys, expectations.CommandCount);
+        HashSet<string> expectedFiles = BuildExpectedFileSet(commandKeys);
+        AddEmbeddedComparisonFiles(expectedFiles, metadata.PostgreSql16Comparison);
+        ValidateExactFileSet(descriptor.Directory, expectedFiles);
+        await ValidatePermanentEvidenceAsync(
+            descriptor.Directory,
+            measurements,
+            descriptor.Generation,
+            descriptor.Lane,
+            expectations,
+            cancellationToken);
+        ScanForCredentials(descriptor.Directory);
+
+        return new OfflineEvidenceVerificationResult(
+            descriptor.Generation.Id,
+            descriptor.Lane.Id,
+            descriptor.Kind,
+            descriptor.Directory,
+            expectedFiles.Count);
+    }
+
+    private static async Task<BaselineEvidenceExportResult> ExportCoreAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        BaselineVerificationResult verification,
+        string? comparisonRunDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        PermanentBaselineExpectations expectations = GetExpectations(generation, lane);
+        ValidateVerificationResult(verification, expectations);
 
         var manifest = await ReadRequiredJsonAsync<RawBaselineManifest>(
             Path.Combine(verification.RunDirectory, "manifest.json"),
@@ -92,9 +220,72 @@ internal static partial class BaselineEvidenceWriter
         var captureRun = await ReadRequiredJsonAsync<SqlCaptureRun>(
             ResolveWithin(verification.RunDirectory, manifest.CapturedCommandsPath),
             cancellationToken);
+        bool isPostgreSql184Successor =
+            generation == QueryReviewGenerations.FourRootDiscovery &&
+            lane.Id == QueryReviewGenerations.PostgreSql184LaneId;
 
-        ValidateIdentity(manifest, environment, verification.Measurements);
+        if (isPostgreSql184Successor && string.IsNullOrWhiteSpace(comparisonRunDirectory))
+        {
+            throw new BaselinePlanValidationException(
+                "PostgreSQL 18.4 permanent export requires a verified PostgreSQL 16 comparison run.");
+        }
+
+        if (!isPostgreSql184Successor && comparisonRunDirectory is not null)
+        {
+            throw new BaselinePlanValidationException(
+                "A PostgreSQL 16 comparison run is valid only for PostgreSQL 18.4 successor export.");
+        }
+
+        VerifiedSuccessorComparisonRun? comparison = isPostgreSql184Successor
+            ? await SuccessorComparisonRunVerifier.VerifyAsync(
+                new QueryReviewArtifactDescriptor(
+                    generation,
+                    lane,
+                    QueryReviewArtifactKind.RawRun,
+                    verification.RunDirectory),
+                verification,
+                comparisonRunDirectory!,
+                cancellationToken)
+            : null;
+
+        if (generation == QueryReviewGenerations.FourRootDiscovery)
+        {
+            string recordedShapeIdentity =
+                DiscoveryQueryShapeManifest.ValidateRecordedManifest(generation, captureRun);
+
+            if (!string.Equals(
+                    recordedShapeIdentity,
+                    manifest.QueryShapeManifestSha256,
+                    StringComparison.Ordinal))
+            {
+                throw new BaselinePlanValidationException(
+                    "The raw manifest and captured successor query-shape identities differ.");
+            }
+
+            SuccessorPermanentExportContract contract = generation.PermanentExportContract!;
+            SuccessorPermanentExportSnapshot snapshot =
+                await SuccessorPermanentExportManifest.CaptureSnapshotAsync(
+                    generation,
+                    lane,
+                    manifest,
+                    environment,
+                    captureRun,
+                    cancellationToken);
+            SuccessorPermanentExportManifest.ValidateSnapshot(contract, snapshot);
+            SuccessorPermanentExportManifest.ValidateNoIndexCatalog(environment);
+        }
+
+        ValidateIdentity(
+            manifest,
+            environment,
+            verification.Measurements,
+            generation,
+            lane,
+            expectations);
         var evidenceCore = BuildEvidenceCore(
+            generation,
+            lane,
+            expectations,
             verification,
             manifest,
             environment,
@@ -103,164 +294,192 @@ internal static partial class BaselineEvidenceWriter
         var commandKeys = verification.Measurements.Commands
             .Select(command => command.CommandKey)
             .ToArray();
-        ValidateCommandKeys(commandKeys);
+        ValidateCommandKeys(commandKeys, expectations.CommandCount);
 
         var expectedFiles = BuildExpectedFileSet(commandKeys);
-        ValidateExactFileSet(verification.CuratedDirectory, expectedFiles);
+        await ValidateCuratedExportInputAsync(
+            generation,
+            lane,
+            verification.CuratedDirectory,
+            commandKeys,
+            cancellationToken);
         await ValidateCuratedMeasurementsAsync(verification, cancellationToken);
         await ValidateEnvironmentArtifactAsync(verification, cancellationToken);
         await ValidateMedianPlansAsync(verification, cancellationToken);
         ScanForCredentials(verification.CuratedDirectory);
 
-        var destinationParent = Path.GetDirectoryName(destinationDirectory)
-            ?? throw new BaselinePlanValidationException(
-                "Permanent evidence destination has no parent directory.");
-        Directory.CreateDirectory(destinationParent);
+        EmbeddedComparisonEvidence? embeddedComparison = comparison is null
+            ? null
+            : await BuildEmbeddedComparisonEvidenceAsync(comparison, cancellationToken);
+        var publicationFiles = new HashSet<string>(expectedFiles, StringComparer.Ordinal);
 
-        var stagingDirectory = Path.Combine(
-            destinationParent,
-            $".evidence-export-{Guid.NewGuid():N}");
-        var backupDirectory = Path.Combine(
-            destinationParent,
-            $".evidence-backup-{Guid.NewGuid():N}");
+        if (embeddedComparison is not null)
+        {
+            foreach (ArtifactHashEvidence artifact in embeddedComparison.Artifacts)
+            {
+                publicationFiles.Add($"{embeddedComparison.RelativeRoot}/{artifact.Path}");
+            }
+        }
+
+        if (generation == QueryReviewGenerations.FourRootDiscovery)
+        {
+            await SuccessorPermanentExportManifest.ValidateCurrentPublicationSourceAsync(
+                generation.PermanentExportContract!,
+                manifest.GitCommit,
+                cancellationToken);
+        }
+
         var publishedHashes = new Dictionary<string, string>(StringComparer.Ordinal);
-        var backupCreated = false;
-        var published = false;
-
-        try
-        {
-            Directory.CreateDirectory(stagingDirectory);
-
-            foreach (var relativePath in expectedFiles
-                         .Where(path => path is not "baseline-measurements.json" and
-                             not "baseline-summary.md")
-                         .OrderBy(path => path, StringComparer.Ordinal))
-            {
-                var sourcePath = ResolveWithin(verification.CuratedDirectory, relativePath);
-                var stagingPath = ResolveWithin(stagingDirectory, relativePath);
-                var stagingParent = Path.GetDirectoryName(stagingPath)!;
-                Directory.CreateDirectory(stagingParent);
-
-                var sourceHash = await ComputeSha256Async(sourcePath, cancellationToken);
-                File.Copy(sourcePath, stagingPath, overwrite: false);
-                var stagingHash = await ComputeSha256Async(stagingPath, cancellationToken);
-
-                if (!string.Equals(sourceHash, stagingHash, StringComparison.Ordinal))
+        PermanentEvidencePublicationResult publication =
+            await PermanentEvidencePublisher.PublishAsync(
+                generation,
+                lane,
+                async (stagingDirectory, publicationCancellationToken) =>
                 {
-                    throw new BaselinePlanValidationException(
-                        $"Exported hash mismatch for '{relativePath}'.");
-                }
+                    foreach (var relativePath in expectedFiles
+                                 .Where(path => path is not "baseline-measurements.json" and
+                                     not "baseline-summary.md")
+                                 .OrderBy(path => path, StringComparer.Ordinal))
+                    {
+                        var sourcePath = ResolveWithin(
+                            verification.CuratedDirectory,
+                            relativePath);
+                        var stagingPath = ResolveWithin(stagingDirectory, relativePath);
+                        Directory.CreateDirectory(Path.GetDirectoryName(stagingPath)!);
 
-            }
+                        var sourceHash = await ComputeSha256Async(
+                            sourcePath,
+                            publicationCancellationToken);
+                        File.Copy(sourcePath, stagingPath, overwrite: false);
+                        var stagingHash = await ComputeSha256Async(
+                            stagingPath,
+                            publicationCancellationToken);
 
-            var summaryPath = Path.Combine(stagingDirectory, "baseline-summary.md");
-            await File.WriteAllTextAsync(
-                summaryPath,
-                BuildPermanentSummary(verification.Measurements, evidenceCore),
-                cancellationToken);
+                        if (!string.Equals(sourceHash, stagingHash, StringComparison.Ordinal))
+                        {
+                            throw new BaselinePlanValidationException(
+                                $"Exported hash mismatch for '{relativePath}'.");
+                        }
+                    }
 
-            var artifactIntegrity = await BuildArtifactIntegrityAsync(
-                stagingDirectory,
-                commandKeys,
-                cancellationToken);
-            var permanentMeasurements = BuildPermanentMeasurements(
-                verification.Measurements,
-                evidenceCore,
-                artifactIntegrity);
-            await JsonArtifactOutput.WriteAsync(
-                Path.Combine(stagingDirectory, "baseline-measurements.json"),
-                permanentMeasurements,
-                cancellationToken);
+                    if (comparison is not null && embeddedComparison is not null)
+                    {
+                        foreach (ArtifactHashEvidence artifact in embeddedComparison.Artifacts)
+                        {
+                            string sourcePath = ResolveWithin(
+                                comparison.Verification.CuratedDirectory,
+                                artifact.Path);
+                            string destinationRelativePath =
+                                $"{embeddedComparison.RelativeRoot}/{artifact.Path}";
+                            string stagingPath = ResolveWithin(
+                                stagingDirectory,
+                                destinationRelativePath);
+                            Directory.CreateDirectory(Path.GetDirectoryName(stagingPath)!);
+                            File.Copy(sourcePath, stagingPath, overwrite: false);
+                            string copiedHash = await ComputeSha256Async(
+                                stagingPath,
+                                publicationCancellationToken);
 
-            ValidateExactFileSet(stagingDirectory, expectedFiles);
-            await ValidatePermanentEvidenceAsync(
-                stagingDirectory,
-                permanentMeasurements,
-                cancellationToken);
-            ScanForCredentials(stagingDirectory);
+                            if (!string.Equals(artifact.Sha256, copiedHash, StringComparison.Ordinal))
+                            {
+                                throw new BaselinePlanValidationException(
+                                    $"PostgreSQL 16 comparison artifact drifted while copying '{artifact.Path}'.");
+                            }
+                        }
+                    }
 
-            foreach (var relativePath in expectedFiles.OrderBy(path => path, StringComparer.Ordinal))
-            {
-                publishedHashes.Add(
-                    relativePath,
-                    await ComputeSha256Async(
-                        ResolveWithin(stagingDirectory, relativePath),
-                        cancellationToken));
-            }
+                    var summaryPath = Path.Combine(stagingDirectory, "baseline-summary.md");
+                    await File.WriteAllTextAsync(
+                        summaryPath,
+                        BuildPermanentSummary(
+                            generation,
+                            lane,
+                            verification.Measurements,
+                            evidenceCore,
+                            comparison?.Report),
+                        publicationCancellationToken);
 
-            if (Directory.Exists(destinationDirectory))
-            {
-                Directory.Move(destinationDirectory, backupDirectory);
-                backupCreated = true;
-            }
+                    var artifactIntegrity = await BuildArtifactIntegrityAsync(
+                        stagingDirectory,
+                        commandKeys,
+                        publicationCancellationToken);
+                    var permanentMeasurements = BuildPermanentMeasurements(
+                        verification.Measurements,
+                        evidenceCore,
+                        artifactIntegrity,
+                        generation,
+                        embeddedComparison);
+                    await JsonArtifactOutput.WriteAsync(
+                        Path.Combine(stagingDirectory, "baseline-measurements.json"),
+                        permanentMeasurements,
+                        publicationCancellationToken);
 
-            Directory.Move(stagingDirectory, destinationDirectory);
-            published = true;
+                    ValidateExactFileSet(stagingDirectory, publicationFiles);
+                    await ValidatePermanentEvidenceAsync(
+                        stagingDirectory,
+                        permanentMeasurements,
+                        generation,
+                        lane,
+                        expectations,
+                        publicationCancellationToken);
+                    ScanForCredentials(stagingDirectory);
 
-            ValidateExactFileSet(destinationDirectory, expectedFiles);
-            ScanForCredentials(destinationDirectory);
-
-            foreach (var expected in publishedHashes)
-            {
-                var destinationPath = ResolveWithin(destinationDirectory, expected.Key);
-                var destinationHash = await ComputeSha256Async(
-                    destinationPath,
-                    cancellationToken);
-
-                if (!string.Equals(expected.Value, destinationHash, StringComparison.Ordinal))
+                    foreach (var relativePath in publicationFiles.OrderBy(
+                                 path => path,
+                                 StringComparer.Ordinal))
+                    {
+                        publishedHashes.Add(
+                            relativePath,
+                            await ComputeSha256Async(
+                                ResolveWithin(stagingDirectory, relativePath),
+                                publicationCancellationToken));
+                    }
+                },
+                async (destinationDirectory, publicationCancellationToken) =>
                 {
-                    throw new BaselinePlanValidationException(
-                        $"Permanent evidence hash mismatch for '{expected.Key}'.");
-                }
-            }
+                    ValidateExactFileSet(destinationDirectory, publicationFiles);
+                    ScanForCredentials(destinationDirectory);
 
-            if (backupCreated)
-            {
-                Directory.Delete(backupDirectory, recursive: true);
-                backupCreated = false;
-            }
+                    foreach (var expected in publishedHashes)
+                    {
+                        var destinationPath = ResolveWithin(
+                            destinationDirectory,
+                            expected.Key);
+                        var destinationHash = await ComputeSha256Async(
+                            destinationPath,
+                            publicationCancellationToken);
 
-            return new BaselineEvidenceExportResult(
-                destinationDirectory,
-                publishedHashes.Count,
-                publishedHashes);
-        }
-        catch
-        {
-            if (Directory.Exists(stagingDirectory))
-            {
-                Directory.Delete(stagingDirectory, recursive: true);
-            }
+                        if (!string.Equals(
+                                expected.Value,
+                                destinationHash,
+                                StringComparison.Ordinal))
+                        {
+                            throw new BaselinePlanValidationException(
+                                $"Permanent evidence hash mismatch for '{expected.Key}'.");
+                        }
+                    }
+                },
+                cancellationToken);
 
-            if (backupCreated)
-            {
-                if (Directory.Exists(destinationDirectory))
-                {
-                    Directory.Delete(destinationDirectory, recursive: true);
-                }
-
-                Directory.Move(backupDirectory, destinationDirectory);
-            }
-            else if (published && Directory.Exists(destinationDirectory))
-            {
-                Directory.Delete(destinationDirectory, recursive: true);
-            }
-
-            throw;
-        }
+        return new BaselineEvidenceExportResult(
+            publication.DestinationDirectory,
+            publishedHashes.Count,
+            publishedHashes);
     }
 
-    private static void ValidateVerificationResult(BaselineVerificationResult verification)
+    private static void ValidateVerificationResult(
+        BaselineVerificationResult verification,
+        PermanentBaselineExpectations expectations)
     {
         var measurements = verification.Measurements;
 
         if (!verification.CredentialScanPassed ||
             !measurements.Q1Gate.Passed ||
-            measurements.CommandCount != ExpectedCommandCount ||
-            measurements.SampleCount != ExpectedPlanCount ||
-            measurements.WarmUpSampleCount != ExpectedCommandCount ||
-            measurements.MeasuredSampleCount != ExpectedCommandCount * 5 ||
-            measurements.Commands.Count != ExpectedCommandCount ||
+            measurements.CommandCount != expectations.CommandCount ||
+            measurements.SampleCount != expectations.PlanCount ||
+            measurements.WarmUpSampleCount != expectations.CommandCount ||
+            measurements.MeasuredSampleCount != expectations.CommandCount * 5 ||
+            measurements.Commands.Count != expectations.CommandCount ||
             measurements.Anomalies.Count != 0)
         {
             throw new BaselinePlanValidationException(
@@ -272,7 +491,10 @@ internal static partial class BaselineEvidenceWriter
     private static void ValidateIdentity(
         RawBaselineManifest manifest,
         BaselineEnvironmentSnapshot environment,
-        BaselineMeasurementsRaw measurements)
+        BaselineMeasurementsRaw measurements,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        PermanentBaselineExpectations expectations)
     {
         if (!string.Equals(
                 manifest.BaselineRunId,
@@ -283,19 +505,19 @@ internal static partial class BaselineEvidenceWriter
                 "Verified measurements do not match the raw manifest run identity.");
         }
 
-        if (manifest.CommandCount != ExpectedCommandCount ||
-            manifest.ParameterCount != ExpectedParameterCount ||
-            manifest.PlanCount != ExpectedPlanCount ||
+        if (manifest.CommandCount != expectations.CommandCount ||
+            manifest.ParameterCount != expectations.ParameterCount ||
+            manifest.PlanCount != expectations.PlanCount ||
             manifest.WarmUpRunsPerCommand != 1 ||
             manifest.MeasuredRunsPerCommand != 5 ||
-            manifest.Samples.Count != ExpectedPlanCount ||
+            manifest.Samples.Count != expectations.PlanCount ||
             !manifest.CredentialScanPassed)
         {
             throw new BaselinePlanValidationException(
                 "Raw manifest totals or credential status are not eligible for export.");
         }
 
-        if (!string.Equals(manifest.ProfileVersion, DeterministicProfileSeeder.ProfileVersion,
+        if (!string.Equals(manifest.ProfileVersion, expectations.ProfileIdentity,
                 StringComparison.Ordinal) ||
             !string.Equals(environment.ProfileVersion, manifest.ProfileVersion, StringComparison.Ordinal) ||
             environment.CSharpSeed != manifest.CSharpSeed ||
@@ -309,30 +531,36 @@ internal static partial class BaselineEvidenceWriter
                 "Commit, profile, seed, database, or PostgreSQL identity mismatch prevents export.");
         }
 
-        if (!int.TryParse(
-                environment.PostgreSql.ServerVersionNumber,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out var serverVersionNumber) ||
-            serverVersionNumber / 10_000 != RequiredPostgreSqlMajorVersion)
-        {
-            throw new BaselinePlanValidationException(
-                $"Permanent evidence requires PostgreSQL {RequiredPostgreSqlMajorVersion}.");
-        }
+        ValidatePostgreSqlVersionForPermanentEvidence(
+            generation,
+            lane,
+            environment.PostgreSql);
     }
 
     private static EvidenceCore BuildEvidenceCore(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        PermanentBaselineExpectations expectations,
         BaselineVerificationResult verification,
         RawBaselineManifest manifest,
         BaselineEnvironmentSnapshot environment,
         SqlCaptureRun captureRun)
     {
-        var profile = BuildProfileEvidence(manifest);
-        var semanticIdentity = BuildSemanticIdentity(manifest, captureRun);
-        var lockedResults = BuildLockedResultEvidence(captureRun);
+        var profile = BuildProfileEvidence(manifest, expectations);
+        var semanticIdentity = BuildSemanticIdentity(
+            generation,
+            manifest,
+            captureRun,
+            expectations);
+        var lockedResults = BuildLockedResultEvidence(generation, captureRun);
         ValidateQ1Evidence(verification.Measurements);
-        var a1Exception = BuildA1ExceptionEvidence(verification.Measurements);
+        A1ApprovedExceptionEvidence? a1Exception = generation.IsFrozenHistorical
+            ? BuildA1ExceptionEvidence(verification.Measurements)
+            : null;
         var captureIdentity = BuildCaptureIdentity(
+            generation,
+            lane,
+            expectations,
             verification,
             manifest,
             environment);
@@ -345,7 +573,7 @@ internal static partial class BaselineEvidenceWriter
             captureIdentity);
     }
 
-    private static void ValidateQ1Evidence(BaselineMeasurementsRaw measurements)
+    internal static void ValidateQ1Evidence(BaselineMeasurementsRaw measurements)
     {
         var count = measurements.Commands.Single(command =>
             string.Equals(command.CommandKey, "Q1-01-filtered-count", StringComparison.Ordinal));
@@ -361,35 +589,81 @@ internal static partial class BaselineEvidenceWriter
             countBuffers > Q1CountMaximumSharedAccessBlocks ||
             firstPageBuffers > Q1FirstPageMaximumSharedAccessBlocks ||
             !count.IndexNames.Contains(TrigramIndexName, StringComparer.Ordinal) ||
-            !page.IndexNames.Contains(TrigramIndexName, StringComparer.Ordinal) ||
-            count.ScanTypes.Contains("Seq Scan", StringComparer.Ordinal) ||
-            page.ScanTypes.Contains("Seq Scan", StringComparer.Ordinal))
+            !page.IndexNames.Contains(TrigramIndexName, StringComparer.Ordinal))
         {
             throw new BaselinePlanValidationException(
                 "Permanent evidence requires Q1 timing/buffer gates, trigram-index use in count " +
                 "and page plans, and absence of the old translation sequential scan.");
         }
+
+        ValidateQ1SequentialScans(count, page);
+    }
+
+    private static void ValidateQ1SequentialScans(
+        params CommandMeasurementSummary[] commands)
+    {
+        PlanNodeMeasurement[] sequentialScans = commands
+            .SelectMany(command => command.Samples)
+            .SelectMany(sample => sample.Nodes)
+            .Where(node => string.Equals(node.NodeType, "Seq Scan", StringComparison.Ordinal))
+            .ToArray();
+
+        if (sequentialScans.Any(node => string.IsNullOrWhiteSpace(node.Relation)))
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence rejects a malformed Q1 sequential scan with a missing or " +
+                "blank Relation Name; an alias cannot prove that the scanned relation is safe.");
+        }
+
+        if (sequentialScans.Any(node => string.Equals(
+                node.Relation,
+                "ListingTranslations",
+                StringComparison.Ordinal)))
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence rejects a Q1 ListingTranslations sequential scan; " +
+                "the accepted translation path must use IX_ListingTranslations_Q_Trigram.");
+        }
     }
 
     private static ProfileVerificationEvidence BuildProfileEvidence(
-        RawBaselineManifest manifest)
+        RawBaselineManifest manifest,
+        PermanentBaselineExpectations expectations)
     {
         var profile = manifest.ProfileVerification;
+
+        bool successor = string.Equals(
+            expectations.ProfileIdentity,
+            QueryReviewGenerations.FourRootDiscoveryId,
+            StringComparison.Ordinal);
 
         if (profile is null ||
             !string.Equals(
                 profile.ProfileIdentity,
-                DeterministicProfileSeeder.ProfileVersion,
+                expectations.ProfileIdentity,
                 StringComparison.Ordinal) ||
             profile.ListingCount != ExpectedListingCount ||
             profile.TranslationCount != ExpectedTranslationCount ||
-            profile.InvariantTotal != ExpectedInvariantCount ||
-            profile.InvariantPassed != ExpectedInvariantCount ||
-            profile.InvariantFailed != 0)
+            profile.InvariantTotal != expectations.InvariantCount ||
+            profile.InvariantPassed != expectations.InvariantCount ||
+            profile.InvariantFailed != 0 ||
+            (successor &&
+             (!string.Equals(
+                  profile.ProfileSha256,
+                  SuccessorPermanentExportManifest.AcceptedProfileSha256,
+                  StringComparison.Ordinal) ||
+              !string.Equals(
+                  profile.InvariantManifestSha256,
+                  SuccessorPermanentExportManifest.AcceptedInvariantManifestSha256,
+                  StringComparison.Ordinal) ||
+              !string.Equals(
+                  profile.InvariantResultSha256,
+                  SuccessorPermanentExportManifest.AcceptedInvariantResultSha256,
+                  StringComparison.Ordinal))))
         {
             throw new BaselinePlanValidationException(
-                "Permanent export requires the persisted successful chapter-10f-v1 " +
-                "100,000-listing, 200,000-translation, 61/61 profile verification.");
+                "Permanent export requires the persisted successful generation-specific " +
+                "100,000-listing, 200,000-translation profile verification.");
         }
 
         return new ProfileVerificationEvidence(
@@ -399,41 +673,61 @@ internal static partial class BaselineEvidenceWriter
             profile.InvariantTotal,
             profile.InvariantPassed,
             profile.InvariantFailed,
-            Passed: true);
+            Passed: true,
+            profile.ProfileSha256,
+            profile.InvariantManifestSha256,
+            profile.InvariantResultSha256);
     }
 
     private static SemanticResultIdentityEvidence BuildSemanticIdentity(
+        QueryReviewGenerationDefinition generation,
         RawBaselineManifest manifest,
-        SqlCaptureRun captureRun)
+        SqlCaptureRun captureRun,
+        PermanentBaselineExpectations expectations)
     {
-        var actualResultSha256 = ComputeSha256(JsonSerializer.Serialize(
-            captureRun.ShapeResults,
-            JsonArtifactOutput.SerializerOptions));
+        var actualResultSha256 = generation == QueryReviewGenerations.FourRootDiscovery
+            ? DiscoveryQueryShapeManifest.ComputeResultIdentitySha256(captureRun.ShapeResults)
+            : ComputeSha256(JsonSerializer.Serialize(
+                captureRun.ShapeResults,
+                JsonArtifactOutput.SerializerOptions));
         var comparisonPassed = string.Equals(
                                    actualResultSha256,
-                                   manifest.ResultSha256,
+                                   expectations.ResultOrderIdentitySha256,
                                    StringComparison.Ordinal) &&
-                               string.Equals(
-                                   actualResultSha256,
-                                   ExpectedResultSha256,
-                                   StringComparison.Ordinal);
+                               (generation == QueryReviewGenerations.FourRootDiscovery ||
+                                string.Equals(
+                                    actualResultSha256,
+                                    manifest.ResultSha256,
+                                    StringComparison.Ordinal));
 
         if (!comparisonPassed)
         {
             throw new BaselinePlanValidationException(
-                "Verified production semantic results do not match the locked Chapter 10F result hash.");
+                "Verified production semantic results do not match the locked generation result/order identity.");
         }
 
         return new SemanticResultIdentityEvidence(
-            ExpectedResultSha256,
+            expectations.ResultOrderIdentitySha256,
             actualResultSha256,
             comparisonPassed);
     }
 
     private static IReadOnlyList<LockedResultComparisonEvidence> BuildLockedResultEvidence(
+        QueryReviewGenerationDefinition generation,
         SqlCaptureRun captureRun)
     {
-        var expectations = QueryShapeDefinitions.GetLockedResultExpectations();
+        IReadOnlyList<LockedQueryShapeExpectation> expectations =
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? (captureRun.QueryShapeManifest?.Results
+                       ?? throw new BaselinePlanValidationException(
+                           "Successor capture is missing the validated query-shape manifest."))
+                    .Select(result => new LockedQueryShapeExpectation(
+                        result.ShapeId,
+                        result.TotalCount ?? 0,
+                        result.ItemCount,
+                        result.OrderedIds))
+                    .ToArray()
+                : QueryShapeDefinitions.GetLockedResultExpectations();
 
         if (captureRun.ShapeResults.Count != expectations.Count)
         {
@@ -601,18 +895,17 @@ internal static partial class BaselineEvidenceWriter
     }
 
     private static CaptureIdentityEvidence BuildCaptureIdentity(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        PermanentBaselineExpectations expectations,
         BaselineVerificationResult verification,
         RawBaselineManifest manifest,
         BaselineEnvironmentSnapshot environment)
     {
-        if (!string.Equals(
-                environment.PostgreSql.ServerVersion,
-                RequiredPostgreSqlVersion,
-                StringComparison.Ordinal))
-        {
-            throw new BaselinePlanValidationException(
-                $"Permanent evidence requires PostgreSQL {RequiredPostgreSqlVersion}.");
-        }
+        ValidatePostgreSqlVersionForPermanentEvidence(
+            generation,
+            lane,
+            environment.PostgreSql);
 
         var extension = environment.PostgreSql.Extensions.SingleOrDefault(candidate =>
             string.Equals(candidate.Name, TrigramExtensionName, StringComparison.Ordinal));
@@ -678,13 +971,158 @@ internal static partial class BaselineEvidenceWriter
             spillCount,
             planSwitchCount,
             anomalyCount,
-            credentialFindingCount);
+            credentialFindingCount,
+            environment.PostgreSql.ServerVersionNumber);
+    }
+
+    internal static void ValidatePostgreSqlVersionForPermanentEvidence(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        PostgreSqlEnvironmentSnapshot postgreSql)
+    {
+        ArgumentNullException.ThrowIfNull(generation);
+        ArgumentNullException.ThrowIfNull(lane);
+        ArgumentNullException.ThrowIfNull(postgreSql);
+
+        ValidatePostgreSqlVersionIdentity(
+            GetExpectations(generation, lane),
+            postgreSql.ServerVersion,
+            postgreSql.ServerVersionNumber,
+            allowLegacyPostgreSql16WithoutVersionNumber: false);
+    }
+
+    private static void ValidatePersistedPostgreSqlVersion(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        CaptureIdentityEvidence captureIdentity)
+    {
+        PermanentBaselineExpectations expectations = GetExpectations(generation, lane);
+        bool allowLegacyPostgreSql16WithoutVersionNumber =
+            expectations.PostgreSqlMajorVersion == RequiredPostgreSqlMajorVersion &&
+            string.IsNullOrWhiteSpace(captureIdentity.PostgreSqlVersionNumber);
+
+        ValidatePostgreSqlVersionIdentity(
+            expectations,
+            captureIdentity.PostgreSqlVersion,
+            captureIdentity.PostgreSqlVersionNumber,
+            allowLegacyPostgreSql16WithoutVersionNumber);
+    }
+
+    private static void ValidatePostgreSqlVersionIdentity(
+        PermanentBaselineExpectations expectations,
+        string? serverVersion,
+        string? serverVersionNumber,
+        bool allowLegacyPostgreSql16WithoutVersionNumber)
+    {
+        (int Major, int Minor) expectedTextIdentity =
+            ParsePostgreSqlServerVersionText(expectations.PostgreSqlVersion);
+        (int Major, int Minor) actualTextIdentity =
+            ParsePostgreSqlServerVersionText(serverVersion);
+
+        if (actualTextIdentity != expectedTextIdentity ||
+            (expectations.PostgreSqlMajorVersion == RequiredPostgreSqlMajorVersion &&
+             !string.Equals(
+                 serverVersion,
+                 expectations.PostgreSqlVersion,
+                 StringComparison.Ordinal)))
+        {
+            throw new BaselinePlanValidationException(
+                $"Permanent evidence requires exact PostgreSQL " +
+                $"{expectations.PostgreSqlVersion} version identity.");
+        }
+
+        if (string.IsNullOrWhiteSpace(serverVersionNumber))
+        {
+            if (allowLegacyPostgreSql16WithoutVersionNumber)
+            {
+                return;
+            }
+
+            throw new BaselinePlanValidationException(
+                "Permanent evidence is missing PostgreSQL server_version_num metadata.");
+        }
+
+        if (!int.TryParse(
+                serverVersionNumber,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int numericVersion) ||
+            numericVersion != expectations.PostgreSqlVersionNumber)
+        {
+            throw new BaselinePlanValidationException(
+                $"Permanent evidence requires PostgreSQL server_version_num " +
+                $"{expectations.PostgreSqlVersionNumber}.");
+        }
+
+        int numericMajor = numericVersion / 10_000;
+        int numericMinor = numericVersion % 10_000;
+
+        if (actualTextIdentity.Major != numericMajor ||
+            actualTextIdentity.Minor != numericMinor)
+        {
+            throw new BaselinePlanValidationException(
+                "PostgreSQL server version text contradicts server_version_num metadata.");
+        }
+    }
+
+    private static (int Major, int Minor) ParsePostgreSqlServerVersionText(
+        string? serverVersion)
+    {
+        if (string.IsNullOrWhiteSpace(serverVersion) ||
+            !string.Equals(serverVersion, serverVersion.Trim(), StringComparison.Ordinal))
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence has malformed PostgreSQL server version text.");
+        }
+
+        int decorationStart = serverVersion.IndexOf(' ');
+        string canonicalVersion = decorationStart < 0
+            ? serverVersion
+            : serverVersion[..decorationStart];
+
+        if (decorationStart >= 0)
+        {
+            string decoration = serverVersion[decorationStart..];
+
+            if (decoration.Length < 4 ||
+                !decoration.StartsWith(" (", StringComparison.Ordinal) ||
+                decoration[^1] != ')' ||
+                string.IsNullOrWhiteSpace(decoration[2..^1]))
+            {
+                throw new BaselinePlanValidationException(
+                    "Permanent evidence has malformed PostgreSQL server version text.");
+            }
+        }
+
+        string[] components = canonicalVersion.Split('.');
+
+        if (components.Length != 2 ||
+            !int.TryParse(
+                components[0],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int major) ||
+            !int.TryParse(
+                components[1],
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int minor) ||
+            major <= 0 ||
+            minor < 0)
+        {
+            throw new BaselinePlanValidationException(
+                "Permanent evidence has malformed PostgreSQL server version text.");
+        }
+
+        return (major, minor);
     }
 
     private static CuratedBaselineMeasurements BuildPermanentMeasurements(
         BaselineMeasurementsRaw measurements,
         EvidenceCore evidenceCore,
-        ArtifactIntegrityEvidence artifactIntegrity)
+        ArtifactIntegrityEvidence artifactIntegrity,
+        QueryReviewGenerationDefinition generation,
+        EmbeddedComparisonEvidence? comparison)
     {
         var commands = measurements.Commands.Select(command =>
             new CuratedCommandMeasurement(
@@ -704,13 +1142,15 @@ internal static partial class BaselineEvidenceWriter
                 command.SortMethods,
                 command.IndexNames)).ToArray();
         var permanentEvidence = new PermanentEvidenceMetadata(
-            SchemaVersion: 1,
+            SchemaVersion: generation.IsFrozenHistorical ? 1 : 2,
             evidenceCore.ProfileVerification,
             evidenceCore.SemanticResultIdentity,
             evidenceCore.LockedResults,
             evidenceCore.A1ApprovedException,
             evidenceCore.CaptureIdentity,
-            artifactIntegrity);
+            artifactIntegrity,
+            generation.PermanentExportContract,
+            comparison);
 
         return new CuratedBaselineMeasurements(
             measurements.BaselineRunId,
@@ -724,17 +1164,63 @@ internal static partial class BaselineEvidenceWriter
             permanentEvidence);
     }
 
-    private static string BuildPermanentSummary(
-        BaselineMeasurementsRaw measurements,
-        EvidenceCore evidenceCore)
+    private static async Task<EmbeddedComparisonEvidence> BuildEmbeddedComparisonEvidenceAsync(
+        VerifiedSuccessorComparisonRun comparison,
+        CancellationToken cancellationToken)
     {
+        const string relativeRoot = "comparison/postgresql-16";
+        string[] paths = Directory.EnumerateFiles(
+                comparison.Verification.CuratedDirectory,
+                "*",
+                SearchOption.AllDirectories)
+            .Select(path => NormalizeRelativePath(Path.GetRelativePath(
+                comparison.Verification.CuratedDirectory,
+                path)))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+        var artifacts = new List<ArtifactHashEvidence>(paths.Length);
+
+        foreach (string path in paths)
+        {
+            artifacts.Add(new ArtifactHashEvidence(
+                path,
+                await ComputeSha256Async(
+                    ResolveWithin(comparison.Verification.CuratedDirectory, path),
+                    cancellationToken)));
+        }
+
+        return new EmbeddedComparisonEvidence(
+            relativeRoot,
+            comparison.PrimaryIdentity,
+            comparison.ComparisonIdentity,
+            artifacts.Count,
+            artifacts);
+    }
+
+    private static string BuildPermanentSummary(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        BaselineMeasurementsRaw measurements,
+        EvidenceCore evidenceCore,
+        CrossMajorComparisonReport? comparisonReport)
+    {
+        if (!generation.IsFrozenHistorical)
+        {
+            return BuildSuccessorPermanentSummary(
+                generation,
+                lane,
+                measurements,
+                evidenceCore.ProfileVerification,
+                evidenceCore.CaptureIdentity,
+                comparisonReport);
+        }
         var q1Count = measurements.Commands.Single(command =>
             string.Equals(command.CommandKey, "Q1-01-filtered-count", StringComparison.Ordinal));
         var q1FirstPage = measurements.Sequences.Single(sequence =>
             string.Equals(sequence.SequenceId, "Q1-first-page", StringComparison.Ordinal));
         var q1Locked = evidenceCore.LockedResults.Single(result =>
             string.Equals(result.ShapeId, "Q1", StringComparison.Ordinal));
-        var a1 = evidenceCore.A1ApprovedException;
+        var a1 = evidenceCore.A1ApprovedException!;
         var identity = evidenceCore.CaptureIdentity;
         var builder = new StringBuilder();
 
@@ -834,6 +1320,222 @@ internal static partial class BaselineEvidenceWriter
         return builder.ToString();
     }
 
+    internal static string BuildSuccessorPermanentSummary(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        BaselineMeasurementsRaw measurements,
+        ProfileVerificationEvidence profileVerification,
+        CaptureIdentityEvidence identity,
+        CrossMajorComparisonReport? comparisonReport)
+    {
+        if (string.Equals(
+                lane.Id,
+                QueryReviewGenerations.PostgreSql184LaneId,
+                StringComparison.Ordinal))
+        {
+            return BuildPostgreSql184CompatibilitySummary(
+                generation,
+                measurements,
+                profileVerification,
+                identity,
+                comparisonReport);
+        }
+
+        if (!string.Equals(
+                lane.Id,
+                QueryReviewGenerations.PostgreSql16LaneId,
+                StringComparison.Ordinal) ||
+            comparisonReport is not null)
+        {
+            throw new BaselinePlanValidationException(
+                "The authoritative PostgreSQL 16 summary received an invalid lane or comparison report.");
+        }
+
+        SuccessorPermanentExportContract contract = generation.PermanentExportContract!;
+        var builder = new StringBuilder();
+        builder.AppendLine("# Authoritative permanent four-root discovery baseline summary");
+        builder.AppendLine();
+        builder.AppendLine($"Generation/profile: `{contract.GenerationId}`.");
+        builder.AppendLine($"Run: `{measurements.BaselineRunId}`.");
+        builder.AppendLine($"Capture commit: `{identity.GitCommit}`.");
+        builder.AppendLine(
+            $"Disposition: Commercial `{contract.CommercialDisposition}`; Land " +
+            $"`{contract.LandDisposition}`; migrations {contract.MigrationCount}.");
+        builder.AppendLine(
+            $"Profile: {profileVerification.InvariantPassed}/" +
+            $"{profileVerification.InvariantTotal} invariants; " +
+            $"shape identity `{contract.QueryShapeManifestSha256}`; result/order identity " +
+            $"`{contract.ResultOrderIdentitySha256}`.");
+        builder.AppendLine(
+            $"Capture: {identity.CommandCount} commands; {identity.TypedParameterCount} typed " +
+            $"parameters; {identity.RawPlanCount} plans; {identity.WarmUpRounds} warm-up and " +
+            $"{identity.MeasuredRounds} measured rounds.");
+        builder.AppendLine(
+            $"Safety: spills {identity.SpillCount}; plan switches {identity.PlanSwitchCount}; " +
+            $"anomalies {identity.AnomalyCount}; credential findings " +
+            $"{identity.CredentialFindingCount}.");
+        builder.AppendLine();
+        builder.AppendLine(
+            "All SQL, typed parameters, totals, selected IDs, and order identities match the " +
+            "accepted successor manifest. The accepted NO_INDEX catalog and final migration " +
+            "inventory were verified before publication.");
+        return builder.ToString();
+    }
+
+    private static string BuildPostgreSql184CompatibilitySummary(
+        QueryReviewGenerationDefinition generation,
+        BaselineMeasurementsRaw measurements,
+        ProfileVerificationEvidence profileVerification,
+        CaptureIdentityEvidence identity,
+        CrossMajorComparisonReport? comparisonReport)
+    {
+        if (comparisonReport is null)
+        {
+            throw new BaselinePlanValidationException(
+                "PostgreSQL 18.4 permanent publication requires a complete cross-major report.");
+        }
+
+        CrossMajorCompatibilityReportBuilder.ValidateForPublication(comparisonReport);
+        SuccessorPermanentExportContract contract = generation.PermanentExportContract!;
+        var builder = new StringBuilder();
+        builder.AppendLine("# PostgreSQL 18.4 Compatibility Evidence");
+        builder.AppendLine();
+        builder.AppendLine(
+            "PostgreSQL 16 remains the authoritative Chapter 15 correctness lane, " +
+            "historical-comparison lane, performance lane, and index-decision lane.");
+        builder.AppendLine(
+            "PostgreSQL 18.4 is a bounded compatibility/performance-observation lane.");
+        builder.AppendLine(
+            "Cross-major timing is observational and is not an SLA.");
+        builder.AppendLine();
+        builder.AppendLine($"Generation/profile: `{contract.GenerationId}`.");
+        builder.AppendLine($"Run: `{measurements.BaselineRunId}`.");
+        builder.AppendLine($"Capture commit: `{identity.GitCommit}`.");
+        builder.AppendLine(
+            $"Disposition: Commercial `{contract.CommercialDisposition}`; Land " +
+            $"`{contract.LandDisposition}`; migrations {contract.MigrationCount}.");
+        builder.AppendLine(
+            $"Profile: {profileVerification.InvariantPassed}/" +
+            $"{profileVerification.InvariantTotal} invariants; " +
+            $"shape identity `{contract.QueryShapeManifestSha256}`; result/order identity " +
+            $"`{contract.ResultOrderIdentitySha256}`.");
+        builder.AppendLine(
+            $"Capture: {identity.CommandCount} commands; {identity.TypedParameterCount} typed " +
+            $"parameters; {identity.RawPlanCount} plans; {identity.WarmUpRounds} warm-up and " +
+            $"{identity.MeasuredRounds} measured rounds.");
+        builder.AppendLine(
+            $"Safety: spills {identity.SpillCount}; plan switches {identity.PlanSwitchCount}; " +
+            $"anomalies {identity.AnomalyCount}; credential findings " +
+            $"{identity.CredentialFindingCount}.");
+        builder.AppendLine();
+        builder.AppendLine("## Cross-major review rules");
+        builder.AppendLine();
+        builder.AppendLine(
+            "- Threshold A: PostgreSQL 18.4 is both more than 25% and more than 2 ms " +
+            "slower than the contemporaneous PostgreSQL 16 measured median.");
+        builder.AppendLine(
+            "- Threshold B: PostgreSQL 18.4 uses more than 20% additional median " +
+            "shared-access blocks.");
+        builder.AppendLine(
+            "- Medians use only the five measured samples; discarded warm-ups are excluded.");
+        builder.AppendLine();
+        builder.AppendLine("## Cross-major sequence comparison");
+        builder.AppendLine();
+        builder.AppendLine(
+            "| Sequence | PG16 ms | PG18.4 ms | Delta ms | Delta % | PG16 blocks | " +
+            "PG18.4 blocks | Block delta | Block % | A | B |");
+        builder.AppendLine(
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|:---:|:---:|");
+
+        foreach (CrossMajorSequenceComparison sequence in comparisonReport.Sequences)
+        {
+            builder.Append("| ").Append(sequence.SequenceId)
+                .Append(" | ").Append(FormatDecimal(sequence.PostgreSql16ExecutionTimeMedianMilliseconds))
+                .Append(" | ").Append(FormatDecimal(sequence.PostgreSql184ExecutionTimeMedianMilliseconds))
+                .Append(" | ").Append(FormatSignedDecimal(sequence.ExecutionTimeDeltaMilliseconds))
+                .Append(" | ").Append(FormatSignedDecimal(sequence.ExecutionTimeDeltaPercent)).Append('%')
+                .Append(" | ").Append(sequence.PostgreSql16SharedAccessBlocksMedian)
+                .Append(" | ").Append(sequence.PostgreSql184SharedAccessBlocksMedian)
+                .Append(" | ").Append(FormatSignedLong(sequence.SharedAccessBlocksDelta))
+                .Append(" | ").Append(FormatSignedDecimal(sequence.SharedAccessBlocksDeltaPercent)).Append('%')
+                .Append(" | ").Append(sequence.ThresholdAExceeded ? "yes" : "no")
+                .Append(" | ").Append(sequence.ThresholdBExceeded ? "yes" : "no")
+                .AppendLine(" |");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine(
+            $"- Threshold A exceedances: {comparisonReport.ThresholdAExceedanceCount}.");
+        builder.AppendLine(
+            $"- Threshold B exceedances: {comparisonReport.ThresholdBExceedanceCount}.");
+        builder.AppendLine();
+        builder.AppendLine("## Lane-qualified plan/topology review");
+        builder.AppendLine();
+
+        CrossMajorSequenceComparison[] topologyDifferences = comparisonReport.Sequences
+            .Where(sequence =>
+                sequence.PostgreSql16OnlyTopology.Count != 0 ||
+                sequence.PostgreSql184OnlyTopology.Count != 0)
+            .ToArray();
+
+        if (topologyDifferences.Length == 0)
+        {
+            builder.AppendLine("- No lane-qualified median-plan topology differences.");
+        }
+        else
+        {
+            foreach (CrossMajorSequenceComparison sequence in topologyDifferences)
+            {
+                bool eliminatesListingsSequentialScan =
+                    sequence.PostgreSql16OnlyTopology.Contains(
+                        "scan:Seq Scan;relation:Listings;index:-",
+                        StringComparer.Ordinal) &&
+                    !sequence.PostgreSql184OnlyTopology.Any(value =>
+                        string.Equals(
+                            value,
+                            "scan:Seq Scan;relation:Listings;index:-",
+                            StringComparison.Ordinal));
+
+                builder.Append("- ").Append(sequence.SequenceId)
+                    .Append(": PostgreSQL 16-only [")
+                    .Append(FormatTopology(sequence.PostgreSql16OnlyTopology))
+                    .Append("]; PostgreSQL 18.4-only [")
+                    .Append(FormatTopology(sequence.PostgreSql184OnlyTopology))
+                    .AppendLine("].");
+
+                if (eliminatesListingsSequentialScan)
+                {
+                    builder.Append("- ").Append(sequence.SequenceId)
+                        .AppendLine(
+                            ": PostgreSQL 18.4 eliminates the PostgreSQL 16 named " +
+                            "`Listings` sequential scan.");
+                }
+            }
+        }
+
+        builder.AppendLine(
+            $"- Required Q1 `{CrossMajorCompatibilityReportBuilder.TrigramIndexName}` " +
+            $"behavior remains intact: {(comparisonReport.Q1TrigramIndexPreserved ? "PASS" : "FAIL")}.");
+        builder.AppendLine();
+        builder.AppendLine(
+            "All SQL, typed parameters, totals, selected IDs, order identities, settings, " +
+            "and sample protocol match the verified contemporaneous PostgreSQL 16 comparison.");
+
+        return builder.ToString();
+    }
+
+    private static string FormatDecimal(decimal value) =>
+        value.ToString("0.000", CultureInfo.InvariantCulture);
+
+    private static string FormatSignedDecimal(decimal value) =>
+        value.ToString("+0.000;-0.000;0.000", CultureInfo.InvariantCulture);
+
+    private static string FormatSignedLong(long value) =>
+        value.ToString("+0;-0;0", CultureInfo.InvariantCulture);
+
+    private static string FormatTopology(IReadOnlyList<string> topology) =>
+        topology.Count == 0 ? "none" : string.Join(", ", topology);
+
     private static void AppendA1Summary(
         StringBuilder builder,
         A1SequenceExceptionEvidence sequence)
@@ -902,18 +1604,28 @@ internal static partial class BaselineEvidenceWriter
     private static async Task ValidatePermanentEvidenceAsync(
         string directory,
         CuratedBaselineMeasurements expected,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        PermanentBaselineExpectations expectations,
         CancellationToken cancellationToken)
     {
         var path = Path.Combine(directory, "baseline-measurements.json");
         var persisted = await ReadRequiredJsonAsync<CuratedBaselineMeasurements>(path, cancellationToken);
         var metadata = persisted.PermanentEvidence;
 
-        if (metadata is null || metadata.SchemaVersion != 1 ||
+        bool historical = generation.IsFrozenHistorical;
+        bool manifestValid = historical
+            ? metadata?.SchemaVersion == 1 && metadata.SuccessorExportContract is null
+            : metadata?.SchemaVersion == 2 &&
+              metadata.SuccessorExportContract is not null;
+
+        if (!manifestValid || metadata is null ||
             !metadata.ProfileVerification.Passed ||
             !metadata.SemanticResultIdentity.ComparisonPassed ||
-            metadata.LockedResults.Count != QueryShapeDefinitions.GetLockedResultExpectations().Count ||
+            metadata.LockedResults.Count != expectations.ShapeCount ||
             metadata.LockedResults.Any(result => !result.Passed) ||
-            !metadata.A1ApprovedException.Accepted ||
+            (historical && metadata.A1ApprovedException?.Accepted != true) ||
+            (!historical && metadata.A1ApprovedException is not null) ||
             metadata.CaptureIdentity.SpillCount != 0 ||
             metadata.CaptureIdentity.PlanSwitchCount != 0 ||
             metadata.CaptureIdentity.AnomalyCount != 0 ||
@@ -921,6 +1633,40 @@ internal static partial class BaselineEvidenceWriter
         {
             throw new BaselinePlanValidationException(
                 "Permanent measurements are missing required successful completeness metadata.");
+        }
+
+        ValidatePersistedPostgreSqlVersion(
+            generation,
+            lane,
+            metadata.CaptureIdentity);
+
+        if (!historical)
+        {
+            SuccessorPermanentExportManifest.ValidateContract(
+                metadata.SuccessorExportContract!);
+
+            ValidateSuccessorProfileEvidence(metadata.ProfileVerification);
+
+            bool requiresComparison = expectations.PostgreSqlMajorVersion == 18;
+
+            if (requiresComparison != (metadata.PostgreSql16Comparison is not null))
+            {
+                throw new BaselinePlanValidationException(
+                    "Successor permanent comparison metadata does not match the selected lane.");
+            }
+
+            if (metadata.PostgreSql16Comparison is not null)
+            {
+                await ValidateEmbeddedComparisonAsync(
+                    directory,
+                    metadata.PostgreSql16Comparison,
+                    cancellationToken);
+            }
+        }
+        else if (metadata.PostgreSql16Comparison is not null)
+        {
+            throw new BaselinePlanValidationException(
+                "Historical schema-1 evidence cannot contain successor comparison material.");
         }
 
         var integrity = metadata.ArtifactIntegrity;
@@ -932,8 +1678,8 @@ internal static partial class BaselineEvidenceWriter
         if (!string.Equals(integrity.Algorithm, "SHA-256", StringComparison.Ordinal) ||
             !string.Equals(integrity.ManifestPath, "baseline-measurements.json", StringComparison.Ordinal) ||
             integrity.RootArtifacts.Count != 2 ||
-            integrity.NormalizedSqlArtifacts.Count != ExpectedCommandCount ||
-            integrity.MedianPlanArtifacts.Count != ExpectedCommandCount ||
+            integrity.NormalizedSqlArtifacts.Count != expectations.CommandCount ||
+            integrity.MedianPlanArtifacts.Count != expectations.CommandCount ||
             allArtifacts.Select(artifact => artifact.Path).Distinct(StringComparer.Ordinal).Count() !=
                 allArtifacts.Length)
         {
@@ -976,20 +1722,43 @@ internal static partial class BaselineEvidenceWriter
             Path.Combine(directory, "baseline-summary.md"),
             cancellationToken);
 
-        if (!summary.StartsWith(
-                "# Authoritative permanent Chapter 10F baseline summary",
-                StringComparison.Ordinal) ||
-            summary.Contains("temporary baseline summary", StringComparison.OrdinalIgnoreCase))
+        bool postgreSql184Compatibility =
+            !historical &&
+            string.Equals(
+                lane.Id,
+                QueryReviewGenerations.PostgreSql184LaneId,
+                StringComparison.Ordinal);
+        string expectedHeading = historical
+            ? "# Authoritative permanent Chapter 10F baseline summary"
+            : postgreSql184Compatibility
+                ? "# PostgreSQL 18.4 Compatibility Evidence"
+                : "# Authoritative permanent four-root discovery baseline summary";
+        if (!summary.StartsWith(expectedHeading, StringComparison.Ordinal) ||
+            summary.Contains("temporary baseline summary", StringComparison.OrdinalIgnoreCase) ||
+            (postgreSql184Compatibility &&
+             (!summary.Contains(
+                  "PostgreSQL 16 remains the authoritative Chapter 15 correctness lane",
+                  StringComparison.Ordinal) ||
+              !summary.Contains(
+                  "PostgreSQL 18.4 is a bounded compatibility/performance-observation lane",
+                  StringComparison.Ordinal) ||
+              !summary.Contains(
+                  "Cross-major timing is observational and is not an SLA",
+                  StringComparison.Ordinal) ||
+              CrossMajorCompatibilityReportBuilder.ExpectedSequenceIds.Any(sequenceId =>
+                  !summary.Contains($"| {sequenceId} |", StringComparison.Ordinal)))))
         {
             throw new BaselinePlanValidationException(
-                "Permanent summary wording is not authoritative or still claims to be temporary.");
+                "Permanent summary wording or cross-major compatibility reporting is incomplete.");
         }
     }
 
-    private static void ValidateCommandKeys(IReadOnlyList<string> commandKeys)
+    private static void ValidateCommandKeys(
+        IReadOnlyList<string> commandKeys,
+        int expectedCommandCount)
     {
-        if (commandKeys.Count != ExpectedCommandCount ||
-            commandKeys.Distinct(StringComparer.Ordinal).Count() != ExpectedCommandCount)
+        if (commandKeys.Count != expectedCommandCount ||
+            commandKeys.Distinct(StringComparer.Ordinal).Count() != expectedCommandCount)
         {
             throw new BaselinePlanValidationException(
                 "Verified command keys are missing or duplicated.");
@@ -1023,6 +1792,151 @@ internal static partial class BaselineEvidenceWriter
         }
 
         return expected;
+    }
+
+    internal static async Task ValidateCuratedExportInputAsync(
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
+        string curatedDirectory,
+        IReadOnlyList<string> commandKeys,
+        CancellationToken cancellationToken = default)
+    {
+        HashSet<string> expectedCuratedFiles = BuildExpectedFileSet(commandKeys);
+        expectedCuratedFiles.Add(ExperimentalEvidenceBundle.ManifestFileName);
+        ValidateExactFileSet(curatedDirectory, expectedCuratedFiles);
+
+        QueryReviewArtifactDescriptor descriptor =
+            await QueryReviewArtifactRouter.InspectAsync(
+                curatedDirectory,
+                cancellationToken);
+
+        if (descriptor.Kind != QueryReviewArtifactKind.ExperimentalBundle ||
+            !ReferenceEquals(descriptor.Generation, generation) ||
+            !string.Equals(descriptor.Lane.Id, lane.Id, StringComparison.Ordinal))
+        {
+            throw new BaselinePlanValidationException(
+                "The curated permanent-export input does not match its selected " +
+                "generation or PostgreSQL lane.");
+        }
+
+        await ExperimentalEvidenceBundle.VerifyAsync(
+            descriptor,
+            cancellationToken);
+    }
+
+    private static void AddEmbeddedComparisonFiles(
+        HashSet<string> expectedFiles,
+        EmbeddedComparisonEvidence? comparison)
+    {
+        if (comparison is null)
+        {
+            return;
+        }
+
+        foreach (ArtifactHashEvidence artifact in comparison.Artifacts)
+        {
+            expectedFiles.Add($"{comparison.RelativeRoot}/{artifact.Path}");
+        }
+    }
+
+    private static async Task ValidateEmbeddedComparisonAsync(
+        string permanentDirectory,
+        EmbeddedComparisonEvidence comparison,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(comparison.RelativeRoot, "comparison/postgresql-16", StringComparison.Ordinal) ||
+            comparison.ArtifactCount <= 0 ||
+            comparison.ArtifactCount != comparison.Artifacts.Count ||
+            comparison.Artifacts.Select(artifact => artifact.Path)
+                .Distinct(StringComparer.Ordinal).Count() != comparison.ArtifactCount ||
+            !string.Equals(
+                comparison.ComparisonIdentity.GenerationId,
+                QueryReviewGenerations.FourRootDiscoveryId,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                comparison.ComparisonIdentity.ProfileIdentity,
+                QueryReviewGenerations.FourRootDiscoveryId,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                comparison.ComparisonIdentity.LaneId,
+                QueryReviewGenerations.PostgreSql16LaneId,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                comparison.ComparisonIdentity.ProfileSha256,
+                SuccessorPermanentExportManifest.AcceptedProfileSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                comparison.ComparisonIdentity.InvariantManifestSha256,
+                SuccessorPermanentExportManifest.AcceptedInvariantManifestSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                comparison.ComparisonIdentity.InvariantResultSha256,
+                SuccessorPermanentExportManifest.AcceptedInvariantResultSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                comparison.ComparisonIdentity.QueryShapeManifestSha256,
+                DiscoveryQueryShapeManifest.ExpectedSuccessorManifestSha256,
+                StringComparison.Ordinal) ||
+            comparison.ComparisonIdentity.CommandCount != 83 ||
+            comparison.ComparisonIdentity.ParameterCount != 190 ||
+            comparison.ComparisonIdentity.WarmUpRunsPerCommand != 1 ||
+            comparison.ComparisonIdentity.MeasuredRunsPerCommand != 5 ||
+            comparison.ComparisonIdentity.PlanCount != 498)
+        {
+            throw new BaselinePlanValidationException(
+                "Embedded PostgreSQL 16 comparison identity or inventory is invalid.");
+        }
+
+        SuccessorComparisonRunVerifier.ValidateCompatible(
+            comparison.PrimaryIdentity,
+            comparison.ComparisonIdentity);
+
+        string comparisonDirectory = ResolveWithin(permanentDirectory, comparison.RelativeRoot);
+
+        foreach (ArtifactHashEvidence artifact in comparison.Artifacts)
+        {
+            string actual = await ComputeSha256Async(
+                ResolveWithin(comparisonDirectory, artifact.Path),
+                cancellationToken);
+
+            if (!string.Equals(actual, artifact.Sha256, StringComparison.Ordinal))
+            {
+                throw new BaselinePlanValidationException(
+                    $"Embedded PostgreSQL 16 comparison hash mismatch for '{artifact.Path}'.");
+            }
+        }
+
+        QueryReviewArtifactDescriptor descriptor =
+            await QueryReviewArtifactRouter.InspectAsync(comparisonDirectory, cancellationToken);
+        OfflineEvidenceVerificationResult verification =
+            await ExperimentalEvidenceBundle.VerifyAsync(descriptor, cancellationToken);
+
+        if (verification.FileCount != comparison.ArtifactCount)
+        {
+            throw new BaselinePlanValidationException(
+                "Embedded PostgreSQL 16 comparison file count is incomplete.");
+        }
+    }
+
+    internal static void ValidateSuccessorProfileEvidence(
+        ProfileVerificationEvidence profile)
+    {
+        if (!string.Equals(
+                profile.ProfileSha256,
+                SuccessorPermanentExportManifest.AcceptedProfileSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                profile.InvariantManifestSha256,
+                SuccessorPermanentExportManifest.AcceptedInvariantManifestSha256,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                profile.InvariantResultSha256,
+                SuccessorPermanentExportManifest.AcceptedInvariantResultSha256,
+                StringComparison.Ordinal))
+        {
+            throw new BaselinePlanValidationException(
+                "Successor schema-2 permanent evidence has missing or forged measured profile hashes.");
+        }
     }
 
     private static async Task ValidateCuratedMeasurementsAsync(
@@ -1254,26 +2168,6 @@ internal static partial class BaselineEvidenceWriter
         return path.Replace(Path.DirectorySeparatorChar, '/');
     }
 
-    private static string? FindRepositoryRoot()
-    {
-        foreach (var start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
-        {
-            var directory = new DirectoryInfo(Path.GetFullPath(start));
-
-            while (directory is not null)
-            {
-                if (Directory.Exists(Path.Combine(directory.FullName, ".git")))
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-        }
-
-        return null;
-    }
-
     [GeneratedRegex(
         @"\b(?:Host|Server|Username|User\s+ID|Password|Pwd)\s*=",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -1298,8 +2192,20 @@ internal static partial class BaselineEvidenceWriter
         ProfileVerificationEvidence ProfileVerification,
         SemanticResultIdentityEvidence SemanticResultIdentity,
         IReadOnlyList<LockedResultComparisonEvidence> LockedResults,
-        A1ApprovedExceptionEvidence A1ApprovedException,
+        A1ApprovedExceptionEvidence? A1ApprovedException,
         CaptureIdentityEvidence CaptureIdentity);
+
+    private sealed record PermanentBaselineExpectations(
+        int ShapeCount,
+        int CommandCount,
+        int ParameterCount,
+        int PlanCount,
+        int InvariantCount,
+        string ProfileIdentity,
+        string ResultOrderIdentitySha256,
+        int PostgreSqlMajorVersion,
+        string PostgreSqlVersion,
+        int PostgreSqlVersionNumber);
 
     private sealed record ExpectedA1Topology(
         IReadOnlyList<string> NodeTypes,

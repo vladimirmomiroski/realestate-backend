@@ -1,0 +1,11 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "land-subtypes-full-covering",
+    "ExactDdl":  "CREATE INDEX \"IX_ListingLandDetails_LandType_ListingId\" ON public.\"ListingLandDetails\" USING btree (\"LandType\", \"ListingId\");",
+    "StartedAtUtc":  "2026-09-25T20:48:44.8735382+00:00",
+    "EndedAtUtc":  "2026-09-25T20:48:45.0371930+00:00",
+    "MonotonicElapsedMilliseconds":  163.6534,
+    "ClientObservedBuildDurationMilliseconds":  163.6534,
+    "PsqlExitCode":  0,
+    "PsqlOutput":  ""
+}

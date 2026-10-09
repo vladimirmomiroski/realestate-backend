@@ -1,0 +1,122 @@
+RealEstate QueryReview tool
+Running offline QueryReview artifact verification...
+No connection string was accepted and no database operation will occur.
+Verification totals: 83 commands, 498 plans (83 warm-up, 415 measured).
+Command medians (planning/execution ms; shared/temp blocks):
+  N1-01-filtered-count: plan=0.067 (run 5), exec=21.500 (run 2), shared=3388, temp=0, spill=no
+  N1-02-page-root: plan=1.064 (run 5), exec=57.213 (run 5), shared=3658, temp=0, spill=no
+  N1-03-translation-split: plan=0.405 (run 4), exec=0.286 (run 3), shared=161, temp=0, spill=no
+  N1-04-image-split: plan=0.406 (run 4), exec=0.221 (run 5), shared=133, temp=0, spill=no
+  P1-01-filtered-count: plan=0.069 (run 4), exec=21.387 (run 5), shared=3388, temp=0, spill=no
+  P1-02-page-root: plan=1.042 (run 1), exec=42.793 (run 1), shared=3672, temp=0, spill=no
+  P1-03-translation-split: plan=0.329 (run 1), exec=0.406 (run 4), shared=161, temp=0, spill=no
+  P1-04-image-split: plan=0.394 (run 1), exec=0.262 (run 3), shared=121, temp=0, spill=no
+  P2-01-filtered-count: plan=0.069 (run 3), exec=22.212 (run 5), shared=3388, temp=0, spill=no
+  P2-02-page-root: plan=1.186 (run 5), exec=44.897 (run 3), shared=3672, temp=0, spill=no
+  P2-03-translation-split: plan=0.473 (run 3), exec=0.439 (run 2), shared=161, temp=0, spill=no
+  P2-04-image-split: plan=0.464 (run 4), exec=0.359 (run 5), shared=141, temp=0, spill=no
+  A1-01-agency-existence: plan=0.069 (run 3), exec=0.089 (run 3), shared=2, temp=0, spill=no
+  A1-02-filtered-count: plan=0.080 (run 4), exec=1.085 (run 2), shared=502, temp=0, spill=no
+  A1-03-page-root: plan=1.024 (run 3), exec=1.843 (run 4), shared=682, temp=0, spill=no
+  A1-04-translation-split: plan=0.360 (run 1), exec=0.413 (run 4), shared=161, temp=0, spill=no
+  A1-05-image-split: plan=0.423 (run 5), exec=0.290 (run 3), shared=121, temp=0, spill=no
+  R1-01-filtered-count: plan=0.097 (run 1), exec=35.249 (run 4), shared=3388, temp=0, spill=no
+  R1-02-page-root: plan=1.156 (run 3), exec=37.562 (run 1), shared=3658, temp=0, spill=no
+  R1-03-translation-split: plan=0.391 (run 4), exec=0.440 (run 4), shared=161, temp=0, spill=no
+  R1-04-image-split: plan=0.415 (run 3), exec=0.358 (run 1), shared=141, temp=0, spill=no
+  L1-01-filtered-count: plan=2.208 (run 5), exec=12.614 (run 5), shared=1427, temp=0, spill=no
+  L1-02-page-root: plan=4.629 (run 5), exec=12.381 (run 3), shared=1607, temp=0, spill=no
+  L1-03-translation-split: plan=0.394 (run 3), exec=0.254 (run 4), shared=161, temp=0, spill=no
+  L1-04-image-split: plan=0.342 (run 2), exec=0.224 (run 4), shared=133, temp=0, spill=no
+  Q1-01-filtered-count: plan=2.424 (run 2), exec=9.649 (run 1), shared=1188, temp=0, spill=no
+  Q1-02-page-root: plan=4.828 (run 3), exec=10.206 (run 1), shared=1368, temp=0, spill=no
+  Q1-03-translation-split: plan=0.445 (run 4), exec=0.342 (run 3), shared=161, temp=0, spill=no
+  Q1-04-image-split: plan=0.485 (run 4), exec=0.226 (run 4), shared=133, temp=0, spill=no
+  C1-01-comparable-source: plan=0.234 (run 1), exec=0.349 (run 3), shared=9, temp=0, spill=no
+  C1-02-comparable-ranked-root: plan=4.448 (run 4), exec=65.524 (run 1), shared=17797, temp=0, spill=no
+  C1-03-comparable-translation-split: plan=0.397 (run 1), exec=0.195 (run 5), shared=49, temp=0, spill=no
+  C1-04-comparable-image-split: plan=0.454 (run 5), exec=0.146 (run 2), shared=40, temp=0, spill=no
+  commercial-unknown-first-page-01-filtered-count: plan=0.434 (run 5), exec=25.436 (run 3), shared=3431, temp=0, spill=no
+  commercial-unknown-first-page-02-page-root: plan=1.531 (run 3), exec=33.589 (run 1), shared=3551, temp=0, spill=no
+  commercial-unknown-first-page-03-translation-split: plan=0.475 (run 4), exec=0.331 (run 2), shared=161, temp=0, spill=no
+  commercial-unknown-first-page-04-image-split: plan=0.382 (run 1), exec=0.358 (run 1), shared=129, temp=0, spill=no
+  commercial-office-first-page-01-filtered-count: plan=0.467 (run 2), exec=23.782 (run 3), shared=3420, temp=0, spill=no
+  commercial-office-first-page-02-page-root: plan=1.451 (run 1), exec=42.426 (run 4), shared=3743, temp=0, spill=no
+  commercial-office-first-page-03-translation-split: plan=0.484 (run 4), exec=0.419 (run 3), shared=161, temp=0, spill=no
+  commercial-office-first-page-04-image-split: plan=0.392 (run 2), exec=0.385 (run 4), shared=121, temp=0, spill=no
+  commercial-office-root-first-page-01-filtered-count: plan=0.521 (run 2), exec=22.693 (run 3), shared=3420, temp=0, spill=no
+  commercial-office-root-first-page-02-page-root: plan=1.703 (run 2), exec=40.698 (run 4), shared=3743, temp=0, spill=no
+  commercial-office-root-first-page-03-translation-split: plan=0.406 (run 3), exec=0.458 (run 1), shared=161, temp=0, spill=no
+  commercial-office-root-first-page-04-image-split: plan=0.342 (run 4), exec=0.284 (run 1), shared=121, temp=0, spill=no
+  commercial-shop-location-01-filtered-count: plan=5.853 (run 4), exec=76.925 (run 2), shared=43870, temp=0, spill=no
+  commercial-shop-location-02-page-root: plan=8.755 (run 3), exec=76.592 (run 4), shared=43996, temp=0, spill=no
+  commercial-shop-location-03-translation-split: plan=0.392 (run 1), exec=0.336 (run 1), shared=161, temp=0, spill=no
+  commercial-shop-location-04-image-split: plan=0.397 (run 1), exec=0.299 (run 1), shared=134, temp=0, spill=no
+  commercial-other-deep-page-01-filtered-count: plan=0.429 (run 2), exec=20.311 (run 5), shared=3401, temp=0, spill=no
+  commercial-other-deep-page-02-page-root: plan=1.146 (run 4), exec=26.425 (run 3), shared=3521, temp=0, spill=no
+  commercial-other-deep-page-03-translation-split: plan=0.437 (run 2), exec=0.333 (run 3), shared=161, temp=0, spill=no
+  commercial-other-deep-page-04-image-split: plan=0.449 (run 2), exec=0.322 (run 1), shared=133, temp=0, spill=no
+  land-unknown-first-page-01-filtered-count: plan=0.413 (run 4), exec=21.077 (run 4), shared=3459, temp=0, spill=no
+  land-unknown-first-page-02-page-root: plan=1.281 (run 1), exec=24.925 (run 5), shared=3579, temp=0, spill=no
+  land-unknown-first-page-03-translation-split: plan=0.391 (run 2), exec=0.323 (run 3), shared=161, temp=0, spill=no
+  land-unknown-first-page-04-image-split: plan=0.456 (run 5), exec=0.254 (run 4), shared=130, temp=0, spill=no
+  land-building-plot-first-page-01-filtered-count: plan=0.413 (run 4), exec=22.567 (run 2), shared=3459, temp=0, spill=no
+  land-building-plot-first-page-02-page-root: plan=1.197 (run 5), exec=36.813 (run 1), shared=3683, temp=0, spill=no
+  land-building-plot-first-page-03-translation-split: plan=0.388 (run 3), exec=0.449 (run 5), shared=161, temp=0, spill=no
+  land-building-plot-first-page-04-image-split: plan=0.447 (run 1), exec=0.337 (run 5), shared=138, temp=0, spill=no
+  land-building-plot-root-first-page-01-filtered-count: plan=0.393 (run 5), exec=20.682 (run 3), shared=3459, temp=0, spill=no
+  land-building-plot-root-first-page-02-page-root: plan=1.360 (run 5), exec=34.798 (run 3), shared=3683, temp=0, spill=no
+  land-building-plot-root-first-page-03-translation-split: plan=0.411 (run 2), exec=0.422 (run 2), shared=161, temp=0, spill=no
+  land-building-plot-root-first-page-04-image-split: plan=0.341 (run 1), exec=0.331 (run 3), shared=138, temp=0, spill=no
+  land-agricultural-location-01-filtered-count: plan=4.957 (run 4), exec=48.895 (run 2), shared=24237, temp=0, spill=no
+  land-agricultural-location-02-page-root: plan=7.268 (run 3), exec=48.289 (run 1), shared=24357, temp=0, spill=no
+  land-agricultural-location-03-translation-split: plan=0.352 (run 3), exec=0.351 (run 5), shared=161, temp=0, spill=no
+  land-agricultural-location-04-image-split: plan=0.435 (run 1), exec=0.264 (run 3), shared=133, temp=0, spill=no
+  land-other-deep-page-01-filtered-count: plan=0.410 (run 4), exec=19.112 (run 3), shared=3459, temp=0, spill=no
+  land-other-deep-page-02-page-root: plan=1.419 (run 3), exec=22.691 (run 1), shared=3579, temp=0, spill=no
+  land-other-deep-page-03-translation-split: plan=0.372 (run 2), exec=0.319 (run 1), shared=161, temp=0, spill=no
+  land-other-deep-page-04-image-split: plan=0.450 (run 1), exec=0.313 (run 1), shared=131, temp=0, spill=no
+  agency-commercial-shop-first-page-01-filtered-count: plan=0.499 (run 5), exec=4.774 (run 1), shared=892, temp=0, spill=no
+  agency-commercial-shop-first-page-02-page-root: plan=1.255 (run 3), exec=4.949 (run 4), shared=1012, temp=0, spill=no
+  agency-commercial-shop-first-page-03-translation-split: plan=0.354 (run 2), exec=0.400 (run 2), shared=161, temp=0, spill=no
+  agency-commercial-shop-first-page-04-image-split: plan=0.454 (run 4), exec=0.233 (run 4), shared=121, temp=0, spill=no
+  agency-land-agricultural-deep-page-01-filtered-count: plan=0.372 (run 2), exec=4.346 (run 4), shared=940, temp=0, spill=no
+  agency-land-agricultural-deep-page-02-page-root: plan=1.266 (run 1), exec=4.099 (run 3), shared=1006, temp=0, spill=no
+  agency-land-agricultural-deep-page-03-translation-split: plan=0.407 (run 4), exec=0.241 (run 5), shared=89, temp=0, spill=no
+  agency-land-agricultural-deep-page-04-image-split: plan=0.460 (run 5), exec=0.291 (run 1), shared=67, temp=0, spill=no
+  cross-family-subtypes-empty-01-filtered-count: plan=0.946 (run 2), exec=0.019 (run 4), shared=0, temp=0, spill=no
+  cross-family-subtypes-empty-02-page-root: plan=2.118 (run 1), exec=0.196 (run 1), shared=0, temp=0, spill=no
+Sequence medians (aligned per-run sums before median selection):
+  N1-first-page: plan=1.949 (run 1), exec=57.753 (run 2), shared=3952, temp=0, spill=no
+  P1-first-page: plan=1.826 (run 3), exec=43.532 (run 4), shared=3954, temp=0, spill=no
+  P2-first-page: plan=2.114 (run 1), exec=46.264 (run 1), shared=3974, temp=0, spill=no
+  A1-first-page: plan=1.884 (run 3), exec=2.568 (run 2), shared=964, temp=0, spill=no
+  A1-endpoint-supplementary: plan=2.033 (run 3), exec=3.801 (run 5), shared=1468, temp=0, spill=no
+  R1-first-page: plan=2.000 (run 4), exec=38.435 (run 1), shared=3960, temp=0, spill=no
+  L1-first-page: plan=5.321 (run 2), exec=12.826 (run 3), shared=1901, temp=0, spill=no
+  Q1-first-page: plan=5.629 (run 1), exec=10.742 (run 3), shared=1662, temp=0, spill=no
+  C1-candidate-page: plan=5.411 (run 1), exec=65.911 (run 1), shared=17886, temp=0, spill=no
+  C1-endpoint-supplementary: plan=5.645 (run 1), exec=66.104 (run 1), shared=17895, temp=0, spill=no
+  commercial-unknown-first-page-page: plan=2.455 (run 2), exec=34.305 (run 4), shared=3841, temp=0, spill=no
+  commercial-office-first-page-page: plan=2.397 (run 1), exec=43.187 (run 4), shared=4025, temp=0, spill=no
+  commercial-office-root-first-page-page: plan=2.423 (run 4), exec=41.628 (run 4), shared=4025, temp=0, spill=no
+  commercial-shop-location-page: plan=9.753 (run 3), exec=77.248 (run 3), shared=44291, temp=0, spill=no
+  commercial-other-deep-page-page: plan=1.986 (run 3), exec=26.999 (run 3), shared=3815, temp=0, spill=no
+  land-unknown-first-page-page: plan=2.195 (run 1), exec=25.626 (run 2), shared=3870, temp=0, spill=no
+  land-building-plot-first-page-page: plan=2.178 (run 5), exec=38.058 (run 1), shared=3982, temp=0, spill=no
+  land-building-plot-root-first-page-page: plan=2.251 (run 2), exec=35.660 (run 2), shared=3982, temp=0, spill=no
+  land-agricultural-location-page: plan=8.031 (run 4), exec=48.976 (run 5), shared=24651, temp=0, spill=no
+  land-other-deep-page-page: plan=2.380 (run 4), exec=23.323 (run 1), shared=3871, temp=0, spill=no
+  agency-commercial-shop-first-page-page: plan=2.095 (run 2), exec=5.702 (run 1), shared=1294, temp=0, spill=no
+  agency-land-agricultural-deep-page-page: plan=2.170 (run 1), exec=4.627 (run 3), shared=1162, temp=0, spill=no
+  cross-family-subtypes-empty-page: plan=2.118 (run 1), exec=0.196 (run 1), shared=0, temp=0, spill=no
+Measurements: C:\Users\User\AppData\Local\Temp\realestate-queryreview\four-root-discovery-v1-baseline-20260925T204352Z-5443f863\measurements-raw.json
+Temporary curated evidence: C:\Users\User\AppData\Local\Temp\realestate-queryreview\four-root-discovery-v1-baseline-20260925T204352Z-5443f863\curated
+Credential scan: SUCCESS.
+Q1 gate: PASS
+  filtered-count median: 9.649 ms
+  first-page sequence median: 10.742 ms
+  any warm-up/measured Q1 spill: no
+Baseline verification result: SUCCESS. Raw artifacts, medians, sequences, and the Q1 gate are valid.
+
+Baseline verification was offline. No database connection, profile change, EXPLAIN execution, migration, DDL, or index operation occurred.

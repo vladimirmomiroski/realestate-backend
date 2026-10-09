@@ -1,0 +1,4702 @@
+{
+  "BaselineRunId": "four-root-discovery-v1-baseline-20260923T151437Z-ae89a343",
+  "VerifiedAtUtc": "2026-09-23T15:17:54.4455851Z",
+  "CommandCount": 83,
+  "SampleCount": 498,
+  "Commands": [
+    {
+      "CommandKey": "N1-01-filtered-count",
+      "ShapeId": "N1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.079,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 24.161,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3388,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-01-filtered-count/run-5.json",
+      "ExecutionMedianPlanSha256": "a584bab963d6bb276eb81fdeef4ed8120aa850f56af3f7d85adb856ac1b210a4",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "N1-02-page-root",
+      "ShapeId": "N1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.181,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 62.147,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3658,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-02-page-root/run-1.json",
+      "ExecutionMedianPlanSha256": "6f385b8fd99b08317f5ea2aa0b91c14adef621c1aeb049f62f4bc0491183e6f9",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "N1-03-translation-split",
+      "ShapeId": "N1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.480,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.343,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-03-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "15d978e2a7237a905e72eb58ffd6f3e9ce302abbe3cb433a8f5315850db50761",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "N1-04-image-split",
+      "ShapeId": "N1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.544,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.363,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/N1-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "d43197c01ede154f1644f9f9275cac76b2ad413e11b8de8caceeaacfb8f8a25e",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P1-01-filtered-count",
+      "ShapeId": "P1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.081,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 24.128,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3388,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-01-filtered-count/run-5.json",
+      "ExecutionMedianPlanSha256": "1ed3bd6ae8f43000aa94b487a9d930a352161f34e3aba0f9a69d9535721557a7",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "P1-02-page-root",
+      "ShapeId": "P1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.366,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 47.309,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3672,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "55849b9c9111a5815d778f029fd8b95d1c5ea75d3c3405049173fd04fe6b870b",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "P1-03-translation-split",
+      "ShapeId": "P1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.387,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.523,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-03-translation-split/run-4.json",
+      "ExecutionMedianPlanSha256": "4c3e9b3ebfa653b976e5516c954b62501db94901954742fa9b45016f2504fe01",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P1-04-image-split",
+      "ShapeId": "P1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.442,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.318,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 121,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P1-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "bfe2f4cffe27ab8cd4f8b5cdc75d7c84701a5eec9ad44720dcc828beaf70e769",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P2-01-filtered-count",
+      "ShapeId": "P2",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.079,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 23.892,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3388,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-01-filtered-count/run-5.json",
+      "ExecutionMedianPlanSha256": "7dc5f1b534b6e2aa8fc33bb96426381a1a822d079a2d0e177cbb307672622ef3",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "P2-02-page-root",
+      "ShapeId": "P2",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.255,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 49.921,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3672,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-02-page-root/run-5.json",
+      "ExecutionMedianPlanSha256": "fe3478990b6970b5b23950cc1437e466054ca16182f1801d56ccdc81ad18d417",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "P2-03-translation-split",
+      "ShapeId": "P2",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.566,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.460,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-03-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "245888ed42831021fede490fdbdb04f4d4c60306a60e44ea3b2bedbac1b142ac",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "P2-04-image-split",
+      "ShapeId": "P2",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.431,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.405,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 141,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/P2-04-image-split/run-4.json",
+      "ExecutionMedianPlanSha256": "539ef2958e727a345f8edf05de1e8943688f3e4882b04a74aa3dbfdc44b0de8c",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "A1-01-agency-existence",
+      "ShapeId": "A1",
+      "ShapeSequence": 1,
+      "CommandRole": "agency-existence",
+      "PlanningTimeMedian": {
+        "Value": 0.078,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.142,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 2,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-01-agency-existence/run-5.json",
+      "ExecutionMedianPlanSha256": "0e7f12a77269d17054951ccbcc283466ba060da6e9a3d4c2362251f77e77d965",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": [
+        "PK_Agencies"
+      ]
+    },
+    {
+      "CommandKey": "A1-02-filtered-count",
+      "ShapeId": "A1",
+      "ShapeSequence": 2,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.141,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 1.373,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 502,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-02-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "4cd00fcc90d43bc2ea748dd9ab3e04ce524d9ea2538382fdcba242fdd3731f90",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_Listings_AgencyId"
+      ]
+    },
+    {
+      "CommandKey": "A1-03-page-root",
+      "ShapeId": "A1",
+      "ShapeSequence": 3,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.200,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 2.472,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 682,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-03-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "d9fc4a61642b9eb46b3b5d44d69d9a25d638c3b52829bbecd448248408fc35fc",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_Listings_AgencyId",
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "A1-04-translation-split",
+      "ShapeId": "A1",
+      "ShapeSequence": 4,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.438,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.435,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-04-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "81bf1de1c1ca8fe40249bbdf5fd319065ce065c9d331e437bc39077c4db6c3ef",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "A1-05-image-split",
+      "ShapeId": "A1",
+      "ShapeSequence": 5,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.490,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.296,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 121,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/A1-05-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "a4fdee7b839b8f0d31f1c0d8459e09c2328c3cc8747a45edbbbc17af98b85ecf",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "R1-01-filtered-count",
+      "ShapeId": "R1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.099,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 38.059,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3388,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "3b6b1d2df426d2c381fe9d956127a938c50f3aeddee0e6730c7f47f748c3b569",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "R1-02-page-root",
+      "ShapeId": "R1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.145,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 37.567,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3658,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-02-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "0fdbe235a5deab25d6a23f903d7eac2850fd4c01f85502c088833b96627213a5",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "R1-03-translation-split",
+      "ShapeId": "R1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.524,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.412,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-03-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "d2e9992d77576d7a9b5dc3b0f602fe3b4f9f2178e819d6b17c8401386ed06258",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "R1-04-image-split",
+      "ShapeId": "R1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.475,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.300,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 141,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/R1-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "e82f8b04152ad0c97873b217996d1161367d9637f330d11a91ed8a55d9308a3e",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-01-filtered-count",
+      "ShapeId": "L1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 2.193,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 13.103,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1428,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-01-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "2373b26398b386673980d9777304d4816072ff6cc284ad7ebe6a348089804445",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-02-page-root",
+      "ShapeId": "L1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 4.754,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 13.115,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1608,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "c0da0bbe910b14a161ef491c49cd7937d9b8453c46cbac3ed8e4ac137acaaf8d",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort",
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-03-translation-split",
+      "ShapeId": "L1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.390,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.357,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-03-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "0ba70d960ffaa5087e4d028798a8c2ef93d87ae29f5e35a8069eb417ac918a8d",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "L1-04-image-split",
+      "ShapeId": "L1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.381,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.310,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/L1-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "2279d303a75cd6bab2c519149bde890a50c269580d107c44e074b1dd447e0d66",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-01-filtered-count",
+      "ShapeId": "Q1",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 2.395,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 10.883,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1189,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-01-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "27b2e979f5e9d231f44697430fc88f54dcb45dca3eb4900cc6648cb74d0f5ad0",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-02-page-root",
+      "ShapeId": "Q1",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 5.277,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 10.604,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1369,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-02-page-root/run-3.json",
+      "ExecutionMedianPlanSha256": "3eeb50d3fad88e83a61b497c0492dde1f0e0f67cdc03d044d2693b3cb7c2c113",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort",
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-03-translation-split",
+      "ShapeId": "Q1",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.469,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.252,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-03-translation-split/run-5.json",
+      "ExecutionMedianPlanSha256": "56779a0c8fadb26c862bd77b0d7b553b649deaa8dde29e38e7b9e7063882d384",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "Q1-04-image-split",
+      "ShapeId": "Q1",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.363,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.245,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/Q1-04-image-split/run-4.json",
+      "ExecutionMedianPlanSha256": "7894df0dc8ca22c39f622d258c350f10f0b87618d4ab7828766c322372bd796e",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-01-comparable-source",
+      "ShapeId": "C1",
+      "ShapeSequence": 1,
+      "CommandRole": "comparable-source",
+      "PlanningTimeMedian": {
+        "Value": 0.286,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.328,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 9,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-01-comparable-source/run-5.json",
+      "ExecutionMedianPlanSha256": "86633989769f89a8fa247caebaf1839ecc6258f339dd9c373595f8b6557fb7e7",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-02-comparable-ranked-root",
+      "ShapeId": "C1",
+      "ShapeSequence": 2,
+      "CommandRole": "comparable-ranked-root",
+      "PlanningTimeMedian": {
+        "Value": 4.798,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 56.628,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 17797,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-02-comparable-ranked-root/run-4.json",
+      "ExecutionMedianPlanSha256": "ecdff5160cba01acfc844726a5b19f95e6228c8c31f210b75e10400a32d07f04",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Only Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "IX_ListingTranslations_Q_Trigram",
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-03-comparable-translation-split",
+      "ShapeId": "C1",
+      "ShapeSequence": 3,
+      "CommandRole": "comparable-translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.413,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.178,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 49,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-03-comparable-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "e8dcb4833033f06fbd9ba5e664ec52ed75236bde2af97056f68b43c8b12e674b",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "C1-04-comparable-image-split",
+      "ShapeId": "C1",
+      "ShapeSequence": 4,
+      "CommandRole": "comparable-image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.515,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.186,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 40,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/C1-04-comparable-image-split/run-4.json",
+      "ExecutionMedianPlanSha256": "1a8439ed147b6e405940684a326fb1613d4de586a261c442437fcf8de277890e",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-unknown-first-page-01-filtered-count",
+      "ShapeId": "commercial-unknown-first-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.474,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 28.196,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3516,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-unknown-first-page-01-filtered-count/run-5.json",
+      "ExecutionMedianPlanSha256": "b17da26a8ad474b4a42e7a38f954eaca738fff12dfccff9a192df273712e44cb",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "commercial-unknown-first-page-02-page-root",
+      "ShapeId": "commercial-unknown-first-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.712,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 36.816,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3636,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-unknown-first-page-02-page-root/run-3.json",
+      "ExecutionMedianPlanSha256": "31c64f68cda512267ec2f483fea901f4550801e50cee5d5539fb091be42b257b",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "commercial-unknown-first-page-03-translation-split",
+      "ShapeId": "commercial-unknown-first-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.433,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.432,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-unknown-first-page-03-translation-split/run-1.json",
+      "ExecutionMedianPlanSha256": "fa961b42452e388e468e5fe1db76b8a7f02f621a4b05625f7c09c4b2bbd34921",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-unknown-first-page-04-image-split",
+      "ShapeId": "commercial-unknown-first-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.436,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.328,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 129,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-unknown-first-page-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "5b6cb44fb791b9dfbbbb40326314e17a15e3e7100a3c6ca843ca06105398937b",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-office-first-page-01-filtered-count",
+      "ShapeId": "commercial-office-first-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.479,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 27.234,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3516,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-first-page-01-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "08a51fccc070fb8387cd4e35c6a0137346f1ce52d04df167709404ca2986d563",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "commercial-office-first-page-02-page-root",
+      "ShapeId": "commercial-office-first-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.585,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 44.418,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3807,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-first-page-02-page-root/run-1.json",
+      "ExecutionMedianPlanSha256": "c62196f6f5e5b5c0b0473ea83ffff4d58b2f2f71b6c69753a99777c5f3528506",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "commercial-office-first-page-03-translation-split",
+      "ShapeId": "commercial-office-first-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.391,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.382,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-first-page-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "bc33027861ad88dc4f2b0649f41e21b29ea89d0c7a9d4a8b8e96e2c2b9b6565a",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-office-first-page-04-image-split",
+      "ShapeId": "commercial-office-first-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.432,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.309,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 121,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-first-page-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "33fb9be26b84af45a9a0a6829cc2a02e7dbce3f5376724f256dc300c1ba670a8",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-office-root-first-page-01-filtered-count",
+      "ShapeId": "commercial-office-root-first-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.451,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 24.668,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3516,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-root-first-page-01-filtered-count/run-1.json",
+      "ExecutionMedianPlanSha256": "d4f9fdf874938e8ba115572c8d227864707457b31a6b936deac39af980ecd9b5",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "commercial-office-root-first-page-02-page-root",
+      "ShapeId": "commercial-office-root-first-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 2.104,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 43.918,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3807,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-root-first-page-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "f3514e1eac80d476398708d7586b1f04d7ef7b316f5f1ddfb470a121c1674ba5",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "commercial-office-root-first-page-03-translation-split",
+      "ShapeId": "commercial-office-root-first-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.435,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.446,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-root-first-page-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "08f80fa0ca29df816d3d6efcdb5cacc65c93f3bff60f96bb05bee62abc35d640",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-office-root-first-page-04-image-split",
+      "ShapeId": "commercial-office-root-first-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.454,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.313,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 121,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-office-root-first-page-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "638b455db6c852b41a68e9e683160410f01355c54f512ad9c94e5da284c800d9",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-shop-location-01-filtered-count",
+      "ShapeId": "commercial-shop-location",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 6.267,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 82.760,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 45225,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-shop-location-01-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "8095cbd3c542ff281661ff75e72e1737b8bce7b017776bfc37b0163146e65d26",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Semi"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_ListingCommercialDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-shop-location-02-page-root",
+      "ShapeId": "commercial-shop-location",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 8.910,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 83.975,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 45345,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-shop-location-02-page-root/run-5.json",
+      "ExecutionMedianPlanSha256": "bd737b8eef8c0e6ad8420592be8aee5db784c50e8e8a49bd9648c76120b598d9",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left",
+        "Semi"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-shop-location-03-translation-split",
+      "ShapeId": "commercial-shop-location",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.395,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.307,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-shop-location-03-translation-split/run-5.json",
+      "ExecutionMedianPlanSha256": "7bed22b4c35a94fadd5e0d306d24e51b41d912ef7412af2d8687686834877e26",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-shop-location-04-image-split",
+      "ShapeId": "commercial-shop-location",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.468,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.351,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 134,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-shop-location-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "214c05b1df241ac0047ad533ea564371d0a5d5afbcfce567cdb07ed2a2555fe4",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-other-deep-page-01-filtered-count",
+      "ShapeId": "commercial-other-deep-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.448,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 24.004,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3516,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-other-deep-page-01-filtered-count/run-1.json",
+      "ExecutionMedianPlanSha256": "1da9eaa62f164354198ee08406bb4b47841d22590c8042f73570d1da585ef402",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "commercial-other-deep-page-02-page-root",
+      "ShapeId": "commercial-other-deep-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.295,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 31.332,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3636,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-other-deep-page-02-page-root/run-5.json",
+      "ExecutionMedianPlanSha256": "723b05da2702f26a231383cea6d3a9904ed08d9b865434ffcd17b3277984c2eb",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "commercial-other-deep-page-03-translation-split",
+      "ShapeId": "commercial-other-deep-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.469,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.453,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-other-deep-page-03-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "5caa399fe6dd949c3d88b615585ab10234747245de6dc2d2582bd3a23f79806c",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "commercial-other-deep-page-04-image-split",
+      "ShapeId": "commercial-other-deep-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.482,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.267,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/commercial-other-deep-page-04-image-split/run-4.json",
+      "ExecutionMedianPlanSha256": "5a9c8e086971866274314d09488d4d744800f7671d7cf76100fe34112b42a1b4",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-unknown-first-page-01-filtered-count",
+      "ShapeId": "land-unknown-first-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.446,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 21.951,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3459,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-unknown-first-page-01-filtered-count/run-1.json",
+      "ExecutionMedianPlanSha256": "1b90cb6ba8d375abaa55c3abb11f4e15fb6e6eff57cd68e35c7492317a7281b5",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "land-unknown-first-page-02-page-root",
+      "ShapeId": "land-unknown-first-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.161,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 26.687,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3579,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-unknown-first-page-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "8cfdf44ca2aa534fe3d333a422af0abef16f6e2aa6d3ed69abab554043f56bb4",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "land-unknown-first-page-03-translation-split",
+      "ShapeId": "land-unknown-first-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.386,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.424,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-unknown-first-page-03-translation-split/run-5.json",
+      "ExecutionMedianPlanSha256": "def3ac2bd483f1fe14abf7585280ce6cfd293edf8c68c30c8a321cedbf316aa9",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-unknown-first-page-04-image-split",
+      "ShapeId": "land-unknown-first-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.472,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.350,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 130,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-unknown-first-page-04-image-split/run-1.json",
+      "ExecutionMedianPlanSha256": "07fbcbcfbc6a65e5307224ce8d9fbccd047b5cdde2e8fed00147847449a21462",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-building-plot-first-page-01-filtered-count",
+      "ShapeId": "land-building-plot-first-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.457,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 23.473,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3459,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-first-page-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "5b7c97d788159cd2837966315675413c82023e728d58bb49e78581410f6e9333",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "land-building-plot-first-page-02-page-root",
+      "ShapeId": "land-building-plot-first-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.308,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 37.377,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3683,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-first-page-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "bf9920a9ae3760ae8e3591cc023d1441624755c096d2cd5e37c17e53dcccf158",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "land-building-plot-first-page-03-translation-split",
+      "ShapeId": "land-building-plot-first-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.365,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.423,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-first-page-03-translation-split/run-5.json",
+      "ExecutionMedianPlanSha256": "268576925d550e318d8aea393590b65956e75314872696ef054bf935e8666ed6",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-building-plot-first-page-04-image-split",
+      "ShapeId": "land-building-plot-first-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.475,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.423,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 138,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-first-page-04-image-split/run-4.json",
+      "ExecutionMedianPlanSha256": "21b78f3b9127a75c0b29422867cab1813cafab58bf6f7b6e59214b4ddd2ac26b",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-building-plot-root-first-page-01-filtered-count",
+      "ShapeId": "land-building-plot-root-first-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.424,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 22.301,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3459,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-root-first-page-01-filtered-count/run-2.json",
+      "ExecutionMedianPlanSha256": "f2a908f22b6e7a9da671e1160c656059feaf098b0357fe3de8cb269920a9b472",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "land-building-plot-root-first-page-02-page-root",
+      "ShapeId": "land-building-plot-root-first-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.412,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 38.784,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3683,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-root-first-page-02-page-root/run-2.json",
+      "ExecutionMedianPlanSha256": "a3a549397a3a54587229d876f84aef5957e33059ae5740b3f391fe7eb06421aa",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "land-building-plot-root-first-page-03-translation-split",
+      "ShapeId": "land-building-plot-root-first-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.403,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.435,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-root-first-page-03-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "fa2654bf6bc88f8e2b78711cb464e06f87a69595262c08a4de48e874e2d72f73",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-building-plot-root-first-page-04-image-split",
+      "ShapeId": "land-building-plot-root-first-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.522,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.308,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 138,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-building-plot-root-first-page-04-image-split/run-4.json",
+      "ExecutionMedianPlanSha256": "25fefd8b79433f7648dbf73b7d95bcbb0c9276a36a089f790f6bd419ecac6290",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-agricultural-location-01-filtered-count",
+      "ShapeId": "land-agricultural-location",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 5.611,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 51.268,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 24237,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-agricultural-location-01-filtered-count/run-1.json",
+      "ExecutionMedianPlanSha256": "85785b5592d4b5887bec49ec44d55a3cbe051e22555449a03d7bf5742cef6297",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Semi"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_ListingLandDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-agricultural-location-02-page-root",
+      "ShapeId": "land-agricultural-location",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 8.013,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 51.605,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 24357,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-agricultural-location-02-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "19ea9669cb58090232b58b909e1fc813f34ca53b0d427b3a61d7fb2f428e3436",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left",
+        "Semi"
+      ],
+      "SortMethods": [
+        "quicksort",
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-agricultural-location-03-translation-split",
+      "ShapeId": "land-agricultural-location",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.464,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.325,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-agricultural-location-03-translation-split/run-2.json",
+      "ExecutionMedianPlanSha256": "8a92fd02407f47bb1efd9dc75c1abd0409c8b5a1d0232463f1ecc952139e9689",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-agricultural-location-04-image-split",
+      "ShapeId": "land-agricultural-location",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.462,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.344,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 133,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-agricultural-location-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "1273a215fb507cd060165d6b6506f6cc48788250a0a9f3447151717bbd3d1a43",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-other-deep-page-01-filtered-count",
+      "ShapeId": "land-other-deep-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.529,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 22.759,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3459,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-other-deep-page-01-filtered-count/run-4.json",
+      "ExecutionMedianPlanSha256": "27e399bc85f033489feadd244c17c354ac08711c1c1dc3130ff68532acd51776",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "land-other-deep-page-02-page-root",
+      "ShapeId": "land-other-deep-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.843,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 31.809,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3579,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-other-deep-page-02-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "48dffc34f314d63cd738cc3eaed9c0baa1f42ab43771039d39af83026421783d",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "land-other-deep-page-03-translation-split",
+      "ShapeId": "land-other-deep-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.395,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.410,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-other-deep-page-03-translation-split/run-5.json",
+      "ExecutionMedianPlanSha256": "dcc63035d683c6c7686c1395ab202c324ba8a535325fa344122019db41823239",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "land-other-deep-page-04-image-split",
+      "ShapeId": "land-other-deep-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.458,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.315,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 131,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/land-other-deep-page-04-image-split/run-2.json",
+      "ExecutionMedianPlanSha256": "2eafacf2efcb252a009d9f311738dc32e52008aa3166f151502f5f5b254d329d",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "agency-commercial-shop-first-page-01-filtered-count",
+      "ShapeId": "agency-commercial-shop-first-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.516,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 7.094,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 994,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-commercial-shop-first-page-01-filtered-count/run-1.json",
+      "ExecutionMedianPlanSha256": "1b28cb7db8cd411eda1581419f63bd69c179c49bd4e5903fc96c2be858922486",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_Listings_AgencyId"
+      ]
+    },
+    {
+      "CommandKey": "agency-commercial-shop-first-page-02-page-root",
+      "ShapeId": "agency-commercial-shop-first-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.485,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 6.478,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1114,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-commercial-shop-first-page-02-page-root/run-4.json",
+      "ExecutionMedianPlanSha256": "b308777bba7d7a7ec0e155d2646c081c531c53b8b7616dc19817a442f9c26f31",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "top-N heapsort"
+      ],
+      "IndexNames": [
+        "IX_Listings_AgencyId",
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails",
+        "PK_ListingLandDetails"
+      ]
+    },
+    {
+      "CommandKey": "agency-commercial-shop-first-page-03-translation-split",
+      "ShapeId": "agency-commercial-shop-first-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.473,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.462,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 161,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-commercial-shop-first-page-03-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "1391dabab2fa2adbb5a2a428d89ba5e840a335d83882d23726e61ce9f42c23da",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "agency-commercial-shop-first-page-04-image-split",
+      "ShapeId": "agency-commercial-shop-first-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.436,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.322,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 121,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-commercial-shop-first-page-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "7f580657a85ac5dd806ce0022fc01550d351b351e19f43b2e84c03fab9e541fb",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "agency-land-agricultural-deep-page-01-filtered-count",
+      "ShapeId": "agency-land-agricultural-deep-page",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.466,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 5.089,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 937,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-land-agricultural-deep-page-01-filtered-count/run-3.json",
+      "ExecutionMedianPlanSha256": "de4589973546b88afa08418721ce0fb4b8cc8107d423f7fb0810e177be3460ef",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_Listings_AgencyId"
+      ]
+    },
+    {
+      "CommandKey": "agency-land-agricultural-deep-page-02-page-root",
+      "ShapeId": "agency-land-agricultural-deep-page",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 1.383,
+        "RunNumber": 2
+      },
+      "ExecutionTimeMedian": {
+        "Value": 4.645,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1003,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-land-agricultural-deep-page-02-page-root/run-3.json",
+      "ExecutionMedianPlanSha256": "832dc64bfaec3f0860b9db2baf9c2a76b56c0d019328ed3eea8bba2fee5c9275",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "Index Scan",
+        "Seq Scan"
+      ],
+      "JoinTypes": [
+        "Inner",
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "IX_Listings_AgencyId",
+        "PK_ListingApartmentDetails",
+        "PK_ListingCommercialDetails",
+        "PK_ListingHouseDetails"
+      ]
+    },
+    {
+      "CommandKey": "agency-land-agricultural-deep-page-03-translation-split",
+      "ShapeId": "agency-land-agricultural-deep-page",
+      "ShapeSequence": 3,
+      "CommandRole": "translation-split",
+      "PlanningTimeMedian": {
+        "Value": 0.408,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.299,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 89,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-land-agricultural-deep-page-03-translation-split/run-3.json",
+      "ExecutionMedianPlanSha256": "554e6828a7a4bf66679a16402b3c1bf0aa73bb6956a23c6b0a57c2c3a5c4c3c9",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingTranslations_ListingId_LanguageCode",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "agency-land-agricultural-deep-page-04-image-split",
+      "ShapeId": "agency-land-agricultural-deep-page",
+      "ShapeSequence": 4,
+      "CommandRole": "image-split",
+      "PlanningTimeMedian": {
+        "Value": 0.459,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.271,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 67,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/agency-land-agricultural-deep-page-04-image-split/run-3.json",
+      "ExecutionMedianPlanSha256": "885ac27c206d71868eda9c8585cfc498189c5e5c05ccd1b0c4539d4107ee79e4",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Only Scan",
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Inner"
+      ],
+      "SortMethods": [],
+      "IndexNames": [
+        "IX_ListingImages_ListingId_SortOrder",
+        "PK_Listings"
+      ]
+    },
+    {
+      "CommandKey": "cross-family-subtypes-empty-01-filtered-count",
+      "ShapeId": "cross-family-subtypes-empty",
+      "ShapeSequence": 1,
+      "CommandRole": "filtered-count",
+      "PlanningTimeMedian": {
+        "Value": 0.907,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.020,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/cross-family-subtypes-empty-01-filtered-count/run-4.json",
+      "ExecutionMedianPlanSha256": "2d9e26a05ab5ad71685d44b28d0b431c4b70deb94734f2149238920d948f1f66",
+      "AnySpill": false,
+      "ScanTypes": [],
+      "JoinTypes": [],
+      "SortMethods": [],
+      "IndexNames": []
+    },
+    {
+      "CommandKey": "cross-family-subtypes-empty-02-page-root",
+      "ShapeId": "cross-family-subtypes-empty",
+      "ShapeSequence": 2,
+      "CommandRole": "page-root",
+      "PlanningTimeMedian": {
+        "Value": 2.632,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.183,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "ExecutionMedianPlanPath": "raw-plans/cross-family-subtypes-empty-02-page-root/run-5.json",
+      "ExecutionMedianPlanSha256": "07371c76753e464e7613435def4d9b449d5c5acaf98c577f9d52f6c3a23842de",
+      "AnySpill": false,
+      "ScanTypes": [
+        "Index Scan"
+      ],
+      "JoinTypes": [
+        "Left"
+      ],
+      "SortMethods": [
+        "quicksort"
+      ],
+      "IndexNames": [
+        "PK_ListingApartmentDetails",
+        "PK_ListingHouseDetails"
+      ]
+    }
+  ],
+  "Sequences": [
+    {
+      "SequenceId": "N1-first-page",
+      "CommandKeys": [
+        "N1-02-page-root",
+        "N1-03-translation-split",
+        "N1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.312,
+          "ExecutionTimeMilliseconds": 62.975,
+          "SharedAccessBlocks": 3952,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.516,
+          "ExecutionTimeMilliseconds": 67.058,
+          "SharedAccessBlocks": 3952,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.981,
+          "ExecutionTimeMilliseconds": 60.230,
+          "SharedAccessBlocks": 3952,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.374,
+          "ExecutionTimeMilliseconds": 60.411,
+          "SharedAccessBlocks": 3952,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.034,
+          "ExecutionTimeMilliseconds": 66.131,
+          "SharedAccessBlocks": 3952,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.312,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 62.975,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3952,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "P1-first-page",
+      "CommandKeys": [
+        "P1-02-page-root",
+        "P1-03-translation-split",
+        "P1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.935,
+          "ExecutionTimeMilliseconds": 52.435,
+          "SharedAccessBlocks": 3954,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.198,
+          "ExecutionTimeMilliseconds": 48.166,
+          "SharedAccessBlocks": 3954,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.039,
+          "ExecutionTimeMilliseconds": 46.964,
+          "SharedAccessBlocks": 3954,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.182,
+          "ExecutionTimeMilliseconds": 47.991,
+          "SharedAccessBlocks": 3954,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.386,
+          "ExecutionTimeMilliseconds": 49.365,
+          "SharedAccessBlocks": 3954,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.182,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 48.166,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3954,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "P2-first-page",
+      "CommandKeys": [
+        "P2-02-page-root",
+        "P2-03-translation-split",
+        "P2-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.232,
+          "ExecutionTimeMilliseconds": 53.124,
+          "SharedAccessBlocks": 3974,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.089,
+          "ExecutionTimeMilliseconds": 52.689,
+          "SharedAccessBlocks": 3974,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.185,
+          "ExecutionTimeMilliseconds": 47.609,
+          "SharedAccessBlocks": 3974,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.385,
+          "ExecutionTimeMilliseconds": 47.215,
+          "SharedAccessBlocks": 3974,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.464,
+          "ExecutionTimeMilliseconds": 50.922,
+          "SharedAccessBlocks": 3974,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.232,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 50.922,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3974,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "A1-first-page",
+      "CommandKeys": [
+        "A1-03-page-root",
+        "A1-04-translation-split",
+        "A1-05-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.047,
+          "ExecutionTimeMilliseconds": 3.567,
+          "SharedAccessBlocks": 964,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.407,
+          "ExecutionTimeMilliseconds": 3.310,
+          "SharedAccessBlocks": 964,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.211,
+          "ExecutionTimeMilliseconds": 2.700,
+          "SharedAccessBlocks": 964,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 1.986,
+          "ExecutionTimeMilliseconds": 2.578,
+          "SharedAccessBlocks": 964,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.497,
+          "ExecutionTimeMilliseconds": 3.857,
+          "SharedAccessBlocks": 964,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.211,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 3.310,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 964,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "A1-endpoint-supplementary",
+      "CommandKeys": [
+        "A1-01-agency-existence",
+        "A1-02-filtered-count",
+        "A1-03-page-root",
+        "A1-04-translation-split",
+        "A1-05-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.228,
+          "ExecutionTimeMilliseconds": 5.376,
+          "SharedAccessBlocks": 1468,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.577,
+          "ExecutionTimeMilliseconds": 4.369,
+          "SharedAccessBlocks": 1468,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.441,
+          "ExecutionTimeMilliseconds": 4.348,
+          "SharedAccessBlocks": 1468,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.351,
+          "ExecutionTimeMilliseconds": 3.940,
+          "SharedAccessBlocks": 1468,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.753,
+          "ExecutionTimeMilliseconds": 5.621,
+          "SharedAccessBlocks": 1468,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.441,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 4.369,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1468,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "R1-first-page",
+      "CommandKeys": [
+        "R1-02-page-root",
+        "R1-03-translation-split",
+        "R1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.909,
+          "ExecutionTimeMilliseconds": 37.829,
+          "SharedAccessBlocks": 3960,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.735,
+          "ExecutionTimeMilliseconds": 36.149,
+          "SharedAccessBlocks": 3960,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.649,
+          "ExecutionTimeMilliseconds": 39.529,
+          "SharedAccessBlocks": 3960,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.244,
+          "ExecutionTimeMilliseconds": 38.439,
+          "SharedAccessBlocks": 3960,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.022,
+          "ExecutionTimeMilliseconds": 42.382,
+          "SharedAccessBlocks": 3960,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.244,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 38.439,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3960,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "L1-first-page",
+      "CommandKeys": [
+        "L1-02-page-root",
+        "L1-03-translation-split",
+        "L1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 5.884,
+          "ExecutionTimeMilliseconds": 14.101,
+          "SharedAccessBlocks": 1902,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 6.699,
+          "ExecutionTimeMilliseconds": 13.701,
+          "SharedAccessBlocks": 1902,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 5.590,
+          "ExecutionTimeMilliseconds": 13.545,
+          "SharedAccessBlocks": 1902,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 5.205,
+          "ExecutionTimeMilliseconds": 13.667,
+          "SharedAccessBlocks": 1902,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 5.102,
+          "ExecutionTimeMilliseconds": 13.915,
+          "SharedAccessBlocks": 1902,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 5.590,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 13.701,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1902,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "Q1-first-page",
+      "CommandKeys": [
+        "Q1-02-page-root",
+        "Q1-03-translation-split",
+        "Q1-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 5.455,
+          "ExecutionTimeMilliseconds": 11.676,
+          "SharedAccessBlocks": 1663,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 5.153,
+          "ExecutionTimeMilliseconds": 10.873,
+          "SharedAccessBlocks": 1663,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 6.230,
+          "ExecutionTimeMilliseconds": 11.131,
+          "SharedAccessBlocks": 1663,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 6.413,
+          "ExecutionTimeMilliseconds": 11.194,
+          "SharedAccessBlocks": 1663,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 7.481,
+          "ExecutionTimeMilliseconds": 11.696,
+          "SharedAccessBlocks": 1663,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 6.230,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 11.194,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1663,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "C1-candidate-page",
+      "CommandKeys": [
+        "C1-02-comparable-ranked-root",
+        "C1-03-comparable-translation-split",
+        "C1-04-comparable-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 4.608,
+          "ExecutionTimeMilliseconds": 57.107,
+          "SharedAccessBlocks": 17886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 4.966,
+          "ExecutionTimeMilliseconds": 54.801,
+          "SharedAccessBlocks": 17886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 6.974,
+          "ExecutionTimeMilliseconds": 58.194,
+          "SharedAccessBlocks": 17886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 7.235,
+          "ExecutionTimeMilliseconds": 57.036,
+          "SharedAccessBlocks": 17886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 5.914,
+          "ExecutionTimeMilliseconds": 69.657,
+          "SharedAccessBlocks": 17886,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 5.914,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 57.107,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 17886,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "C1-endpoint-supplementary",
+      "CommandKeys": [
+        "C1-01-comparable-source",
+        "C1-02-comparable-ranked-root",
+        "C1-03-comparable-translation-split",
+        "C1-04-comparable-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 4.858,
+          "ExecutionTimeMilliseconds": 57.359,
+          "SharedAccessBlocks": 17895,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 5.194,
+          "ExecutionTimeMilliseconds": 55.131,
+          "SharedAccessBlocks": 17895,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 7.372,
+          "ExecutionTimeMilliseconds": 58.399,
+          "SharedAccessBlocks": 17895,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 7.532,
+          "ExecutionTimeMilliseconds": 57.468,
+          "SharedAccessBlocks": 17895,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 6.200,
+          "ExecutionTimeMilliseconds": 69.985,
+          "SharedAccessBlocks": 17895,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 6.200,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 57.468,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 17895,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "commercial-unknown-first-page-page",
+      "CommandKeys": [
+        "commercial-unknown-first-page-02-page-root",
+        "commercial-unknown-first-page-03-translation-split",
+        "commercial-unknown-first-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.707,
+          "ExecutionTimeMilliseconds": 38.470,
+          "SharedAccessBlocks": 3926,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.062,
+          "ExecutionTimeMilliseconds": 35.090,
+          "SharedAccessBlocks": 3926,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.612,
+          "ExecutionTimeMilliseconds": 37.696,
+          "SharedAccessBlocks": 3926,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.764,
+          "ExecutionTimeMilliseconds": 36.712,
+          "SharedAccessBlocks": 3926,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.517,
+          "ExecutionTimeMilliseconds": 43.589,
+          "SharedAccessBlocks": 3926,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.707,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 37.696,
+        "RunNumber": 3
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3926,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "commercial-office-first-page-page",
+      "CommandKeys": [
+        "commercial-office-first-page-02-page-root",
+        "commercial-office-first-page-03-translation-split",
+        "commercial-office-first-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.679,
+          "ExecutionTimeMilliseconds": 45.035,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.217,
+          "ExecutionTimeMilliseconds": 43.495,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.314,
+          "ExecutionTimeMilliseconds": 48.769,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.334,
+          "ExecutionTimeMilliseconds": 42.641,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.419,
+          "ExecutionTimeMilliseconds": 52.176,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.419,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 45.035,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 4089,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "commercial-office-root-first-page-page",
+      "CommandKeys": [
+        "commercial-office-root-first-page-02-page-root",
+        "commercial-office-root-first-page-03-translation-split",
+        "commercial-office-root-first-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.506,
+          "ExecutionTimeMilliseconds": 43.171,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.016,
+          "ExecutionTimeMilliseconds": 44.635,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.997,
+          "ExecutionTimeMilliseconds": 62.561,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.955,
+          "ExecutionTimeMilliseconds": 41.488,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.646,
+          "ExecutionTimeMilliseconds": 53.705,
+          "SharedAccessBlocks": 4089,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.955,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 44.635,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 4089,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "commercial-shop-location-page",
+      "CommandKeys": [
+        "commercial-shop-location-02-page-root",
+        "commercial-shop-location-03-translation-split",
+        "commercial-shop-location-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 8.909,
+          "ExecutionTimeMilliseconds": 80.020,
+          "SharedAccessBlocks": 45640,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 10.200,
+          "ExecutionTimeMilliseconds": 85.024,
+          "SharedAccessBlocks": 45640,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 9.428,
+          "ExecutionTimeMilliseconds": 77.656,
+          "SharedAccessBlocks": 45640,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 10.161,
+          "ExecutionTimeMilliseconds": 209.482,
+          "SharedAccessBlocks": 45640,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 9.649,
+          "ExecutionTimeMilliseconds": 84.567,
+          "SharedAccessBlocks": 45640,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 9.649,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 84.567,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 45640,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "commercial-other-deep-page-page",
+      "CommandKeys": [
+        "commercial-other-deep-page-02-page-root",
+        "commercial-other-deep-page-03-translation-split",
+        "commercial-other-deep-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.148,
+          "ExecutionTimeMilliseconds": 29.257,
+          "SharedAccessBlocks": 3930,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.914,
+          "ExecutionTimeMilliseconds": 33.309,
+          "SharedAccessBlocks": 3930,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.921,
+          "ExecutionTimeMilliseconds": 27.330,
+          "SharedAccessBlocks": 3930,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.712,
+          "ExecutionTimeMilliseconds": 35.978,
+          "SharedAccessBlocks": 3930,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.177,
+          "ExecutionTimeMilliseconds": 32.104,
+          "SharedAccessBlocks": 3930,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.177,
+        "RunNumber": 5
+      },
+      "ExecutionTimeMedian": {
+        "Value": 32.104,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3930,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "land-unknown-first-page-page",
+      "CommandKeys": [
+        "land-unknown-first-page-02-page-root",
+        "land-unknown-first-page-03-translation-split",
+        "land-unknown-first-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 1.636,
+          "ExecutionTimeMilliseconds": 25.885,
+          "SharedAccessBlocks": 3870,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.251,
+          "ExecutionTimeMilliseconds": 27.372,
+          "SharedAccessBlocks": 3870,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.097,
+          "ExecutionTimeMilliseconds": 25.657,
+          "SharedAccessBlocks": 3870,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.660,
+          "ExecutionTimeMilliseconds": 29.540,
+          "SharedAccessBlocks": 3870,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.019,
+          "ExecutionTimeMilliseconds": 27.830,
+          "SharedAccessBlocks": 3870,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.097,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 27.372,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3870,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "land-building-plot-first-page-page",
+      "CommandKeys": [
+        "land-building-plot-first-page-02-page-root",
+        "land-building-plot-first-page-03-translation-split",
+        "land-building-plot-first-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.245,
+          "ExecutionTimeMilliseconds": 38.906,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.399,
+          "ExecutionTimeMilliseconds": 38.461,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 1.736,
+          "ExecutionTimeMilliseconds": 35.986,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.865,
+          "ExecutionTimeMilliseconds": 43.513,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 1.924,
+          "ExecutionTimeMilliseconds": 37.927,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.245,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 38.461,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3982,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "land-building-plot-root-first-page-page",
+      "CommandKeys": [
+        "land-building-plot-root-first-page-02-page-root",
+        "land-building-plot-root-first-page-03-translation-split",
+        "land-building-plot-root-first-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.057,
+          "ExecutionTimeMilliseconds": 39.342,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.153,
+          "ExecutionTimeMilliseconds": 39.568,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.281,
+          "ExecutionTimeMilliseconds": 44.876,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.134,
+          "ExecutionTimeMilliseconds": 41.100,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.452,
+          "ExecutionTimeMilliseconds": 37.254,
+          "SharedAccessBlocks": 3982,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.281,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 39.568,
+        "RunNumber": 2
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3982,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "land-agricultural-location-page",
+      "CommandKeys": [
+        "land-agricultural-location-02-page-root",
+        "land-agricultural-location-03-translation-split",
+        "land-agricultural-location-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 9.028,
+          "ExecutionTimeMilliseconds": 54.766,
+          "SharedAccessBlocks": 24651,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 8.097,
+          "ExecutionTimeMilliseconds": 49.542,
+          "SharedAccessBlocks": 24651,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 8.375,
+          "ExecutionTimeMilliseconds": 49.920,
+          "SharedAccessBlocks": 24651,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 9.474,
+          "ExecutionTimeMilliseconds": 52.238,
+          "SharedAccessBlocks": 24651,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 9.707,
+          "ExecutionTimeMilliseconds": 63.073,
+          "SharedAccessBlocks": 24651,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 9.028,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 52.238,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 24651,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "land-other-deep-page-page",
+      "CommandKeys": [
+        "land-other-deep-page-02-page-root",
+        "land-other-deep-page-03-translation-split",
+        "land-other-deep-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.640,
+          "ExecutionTimeMilliseconds": 23.824,
+          "SharedAccessBlocks": 3871,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 3.063,
+          "ExecutionTimeMilliseconds": 35.724,
+          "SharedAccessBlocks": 3871,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.239,
+          "ExecutionTimeMilliseconds": 23.923,
+          "SharedAccessBlocks": 3871,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.591,
+          "ExecutionTimeMilliseconds": 32.485,
+          "SharedAccessBlocks": 3871,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 3.033,
+          "ExecutionTimeMilliseconds": 37.407,
+          "SharedAccessBlocks": 3871,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.640,
+        "RunNumber": 1
+      },
+      "ExecutionTimeMedian": {
+        "Value": 32.485,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 3871,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "agency-commercial-shop-first-page-page",
+      "CommandKeys": [
+        "agency-commercial-shop-first-page-02-page-root",
+        "agency-commercial-shop-first-page-03-translation-split",
+        "agency-commercial-shop-first-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.231,
+          "ExecutionTimeMilliseconds": 6.646,
+          "SharedAccessBlocks": 1396,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.562,
+          "ExecutionTimeMilliseconds": 7.944,
+          "SharedAccessBlocks": 1396,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.261,
+          "ExecutionTimeMilliseconds": 6.892,
+          "SharedAccessBlocks": 1396,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.378,
+          "ExecutionTimeMilliseconds": 7.382,
+          "SharedAccessBlocks": 1396,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.785,
+          "ExecutionTimeMilliseconds": 9.586,
+          "SharedAccessBlocks": 1396,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.378,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 7.382,
+        "RunNumber": 4
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1396,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "agency-land-agricultural-deep-page-page",
+      "CommandKeys": [
+        "agency-land-agricultural-deep-page-02-page-root",
+        "agency-land-agricultural-deep-page-03-translation-split",
+        "agency-land-agricultural-deep-page-04-image-split"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.064,
+          "ExecutionTimeMilliseconds": 5.432,
+          "SharedAccessBlocks": 1159,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.225,
+          "ExecutionTimeMilliseconds": 5.071,
+          "SharedAccessBlocks": 1159,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.322,
+          "ExecutionTimeMilliseconds": 5.215,
+          "SharedAccessBlocks": 1159,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 3.082,
+          "ExecutionTimeMilliseconds": 7.265,
+          "SharedAccessBlocks": 1159,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.411,
+          "ExecutionTimeMilliseconds": 6.766,
+          "SharedAccessBlocks": 1159,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.322,
+        "RunNumber": 3
+      },
+      "ExecutionTimeMedian": {
+        "Value": 5.432,
+        "RunNumber": 1
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 1159,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    },
+    {
+      "SequenceId": "cross-family-subtypes-empty-page",
+      "CommandKeys": [
+        "cross-family-subtypes-empty-02-page-root"
+      ],
+      "Runs": [
+        {
+          "RunNumber": 1,
+          "PlanningTimeMilliseconds": 2.474,
+          "ExecutionTimeMilliseconds": 0.173,
+          "SharedAccessBlocks": 0,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 2,
+          "PlanningTimeMilliseconds": 2.665,
+          "ExecutionTimeMilliseconds": 0.176,
+          "SharedAccessBlocks": 0,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 3,
+          "PlanningTimeMilliseconds": 2.542,
+          "ExecutionTimeMilliseconds": 0.189,
+          "SharedAccessBlocks": 0,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 4,
+          "PlanningTimeMilliseconds": 2.632,
+          "ExecutionTimeMilliseconds": 0.268,
+          "SharedAccessBlocks": 0,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        },
+        {
+          "RunNumber": 5,
+          "PlanningTimeMilliseconds": 2.986,
+          "ExecutionTimeMilliseconds": 0.183,
+          "SharedAccessBlocks": 0,
+          "TempAccessBlocks": 0,
+          "Spilled": false
+        }
+      ],
+      "PlanningTimeMedian": {
+        "Value": 2.632,
+        "RunNumber": 4
+      },
+      "ExecutionTimeMedian": {
+        "Value": 0.183,
+        "RunNumber": 5
+      },
+      "SharedAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "TempAccessBlocksMedian": {
+        "Value": 0,
+        "RunNumber": 3
+      },
+      "AnySpill": false
+    }
+  ],
+  "Q1Gate": {
+    "Passed": true,
+    "FilteredCountMedianMilliseconds": 10.883,
+    "FirstPageSequenceMedianMilliseconds": 11.194,
+    "AnyWarmUpOrMeasuredSpill": false,
+    "Reasons": []
+  },
+  "Anomalies": []
+}

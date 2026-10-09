@@ -9,11 +9,9 @@ namespace RealEstate.QueryReview;
 internal static class Program
 {
     private const string RequiredDatabasePrefix = "realestate_queryreview";
-    private const int RequiredPostgreSqlMajorVersion = 16;
-
     public static async Task<int> Main(string[] args)
     {
-        Console.WriteLine("RealEstate Chapter 10F query-review tool");
+        Console.WriteLine("RealEstate QueryReview tool");
 
         QueryReviewCommand? command = null;
 
@@ -27,7 +25,15 @@ internal static class Program
             }
 
             command = options!.Command;
-            return await RunAsync(options);
+            try
+            {
+                return await RunAsync(options);
+            }
+            catch (QueryReviewGenerationNotReadyException exception)
+            {
+                Console.Error.WriteLine($"QueryReview generation unavailable: {exception.Message}");
+                return 9;
+            }
         }
         finally
         {
@@ -37,6 +43,9 @@ internal static class Program
 
     private static async Task<int> RunAsync(QueryReviewOptions options)
     {
+        QueryReviewGenerationDefinition requestedGeneration =
+            QueryReviewGenerations.ResolveOrThrow(options.Profile);
+
         if (options.Command is QueryReviewCommand.BaselineVerify or QueryReviewCommand.BaselineExport)
         {
             try
@@ -74,6 +83,14 @@ internal static class Program
             }
         }
 
+        requestedGeneration.EnsureOnlineCommandAvailable(options.Command);
+        QueryReviewLaneDefinition requestedLane =
+            QueryReviewGenerations.ResolveOnlineLane(
+                requestedGeneration,
+                options.Command,
+                options.Lane);
+        Console.WriteLine($"Online PostgreSQL lane: {requestedLane.Id}");
+
         NpgsqlConnectionStringBuilder connectionStringBuilder;
 
         try
@@ -107,26 +124,28 @@ internal static class Program
 
         try
         {
-            if (options.Command == QueryReviewCommand.ProfileCreate)
-            {
-                Console.WriteLine(
-                    "Verifying local disposable PostgreSQL container endpoint ownership...");
-                await DisposablePostgreSqlContainerVerifier.VerifyAsync(
-                    connectionStringBuilder,
-                    options.ContainerName!);
-                Console.WriteLine(
-                    "Disposable container endpoint ownership: verified before database access.");
-            }
-
-            Console.WriteLine(
-                "Opening the requested database through RealEstateDbContext and Npgsql...");
-
             var dbContextOptions = new DbContextOptionsBuilder<RealEstateDbContext>()
                 .UseNpgsql(options.ConnectionString!)
                 .Options;
 
             await using var dbContext = new RealEstateDbContext(dbContextOptions);
-            await dbContext.Database.OpenConnectionAsync();
+            await ExecuteAfterContainerVerificationAsync(
+                options,
+                connectionStringBuilder,
+                requestedLane,
+                static (builder, containerName, lane, cancellationToken) =>
+                    DisposablePostgreSqlContainerVerifier.VerifyForLaneAsync(
+                        builder,
+                        containerName,
+                        lane,
+                        cancellationToken),
+                async () =>
+                {
+                    Console.WriteLine(
+                        "Opening the requested database through RealEstateDbContext and Npgsql...");
+                    await dbContext.Database.OpenConnectionAsync();
+                    return true;
+                });
 
             var connection = dbContext.Database.GetDbConnection();
 
@@ -173,11 +192,12 @@ internal static class Program
             Console.WriteLine($"  Database: {identity.Database}");
             Console.WriteLine($"  PostgreSQL version: {npgsqlConnection.PostgreSqlVersion}");
 
-            if (serverMajorVersion != RequiredPostgreSqlMajorVersion)
+            if (serverMajorVersion != requestedLane.PostgreSqlMajorVersion)
             {
                 Console.Error.WriteLine(
                     $"Error: PostgreSQL major version {serverMajorVersion} is rejected. " +
-                    $"Chapter 10F requires PostgreSQL {RequiredPostgreSqlMajorVersion}.");
+                    $"Generation '{requestedGeneration.Id}' lane '{requestedLane.Id}' requires " +
+                    $"PostgreSQL {requestedLane.PostgreSqlMajorVersion}.");
                 return 5;
             }
 
@@ -187,17 +207,22 @@ internal static class Program
                 QueryReviewCommand.ProfileCreate => await CreateProfileAsync(
                     dbContext,
                     npgsqlConnection,
-                    options.ConnectionString!),
+                    options.ConnectionString!,
+                    requestedGeneration),
                 QueryReviewCommand.ProfileVerify => await VerifyProfileAsync(
                     npgsqlConnection,
-                    options.ConnectionString!),
+                    options.ConnectionString!,
+                    requestedGeneration),
                 QueryReviewCommand.CaptureSql => await CaptureSqlAsync(
                     options,
+                    requestedGeneration,
                     identity.Database,
                     npgsqlConnection.PostgreSqlVersion.ToString(),
                     npgsqlConnection),
                 QueryReviewCommand.BaselineRun => await RunBaselineAsync(
                     options,
+                    requestedGeneration,
+                    requestedLane,
                     connectionStringBuilder,
                     identity.Database,
                     npgsqlConnection.PostgreSqlVersion.ToString(),
@@ -235,12 +260,94 @@ internal static class Program
         }
     }
 
+    internal static bool RequiresVerifiedContainer(QueryReviewCommand command) =>
+        command is QueryReviewCommand.ProfileCreate or
+            QueryReviewCommand.ProfileVerify or
+            QueryReviewCommand.BaselineRun;
+
+    internal static async Task<TResult> ExecuteAfterContainerVerificationAsync<TResult>(
+        QueryReviewOptions options,
+        NpgsqlConnectionStringBuilder connectionStringBuilder,
+        QueryReviewLaneDefinition lane,
+        Func<
+            NpgsqlConnectionStringBuilder,
+            string,
+            QueryReviewLaneDefinition,
+            CancellationToken,
+            Task> containerVerifier,
+        Func<Task<TResult>> databaseAccess,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(connectionStringBuilder);
+        ArgumentNullException.ThrowIfNull(lane);
+        ArgumentNullException.ThrowIfNull(containerVerifier);
+        ArgumentNullException.ThrowIfNull(databaseAccess);
+
+        if (RequiresVerifiedContainer(options.Command))
+        {
+            Console.WriteLine(
+                "Verifying local disposable PostgreSQL container endpoint ownership...");
+            await containerVerifier(
+                connectionStringBuilder,
+                options.ContainerName!,
+                lane,
+                cancellationToken);
+            Console.WriteLine(
+                "Disposable container endpoint ownership: verified before database access.");
+        }
+
+        return await databaseAccess();
+    }
+
     private static async Task<int> VerifyBaselineAsync(QueryReviewOptions options)
     {
-        Console.WriteLine("Running offline raw baseline verification...");
+        QueryReviewGenerationDefinition? requestedGeneration = null;
+        if (!string.IsNullOrWhiteSpace(options.Profile))
+        {
+            requestedGeneration = QueryReviewGenerations.ResolveOrThrow(options.Profile);
+            if (!Directory.Exists(options.RunDirectory!) && !requestedGeneration.IsFrozenHistorical)
+            {
+                requestedGeneration.EnsureOfflineCommandAvailable(
+                    QueryReviewCommand.BaselineVerify,
+                    QueryReviewArtifactKind.RawRun);
+            }
+        }
+
+        QueryReviewArtifactDescriptor descriptor =
+            await QueryReviewArtifactRouter.InspectAsync(options.RunDirectory!);
+        QueryReviewArtifactRouter.ValidateRequestedGeneration(options.Profile, descriptor);
+        descriptor.Generation.EnsureOfflineCommandAvailable(
+            QueryReviewCommand.BaselineVerify,
+            descriptor.Kind);
+
+        Console.WriteLine("Running offline QueryReview artifact verification...");
         Console.WriteLine("No connection string was accepted and no database operation will occur.");
 
-        var result = await ExplainRunner.VerifyAsync(options.RunDirectory!);
+        if (descriptor.Kind == QueryReviewArtifactKind.PermanentEvidence)
+        {
+            OfflineEvidenceVerificationResult permanent =
+                await BaselineEvidenceWriter.VerifyPermanentAsync(descriptor);
+            Console.WriteLine(
+                $"Permanent verification: SUCCESS ({permanent.FileCount} files, " +
+                $"generation {permanent.GenerationId}, lane {permanent.LaneId}).");
+            return 0;
+        }
+
+        if (descriptor.Kind == QueryReviewArtifactKind.ExperimentalBundle)
+        {
+            OfflineEvidenceVerificationResult experimental =
+                await ExperimentalEvidenceBundle.VerifyAsync(descriptor);
+            Console.WriteLine(
+                $"Experimental verification: SUCCESS ({experimental.FileCount} files, " +
+                $"generation {experimental.GenerationId}, lane {experimental.LaneId}).");
+            return 0;
+        }
+
+        var result = await ExplainRunner.VerifyAsync(
+            descriptor.Generation,
+            descriptor.Lane,
+            options.RunDirectory!);
         var measurements = result.Measurements;
 
         Console.WriteLine(
@@ -317,7 +424,30 @@ internal static class Program
         Console.WriteLine("No connection string was accepted and no database operation will occur.");
         Console.WriteLine("Permanent evidence export confirmation: accepted.");
 
-        var verification = await ExplainRunner.VerifyAsync(options.RunDirectory!);
+        if (!string.IsNullOrWhiteSpace(options.Profile))
+        {
+            QueryReviewGenerationDefinition requested =
+                QueryReviewGenerations.ResolveOrThrow(options.Profile);
+            if (!Directory.Exists(options.RunDirectory!) && !requested.IsFrozenHistorical)
+            {
+                requested.EnsureOfflineCommandAvailable(
+                    QueryReviewCommand.BaselineExport,
+                    QueryReviewArtifactKind.RawRun);
+            }
+        }
+
+        QueryReviewArtifactDescriptor descriptor =
+            await QueryReviewArtifactRouter.InspectAsync(options.RunDirectory!);
+        QueryReviewArtifactRouter.ValidateRequestedGeneration(options.Profile, descriptor);
+        descriptor.Generation.EnsureOfflineCommandAvailable(
+            QueryReviewCommand.BaselineExport,
+            descriptor.Kind);
+        ValidateComparisonOption(options, descriptor);
+
+        var verification = await ExplainRunner.VerifyAsync(
+            descriptor.Generation,
+            descriptor.Lane,
+            options.RunDirectory!);
 
         if (!verification.Measurements.Q1Gate.Passed)
         {
@@ -325,7 +455,11 @@ internal static class Program
                 "The verified raw run does not pass the locked Q1 gate.");
         }
 
-        var export = await BaselineEvidenceWriter.ExportAsync(verification);
+        var export = await BaselineEvidenceWriter.ExportAsync(
+            descriptor.Generation,
+            descriptor.Lane,
+            verification,
+            options.ComparisonRunDirectory);
 
         Console.WriteLine(
             $"Verified raw totals: {verification.Measurements.CommandCount} commands, " +
@@ -338,6 +472,28 @@ internal static class Program
         return 0;
     }
 
+    internal static void ValidateComparisonOption(
+        QueryReviewOptions options,
+        QueryReviewArtifactDescriptor descriptor)
+    {
+        bool isCompatibilityExport =
+            descriptor.Generation == QueryReviewGenerations.FourRootDiscovery &&
+            descriptor.Lane.Id == QueryReviewGenerations.PostgreSql184LaneId;
+
+        if (isCompatibilityExport && string.IsNullOrWhiteSpace(options.ComparisonRunDirectory))
+        {
+            throw new BaselinePlanValidationException(
+                "The PostgreSQL 18.4 successor export requires --comparison-run-dir.");
+        }
+
+        if (!isCompatibilityExport && options.ComparisonRunDirectory is not null)
+        {
+            throw new BaselinePlanValidationException(
+                "--comparison-run-dir is valid only for the four-root-discovery-v1 " +
+                "PostgreSQL 18.4 permanent export.");
+        }
+    }
+
     private static int RunDoctor()
     {
         Console.WriteLine("Doctor result: SUCCESS. PostgreSQL 16 and database safety checks passed.");
@@ -347,7 +503,8 @@ internal static class Program
     private static async Task<int> CreateProfileAsync(
         RealEstateDbContext dbContext,
         NpgsqlConnection connection,
-        string connectionString)
+        string connectionString,
+        QueryReviewGenerationDefinition generation)
     {
         Console.WriteLine("Applying existing committed EF migrations...");
 
@@ -365,13 +522,15 @@ internal static class Program
         }
 
         Console.WriteLine($"Existing migration application duration: {migrationStopwatch.Elapsed}.");
-        Console.WriteLine($"Profile version: {DeterministicProfileSeeder.ProfileVersion}");
+        Console.WriteLine($"Profile version: {generation.ProfileIdentity}");
         Console.WriteLine($"C# seed recorded: {DeterministicProfileSeeder.CSharpSeed}");
         Console.WriteLine($"PostgreSQL seed command: SELECT setseed({DeterministicProfileSeeder.PostgreSqlSeed});");
         Console.WriteLine("Creating deterministic set-based profile...");
 
         var profileStopwatch = Stopwatch.StartNew();
-        var beforeNormalizationVerification = await DeterministicProfileSeeder.CreateAsync(connection);
+        var beforeNormalizationVerification = generation == QueryReviewGenerations.FourRootDiscovery
+            ? await DeterministicProfileSeeder.CreateFourRootDiscoveryAsync(connection)
+            : await DeterministicProfileSeeder.CreateAsync(connection);
         beforeNormalizationVerification.EnsureValid();
         var beforeNormalizationStrongActiveVerification =
             await ProfileInvariants.VerifyStrongActiveAsync(connection);
@@ -398,7 +557,9 @@ internal static class Program
 
         var normalization = await DeterministicProfileSeeder.NormalizePhysicalProfileAsync(
             connection);
-        var verification = await ProfileInvariants.VerifyAsync(connection);
+        var verification = generation == QueryReviewGenerations.FourRootDiscovery
+            ? await FourRootProfileInvariants.VerifyAsync(connection)
+            : await ProfileInvariants.VerifyAsync(connection);
         verification.EnsureValid();
         var strongActiveVerification =
             await ProfileInvariants.VerifyStrongActiveAsync(connection);
@@ -407,7 +568,12 @@ internal static class Program
             await ProfileInvariants.VerifyCoordinateOwnershipAsync(connection);
         coordinateOwnershipVerification.EnsureValid();
         int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
-            connectionString);
+            connectionString,
+            generation);
+        FourRootProfileIdentity? successorIdentity =
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? await FourRootProfileInvariants.ComputeIdentityAsync(connection, verification)
+                : null;
         profileStopwatch.Stop();
 
         Console.WriteLine(
@@ -433,6 +599,7 @@ internal static class Program
         PrintInvariantTotals(verification);
         PrintStrongActiveInvariantTotals(strongActiveVerification);
         PrintCoordinateOwnershipInvariantTotals(coordinateOwnershipVerification);
+        PrintFourRootIdentity(successorIdentity);
         Console.WriteLine($"Profile creation duration: {profileStopwatch.Elapsed}.");
         Console.WriteLine("Profile create result: SUCCESS. All exact invariants passed.");
         return 0;
@@ -440,11 +607,14 @@ internal static class Program
 
     private static async Task<int> VerifyProfileAsync(
         NpgsqlConnection connection,
-        string connectionString)
+        string connectionString,
+        QueryReviewGenerationDefinition generation)
     {
         Console.WriteLine("Running read-only deterministic profile verification...");
 
-        var verification = await ProfileInvariants.VerifyAsync(connection);
+        var verification = generation == QueryReviewGenerations.FourRootDiscovery
+            ? await FourRootProfileInvariants.VerifyAsync(connection)
+            : await ProfileInvariants.VerifyAsync(connection);
         verification.EnsureValid();
         var strongActiveVerification =
             await ProfileInvariants.VerifyStrongActiveAsync(connection);
@@ -453,11 +623,17 @@ internal static class Program
             await ProfileInvariants.VerifyCoordinateOwnershipAsync(connection);
         coordinateOwnershipVerification.EnsureValid();
         int lockedResultIdentityCount = await VerifyLockedResultIdentitiesAsync(
-            connectionString);
+            connectionString,
+            generation);
+        FourRootProfileIdentity? successorIdentity =
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? await FourRootProfileInvariants.ComputeIdentityAsync(connection, verification)
+                : null;
 
         PrintInvariantTotals(verification);
         PrintStrongActiveInvariantTotals(strongActiveVerification);
         PrintCoordinateOwnershipInvariantTotals(coordinateOwnershipVerification);
+        PrintFourRootIdentity(successorIdentity);
         Console.WriteLine(
             $"Locked discovery/result identities: SUCCESS " +
             $"({lockedResultIdentityCount}/{lockedResultIdentityCount} shapes).");
@@ -465,15 +641,31 @@ internal static class Program
         return 0;
     }
 
+    private static void PrintFourRootIdentity(FourRootProfileIdentity? identity)
+    {
+        if (identity is null)
+        {
+            return;
+        }
+
+        Console.WriteLine($"Successor invariant count: {identity.InvariantCount}.");
+        Console.WriteLine($"Successor profile SHA-256: {identity.ProfileSha256}");
+        Console.WriteLine($"Successor invariant manifest SHA-256: {identity.InvariantManifestSha256}");
+        Console.WriteLine($"Successor invariant result SHA-256: {identity.InvariantResultSha256}");
+    }
+
     private static async Task<int> CaptureSqlAsync(
         QueryReviewOptions options,
+        QueryReviewGenerationDefinition generation,
         string database,
         string postgreSqlVersion,
         NpgsqlConnection verificationConnection)
     {
         Console.WriteLine("Verifying the deterministic profile before production SQL capture...");
 
-        var verification = await ProfileInvariants.VerifyAsync(verificationConnection);
+        var verification = await VerifyProfileForGenerationAsync(
+            verificationConnection,
+            generation);
         verification.EnsureValid();
 
         Console.WriteLine(
@@ -483,10 +675,15 @@ internal static class Program
         QueryShapeDefinitions.EnsureOutputIsOutsideRepository(options.OutputDirectory);
 
         var captureSession = await CaptureProductionCommandsAsync(
+            generation,
             options.ConnectionString!,
             database,
             postgreSqlVersion);
-        var captureRun = captureSession.CaptureRun;
+        var captureRun = captureSession.CaptureRun with
+        {
+            GenerationId = generation.Id
+        };
+        captureRun = DiscoveryQueryShapeManifest.BindAndValidate(generation, captureRun);
 
         var outputPath = await SqlCaptureOutput.WriteAsync(
             captureRun,
@@ -498,6 +695,8 @@ internal static class Program
 
     private static async Task<int> RunBaselineAsync(
         QueryReviewOptions options,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane,
         NpgsqlConnectionStringBuilder connectionStringBuilder,
         string database,
         string postgreSqlVersion,
@@ -505,8 +704,14 @@ internal static class Program
     {
         Console.WriteLine("Verifying the deterministic profile before raw baseline capture...");
 
-        var verification = await ProfileInvariants.VerifyAsync(measurementConnection);
+        var verification = await VerifyProfileForGenerationAsync(
+            measurementConnection,
+            generation);
         verification.EnsureValid();
+        var profileVerification = await CreateProfileVerificationSnapshotAsync(
+            measurementConnection,
+            verification,
+            generation);
 
         Console.WriteLine(
             $"Profile verification: SUCCESS ({verification.Invariants.Count}/" +
@@ -520,10 +725,13 @@ internal static class Program
         Console.WriteLine($"VACUUM (ANALYZE) duration: {vacuumAnalyzeDuration}.");
 
         Console.WriteLine("Capturing Git, runtime, Docker, PostgreSQL, relation, and index metadata...");
-        var environment = await EnvironmentSnapshotCollector.CaptureAsync(
-            measurementConnection,
-            options.ContainerName!,
-            vacuumAnalyzeDuration);
+        var environment = BindBaselineEnvironmentIdentity(
+            await EnvironmentSnapshotCollector.CaptureAsync(
+                measurementConnection,
+                options.ContainerName!,
+                vacuumAnalyzeDuration),
+            generation,
+            lane);
 
         if (environment.PostgreSql.ActiveVacuumCount != 0)
         {
@@ -533,9 +741,19 @@ internal static class Program
 
         Console.WriteLine("Invoking committed repositories for exact production command capture...");
         var captureSession = await CaptureProductionCommandsAsync(
+            generation,
             options.ConnectionString!,
             database,
             postgreSqlVersion);
+        captureSession = captureSession with
+        {
+            CaptureRun = DiscoveryQueryShapeManifest.BindAndValidate(
+                generation,
+                captureSession.CaptureRun with
+                {
+                    GenerationId = generation.Id
+                })
+        };
         var parameterCount = captureSession.CaptureRun.Commands
             .Sum(command => command.Parameters.Count);
 
@@ -547,11 +765,13 @@ internal static class Program
             "(ANALYZE, BUFFERS, SETTINGS, SUMMARY, FORMAT JSON)...");
 
         var manifest = await ExplainRunner.RunAsync(
+            generation,
+            lane,
             measurementConnection,
             connectionStringBuilder,
             captureSession,
             environment,
-            CreateProfileVerificationSnapshot(verification),
+            profileVerification,
             options.OutputDirectory);
         var runDirectory = Path.Combine(options.OutputDirectory, manifest.BaselineRunId);
 
@@ -566,8 +786,48 @@ internal static class Program
         return 0;
     }
 
-    private static DeterministicProfileVerificationSnapshot CreateProfileVerificationSnapshot(
-        ProfileVerificationResult verification)
+    internal static BaselineEnvironmentSnapshot BindBaselineEnvironmentIdentity(
+        BaselineEnvironmentSnapshot environment,
+        QueryReviewGenerationDefinition generation,
+        QueryReviewLaneDefinition lane)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentNullException.ThrowIfNull(generation);
+        ArgumentNullException.ThrowIfNull(lane);
+
+        return environment with
+        {
+            GenerationId = generation.Id,
+            LaneId = lane.Id,
+            ProfileVersion = generation.ProfileIdentity
+        };
+    }
+
+    internal static async Task<DeterministicProfileVerificationSnapshot>
+        CreateProfileVerificationSnapshotAsync(
+            NpgsqlConnection connection,
+            ProfileVerificationResult verification,
+            QueryReviewGenerationDefinition generation,
+            CancellationToken cancellationToken = default)
+    {
+        FourRootProfileIdentity? successorIdentity =
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? await FourRootProfileInvariants.ComputeIdentityAsync(
+                    connection,
+                    verification,
+                    cancellationToken)
+                : null;
+
+        return CreateProfileVerificationSnapshot(
+            verification,
+            generation,
+            successorIdentity);
+    }
+
+    internal static DeterministicProfileVerificationSnapshot CreateProfileVerificationSnapshot(
+        ProfileVerificationResult verification,
+        QueryReviewGenerationDefinition generation,
+        FourRootProfileIdentity? successorIdentity)
     {
         var passed = verification.Invariants.Count(invariant => invariant.IsSatisfied);
         var failed = verification.Invariants.Count - passed;
@@ -576,22 +836,37 @@ internal static class Program
         var translationCount = verification.Invariants.Single(invariant =>
             string.Equals(invariant.Name, "translations.total", StringComparison.Ordinal));
 
+        if (generation == QueryReviewGenerations.FourRootDiscovery &&
+            (successorIdentity is null ||
+             successorIdentity.InvariantCount != verification.Invariants.Count))
+        {
+            throw new BaselinePlanValidationException(
+                "The successor raw-run profile snapshot requires the identity computed from " +
+                "the verified measured profile before baseline validation.");
+        }
+
         return new DeterministicProfileVerificationSnapshot(
-            DeterministicProfileSeeder.ProfileVersion,
+            generation.ProfileIdentity,
             listingCount.Actual,
             translationCount.Actual,
             verification.Invariants.Count,
             passed,
-            failed);
+            failed,
+            successorIdentity?.ProfileSha256,
+            successorIdentity?.InvariantManifestSha256,
+            successorIdentity?.InvariantResultSha256);
     }
 
     private static async Task<ProductionCaptureSession> CaptureProductionCommandsAsync(
+        QueryReviewGenerationDefinition generation,
         string connectionString,
         string database,
         string postgreSqlVersion)
     {
         var interceptor = new ProductionCommandCaptureInterceptor(
-            QueryShapeDefinitions.LogicalRunId);
+            generation == QueryReviewGenerations.FourRootDiscovery
+                ? QueryShapeDefinitions.FourRootLogicalRunId
+                : QueryShapeDefinitions.LogicalRunId);
 
         var captureOptions = new DbContextOptionsBuilder<RealEstateDbContext>()
             .UseNpgsql(connectionString)
@@ -601,12 +876,12 @@ internal static class Program
         await using var captureDbContext = new RealEstateDbContext(captureOptions);
 
         IReadOnlyList<QueryShapeResult> shapeResults =
-            await QueryShapeDefinitions.ExecuteAsync(captureDbContext, interceptor);
+            await QueryShapeDefinitions.ExecuteAsync(generation, captureDbContext, interceptor);
 
         var commands = interceptor.Commands;
         var captureRun = new SqlCaptureRun(
-            QueryShapeDefinitions.LogicalRunId,
-            DeterministicProfileSeeder.ProfileVersion,
+            interceptor.LogicalRunId,
+            generation.ProfileIdentity,
             DeterministicProfileSeeder.CSharpSeed,
             DeterministicProfileSeeder.PostgreSqlSeed,
             database,
@@ -640,6 +915,15 @@ internal static class Program
         Console.WriteLine(
             $"Typed parameters: {parameters.Length:N0} captured with CLR, DbType, Npgsql, " +
             "nullability, and exact-value metadata.");
+        if (captureRun.QueryShapeManifest is not null)
+        {
+            Console.WriteLine(
+                $"Query-shape manifest SHA-256: " +
+                $"{DiscoveryQueryShapeManifest.ComputeManifestSha256(captureRun.QueryShapeManifest)}");
+            Console.WriteLine(
+                $"Query result/order SHA-256: " +
+                $"{DiscoveryQueryShapeManifest.ComputeResultIdentitySha256(captureRun.ShapeResults)}");
+        }
         Console.WriteLine($"Complete SQL capture: {outputPath}");
         Console.WriteLine("Capture SQL result: SUCCESS. All command and result validations passed.");
     }
@@ -683,7 +967,8 @@ internal static class Program
     }
 
     private static async Task<int> VerifyLockedResultIdentitiesAsync(
-        string connectionString)
+        string connectionString,
+        QueryReviewGenerationDefinition generation)
     {
         var options = new DbContextOptionsBuilder<RealEstateDbContext>()
             .UseNpgsql(connectionString)
@@ -691,9 +976,18 @@ internal static class Program
 
         await using var dbContext = new RealEstateDbContext(options);
         IReadOnlyList<QueryShapeResult> results =
-            await QueryShapeDefinitions.VerifyLockedResultIdentitiesAsync(dbContext);
+            await QueryShapeDefinitions.VerifyLockedResultIdentitiesAsync(generation, dbContext);
 
         return results.Count;
+    }
+
+    private static Task<ProfileVerificationResult> VerifyProfileForGenerationAsync(
+        NpgsqlConnection connection,
+        QueryReviewGenerationDefinition generation)
+    {
+        return generation == QueryReviewGenerations.FourRootDiscovery
+            ? FourRootProfileInvariants.VerifyAsync(connection)
+            : ProfileInvariants.VerifyAsync(connection);
     }
 
     private static async Task<DatabaseIdentity> ReadDatabaseIdentityAsync(
@@ -731,22 +1025,22 @@ internal static class Program
 
             case QueryReviewCommand.ProfileVerify:
                 Console.WriteLine(
-                    "Profile verification was read-only. No migration, seeding, SQL capture, " +
-                    "EXPLAIN, benchmark, or index operation occurred.");
+                    "Profile verification is read-only when provisioned; it never performs a " +
+                    "migration, seed, SQL capture, EXPLAIN, benchmark, or index operation.");
                 break;
 
             case QueryReviewCommand.CaptureSql:
                 Console.WriteLine(
-                    "The verified production queries were executed only for typed SQL capture. " +
-                    "No migration, seeding, EXPLAIN, performance benchmark, or index operation " +
-                    "occurred.");
+                    "When provisioned, capture-sql executes verified production queries only for " +
+                    "typed SQL capture; it never performs migration, seeding, EXPLAIN, " +
+                    "performance benchmarking, or index operations.");
                 break;
 
             case QueryReviewCommand.BaselineRun:
                 Console.WriteLine(
-                    "The verified production SELECT commands were replayed only through EXPLAIN " +
-                    "ANALYZE for raw PostgreSQL plan capture. No median, sequence aggregation, " +
-                    "Q1 decision, permanent evidence export, migration, or index operation occurred.");
+                    "When provisioned, baseline run replays verified SELECT commands only for raw " +
+                    "EXPLAIN ANALYZE capture; it never performs permanent evidence export, " +
+                    "migration, or index operations.");
                 break;
 
             case QueryReviewCommand.BaselineVerify:
@@ -757,9 +1051,9 @@ internal static class Program
 
             case QueryReviewCommand.BaselineExport:
                 Console.WriteLine(
-                    "Baseline evidence export was offline and restricted to the permanent Chapter " +
-                    "10F evidence directory. No database connection, profile change, EXPLAIN " +
-                    "execution, migration, DDL, or index operation occurred.");
+                    "Baseline evidence export is offline and restricted to the selected " +
+                    "generation's fixed allowlisted lane. It never opens a database or performs " +
+                    "profile, EXPLAIN, migration, DDL, or index operations.");
                 break;
 
             default:

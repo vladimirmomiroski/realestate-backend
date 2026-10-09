@@ -239,6 +239,7 @@ public sealed class AgenciesController : ControllerBase
     [Authorize]
     [HttpGet("{id:guid}/dashboard/listings")]
     [ProducesResponseType(typeof(PagedResponse<ListingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -268,6 +269,7 @@ public sealed class AgenciesController : ControllerBase
                 Ok(result.Value),
             ServiceResultStatus.Success => throw new InvalidOperationException(
                 "A successful dashboard-listings result must provide a value."),
+            ServiceResultStatus.ValidationError => CreateFailureResult(result),
             ServiceResultStatus.Unauthorized => CreateFailureResult(result),
             ServiceResultStatus.Forbidden => CreateFailureResult(result),
             ServiceResultStatus.NotFound => CreateFailureResult(result),

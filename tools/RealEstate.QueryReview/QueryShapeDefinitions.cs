@@ -2,6 +2,7 @@ using RealEstate.Application.Common;
 using RealEstate.Application.Listings.Queries.GetListings;
 using RealEstate.Application.Listings.Repositories;
 using RealEstate.Domain.Entities;
+using RealEstate.Domain.Enums;
 using RealEstate.Infrastructure.Persistence;
 using RealEstate.Infrastructure.Persistence.Repositories;
 
@@ -10,8 +11,23 @@ namespace RealEstate.QueryReview;
 internal static class QueryShapeDefinitions
 {
     public const string LogicalRunId = "chapter-10f-v1-production-sql";
+    public const string FourRootLogicalRunId = "four-root-discovery-v1-production-sql";
     public const string AgencyShapeId = "A1";
     public const string ComparableShapeId = "C1";
+
+    public const string CommercialUnknownFirstPage = "commercial-unknown-first-page";
+    public const string CommercialOfficeFirstPage = "commercial-office-first-page";
+    public const string CommercialOfficeRootFirstPage = "commercial-office-root-first-page";
+    public const string CommercialShopLocation = "commercial-shop-location";
+    public const string CommercialOtherDeepPage = "commercial-other-deep-page";
+    public const string LandUnknownFirstPage = "land-unknown-first-page";
+    public const string LandBuildingPlotFirstPage = "land-building-plot-first-page";
+    public const string LandBuildingPlotRootFirstPage = "land-building-plot-root-first-page";
+    public const string LandAgriculturalLocation = "land-agricultural-location";
+    public const string LandOtherDeepPage = "land-other-deep-page";
+    public const string AgencyCommercialShopFirstPage = "agency-commercial-shop-first-page";
+    public const string AgencyLandAgriculturalDeepPage = "agency-land-agricultural-deep-page";
+    public const string CrossFamilySubtypesEmpty = "cross-family-subtypes-empty";
 
     private const string N1 = "N1";
     private const string P1 = "P1";
@@ -22,6 +38,29 @@ internal static class QueryShapeDefinitions
 
     private static readonly Guid AgencyOneId =
         Guid.Parse("20000000-0000-0000-0000-000000000001");
+
+    private static readonly Guid SuccessorAgencyId =
+        Guid.Parse("20000000-0000-0000-0000-000000000002");
+
+    public static IReadOnlyList<string> LegacyShapeIds { get; } =
+        [N1, P1, P2, AgencyShapeId, R1, L1, Q1, ComparableShapeId];
+
+    public static IReadOnlyList<string> SuccessorDiscoveryShapeIds { get; } =
+    [
+        CommercialUnknownFirstPage,
+        CommercialOfficeFirstPage,
+        CommercialOfficeRootFirstPage,
+        CommercialShopLocation,
+        CommercialOtherDeepPage,
+        LandUnknownFirstPage,
+        LandBuildingPlotFirstPage,
+        LandBuildingPlotRootFirstPage,
+        LandAgriculturalLocation,
+        LandOtherDeepPage,
+        AgencyCommercialShopFirstPage,
+        AgencyLandAgriculturalDeepPage,
+        CrossFamilySubtypesEmpty
+    ];
 
     private static readonly Guid ComparableSourceId =
         Guid.Parse(DeterministicProfileSeeder.ComparableSourceId);
@@ -72,27 +111,32 @@ internal static class QueryShapeDefinitions
     }
 
     public static async Task<IReadOnlyList<QueryShapeResult>> ExecuteAsync(
+        QueryReviewGenerationDefinition generation,
         RealEstateDbContext dbContext,
         ProductionCommandCaptureInterceptor interceptor,
         CancellationToken cancellationToken = default)
     {
         return await ExecuteCoreAsync(
+            generation,
             dbContext,
             interceptor,
             cancellationToken);
     }
 
     public static async Task<IReadOnlyList<QueryShapeResult>> VerifyLockedResultIdentitiesAsync(
+        QueryReviewGenerationDefinition generation,
         RealEstateDbContext dbContext,
         CancellationToken cancellationToken = default)
     {
         return await ExecuteCoreAsync(
+            generation,
             dbContext,
             interceptor: null,
             cancellationToken);
     }
 
     private static async Task<IReadOnlyList<QueryShapeResult>> ExecuteCoreAsync(
+        QueryReviewGenerationDefinition generation,
         RealEstateDbContext dbContext,
         ProductionCommandCaptureInterceptor? interceptor,
         CancellationToken cancellationToken)
@@ -100,19 +144,17 @@ internal static class QueryShapeDefinitions
         var listingRepository = new ListingRepository(dbContext);
         var agencyRepository = new AgencyRepository(dbContext);
         var results = new List<QueryShapeResult>();
+        IReadOnlyDictionary<string, GetListingsQuery> legacyQueries =
+            GetLegacyListingQueries().ToDictionary(
+                input => input.ShapeId,
+                input => input.Query,
+                StringComparer.Ordinal);
 
         results.Add(await ExecutePagedAsync(
             N1,
             listingRepository,
             interceptor,
-            new GetListingsQuery
-            {
-                LanguageCode = "en",
-                Sort = "newest",
-                SortOption = ListingSortOption.Newest,
-                Page = 1,
-                PageSize = 20
-            },
+            legacyQueries[N1],
             expectedTotalCount: 70_000,
             expectedItemCount: 20,
             cancellationToken));
@@ -121,15 +163,7 @@ internal static class QueryShapeDefinitions
             P1,
             listingRepository,
             interceptor,
-            new GetListingsQuery
-            {
-                LanguageCode = "en",
-                Currency = "EUR",
-                Sort = "priceAsc",
-                SortOption = ListingSortOption.PriceAsc,
-                Page = 1,
-                PageSize = 20
-            },
+            legacyQueries[P1],
             expectedTotalCount: 23_334,
             expectedItemCount: 20,
             cancellationToken));
@@ -138,15 +172,7 @@ internal static class QueryShapeDefinitions
             P2,
             listingRepository,
             interceptor,
-            new GetListingsQuery
-            {
-                LanguageCode = "en",
-                Currency = "EUR",
-                Sort = "priceDesc",
-                SortOption = ListingSortOption.PriceDesc,
-                Page = 1,
-                PageSize = 20
-            },
+            legacyQueries[P2],
             expectedTotalCount: 23_334,
             expectedItemCount: 20,
             cancellationToken));
@@ -164,15 +190,7 @@ internal static class QueryShapeDefinitions
             }
 
             var agencyResult = await listingRepository.GetFilteredReadOnlyAsync(
-                new GetListingsQuery
-                {
-                    AgencyId = AgencyOneId,
-                    LanguageCode = "en",
-                    Sort = "newest",
-                    SortOption = ListingSortOption.Newest,
-                    Page = 1,
-                    PageSize = 20
-                },
+                legacyQueries[AgencyShapeId],
                 cancellationToken);
 
             results.Add(ValidatePagedResult(
@@ -186,18 +204,7 @@ internal static class QueryShapeDefinitions
             R1,
             listingRepository,
             interceptor,
-            new GetListingsQuery
-            {
-                LanguageCode = "en",
-                MinAreaSquareMeters = 80m,
-                MaxAreaSquareMeters = 89m,
-                MinRooms = 2m,
-                MaxRooms = 3m,
-                Sort = "newest",
-                SortOption = ListingSortOption.Newest,
-                Page = 1,
-                PageSize = 20
-            },
+            legacyQueries[R1],
             expectedTotalCount: 1_050,
             expectedItemCount: 20,
             cancellationToken));
@@ -206,17 +213,7 @@ internal static class QueryShapeDefinitions
             L1,
             listingRepository,
             interceptor,
-            new GetListingsQuery
-            {
-                LanguageCode = "en",
-                City = "AuditCity10F",
-                Municipality = "AuditMunicipality10F",
-                Neighborhood = "AuditNeighborhood10F",
-                Sort = "newest",
-                SortOption = ListingSortOption.Newest,
-                Page = 1,
-                PageSize = 20
-            },
+            legacyQueries[L1],
             expectedTotalCount: 140,
             expectedItemCount: 20,
             cancellationToken));
@@ -225,15 +222,7 @@ internal static class QueryShapeDefinitions
             Q1,
             listingRepository,
             interceptor,
-            new GetListingsQuery
-            {
-                LanguageCode = "en",
-                SearchText = "needle10f",
-                Sort = "newest",
-                SortOption = ListingSortOption.Newest,
-                Page = 1,
-                PageSize = 20
-            },
+            legacyQueries[Q1],
             expectedTotalCount: 120,
             expectedItemCount: 20,
             cancellationToken));
@@ -272,12 +261,299 @@ internal static class QueryShapeDefinitions
                 actualIds));
         }
 
+        if (generation == QueryReviewGenerations.FourRootDiscovery)
+        {
+            await ExecuteSuccessorDiscoveryShapesAsync(
+                listingRepository,
+                interceptor,
+                results,
+                cancellationToken);
+            DiscoveryQueryShapeManifest.ValidateSuccessorResultIdentity(results);
+        }
+
         if (interceptor is not null)
         {
-            ValidateCapturedCommands(interceptor.Commands);
+            ValidateCapturedCommands(generation, interceptor.Commands);
         }
 
         return results;
+    }
+
+    private static async Task ExecuteSuccessorDiscoveryShapesAsync(
+        ListingRepository repository,
+        ProductionCommandCaptureInterceptor? interceptor,
+        ICollection<QueryShapeResult> results,
+        CancellationToken cancellationToken)
+    {
+        foreach ((string shapeId, GetListingsQuery query) in GetSuccessorDiscoveryQueries())
+        {
+            results.Add(await ExecuteSuccessorPagedAsync(
+                shapeId,
+                repository,
+                interceptor,
+                query,
+                cancellationToken));
+        }
+    }
+
+    internal static IReadOnlyList<(string ShapeId, GetListingsQuery Query)>
+        GetLegacyListingQueries()
+    {
+        return
+        [
+            (N1, NewestQuery()),
+            (P1, PriceQuery(ListingSortOption.PriceAsc, "priceAsc").WithQuery(query =>
+                query.Currency = "EUR")),
+            (P2, PriceQuery(ListingSortOption.PriceDesc, "priceDesc").WithQuery(query =>
+                query.Currency = "EUR")),
+            (AgencyShapeId, NewestQuery().WithQuery(query =>
+                query.AgencyId = AgencyOneId)),
+            (R1, NewestQuery().WithQuery(query =>
+            {
+                query.MinAreaSquareMeters = 80m;
+                query.MaxAreaSquareMeters = 89m;
+                query.MinRooms = 2m;
+                query.MaxRooms = 3m;
+            })),
+            (L1, NewestQuery().WithQuery(query =>
+            {
+                query.City = "AuditCity10F";
+                query.Municipality = "AuditMunicipality10F";
+                query.Neighborhood = "AuditNeighborhood10F";
+            })),
+            (Q1, NewestQuery().WithQuery(query =>
+                query.SearchText = "needle10f"))
+        ];
+    }
+
+    internal static IReadOnlyList<(string ShapeId, GetListingsQuery Query)>
+        GetSuccessorDiscoveryQueries()
+    {
+        return
+        [
+            (CommercialUnknownFirstPage, NewestQuery().WithQuery(query =>
+                query.CommercialType = CommercialType.Unknown)),
+            (CommercialOfficeFirstPage, PriceQuery(ListingSortOption.PriceAsc, "priceAsc")
+                .WithQuery(query =>
+                {
+                    query.CommercialType = CommercialType.Office;
+                    query.Currency = "EUR";
+                })),
+            (CommercialOfficeRootFirstPage, PriceQuery(ListingSortOption.PriceAsc, "priceAsc")
+                .WithQuery(query =>
+                {
+                    query.PropertyType = PropertyType.Commercial;
+                    query.CommercialType = CommercialType.Office;
+                    query.Currency = "EUR";
+                })),
+            (CommercialShopLocation, NewestQuery().WithQuery(query =>
+                {
+                    query.CommercialType = CommercialType.Shop;
+                    query.City = "Skopje";
+                    query.Municipality = "Centar";
+                })),
+            (CommercialOtherDeepPage, NewestQuery(page: 25).WithQuery(query =>
+                query.CommercialType = CommercialType.Other)),
+            (LandUnknownFirstPage, NewestQuery().WithQuery(query =>
+                query.LandType = LandType.Unknown)),
+            (LandBuildingPlotFirstPage, PriceQuery(ListingSortOption.PriceDesc, "priceDesc")
+                .WithQuery(query =>
+                {
+                    query.LandType = LandType.BuildingPlot;
+                    query.Currency = "EUR";
+                })),
+            (LandBuildingPlotRootFirstPage, PriceQuery(ListingSortOption.PriceDesc, "priceDesc")
+                .WithQuery(query =>
+                {
+                    query.PropertyType = PropertyType.Land;
+                    query.LandType = LandType.BuildingPlot;
+                    query.Currency = "EUR";
+                })),
+            (LandAgriculturalLocation, NewestQuery().WithQuery(query =>
+                {
+                    query.LandType = LandType.AgriculturalLand;
+                    query.City = "Skopje";
+                    query.Municipality = "Centar";
+                })),
+            (LandOtherDeepPage, NewestQuery(page: 25).WithQuery(query =>
+                query.LandType = LandType.Other)),
+            (AgencyCommercialShopFirstPage, NewestQuery().WithQuery(query =>
+                {
+                    query.AgencyId = SuccessorAgencyId;
+                    query.CommercialType = CommercialType.Shop;
+                })),
+            (AgencyLandAgriculturalDeepPage, NewestQuery(page: 4).WithQuery(query =>
+                {
+                    query.AgencyId = SuccessorAgencyId;
+                    query.LandType = LandType.AgriculturalLand;
+                })),
+            (CrossFamilySubtypesEmpty, NewestQuery().WithQuery(query =>
+                {
+                    query.CommercialType = CommercialType.Office;
+                    query.LandType = LandType.BuildingPlot;
+                }))
+        ];
+    }
+
+    internal static IReadOnlyList<(string ShapeId, QueryShapeCanonicalInput Input)>
+        GetCanonicalShapeInputs()
+    {
+        var inputs = new List<(string ShapeId, QueryShapeCanonicalInput Input)>(21);
+
+        foreach ((string shapeId, GetListingsQuery query) in GetLegacyListingQueries())
+        {
+            inputs.Add((
+                shapeId,
+                CreateCanonicalListingInput(
+                    query,
+                    operation: shapeId == AgencyShapeId
+                        ? "agency-existence-plus-public-listings"
+                        : "public-listings",
+                    agencyExistenceId: shapeId == AgencyShapeId ? AgencyOneId : null)));
+        }
+
+        inputs.Add((
+            ComparableShapeId,
+            new QueryShapeCanonicalInput(
+                Operation: "comparable-listings",
+                LanguageCode: "en",
+                SearchText: null,
+                AgencyId: null,
+                ListingType: null,
+                PropertyType: null,
+                HeatingType: null,
+                FurnishingStatus: null,
+                Condition: null,
+                HasBasement: null,
+                HasElevator: null,
+                ApartmentType: null,
+                HouseType: null,
+                CommercialType: null,
+                LandType: null,
+                MinYardAreaSquareMeters: null,
+                MaxYardAreaSquareMeters: null,
+                MinPrice: null,
+                MaxPrice: null,
+                Currency: null,
+                MinAreaSquareMeters: null,
+                MaxAreaSquareMeters: null,
+                MinRooms: null,
+                MaxRooms: null,
+                Sort: null,
+                SortOption: null,
+                City: null,
+                Municipality: null,
+                Neighborhood: null,
+                Page: null,
+                PageSize: null,
+                AgencyExistenceId: null,
+                ComparableSourceId: ComparableSourceId,
+                ComparableLimit: 6)));
+
+        foreach ((string shapeId, GetListingsQuery query) in GetSuccessorDiscoveryQueries())
+        {
+            inputs.Add((shapeId, CreateCanonicalListingInput(query, "public-listings")));
+        }
+
+        return inputs;
+    }
+
+    private static QueryShapeCanonicalInput CreateCanonicalListingInput(
+        GetListingsQuery query,
+        string operation,
+        Guid? agencyExistenceId = null)
+    {
+        return new QueryShapeCanonicalInput(
+            operation,
+            query.LanguageCode,
+            query.SearchText,
+            query.AgencyId,
+            query.ListingType,
+            query.PropertyType,
+            query.HeatingType,
+            query.FurnishingStatus,
+            query.Condition,
+            query.HasBasement,
+            query.HasElevator,
+            query.ApartmentType,
+            query.HouseType,
+            query.CommercialType,
+            query.LandType,
+            query.MinYardAreaSquareMeters,
+            query.MaxYardAreaSquareMeters,
+            query.MinPrice,
+            query.MaxPrice,
+            query.Currency,
+            query.MinAreaSquareMeters,
+            query.MaxAreaSquareMeters,
+            query.MinRooms,
+            query.MaxRooms,
+            query.Sort,
+            query.SortOption,
+            query.City,
+            query.Municipality,
+            query.Neighborhood,
+            query.Page,
+            query.PageSize,
+            agencyExistenceId,
+            ComparableSourceId: null,
+            ComparableLimit: null);
+    }
+
+    private static GetListingsQuery NewestQuery(int page = 1)
+    {
+        return new GetListingsQuery
+        {
+            LanguageCode = "en",
+            Sort = "newest",
+            SortOption = ListingSortOption.Newest,
+            Page = page,
+            PageSize = 20
+        };
+    }
+
+    private static GetListingsQuery PriceQuery(ListingSortOption option, string sort)
+    {
+        return new GetListingsQuery
+        {
+            LanguageCode = "en",
+            Sort = sort,
+            SortOption = option,
+            Page = 1,
+            PageSize = 20
+        };
+    }
+
+    private static GetListingsQuery WithQuery(
+        this GetListingsQuery query,
+        Action<GetListingsQuery> configure)
+    {
+        configure(query);
+        return query;
+    }
+
+    private static async Task<QueryShapeResult> ExecuteSuccessorPagedAsync(
+        string shapeId,
+        ListingRepository repository,
+        ProductionCommandCaptureInterceptor? interceptor,
+        GetListingsQuery query,
+        CancellationToken cancellationToken)
+    {
+        using (interceptor?.BeginShape(shapeId))
+        {
+            PagedResult<Listing> result = await repository.GetFilteredReadOnlyAsync(
+                query,
+                cancellationToken);
+            Guid[] actualIds = result.Items.Select(item => item.Id).ToArray();
+
+            return new QueryShapeResult(
+                shapeId,
+                ExpectedTotalCount: result.TotalCount,
+                ActualTotalCount: result.TotalCount,
+                ExpectedItemCount: result.Items.Count,
+                ActualItemCount: result.Items.Count,
+                actualIds);
+        }
     }
 
     public static void EnsureOutputIsOutsideRepository(string outputDirectory)
@@ -370,7 +646,56 @@ internal static class QueryShapeDefinitions
             actualIds);
     }
 
-    private static void ValidateCapturedCommands(IReadOnlyList<CapturedCommand> commands)
+    private static void ValidateCapturedCommands(
+        QueryReviewGenerationDefinition generation,
+        IReadOnlyList<CapturedCommand> commands)
+    {
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> expectedRoles =
+            GetExpectedCommandRoles(generation);
+
+        foreach (var (shapeId, requiredRoles) in expectedRoles)
+        {
+            var actualRoles = commands
+                .Where(command => command.ShapeId == shapeId)
+                .GroupBy(command => command.CommandRole, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+
+            if (requiredRoles.Count != actualRoles.Count ||
+                requiredRoles.Any(role =>
+                    !actualRoles.TryGetValue(role.Key, out var count) || count != role.Value))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{shapeId}: required command roles " +
+                    $"[{FormatRoleCounts(requiredRoles)}], actual " +
+                    $"[{FormatRoleCounts(actualRoles)}].");
+            }
+        }
+
+        int expectedCommandCount = expectedRoles.Sum(pair => pair.Value.Values.Sum());
+        if (commands.Count != expectedCommandCount)
+        {
+            throw new SqlCaptureValidationException(
+                $"Expected exactly {expectedCommandCount} production commands, captured {commands.Count}.");
+        }
+
+        ValidateCommandOrder(commands, expectedRoles);
+
+        ValidateTypedParameters(commands);
+        ValidatePublicVisibilityAndOrdering(commands);
+        ValidatePagedFiltersAndChildLoading(commands);
+        ValidateSetBasedEffectiveTranslationFiltering(commands);
+        ValidateTextSearch(commands);
+        ValidateComparableCandidateAndChildLoading(commands);
+
+        if (generation == QueryReviewGenerations.FourRootDiscovery)
+        {
+            ValidateSuccessorSubtypePredicates(commands);
+            ValidateSuccessorLocationTranslationFiltering(commands);
+        }
+    }
+
+    internal static IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>>
+        GetExpectedCommandRoles(QueryReviewGenerationDefinition generation)
     {
         var expectedRoles = new Dictionary<string, IReadOnlyDictionary<string, int>>(
             StringComparer.Ordinal)
@@ -398,36 +723,40 @@ internal static class QueryShapeDefinitions
             }
         };
 
-        foreach (var (shapeId, requiredRoles) in expectedRoles)
+        if (generation == QueryReviewGenerations.FourRootDiscovery)
         {
-            var actualRoles = commands
-                .Where(command => command.ShapeId == shapeId)
-                .GroupBy(command => command.CommandRole, StringComparer.Ordinal)
-                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
-
-            if (requiredRoles.Count != actualRoles.Count ||
-                requiredRoles.Any(role =>
-                    !actualRoles.TryGetValue(role.Key, out var count) || count != role.Value))
+            foreach (string shapeId in SuccessorDiscoveryShapeIds)
             {
-                throw new SqlCaptureValidationException(
-                    $"{shapeId}: required command roles " +
-                    $"[{FormatRoleCounts(requiredRoles)}], actual " +
-                    $"[{FormatRoleCounts(actualRoles)}].");
+                expectedRoles[shapeId] = shapeId == CrossFamilySubtypesEmpty
+                    ? EmptyPagedRoles()
+                    : StandardPagedRoles();
             }
         }
 
-        if (commands.Count != 33)
-        {
-            throw new SqlCaptureValidationException(
-                $"Expected exactly 33 production commands, captured {commands.Count}.");
-        }
+        return expectedRoles;
+    }
 
-        ValidateTypedParameters(commands);
-        ValidatePublicVisibilityAndOrdering(commands);
-        ValidatePagedFiltersAndChildLoading(commands);
-        ValidateSetBasedEffectiveTranslationFiltering(commands);
-        ValidateTextSearch(commands);
-        ValidateComparableCandidateAndChildLoading(commands);
+    private static void ValidateCommandOrder(
+        IReadOnlyList<CapturedCommand> commands,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> expectedRoles)
+    {
+        foreach ((string shapeId, IReadOnlyDictionary<string, int> roles) in expectedRoles)
+        {
+            string[] expected = roles.Keys.ToArray();
+            CapturedCommand[] actual = commands
+                .Where(command => command.ShapeId == shapeId)
+                .OrderBy(command => command.ShapeSequence)
+                .ToArray();
+
+            if (!actual.Select(command => command.ShapeSequence)
+                    .SequenceEqual(Enumerable.Range(1, expected.Length)) ||
+                !actual.Select(command => command.CommandRole).SequenceEqual(expected))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{shapeId}: expected command order [{string.Join(", ", expected)}], " +
+                    $"actual [{string.Join(", ", actual.Select(command => command.CommandRole))}].");
+            }
+        }
     }
 
     private static void ValidateTypedParameters(IReadOnlyList<CapturedCommand> commands)
@@ -489,6 +818,10 @@ internal static class QueryShapeDefinitions
 
         AssertPriceDirection(commands, P1, descending: false);
         AssertPriceDirection(commands, P2, descending: true);
+        AssertPriceDirection(commands, CommercialOfficeFirstPage, descending: false);
+        AssertPriceDirection(commands, CommercialOfficeRootFirstPage, descending: false);
+        AssertPriceDirection(commands, LandBuildingPlotFirstPage, descending: true);
+        AssertPriceDirection(commands, LandBuildingPlotRootFirstPage, descending: true);
     }
 
     private static void AssertPriceDirection(
@@ -522,6 +855,8 @@ internal static class QueryShapeDefinitions
         AssertSelectionPredicate(commands, P1, "\"Currency\" =");
         AssertSelectionPredicate(commands, P2, "\"Currency\" =");
         AssertSelectionPredicate(commands, AgencyShapeId, "\"AgencyId\" =");
+        AssertSelectionPredicate(commands, AgencyCommercialShopFirstPage, "\"AgencyId\" =");
+        AssertSelectionPredicate(commands, AgencyLandAgriculturalDeepPage, "\"AgencyId\" =");
 
         AssertSelectionPredicate(commands, R1, "\"AreaSquareMeters\" >=");
         AssertSelectionPredicate(commands, R1, "\"AreaSquareMeters\" <=");
@@ -541,6 +876,20 @@ internal static class QueryShapeDefinitions
         AssertSelectionPredicate(commands, Q1, "COLLATE \"C\"");
         AssertSelectionPredicate(commands, Q1, "GROUP BY");
         AssertSelectionPredicate(commands, Q1, "min(CASE");
+
+        foreach (string locationShape in new[]
+                 {
+                     CommercialShopLocation,
+                     LandAgriculturalLocation
+                 })
+        {
+            AssertSelectionPredicate(commands, locationShape, "\"City\" ILIKE");
+            AssertSelectionPredicate(commands, locationShape, "\"Municipality\" ILIKE");
+            AssertSelectionPredicate(commands, locationShape, "\"LanguageCode\" ILIKE");
+            AssertSelectionPredicate(commands, locationShape, "COLLATE \"C\"");
+            AssertSelectionPredicate(commands, locationShape, "GROUP BY");
+            AssertSelectionPredicate(commands, locationShape, "min(CASE");
+        }
 
         foreach (CapturedCommand command in commands.Where(command =>
                      command.CommandRole is CommandRoles.TranslationSplit or
@@ -817,6 +1166,126 @@ internal static class QueryShapeDefinitions
         }
     }
 
+    internal static void ValidateSuccessorSubtypePredicates(
+        IReadOnlyList<CapturedCommand> commands)
+    {
+        string[] commercialShapes =
+        [
+            CommercialUnknownFirstPage,
+            CommercialOfficeFirstPage,
+            CommercialOfficeRootFirstPage,
+            CommercialShopLocation,
+            CommercialOtherDeepPage,
+            AgencyCommercialShopFirstPage,
+            CrossFamilySubtypesEmpty
+        ];
+        string[] landShapes =
+        [
+            LandUnknownFirstPage,
+            LandBuildingPlotFirstPage,
+            LandBuildingPlotRootFirstPage,
+            LandAgriculturalLocation,
+            LandOtherDeepPage,
+            AgencyLandAgriculturalDeepPage,
+            CrossFamilySubtypesEmpty
+        ];
+
+        foreach (string shapeId in commercialShapes)
+        {
+            AssertSubtypeRootAndChildPredicate(
+                commands,
+                shapeId,
+                "Commercial",
+                "ListingCommercialDetails",
+                "CommercialType");
+        }
+
+        foreach (string shapeId in landShapes)
+        {
+            AssertSubtypeRootAndChildPredicate(
+                commands,
+                shapeId,
+                "Land",
+                "ListingLandDetails",
+                "LandType");
+        }
+    }
+
+    private static void ValidateSuccessorLocationTranslationFiltering(
+        IReadOnlyList<CapturedCommand> commands)
+    {
+        foreach (CapturedCommand command in commands.Where(command =>
+                     (command.ShapeId is CommercialShopLocation or LandAgriculturalLocation) &&
+                     (command.CommandRole is CommandRoles.FilteredCount or CommandRoles.PageRoot)))
+        {
+            string sql = command.CommandText;
+            int selectedKeyJoin = sql.LastIndexOf(
+                "\"LanguageSelectionKey\"",
+                StringComparison.Ordinal);
+            int matchingPredicatePosition = sql.IndexOf(
+                ".\"City\" ILIKE",
+                StringComparison.Ordinal);
+
+            if (!sql.Contains("END ||", StringComparison.Ordinal) ||
+                !sql.Contains("GROUP BY", StringComparison.Ordinal) ||
+                CountOccurrences(sql, "\"ListingId\" IN (") < 2 ||
+                CountOccurrences(sql, "\"Status\" = 'Active'") < 3 ||
+                selectedKeyJoin < 0 ||
+                matchingPredicatePosition <= selectedKeyJoin)
+            {
+                throw new SqlCaptureValidationException(
+                    $"{command.ShapeId}/{command.CommandRole}: effective-translation selection " +
+                    "must finish over the subtype-restricted Active candidate relation before " +
+                    "city/municipality matching.");
+            }
+
+            if (sql.Contains("ORDER BY CASE", StringComparison.Ordinal) ||
+                sql.Contains("LIMIT 1", StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{command.ShapeId}/{command.CommandRole}: broad correlated effective-" +
+                    "translation selection is not accepted.");
+            }
+        }
+    }
+
+    private static void AssertSubtypeRootAndChildPredicate(
+        IReadOnlyList<CapturedCommand> commands,
+        string shapeId,
+        string rootValue,
+        string childTable,
+        string subtypeColumn)
+    {
+        CapturedCommand[] selectionCommands = commands.Where(command =>
+                command.ShapeId == shapeId &&
+                command.CommandRole is CommandRoles.FilteredCount or CommandRoles.PageRoot)
+            .ToArray();
+
+        if (selectionCommands.Length != 2)
+        {
+            throw new SqlCaptureValidationException(
+                $"{shapeId}: subtype selection must emit exactly count and page-root commands.");
+        }
+
+        foreach (CapturedCommand command in selectionCommands)
+        {
+            if (!command.CommandText.Contains(
+                    $"\"PropertyType\" = '{rootValue}'",
+                    StringComparison.Ordinal) ||
+                !command.CommandText.Contains(
+                    $"\"{childTable}\"",
+                    StringComparison.Ordinal) ||
+                !command.CommandText.Contains(
+                    $"\"{subtypeColumn}\" =",
+                    StringComparison.Ordinal))
+            {
+                throw new SqlCaptureValidationException(
+                    $"{shapeId}/{command.CommandRole}: explicit {rootValue} root equality and " +
+                    $"matching {childTable}.{subtypeColumn} predicate are both required.");
+            }
+        }
+    }
+
     private static IReadOnlyDictionary<string, int> StandardPagedRoles()
     {
         return new Dictionary<string, int>(StringComparer.Ordinal)
@@ -825,6 +1294,15 @@ internal static class QueryShapeDefinitions
             [CommandRoles.PageRoot] = 1,
             [CommandRoles.TranslationSplit] = 1,
             [CommandRoles.ImageSplit] = 1
+        };
+    }
+
+    private static IReadOnlyDictionary<string, int> EmptyPagedRoles()
+    {
+        return new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            [CommandRoles.FilteredCount] = 1,
+            [CommandRoles.PageRoot] = 1
         };
     }
 

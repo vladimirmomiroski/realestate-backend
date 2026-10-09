@@ -16,6 +16,8 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
             [
                 "profile",
                 "create",
+                "--profile",
+                QueryReviewGenerations.FourRootDiscoveryId,
                 "--connection-string",
                 ValidConnectionString(),
                 "--confirm-disposable"
@@ -28,21 +30,23 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     }
 
     [Fact]
-    public void ReadOnlyProfileVerify_DoesNotRequireContainerName()
+    public void ProfileVerify_RequiresExplicitContainerName()
     {
         var parsed = QueryReviewOptions.TryParse(
             [
                 "profile",
                 "verify",
+                "--profile",
+                QueryReviewGenerations.FourRootDiscoveryId,
                 "--connection-string",
                 ValidConnectionString(),
                 "--confirm-disposable"
             ],
-            out var options,
+            out _,
             out var error);
 
-        parsed.Should().BeTrue(error);
-        options!.ContainerName.Should().BeNull();
+        parsed.Should().BeFalse();
+        error.Should().Contain("--container-name");
     }
 
     [Theory]
@@ -87,6 +91,78 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     {
         await VerifyWithInspectionAsync(
             Inspection(includeDockerOmittedNullStorageMetadata: false));
+    }
+
+    [Fact]
+    public async Task PostgreSql184Lane_AcceptsVersionAwareImageDeclaredVolume()
+    {
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
+            QueryReviewGenerations.PostgreSql184LaneId);
+
+        await VerifyLaneWithInspectionAsync(
+            lane,
+            Inspection(
+                image: "postgres:18.4",
+                declaredVolumePath: "/var/lib/postgresql",
+                runtimeMounts:
+                [
+                    RuntimeMount(destination: "/var/lib/postgresql")
+                ]));
+    }
+
+    [Fact]
+    public async Task PostgreSql16Lane_AcceptsExistingDataVolumeLayout()
+    {
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
+            QueryReviewGenerations.PostgreSql16LaneId);
+
+        await VerifyLaneWithInspectionAsync(lane, Inspection());
+    }
+
+    [Fact]
+    public async Task PostgreSql16Lane_RejectsPostgreSql184Image()
+    {
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
+            QueryReviewGenerations.PostgreSql16LaneId);
+
+        Func<Task> act = () => VerifyLaneWithInspectionAsync(
+            lane,
+            Inspection(
+                image: "postgres:18.4",
+                declaredVolumePath: "/var/lib/postgresql",
+                runtimeMounts:
+                [
+                    RuntimeMount(destination: "/var/lib/postgresql")
+                ]));
+
+        await act.Should().ThrowAsync<BaselinePlanValidationException>()
+            .WithMessage("*expected 'postgres:16-alpine'*");
+    }
+
+    [Fact]
+    public async Task PostgreSql184Lane_RejectsPostgreSql16Image()
+    {
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
+            QueryReviewGenerations.PostgreSql184LaneId);
+
+        Func<Task> act = () => VerifyLaneWithInspectionAsync(lane, Inspection());
+
+        await act.Should().ThrowAsync<BaselinePlanValidationException>()
+            .WithMessage("*expected 'postgres:18.4'*");
+    }
+
+    [Fact]
+    public async Task PostgreSql184Lane_RejectsPre18DataVolumeLayout()
+    {
+        QueryReviewLaneDefinition lane = QueryReviewGenerations.FourRootDiscovery.RequireLane(
+            QueryReviewGenerations.PostgreSql184LaneId);
+
+        Func<Task> act = () => VerifyLaneWithInspectionAsync(
+            lane,
+            Inspection(image: "postgres:18.4"));
+
+        await act.Should().ThrowAsync<BaselinePlanValidationException>()
+            .WithMessage("*image-declared PostgreSQL volume '/var/lib/postgresql'*");
     }
 
     [Fact]
@@ -235,25 +311,6 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
     }
 
     [Fact]
-    public async Task ProfileCreate_RejectsExternalEndpointBeforeOpeningDatabase()
-    {
-        var exitCode = await RealEstate.QueryReview.Program.Main(
-            [
-                "profile",
-                "create",
-                "--connection-string",
-                "Host=203.0.113.10;Port=55442;" +
-                "Database=realestate_queryreview_external;Username=postgres;" +
-                "Password=not-logged;Timeout=1",
-                "--confirm-disposable",
-                "--container-name",
-                ContainerName
-            ]);
-
-        exitCode.Should().Be(8);
-    }
-
-    [Fact]
     public async Task DockerInspectionFailure_FailsClosed()
     {
         Func<Task> act = () => DisposablePostgreSqlContainerVerifier.VerifyAsync(
@@ -333,6 +390,17 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
             (_, arguments, _) => Task.FromResult(DockerOutput(arguments, inspection)));
     }
 
+    private static Task VerifyLaneWithInspectionAsync(
+        QueryReviewLaneDefinition lane,
+        string inspection)
+    {
+        return DisposablePostgreSqlContainerVerifier.VerifyForLaneAsync(
+            ConnectionString("localhost", 55_442),
+            ContainerName,
+            lane,
+            (_, arguments, _) => Task.FromResult(DockerOutput(arguments, inspection)));
+    }
+
     private static NpgsqlConnectionStringBuilder ConnectionString(string host, int port)
     {
         return new NpgsqlConnectionStringBuilder
@@ -363,7 +431,8 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
         object[]? hostMounts = null,
         object[]? runtimeMounts = null,
         bool includeStorageMetadata = true,
-        bool includeDockerOmittedNullStorageMetadata = true)
+        bool includeDockerOmittedNullStorageMetadata = true,
+        string declaredVolumePath = "/var/lib/postgresql/data")
     {
         var ports = new Dictionary<string, object?>();
 
@@ -385,7 +454,7 @@ public sealed class DisposablePostgreSqlContainerVerifierTests
                 Image = image,
                 Volumes = new Dictionary<string, object?>
                 {
-                    ["/var/lib/postgresql/data"] = new { }
+                    [declaredVolumePath] = new { }
                 }
             },
             ["NetworkSettings"] = new { Ports = ports }

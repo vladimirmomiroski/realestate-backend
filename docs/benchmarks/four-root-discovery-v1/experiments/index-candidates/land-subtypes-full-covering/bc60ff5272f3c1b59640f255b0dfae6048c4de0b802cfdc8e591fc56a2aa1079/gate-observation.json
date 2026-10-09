@@ -1,0 +1,65 @@
+{
+    "SchemaVersion":  1,
+    "BehaviorId":  "land-subtypes-full-covering",
+    "Gates":  {
+                  "Gate1Correctness":  true,
+                  "Gate2StableIntendedIndexUse":  true,
+                  "Gate3QualifyingTrio":  false,
+                  "Gate4ProtectedRegressions":  true,
+                  "Gate5PlansAndAnomalies":  true,
+                  "Gate6WriteAndStorage":  true,
+                  "CandidatePassedAllGates":  false
+              },
+    "QualifyingTrio":  [
+                           {
+                               "CommandKey":  "land-building-plot-first-page-01-filtered-count",
+                               "UnindexedSharedBlocks":  3459,
+                               "CandidateSharedBlocks":  3409,
+                               "SharedBlockReductionPercent":  1.4455044810638913,
+                               "UnindexedExecutionMilliseconds":  23.473,
+                               "CandidateExecutionMilliseconds":  21.122,
+                               "ExecutionTimeReductionPercent":  10.015762791292119,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "land-building-plot-first-page-02-page-root",
+                               "UnindexedSharedBlocks":  3683,
+                               "CandidateSharedBlocks":  3575,
+                               "SharedBlockReductionPercent":  2.9323920716806953,
+                               "UnindexedExecutionMilliseconds":  37.377,
+                               "CandidateExecutionMilliseconds":  34.163,
+                               "ExecutionTimeReductionPercent":  8.59887096342672,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  false
+                           },
+                           {
+                               "CommandKey":  "land-other-deep-page-02-page-root",
+                               "UnindexedSharedBlocks":  3579,
+                               "CandidateSharedBlocks":  3516,
+                               "SharedBlockReductionPercent":  1.760268231349539,
+                               "UnindexedExecutionMilliseconds":  31.809,
+                               "CandidateExecutionMilliseconds":  21.691,
+                               "ExecutionTimeReductionPercent":  31.8086076267723,
+                               "IntendedIndexUsePlans":  6,
+                               "ExpectedPlans":  6,
+                               "BlockGatePassed":  false,
+                               "TimeGatePassed":  true
+                           }
+                       ],
+    "ProtectedBlockFailures":  [
+
+                               ],
+    "ProtectedSequenceFailures":  [
+
+                                  ],
+    "AnomalyCount":  0,
+    "SpillCommandCount":  0,
+    "TempAccessCommandCount":  0,
+    "CandidateBytes":  483328,
+    "DependentHeapBytes":  581632
+}
