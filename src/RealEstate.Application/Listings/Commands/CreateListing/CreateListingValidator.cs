@@ -79,6 +79,11 @@ public sealed class CreateListingValidator
             return translationFailure;
         }
 
+        if (request.Rooms is < 0)
+        {
+            return Failure("rooms", "Rooms cannot be negative.");
+        }
+
         if (request.BalconyCount is < 0)
         {
             return Failure("balconyCount", "Balcony count cannot be negative.");

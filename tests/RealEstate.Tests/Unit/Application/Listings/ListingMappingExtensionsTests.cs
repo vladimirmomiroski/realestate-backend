@@ -748,6 +748,33 @@ public sealed class ListingMappingExtensionsTests
         response.LandDetails.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(PropertyType.Apartment)]
+    [InlineData(PropertyType.House)]
+    [InlineData(PropertyType.Commercial)]
+    [InlineData(PropertyType.Land)]
+    public void ToPublicResponse_PreservesNonnegativeRoomsAndRejectsCorruption(PropertyType propertyType)
+    {
+        Listing listing = CreateBaseListing();
+        listing.PropertyType = propertyType;
+        foreach (decimal? rooms in new decimal?[] { null, 0m, 0.5m, 3m })
+        {
+            listing.Rooms = rooms;
+            var response = listing.ToPublicResponse("mk");
+            response.Rooms.Should().Be(rooms);
+            var json = System.Text.Json.JsonSerializer.SerializeToElement(
+                response, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            if (rooms.HasValue)
+                json.GetProperty("rooms").GetDecimal().Should().Be(rooms.Value);
+            else
+                json.GetProperty("rooms").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
+        }
+
+        listing.Rooms = -1m;
+        Action map = () => listing.ToPublicResponse("mk");
+        map.Should().Throw<PublicListingIntegrityException>();
+    }
+
     private static Listing CreateBaseListing()
     {
         var listing = new Listing

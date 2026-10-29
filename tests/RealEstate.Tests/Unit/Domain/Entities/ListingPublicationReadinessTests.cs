@@ -8,6 +8,30 @@ namespace RealEstate.Tests.Unit.Domain.Entities;
 
 public sealed class ListingPublicationReadinessTests
 {
+    [Theory]
+    [InlineData(PropertyType.Apartment)]
+    [InlineData(PropertyType.House)]
+    [InlineData(PropertyType.Commercial)]
+    [InlineData(PropertyType.Land)]
+    public void Publish_RejectsNegativeRoomsOnExistingDrafts(PropertyType propertyType)
+    {
+        Listing listing = CreateListing(CreateValidTranslation("en"));
+        listing.PropertyType = propertyType;
+        listing.Rooms = -0.1m;
+
+        listing.Publish().IsReady.Should().BeFalse();
+        listing.Status.Should().Be(ListingStatus.Draft);
+        listing.Rooms.Should().Be(-0.1m);
+
+        foreach (decimal? rooms in new decimal?[] { null, 0m, 0.5m, 3m })
+        {
+            listing.Rooms = rooms;
+            listing.Publish().IsReady.Should().BeTrue();
+            listing.Status.Should().Be(ListingStatus.Active);
+            listing.Unpublish();
+        }
+    }
+
     public static TheoryData<string> CanonicalBoundaryWhitespace =>
         new()
         {

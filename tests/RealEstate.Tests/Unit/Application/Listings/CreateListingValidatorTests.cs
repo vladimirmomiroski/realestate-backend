@@ -8,6 +8,41 @@ public sealed class CreateListingValidatorTests
 {
     private readonly CreateListingValidator _validator = new();
 
+    [Theory]
+    [InlineData(PropertyType.Apartment)]
+    [InlineData(PropertyType.House)]
+    [InlineData(PropertyType.Commercial)]
+    [InlineData(PropertyType.Land)]
+    public void ValidateWithKey_RejectsNegativeRoomsForEveryRoot(PropertyType propertyType)
+    {
+        var request = CreateValidRequest(propertyType);
+        foreach (decimal rooms in new[] { -0.1m, -1m, decimal.MinValue })
+        {
+            request.Rooms = rooms;
+            var failure = _validator.ValidateWithKey(request);
+            failure.Should().NotBeNull();
+            failure!.Key.Should().Be("rooms");
+            failure.Error.Should().Be("Rooms cannot be negative.");
+            request.Rooms.Should().Be(rooms);
+        }
+    }
+
+    [Theory]
+    [InlineData(PropertyType.Apartment)]
+    [InlineData(PropertyType.House)]
+    [InlineData(PropertyType.Commercial)]
+    [InlineData(PropertyType.Land)]
+    public void ValidateWithKey_PreservesNullableAndNonnegativeRooms(PropertyType propertyType)
+    {
+        var request = CreateValidRequest(propertyType);
+        foreach (decimal? rooms in new decimal?[] { null, 0m, 0.5m, 3m })
+        {
+            request.Rooms = rooms;
+            _validator.ValidateWithKey(request).Should().BeNull();
+            request.Rooms.Should().Be(rooms);
+        }
+    }
+
     public static TheoryData<string, int> DefinedCategoricalCases => new()
     {
         { "heatingType", (int)HeatingType.Central },
