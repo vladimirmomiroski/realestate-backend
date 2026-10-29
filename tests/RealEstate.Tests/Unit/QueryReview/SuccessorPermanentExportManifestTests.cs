@@ -57,9 +57,10 @@ public sealed class SuccessorPermanentExportManifestTests
             "docs/benchmarks/four-root-discovery-v1/experiments/index-candidates/disposition.md");
         await using FileStream stream = File.OpenRead(dispositionPath);
         string dispositionSha = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream));
+        // Historical provenance stays pinned while HEAD may advance to legitimate descendants.
         string sourceTree = (await EnvironmentSnapshotCollector.RunProcessAsync(
             "git",
-            ["rev-parse", "HEAD:src"],
+            ["rev-parse", $"{contract.SourceLineageCommit}:src"],
             CancellationToken.None)).Trim();
         await EnvironmentSnapshotCollector.RunProcessAsync(
             "git",
