@@ -49,6 +49,12 @@ public sealed class ListingRepository : IListingRepository
         (int page, int pageSize) = NormalizePagination(query.Page, query.PageSize);
 
         int totalCount = await listingsQuery.CountAsync(cancellationToken);
+        long offset = ((long)page - 1) * pageSize;
+
+        if (offset >= totalCount)
+        {
+            return new PagedResult<Listing>([], page, pageSize, totalCount);
+        }
 
         IOrderedQueryable<Listing> orderedQuery = ApplyOrdering(
             listingsQuery,
@@ -59,7 +65,7 @@ public sealed class ListingRepository : IListingRepository
             .Include(listing => listing.HouseDetails)
             .Include(listing => listing.CommercialDetails)
             .Include(listing => listing.LandDetails)
-            .Skip((page - 1) * pageSize)
+            .Skip((int)offset)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
@@ -391,11 +397,17 @@ public sealed class ListingRepository : IListingRepository
             .Where(listing => listing.CreatedByUserId == createdByUserId);
 
         int totalCount = await query.CountAsync(cancellationToken);
+        long offset = ((long)page - 1) * pageSize;
+
+        if (offset >= totalCount)
+        {
+            return new PagedResult<Listing>([], page, pageSize, totalCount);
+        }
 
         List<Listing> listings = await ApplyListingIncludes(query)
             .OrderByDescending(listing => listing.CreatedAtUtc)
             .ThenByDescending(listing => listing.Id)
-            .Skip((page - 1) * pageSize)
+            .Skip((int)offset)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
@@ -425,11 +437,17 @@ public sealed class ListingRepository : IListingRepository
         }
 
         int totalCount = await query.CountAsync(cancellationToken);
+        long offset = ((long)page - 1) * pageSize;
+
+        if (offset >= totalCount)
+        {
+            return new PagedResult<Listing>([], page, pageSize, totalCount);
+        }
 
         List<Listing> listings = await ApplyListingIncludes(query)
             .OrderByDescending(listing => listing.CreatedAtUtc)
             .ThenByDescending(listing => listing.Id)
-            .Skip((page - 1) * pageSize)
+            .Skip((int)offset)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 

@@ -201,6 +201,13 @@ public class Listing : IAuditableEntity
 
         var violations = new List<ListingPublicationReadinessViolation>();
 
+        if (Rooms is < 0)
+        {
+            violations.Add(new ListingPublicationReadinessViolation(
+                ListingPublicationReadinessViolationCode.InvalidRooms,
+                TranslationId: null));
+        }
+
         foreach (ListingTranslation translation in Translations)
         {
             if (translation.LanguageCode is null ||

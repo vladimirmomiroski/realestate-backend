@@ -12,7 +12,8 @@ public enum ListingPublicationReadinessViolationCode
     InvalidAddressLine,
     InvalidDescription,
     MissingConfirmedLocation,
-    InvalidConfirmedLocation
+    InvalidConfirmedLocation,
+    InvalidRooms
 }
 
 public sealed record ListingPublicationReadinessViolation(

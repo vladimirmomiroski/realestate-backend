@@ -250,6 +250,13 @@ public sealed partial class AgenciesEndpointTests
                 await ReadPaginationIdsAsync(
                     $"{route}&page=3&pageSize=2");
 
+            foreach (int page in new[] { 214748366, int.MaxValue })
+            {
+                JsonElement extreme = await ReadPaginationBodyAsync(
+                    await _httpClient.GetAsync($"/api/agencies/{agencyId}/dashboard/listings?lang=en&page={page}&pageSize=20"));
+                AssertPaginationContract(extreme, 0, page, 20, 5, 1, false, true);
+            }
+
             firstPageIds.Should().Equal(expectedIds.Take(2));
             repeatedFirstPageIds.Should().Equal(firstPageIds);
             secondPageIds.Should().Equal(expectedIds.Skip(2).Take(2));
